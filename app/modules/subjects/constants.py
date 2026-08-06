@@ -1,0 +1,4 @@
+# Constants specific to the Subjects module
+DEFAULT_PAGE_SIZE = 100
+MAX_SUBJECT_CODE_LENGTH = 20
+MAX_SUBJECT_NAME_LENGTH = 100
