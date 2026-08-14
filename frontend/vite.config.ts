@@ -40,5 +40,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    server: {
+      // Local development only. Vite rejects unknown Host headers, which blocks
+      // remote dev/preview sandboxes (e.g. cloud workspaces). Production is
+      // served by FastAPI/Vercel and never uses this dev server.
+      allowedHosts: ['localhost', '127.0.0.1', '.e2b.app'],
+    },
   }
 })

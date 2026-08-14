@@ -1,0 +1,174 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import type { Session, User } from '@supabase/supabase-js'
+import { supabase } from './supabase'
+import { friendlyAuthError } from './authErrors'
+
+export type AuthResult = { ok: true; message?: string } | { ok: false; message: string }
+
+type AuthContextValue = {
+  session: Session | null
+  user: User | null
+  /** True until the persisted Supabase session has been restored. */
+  initialising: boolean
+  /** True while the user is inside a Supabase password-recovery link flow. */
+  recoveryMode: boolean
+  signIn: (email: string, password: string) => Promise<AuthResult>
+  signUp: (fullName: string, email: string, password: string) => Promise<AuthResult & { needsEmailConfirmation?: boolean }>
+  signOut: () => Promise<AuthResult>
+  requestPasswordReset: (email: string) => Promise<AuthResult>
+  updatePassword: (password: string) => Promise<AuthResult>
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null)
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function displayName(user: User | null): string {
+  if (!user) return ''
+  const metadata = user.user_metadata as { full_name?: string; name?: string } | undefined
+  return metadata?.full_name?.trim() || metadata?.name?.trim() || user.email || 'Signed-in user'
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null)
+  const [initialising, setInitialising] = useState(true)
+  const [recoveryMode, setRecoveryMode] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return
+        setSession(data.session)
+      })
+      .finally(() => {
+        if (active) setInitialising(false)
+      })
+
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return
+      if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true)
+      if (event === 'SIGNED_OUT') setRecoveryMode(false)
+      setSession(nextSession)
+      setInitialising(false)
+    })
+
+    return () => {
+      active = false
+      data.subscription.unsubscribe()
+    }
+  }, [])
+
+  const signIn = useCallback<AuthContextValue['signIn']>(async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+    if (error) {
+      return { ok: false, message: friendlyAuthError(error, 'We could not sign you in. Please try again.') }
+    }
+    return { ok: true }
+  }, [])
+
+  const signUp = useCallback<AuthContextValue['signUp']>(async (fullName, email, password) => {
+    // Only non-privileged profile data is sent. Roles are never chosen by the
+    // person signing up; the backend/database remains the authority on roles.
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { full_name: fullName.trim() },
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    })
+
+    if (error) {
+      return {
+        ok: false,
+        message: friendlyAuthError(error, 'We could not create your account. Please try again.'),
+      }
+    }
+
+    // Supabase returns a user without a session when email confirmation is on.
+    const needsEmailConfirmation = Boolean(data.user) && !data.session
+    return {
+      ok: true,
+      needsEmailConfirmation,
+      message: needsEmailConfirmation
+        ? 'Check your inbox and open the confirmation link to activate your account.'
+        : 'Your account is ready.',
+    }
+  }, [])
+
+  const signOut = useCallback<AuthContextValue['signOut']>(async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      return { ok: false, message: friendlyAuthError(error, 'We could not sign you out. Please try again.') }
+    }
+    setRecoveryMode(false)
+    return { ok: true, message: 'You have been signed out.' }
+  }, [])
+
+  const requestPasswordReset = useCallback<AuthContextValue['requestPasswordReset']>(
+    async (email) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      // Account existence is never revealed: rate limiting and transport
+      // problems are the only failures surfaced to the user.
+      if (error && /rate limit|too many requests|over_email_send/i.test(error.message)) {
+        return { ok: false, message: friendlyAuthError(error, 'Too many attempts. Try again shortly.') }
+      }
+      return {
+        ok: true,
+        message: 'If an account exists for that address, a password reset email is on its way.',
+      }
+    },
+    [],
+  )
+
+  const updatePassword = useCallback<AuthContextValue['updatePassword']>(async (password) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) {
+      return {
+        ok: false,
+        message: friendlyAuthError(error, 'We could not update your password. Please try again.'),
+      }
+    }
+    setRecoveryMode(false)
+    return { ok: true, message: 'Your password has been updated.' }
+  }, [])
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      session,
+      user: session?.user ?? null,
+      initialising,
+      recoveryMode,
+      signIn,
+      signUp,
+      signOut,
+      requestPasswordReset,
+      updatePassword,
+    }),
+    [session, initialising, recoveryMode, signIn, signUp, signOut, requestPasswordReset, updatePassword],
+  )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used inside <AuthProvider>')
+  return context
+}

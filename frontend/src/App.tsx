@@ -1,139 +1,121 @@
-import { type FormEvent, useEffect, useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import { api } from './lib/api'
-import { supabase } from './lib/supabase'
+import { lazy, Suspense, useEffect, type ReactNode } from 'react'
+import { AuthProvider, useAuth } from './lib/auth'
+import { RouterProvider, normalisePath, useNavigate, useRouter } from './lib/router'
+import { ToastProvider } from './components/Toast'
+import { AppShell } from './components/AppShell'
+import { FullPageLoader } from './components/States'
+import { LoginPage } from './pages/LoginPage'
+import { SignUpPage } from './pages/SignUpPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { NotFoundPage } from './pages/StatusPages'
 
-type ApiStatus = 'checking' | 'online' | 'offline'
+// Secondary screens are code-split: the login screen (the first paint for a
+// signed-out visitor) does not need their JavaScript.
+const SchoolPage = lazy(() => import('./pages/SchoolPage').then((m) => ({ default: m.SchoolPage })))
+const AcademicsPage = lazy(() =>
+  import('./pages/AcademicsPage').then((m) => ({ default: m.AcademicsPage })),
+)
+const LevelsPage = lazy(() => import('./pages/LevelsPage').then((m) => ({ default: m.LevelsPage })))
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 
-function App() {
-  const [session, setSession] = useState<Session | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
-  const [apiStatus, setApiStatus] = useState<ApiStatus>('checking')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
+
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { session, initialising } = useAuth()
+  const { pathname, search } = useRouter()
+  const navigate = useNavigate()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setAuthLoading(false)
-    })
+    if (initialising || session) return
+    const next = encodeURIComponent(`${pathname}${search}`)
+    navigate(`/login?notice=session-expired&next=${next}`, { replace: true })
+  }, [initialising, session, pathname, search, navigate])
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession)
-      setAuthLoading(false)
-    })
+  // Never render protected content before the session is known.
+  if (initialising) return <FullPageLoader label="Restoring your session…" />
+  if (!session) return <FullPageLoader label="Redirecting to sign in…" />
+  return <>{children}</>
+}
 
-    return () => data.subscription.unsubscribe()
-  }, [])
+function RedirectIfSignedIn({ children }: { children: ReactNode }) {
+  const { session, initialising, recoveryMode } = useAuth()
+  const navigate = useNavigate()
+  const { pathname } = useRouter()
+
+  const shouldRedirect =
+    !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'
 
   useEffect(() => {
-    api.health()
-      .then(() => setApiStatus('online'))
-      .catch(() => setApiStatus('offline'))
-  }, [])
+    if (shouldRedirect) navigate('/', { replace: true })
+  }, [shouldRedirect, navigate])
 
-  async function signIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setMessage('')
-    setSubmitting(true)
+  if (initialising) return <FullPageLoader label="Checking your session…" />
+  if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />
+  return <>{children}</>
+}
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setSubmitting(false)
-    if (error) setMessage(error.message)
-  }
-
-  async function verifyApiIdentity() {
-    setMessage('Contacting the API…')
-    try {
-      const identity = await api.me()
-      setMessage(`API verified ${identity.email ?? identity.id}`)
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not verify your session')
-    }
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut()
-    setMessage('')
+function ProtectedRoutes({ pathname }: { pathname: string }) {
+  let page: ReactNode
+  switch (pathname) {
+    case '/':
+      page = <DashboardPage />
+      break
+    case '/school':
+      page = <SchoolPage />
+      break
+    case '/academics':
+      page = <AcademicsPage />
+      break
+    case '/levels':
+      page = <LevelsPage />
+      break
+    case '/profile':
+      page = <ProfilePage />
+      break
+    default:
+      page = <NotFoundPage />
   }
 
   return (
-    <main className="page-shell">
-      <section className="brand-panel">
-        <div className="brand-mark" aria-hidden="true">P</div>
-        <p className="eyebrow">School administration, made clear</p>
-        <h1>Phikila<br />School System</h1>
-        <p className="intro">
-          One secure place for your school profile, academic years, terms, levels, and streams.
-        </p>
-        <div className="connection-card">
-          <span className={`status-dot ${apiStatus}`} />
-          <div>
-            <strong>System connection</strong>
-            <span>{apiStatus === 'checking' ? 'Checking API…' : `API ${apiStatus}`}</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="auth-panel">
-        <div className="auth-card">
-          {authLoading ? (
-            <p className="loading">Restoring your session…</p>
-          ) : session ? (
-            <div className="signed-in">
-              <p className="eyebrow">Welcome back</p>
-              <h2>You’re signed in</h2>
-              <p className="muted">{session.user.email}</p>
-              <button className="primary" type="button" onClick={verifyApiIdentity}>
-                Verify backend connection
-              </button>
-              <button className="text-button" type="button" onClick={signOut}>
-                Sign out
-              </button>
-              {message && <p className="message" role="status">{message}</p>}
-            </div>
-          ) : (
-            <form onSubmit={signIn}>
-              <p className="eyebrow">Staff portal</p>
-              <h2>Sign in to continue</h2>
-              <p className="muted">Use the account created in Supabase Authentication.</p>
-
-              <label htmlFor="email">Email address</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@school.org"
-                autoComplete="email"
-                required
-              />
-
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Your password"
-                autoComplete="current-password"
-                minLength={6}
-                required
-              />
-
-              <button className="primary" type="submit" disabled={submitting}>
-                {submitting ? 'Signing in…' : 'Sign in'}
-              </button>
-              {message && <p className="message error" role="alert">{message}</p>}
-            </form>
-          )}
-        </div>
-        <p className="security-note">Protected by Supabase Auth and encrypted connections.</p>
-      </section>
-    </main>
+    <RequireAuth>
+      <AppShell>
+        <Suspense fallback={<FullPageLoader label="Loading page…" />}>{page}</Suspense>
+      </AppShell>
+    </RequireAuth>
   )
 }
 
-export default App
+function Routes() {
+  const { pathname } = useRouter()
+  const path = normalisePath(pathname)
+
+  if (PUBLIC_ROUTES.has(path)) {
+    const publicPage =
+      path === '/login' ? (
+        <LoginPage />
+      ) : path === '/signup' ? (
+        <SignUpPage />
+      ) : path === '/forgot-password' ? (
+        <ForgotPasswordPage />
+      ) : (
+        <ResetPasswordPage />
+      )
+    return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn>
+  }
+
+  return <ProtectedRoutes pathname={path} />
+}
+
+export default function App() {
+  return (
+    <RouterProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Routes />
+        </AuthProvider>
+      </ToastProvider>
+    </RouterProvider>
+  )
+}
