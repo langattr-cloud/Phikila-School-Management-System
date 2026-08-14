@@ -34,7 +34,14 @@ class Settings:
         # SQLite keeps initial local setup simple; production must always supply DATABASE_URL.
         if not value:
             if os.getenv("VERCEL") or os.getenv("ENVIRONMENT", "").lower() == "production":
-                raise RuntimeError("DATABASE_URL must be configured in production")
+                raise RuntimeError(
+                    "DATABASE_URL is not configured. In the Vercel dashboard for the "
+                    "BACKEND project (Project Settings > Environment Variables) add "
+                    "DATABASE_URL with the Supabase transaction-pooler connection string "
+                    "(Project Settings > Database > Connection string > Transaction pooler, "
+                    "port 6543, append ?sslmode=require), then redeploy. Example: "
+                    "postgresql://postgres.PROJECT_REF:PASSWORD@REGION.pooler.supabase.com:6543/postgres?sslmode=require"
+                )
             return "sqlite:///./phikila.db"
 
         # SQLAlchemy needs an explicit driver. Supabase provides a postgresql:// URL.
