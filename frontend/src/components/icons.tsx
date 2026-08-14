@@ -145,3 +145,17 @@ export const LockIcon = (props: IconProps) => (
     <path d="M8 10V7a4 4 0 0 1 8 0v3" />
   </Icon>
 )
+
+export const SparkIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+    <path d="M12 8.5 13.6 11l2.5 1-2.5 1-1.6 2.5L10.4 13l-2.5-1 2.5-1L12 8.5Z" />
+  </Icon>
+)
+
+export const GridIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+  </Icon>
+)

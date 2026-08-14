@@ -11,17 +11,57 @@ import {
   LogOutIcon,
   MenuIcon,
   SchoolIcon,
+  SparkIcon,
   UserIcon,
 } from './icons'
 
-type NavItem = { to: string; label: string; icon: ReactNode }
+type NavItem = { to: string; label: string; icon?: ReactNode }
+type NavGroup = { label: string; items: NavItem[] }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
-  { to: '/school', label: 'School profile', icon: <SchoolIcon /> },
-  { to: '/academics', label: 'Academic calendar', icon: <CalendarIcon /> },
-  { to: '/levels', label: 'Levels', icon: <LayersIcon /> },
-  { to: '/profile', label: 'My profile', icon: <UserIcon /> },
+const NAV: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
+      { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
+      { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> },
+    ],
+  },
+  {
+    label: 'Setup',
+    items: [
+      { to: '/setup/school', label: 'School' },
+      { to: '/setup/periods', label: 'Days & periods' },
+      { to: '/setup/teachers', label: 'Teachers' },
+      { to: '/setup/subjects', label: 'Subjects' },
+      { to: '/setup/classes', label: 'Classes' },
+      { to: '/setup/rooms', label: 'Rooms' },
+    ],
+  },
+  {
+    label: 'Scheduling',
+    items: [
+      { to: '/scheduling/requirements', label: 'Lesson requirements' },
+      { to: '/scheduling/generate', label: 'Generate' },
+      { to: '/scheduling/copilot', label: 'Copilot' },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> },
+      { to: '/versions', label: 'Versions', icon: <SchoolIcon /> },
+    ],
+  },
+]
+
+// The five destinations that matter on a phone.
+const BOTTOM_NAV: NavItem[] = [
+  { to: '/', label: 'Home', icon: <DashboardIcon /> },
+  { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
+  { to: '/scheduling/generate', label: 'Generate', icon: <SparkIcon /> },
+  { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> },
+  { to: '/my-timetable', label: 'Mine', icon: <UserIcon /> },
 ]
 
 function isActive(pathname: string, to: string) {
@@ -38,6 +78,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [offline, setOffline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine === false : false,
+  )
   const drawerRef = useRef<HTMLElement | null>(null)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
 
@@ -45,6 +88,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     setDrawerOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    const goOnline = () => setOffline(false)
+    const goOffline = () => setOffline(true)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
 
   useEffect(() => {
     if (!drawerOpen) return
@@ -98,25 +152,32 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const navigation = (
     <nav className="sidebar__nav" aria-label="Main">
-      <ul className="sidebar__list">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(pathname, item.to)
-          return (
-            <li key={item.to}>
-              <Link
-                to={item.to}
-                className={`sidebar__link ${active ? 'sidebar__link--active' : ''}`.trim()}
-                aria-current={active ? 'page' : undefined}
-              >
-                <span className="sidebar__icon" aria-hidden="true">
-                  {item.icon}
-                </span>
-                {item.label}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+      {NAV.map((group) => (
+        <div className="sidebar__group" key={group.label}>
+          <p className="sidebar__group-label">{group.label}</p>
+          <ul className="sidebar__list">
+            {group.items.map((item) => {
+              const active = isActive(pathname, item.to)
+              return (
+                <li key={item.to}>
+                  <Link
+                    to={item.to}
+                    className={`sidebar__link ${active ? 'sidebar__link--active' : ''}`.trim()}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    {item.icon && (
+                      <span className="sidebar__icon" aria-hidden="true">
+                        {item.icon}
+                      </span>
+                    )}
+                    {item.label}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
     </nav>
   )
 
@@ -144,7 +205,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         Skip to main content
       </a>
 
-      {/* Desktop sidebar */}
       <aside className="sidebar sidebar--desktop">
         <div className="sidebar__brand">
           <Logo size={34} tone="dark" />
@@ -170,17 +230,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             <LogoMark size={26} />
             <span>Phikila</span>
           </span>
+          {offline && (
+            <span className="topbar__offline" role="status">
+              Offline
+            </span>
+          )}
           <span className="topbar__user" title={user?.email ?? ''}>
             {user?.email}
           </span>
         </header>
 
         {drawerOpen && (
-          <div
-            className="drawer-overlay"
-            onClick={() => setDrawerOpen(false)}
-            role="presentation"
-          />
+          <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} role="presentation" />
         )}
 
         <aside
@@ -214,6 +275,26 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="app-shell__content" id="main-content">
           {children}
         </main>
+
+        {/* Thumb-reachable navigation on phones. */}
+        <nav className="bottom-nav" aria-label="Quick navigation">
+          {BOTTOM_NAV.map((item) => {
+            const active = isActive(pathname, item.to)
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`bottom-nav__item ${active ? 'bottom-nav__item--active' : ''}`.trim()}
+                aria-current={active ? 'page' : undefined}
+              >
+                <span className="bottom-nav__icon" aria-hidden="true">
+                  {item.icon}
+                </span>
+                <span className="bottom-nav__label">{item.label}</span>
+              </Link>
+            )
+          })}
+        </nav>
       </div>
     </div>
   )

@@ -1,0 +1,14 @@
+# Timetable optimisation engine — installed ONLY on a host that runs the
+# scheduling worker, never in the Vercel serverless function.
+#
+# ortools pulls in numpy + pandas (~200 MB unpacked). Vercel's Python lambda
+# has a 250 MB uncompressed limit, and adding it there breaks the deployment.
+# The application detects its absence at runtime (see
+# app/modules/scheduling/solver.py: ORTOOLS_AVAILABLE) and the UI shows a clear
+# "scheduling engine unavailable" state instead of failing.
+#
+# Install alongside requirements.txt on the solver host:
+#     pip install -r requirements.txt -r requirements-solver.txt
+
+-r requirements.txt
+ortools>=9.10,<10

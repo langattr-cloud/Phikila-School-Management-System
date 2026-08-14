@@ -9,6 +9,7 @@ from app.config import settings
 from app.modules.academics.router import router as academics_router
 from app.modules.authentication.router import router as auth_router
 from app.modules.authentication.supabase import get_supabase_claims
+from app.modules.scheduling.router import router as scheduling_router
 from app.modules.school.router import router as school_router
 from app.modules.users.router import router as users_router
 
@@ -117,6 +118,13 @@ def create_app() -> FastAPI:
     # ------------------------------------------
     # Register Phase 2 Routers (Uncomment when ready)
     # ------------------------------------------
+    # Timetable scheduling. Auth is enforced per-route by the tenancy
+    # dependency, which also resolves the caller's school_id server-side.
+    app.include_router(
+        scheduling_router,
+        prefix="/api/v1/scheduling",
+        tags=["Scheduling"],
+    )
     app.include_router(
         academics_router,
         prefix="/api/v1/academics",

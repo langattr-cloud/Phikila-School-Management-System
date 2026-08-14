@@ -9,6 +9,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    /** Structured detail, e.g. conflict reasons and suggested alternatives. */
+    public readonly detail?: unknown,
   ) {
     super(message)
   }
@@ -52,8 +54,16 @@ export async function apiFetch<T>(
   const response = await fetch(`${apiUrl}${path}`, { ...init, headers })
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    const detail = typeof payload?.detail === 'string' ? payload.detail : ''
-    throw new ApiError(detail || `Request failed (${response.status})`, response.status)
+    const raw = payload?.detail
+    // FastAPI returns either a plain string or a structured object. Keep the
+    // object so callers can render conflict reasons and alternatives.
+    const message =
+      typeof raw === 'string'
+        ? raw
+        : typeof raw?.message === 'string'
+          ? raw.message
+          : `Request failed (${response.status})`
+    throw new ApiError(message, response.status, typeof raw === 'object' ? raw : undefined)
   }
 
   if (response.status === 204) return undefined as T

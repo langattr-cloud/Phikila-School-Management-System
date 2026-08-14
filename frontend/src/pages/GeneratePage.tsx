@@ -1,0 +1,313 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { PageHeader } from '../components/PageHeader'
+import { Alert } from '../components/Alert'
+import { Badge, ErrorState, LoadingBlock } from '../components/States'
+import { AlertIcon, CheckIcon } from '../components/icons'
+import { useToast } from '../components/Toast'
+import { useNavigate } from '../lib/router'
+import { friendlyApiError } from '../lib/api'
+import { scheduling, type Dashboard, type Job, type SolverCheck } from '../lib/scheduling'
+import { QualityBars } from '../components/QualityBars'
+
+const ACTIVE = new Set(['queued', 'running', 'optimizing', 'validating'])
+
+function CheckRow({ check }: { check: SolverCheck }) {
+  const icon =
+    check.state === 'passed' ? (
+      <CheckIcon width={16} height={16} />
+    ) : check.state === 'failed' || check.state === 'warning' ? (
+      <AlertIcon width={16} height={16} />
+    ) : (
+      <span className="check-row__dot" aria-hidden="true" />
+    )
+  const label =
+    check.state === 'passed'
+      ? 'Passed'
+      : check.state === 'failed'
+        ? 'Failed'
+        : check.state === 'warning'
+          ? 'Needs attention'
+          : 'Pending'
+
+  return (
+    <li className={`check-row check-row--${check.state}`}>
+      <span className="check-row__icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="check-row__label">{check.label}</span>
+      {/* State is spelled out, never signalled by colour alone. */}
+      <span className="check-row__state">{label}</span>
+    </li>
+  )
+}
+
+export function GeneratePage() {
+  const navigate = useNavigate()
+  const { notify } = useToast()
+
+  const [summary, setSummary] = useState<Dashboard | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [job, setJob] = useState<Job | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [seconds, setSeconds] = useState(30)
+  const timer = useRef<number | null>(null)
+
+  const loadSummary = useCallback(async () => {
+    setLoading(true)
+    try {
+      setSummary(await scheduling.dashboard())
+      setError(null)
+    } catch (err) {
+      setError(friendlyApiError(err, 'load your school setup'))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadSummary()
+  }, [loadSummary])
+
+  // Poll while a job is active; stop as soon as it settles.
+  useEffect(() => {
+    if (!job || !ACTIVE.has(job.status)) return
+    timer.current = window.setInterval(async () => {
+      try {
+        const next = await scheduling.job(job.id)
+        setJob(next)
+        if (!ACTIVE.has(next.status)) {
+          if (timer.current) window.clearInterval(timer.current)
+          if (next.status === 'completed') {
+            notify('Timetable generated.', 'success')
+            void loadSummary()
+          } else if (next.status === 'failed') {
+            notify('Generation could not finish.', 'error')
+          }
+        }
+      } catch {
+        if (timer.current) window.clearInterval(timer.current)
+      }
+    }, 900)
+    return () => {
+      if (timer.current) window.clearInterval(timer.current)
+    }
+  }, [job, notify, loadSummary])
+
+  async function start() {
+    if (starting) return
+    setStarting(true)
+    try {
+      setJob(await scheduling.generate(seconds))
+    } catch (err) {
+      notify(friendlyApiError(err, 'start generation'), 'error')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  async function cancel() {
+    if (!job) return
+    try {
+      setJob(await scheduling.cancelJob(job.id))
+      notify('Cancelling generation…', 'info')
+    } catch (err) {
+      notify(friendlyApiError(err, 'cancel generation'), 'error')
+    }
+  }
+
+  const running = job !== null && ACTIVE.has(job.status)
+  const ready =
+    (summary?.counts.teachers ?? 0) > 0 &&
+    (summary?.counts.classes ?? 0) > 0 &&
+    (summary?.lessons.required ?? 0) > 0
+
+  return (
+    <>
+      <PageHeader
+        title="Generate timetable"
+        description="The scheduling engine places every required lesson without breaking a hard constraint."
+        breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Generate' }]}
+      />
+
+      {loading ? (
+        <div className="card section">
+          <LoadingBlock label="Checking your school setup" rows={3} />
+        </div>
+      ) : error ? (
+        <ErrorState title="Setup could not load" message={error} onRetry={loadSummary} />
+      ) : (
+        <>
+          {summary && !summary.solver_available && (
+            <Alert tone="error" title="Scheduling engine unavailable">
+              The optimisation engine is not installed on this server, so timetables cannot be
+              generated here.
+            </Alert>
+          )}
+
+          {!ready && (
+            <Alert tone="info" title="Finish your setup first">
+              Add teachers, classes and lesson requirements before generating. You have{' '}
+              {summary?.counts.teachers ?? 0} teachers, {summary?.counts.classes ?? 0} classes and{' '}
+              {summary?.lessons.required ?? 0} weekly lessons defined.
+            </Alert>
+          )}
+
+          <section className="card section">
+            <h2 className="section__title">What will be scheduled</h2>
+            <dl className="detail-list detail-list--two">
+              <div>
+                <dt>Weekly lessons</dt>
+                <dd>{summary?.lessons.required ?? 0}</dd>
+              </div>
+              <div>
+                <dt>Classes</dt>
+                <dd>{summary?.counts.classes ?? 0}</dd>
+              </div>
+              <div>
+                <dt>Teachers</dt>
+                <dd>{summary?.counts.teachers ?? 0}</dd>
+              </div>
+              <div>
+                <dt>Rooms</dt>
+                <dd>{summary?.counts.rooms ?? 0}</dd>
+              </div>
+            </dl>
+
+            {!running && (
+              <div className="generate-controls">
+                <div className="field field--inline">
+                  <label className="field__label" htmlFor="budget">
+                    Optimisation time
+                  </label>
+                  <select
+                    id="budget"
+                    className="input input--select"
+                    value={seconds}
+                    onChange={(event) => setSeconds(Number(event.target.value))}
+                  >
+                    <option value={10}>Quick (10s)</option>
+                    <option value={30}>Balanced (30s)</option>
+                    <option value={60}>Thorough (60s)</option>
+                    <option value={120}>Maximum (2 min)</option>
+                  </select>
+                </div>
+                <p className="form__note">
+                  Longer runs improve preferences like teacher gaps and morning lessons. Hard
+                  constraints are always satisfied.
+                </p>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={start}
+                  disabled={starting || !ready || !summary?.solver_available}
+                >
+                  {starting ? 'Starting…' : 'Generate timetable'}
+                </button>
+              </div>
+            )}
+          </section>
+
+          {job && (
+            <section className="card section" aria-live="polite">
+              <div className="panel__head">
+                <h2 className="section__title">
+                  {running
+                    ? 'Generating timetable'
+                    : job.status === 'completed'
+                      ? 'Generation complete'
+                      : job.status === 'cancelled'
+                        ? 'Generation cancelled'
+                        : 'Generation failed'}
+                </h2>
+                <Badge
+                  tone={
+                    job.status === 'completed'
+                      ? 'success'
+                      : job.status === 'failed'
+                        ? 'danger'
+                        : 'neutral'
+                  }
+                >
+                  {job.status}
+                </Badge>
+              </div>
+
+              <div
+                className="progress"
+                role="progressbar"
+                aria-valuenow={job.progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Generation progress"
+              >
+                <div className="progress__bar" style={{ width: `${job.progress}%` }} />
+              </div>
+              <p className="progress__caption">
+                <strong>{job.progress}%</strong> · {job.stage}
+              </p>
+
+              <div className="check-groups">
+                <div>
+                  <h3 className="panel__subtitle">Hard constraints</h3>
+                  <ul className="check-list">
+                    {job.checks
+                      .filter((c) => c.group === 'hard')
+                      .map((c) => (
+                        <CheckRow key={c.key} check={c} />
+                      ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="panel__subtitle">Optimisation</h3>
+                  <ul className="check-list">
+                    {job.checks
+                      .filter((c) => c.group === 'soft')
+                      .map((c) => (
+                        <CheckRow key={c.key} check={c} />
+                      ))}
+                  </ul>
+                </div>
+              </div>
+
+              {job.status === 'failed' && job.message && (
+                <Alert tone="error" title="No timetable could be produced">
+                  {job.message}
+                </Alert>
+              )}
+
+              {job.status === 'completed' && job.quality?.overall !== undefined && (
+                <>
+                  <h3 className="panel__subtitle">Quality score</h3>
+                  <QualityBars quality={job.quality} />
+                </>
+              )}
+
+              <div className="form__row">
+                {running && (
+                  <button type="button" className="button button--secondary" onClick={cancel}>
+                    Cancel generation
+                  </button>
+                )}
+                {job.status === 'completed' && (
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={() => navigate('/timetable')}
+                  >
+                    Open timetable
+                  </button>
+                )}
+                {(job.status === 'failed' || job.status === 'cancelled') && (
+                  <button type="button" className="button button--primary" onClick={start}>
+                    Try again
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+    </>
+  )
+}

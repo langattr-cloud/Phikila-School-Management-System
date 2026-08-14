@@ -1,39 +1,14 @@
 import { useCallback } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Badge, EmptyState, ErrorState, LoadingBlock, Skeleton } from '../components/States'
-import { CalendarIcon, LayersIcon, SchoolIcon } from '../components/icons'
-import { api, friendlyApiError, type AcademicYear, type Level, type SchoolProfile, type Term } from '../lib/api'
+import { Alert } from '../components/Alert'
+import { QualityBars } from '../components/QualityBars'
+import { CalendarIcon, LayersIcon, SchoolIcon, UserIcon } from '../components/icons'
+import { friendlyApiError } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { displayName, useAuth } from '../lib/auth'
 import { Link } from '../lib/router'
-
-type Summary = {
-  school: SchoolProfile | null
-  years: AcademicYear[]
-  terms: Term[]
-  levels: Level[]
-}
-
-/**
- * The dashboard reads only what the backend actually exposes. Any resource the
- * API cannot provide (e.g. no school profile created yet) is shown as an empty
- * state rather than an invented figure.
- */
-async function loadSummary(): Promise<Summary> {
-  const asList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
-  const [school, years, terms, levels] = await Promise.all([
-    api.school().catch(() => null),
-    api.academicYears().catch(() => []),
-    api.terms().catch(() => []),
-    api.levels().catch(() => []),
-  ])
-  return {
-    school: school && typeof school === 'object' ? school : null,
-    years: asList<AcademicYear>(years),
-    terms: asList<Term>(terms),
-    levels: asList<Level>(levels),
-  }
-}
+import { scheduling, type Dashboard } from '../lib/scheduling'
 
 function SummaryCard({
   label,
@@ -42,6 +17,7 @@ function SummaryCard({
   loading,
   icon,
   to,
+  tone,
 }: {
   label: string
   value: string | number
@@ -49,6 +25,7 @@ function SummaryCard({
   loading: boolean
   icon: React.ReactNode
   to: string
+  tone?: 'danger' | 'warning'
 }) {
   return (
     <li className="summary-card">
@@ -57,7 +34,7 @@ function SummaryCard({
           {icon}
         </span>
         <span className="summary-card__label">{label}</span>
-        <span className="summary-card__value">
+        <span className={`summary-card__value ${tone ? `summary-card__value--${tone}` : ''}`}>
           {loading ? <Skeleton width="3rem" height="1.6rem" /> : value}
         </span>
         <span className="summary-card__detail">{loading ? <Skeleton width="70%" /> : detail}</span>
@@ -68,17 +45,33 @@ function SummaryCard({
 
 export function DashboardPage() {
   const { user } = useAuth()
-  const toMessage = useCallback((error: unknown) => friendlyApiError(error, 'load your dashboard'), [])
-  const { data, loading, error, reload } = useAsync(loadSummary, toMessage)
+  const toMessage = useCallback(
+    (error: unknown) => friendlyApiError(error, 'load your dashboard'),
+    [],
+  )
+  const { data, loading, error, reload } = useAsync<Dashboard>(scheduling.dashboard, toMessage)
 
-  const currentYear = data?.years.find((year) => year.is_current) ?? data?.years[0] ?? null
-  const currentTerm = data?.terms.find((term) => term.is_current) ?? null
+  const hard = data?.conflicts.hard ?? 0
+  const soft = data?.conflicts.soft ?? 0
+  const version = data?.version ?? null
+  const setupIncomplete =
+    !loading && (data?.counts.teachers ?? 0) === 0 && (data?.counts.classes ?? 0) === 0
 
   return (
     <>
       <PageHeader
         title="Dashboard"
         description={`Signed in as ${displayName(user)}.`}
+        actions={
+          <>
+            <Link className="button button--secondary button--sm" to="/timetable">
+              Open timetable
+            </Link>
+            <Link className="button button--primary button--sm" to="/scheduling/generate">
+              Generate
+            </Link>
+          </>
+        }
       />
 
       {error ? (
@@ -90,115 +83,164 @@ export function DashboardPage() {
         />
       ) : (
         <>
+          {setupIncomplete && (
+            <Alert tone="info" title="Set up your school">
+              Add your teachers, subjects, classes and rooms, then define what each class studies
+              each week. <Link to="/setup/teachers">Start with teachers</Link>.
+            </Alert>
+          )}
+
+          {data && !data.solver_available && (
+            <Alert tone="error" title="Scheduling engine unavailable">
+              Timetables cannot be generated on this server because the optimisation engine is not
+              installed.
+            </Alert>
+          )}
+
           <section aria-labelledby="overview-heading" className="section">
             <h2 className="section__title" id="overview-heading">
-              Overview
+              School overview
             </h2>
             <ul className="summary-grid">
               <SummaryCard
-                label="School profile"
-                value={loading ? '—' : data?.school ? 'Set up' : 'Not set up'}
-                detail={data?.school?.name ?? 'No school profile has been created yet.'}
+                label="Teachers"
+                value={data?.counts.teachers ?? 0}
+                detail="Staff available for scheduling"
+                loading={loading}
+                icon={<UserIcon />}
+                to="/setup/teachers"
+              />
+              <SummaryCard
+                label="Classes"
+                value={data?.counts.classes ?? 0}
+                detail="Teaching groups"
                 loading={loading}
                 icon={<SchoolIcon />}
-                to="/school"
+                to="/setup/classes"
               />
               <SummaryCard
-                label="Academic years"
-                value={data?.years.length ?? 0}
-                detail={currentYear ? `Current: ${currentYear.name}` : 'No academic year recorded.'}
-                loading={loading}
-                icon={<CalendarIcon />}
-                to="/academics"
-              />
-              <SummaryCard
-                label="Terms"
-                value={data?.terms.length ?? 0}
-                detail={currentTerm ? `Current: ${currentTerm.name}` : 'No current term marked.'}
-                loading={loading}
-                icon={<CalendarIcon />}
-                to="/academics"
-              />
-              <SummaryCard
-                label="Levels"
-                value={data?.levels.length ?? 0}
-                detail={
-                  (data?.levels.length ?? 0) > 0
-                    ? 'Class levels configured for this school.'
-                    : 'No levels configured yet.'
-                }
+                label="Subjects"
+                value={data?.counts.subjects ?? 0}
+                detail="Subjects on the curriculum"
                 loading={loading}
                 icon={<LayersIcon />}
-                to="/levels"
+                to="/setup/subjects"
+              />
+              <SummaryCard
+                label="Rooms"
+                value={data?.counts.rooms ?? 0}
+                detail="Bookable spaces"
+                loading={loading}
+                icon={<SchoolIcon />}
+                to="/setup/rooms"
+              />
+            </ul>
+          </section>
+
+          <section aria-labelledby="status-heading" className="section">
+            <h2 className="section__title" id="status-heading">
+              Timetable status
+            </h2>
+            <ul className="summary-grid">
+              <SummaryCard
+                label="Scheduled lessons"
+                value={data?.lessons.scheduled ?? 0}
+                detail={`of ${data?.lessons.required ?? 0} required each week`}
+                loading={loading}
+                icon={<CalendarIcon />}
+                to="/timetable"
+              />
+              <SummaryCard
+                label="Unassigned"
+                value={data?.lessons.unassigned ?? 0}
+                detail={
+                  (data?.lessons.unassigned ?? 0) > 0
+                    ? 'Lessons still to be placed'
+                    : 'Every lesson is placed'
+                }
+                loading={loading}
+                icon={<CalendarIcon />}
+                to="/scheduling/requirements"
+                tone={(data?.lessons.unassigned ?? 0) > 0 ? 'warning' : undefined}
+              />
+              <SummaryCard
+                label="Hard conflicts"
+                value={hard}
+                detail={hard > 0 ? 'Must be resolved before publishing' : 'None — ready to publish'}
+                loading={loading}
+                icon={<LayersIcon />}
+                to="/timetable"
+                tone={hard > 0 ? 'danger' : undefined}
+              />
+              <SummaryCard
+                label="Warnings"
+                value={soft}
+                detail={soft > 0 ? 'Preferences not fully met' : 'All preferences met'}
+                loading={loading}
+                icon={<LayersIcon />}
+                to="/timetable"
+                tone={soft > 0 ? 'warning' : undefined}
               />
             </ul>
           </section>
 
           <div className="dashboard-columns">
-            <section aria-labelledby="calendar-heading" className="card section">
-              <h2 className="section__title" id="calendar-heading">
-                Current academic period
-              </h2>
+            <section aria-labelledby="quality-heading" className="card section">
+              <div className="panel__head">
+                <h2 className="section__title" id="quality-heading">
+                  Timetable quality
+                </h2>
+                {version && (
+                  <Badge tone={version.status === 'published' ? 'success' : 'warning'}>
+                    v{version.number} {version.status}
+                  </Badge>
+                )}
+              </div>
               {loading ? (
-                <LoadingBlock label="Loading the current academic period" rows={3} />
-              ) : currentYear ? (
-                <dl className="detail-list">
-                  <div>
-                    <dt>Academic year</dt>
-                    <dd>
-                      {currentYear.name}{' '}
-                      {currentYear.is_current && <Badge tone="success">Current</Badge>}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Runs from</dt>
-                    <dd>
-                      {currentYear.start_date} to {currentYear.end_date}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Term</dt>
-                    <dd>{currentTerm ? currentTerm.name : 'No term marked as current'}</dd>
-                  </div>
-                </dl>
+                <LoadingBlock label="Loading the quality score" rows={4} />
+              ) : version ? (
+                <QualityBars quality={data?.quality ?? {}} />
               ) : (
                 <EmptyState
-                  title="No academic year yet"
-                  description="Academic years, terms, and levels appear here once they exist in the system."
+                  title="No timetable yet"
+                  description="Generate a timetable to see its quality score and where it can improve."
                   icon={<CalendarIcon width={22} height={22} />}
                   action={
-                    <Link className="button button--secondary button--sm" to="/academics">
-                      Open academic calendar
+                    <Link className="button button--primary button--sm" to="/scheduling/generate">
+                      Generate a timetable
                     </Link>
                   }
                 />
               )}
             </section>
 
-            <section aria-labelledby="quick-actions-heading" className="card section">
-              <h2 className="section__title" id="quick-actions-heading">
-                Quick actions
+            <section aria-labelledby="activity-heading" className="card section">
+              <h2 className="section__title" id="activity-heading">
+                Recent activity
               </h2>
-              <ul className="quick-actions">
-                <li>
-                  <Link className="quick-action" to="/school">
-                    <SchoolIcon width={18} height={18} />
-                    Review the school profile
-                  </Link>
-                </li>
-                <li>
-                  <Link className="quick-action" to="/academics">
-                    <CalendarIcon width={18} height={18} />
-                    View academic years and terms
-                  </Link>
-                </li>
-                <li>
-                  <Link className="quick-action" to="/levels">
-                    <LayersIcon width={18} height={18} />
-                    View levels
-                  </Link>
-                </li>
-              </ul>
+              {loading ? (
+                <LoadingBlock label="Loading recent activity" rows={3} />
+              ) : (data?.recent.length ?? 0) === 0 ? (
+                <EmptyState
+                  title="Nothing yet"
+                  description="Changes to your timetable will appear here."
+                />
+              ) : (
+                <ul className="activity-list">
+                  {data!.recent.map((entry, index) => (
+                    <li className="activity" key={index}>
+                      <span className="activity__dot" aria-hidden="true" />
+                      <div>
+                        <p className="activity__summary">{entry.summary}</p>
+                        <p className="activity__meta">
+                          {entry.actor ?? 'system'}
+                          {entry.at ? ` · ${new Date(entry.at).toLocaleString()}` : ''}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
           </div>
         </>

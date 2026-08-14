@@ -11,14 +11,41 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { NotFoundPage } from './pages/StatusPages'
 
-// Secondary screens are code-split: the login screen (the first paint for a
-// signed-out visitor) does not need their JavaScript.
+// Secondary screens are code-split so the login screen (the first paint for a
+// signed-out visitor) does not download the whole scheduling workspace.
+const TimetablePage = lazy(() =>
+  import('./pages/TimetablePage').then((m) => ({ default: m.TimetablePage })),
+)
+const GeneratePage = lazy(() =>
+  import('./pages/GeneratePage').then((m) => ({ default: m.GeneratePage })),
+)
+const SetupPage = lazy(() => import('./pages/SetupPage').then((m) => ({ default: m.SetupPage })))
+const RequirementsPage = lazy(() =>
+  import('./pages/RequirementsPage').then((m) => ({ default: m.RequirementsPage })),
+)
+const SchedulingAnalyticsPage = lazy(() =>
+  import('./pages/SchedulingAnalyticsPage').then((m) => ({ default: m.SchedulingAnalyticsPage })),
+)
+const VersionsPage = lazy(() =>
+  import('./pages/VersionsPage').then((m) => ({ default: m.VersionsPage })),
+)
+const CopilotPage = lazy(() =>
+  import('./pages/CopilotPage').then((m) => ({ default: m.CopilotPage })),
+)
+const MyTimetablePage = lazy(() =>
+  import('./pages/MyTimetablePage').then((m) => ({ default: m.MyTimetablePage })),
+)
+const PeriodsPage = lazy(() =>
+  import('./pages/PeriodsPage').then((m) => ({ default: m.PeriodsPage })),
+)
 const SchoolPage = lazy(() => import('./pages/SchoolPage').then((m) => ({ default: m.SchoolPage })))
 const AcademicsPage = lazy(() =>
   import('./pages/AcademicsPage').then((m) => ({ default: m.AcademicsPage })),
 )
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then((m) => ({ default: m.LevelsPage })))
-const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
+const ProfilePage = lazy(() =>
+  import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+)
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
 
@@ -45,7 +72,10 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   const { pathname } = useRouter()
 
   const shouldRedirect =
-    !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'
+    !initialising &&
+    Boolean(session) &&
+    !recoveryMode &&
+    normalisePath(pathname) !== '/reset-password'
 
   useEffect(() => {
     if (shouldRedirect) navigate('/', { replace: true })
@@ -56,32 +86,57 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
-function ProtectedRoutes({ pathname }: { pathname: string }) {
-  let page: ReactNode
+function routeFor(pathname: string): ReactNode {
   switch (pathname) {
     case '/':
-      page = <DashboardPage />
-      break
-    case '/school':
-      page = <SchoolPage />
-      break
-    case '/academics':
-      page = <AcademicsPage />
-      break
-    case '/levels':
-      page = <LevelsPage />
-      break
-    case '/profile':
-      page = <ProfilePage />
-      break
-    default:
-      page = <NotFoundPage />
-  }
+      return <DashboardPage />
+    case '/timetable':
+      return <TimetablePage />
+    case '/my-timetable':
+      return <MyTimetablePage />
 
+    case '/setup/periods':
+      return <PeriodsPage />
+    case '/setup/teachers':
+      return <SetupPage kind="teachers" />
+    case '/setup/subjects':
+      return <SetupPage kind="subjects" />
+    case '/setup/classes':
+      return <SetupPage kind="classes" />
+    case '/setup/rooms':
+      return <SetupPage kind="rooms" />
+    case '/setup/school':
+      return <SchoolPage />
+    case '/setup/academic-years':
+      return <AcademicsPage />
+    case '/setup/levels':
+      return <LevelsPage />
+
+    case '/scheduling/requirements':
+      return <RequirementsPage />
+    case '/scheduling/generate':
+      return <GeneratePage />
+    case '/scheduling/copilot':
+      return <CopilotPage />
+
+    case '/analytics':
+      return <SchedulingAnalyticsPage />
+    case '/versions':
+      return <VersionsPage />
+    case '/profile':
+      return <ProfilePage />
+    default:
+      return <NotFoundPage />
+  }
+}
+
+function ProtectedRoutes({ pathname }: { pathname: string }) {
   return (
     <RequireAuth>
       <AppShell>
-        <Suspense fallback={<FullPageLoader label="Loading page…" />}>{page}</Suspense>
+        <Suspense fallback={<FullPageLoader label="Loading page…" />}>
+          {routeFor(pathname)}
+        </Suspense>
       </AppShell>
     </RequireAuth>
   )

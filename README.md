@@ -144,3 +144,51 @@ GET /assets/<built-file>  -> JavaScript/CSS static asset
 GET /favicon.svg          -> image/svg+xml
 GET /<frontend-route>     -> React index.html
 ```
+
+## Timetable scheduling
+
+A CP-SAT timetable engine lives in `app/modules/scheduling/`. Hard constraints
+(no teacher/class/room double-booking, availability, weekly quotas, daily
+limits) are guaranteed by construction; soft preferences (teacher gaps, subject
+spread, morning lessons, workload balance) become weighted penalties in a
+single objective.
+
+### The scheduling engine is optional at runtime
+
+`ortools` pulls in numpy and pandas — roughly 200 MB unpacked, which exceeds
+Vercel's 250 MB Python lambda limit. It is therefore **not** in
+`requirements.txt`. The application detects this at import time and degrades
+cleanly: every screen works, and generation returns a clear "scheduling engine
+unavailable" message instead of failing.
+
+To run generation, install the engine on a host without that limit:
+
+```bash
+pip install -r requirements.txt -r requirements-solver.txt
+uvicorn app.main:app
+```
+
+Suitable hosts include Railway, Fly.io, Render, or any container/VM. Point
+`DATABASE_URL` at the same Supabase database as the Vercel deployment; the
+worker picks jobs up from the `tt_solver_jobs` table, so no extra queue
+infrastructure is needed. The job interface is deliberately storage-backed so
+Redis/Celery can be dropped in later without changing a single API route.
+
+### Database
+
+```bash
+alembic upgrade head          # creates the tt_* tables (additive only)
+psql "$DATABASE_URL" -f docs/rls.sql   # optional: PostgreSQL RLS policies
+```
+
+The schema is multi-tenant from the start: every school-owned row carries
+`school_id`, and `school_id` is resolved server-side from the verified Supabase
+token — never accepted from the client.
+
+### Roles
+
+`viewer < student < teacher < scheduler < admin < super_admin`. Reads require
+membership in the school; writes require `scheduler` or above; publishing
+requires `admin`. The first authenticated user of a fresh deployment bootstraps
+the school as its admin; everyone after that must be invited, so public sign-up
+can never self-grant privileges.
