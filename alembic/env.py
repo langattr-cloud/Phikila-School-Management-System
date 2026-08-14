@@ -2,10 +2,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.core.database import Base
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from app.config import settings
 
 # Import all your application models so Alembic's autogenerate can detect them
 import app.models

@@ -5,8 +5,20 @@ from app.core.database import get_db
 from app.modules.authentication.services import authenticate_user
 from app.modules.authentication.security import create_access_token
 from app.modules.authentication.schemas import Token
+from app.modules.authentication.supabase import get_supabase_claims
 
 router = APIRouter(tags=["Authentication"])
+
+
+@router.get("/me", summary="Return the verified Supabase Auth identity")
+def current_identity(claims: dict = Depends(get_supabase_claims)):
+    return {
+        "id": claims["sub"],
+        "email": claims.get("email"),
+        "role": claims.get("role"),
+        "app_metadata": claims.get("app_metadata", {}),
+        "user_metadata": claims.get("user_metadata", {}),
+    }
 
 @router.post("/login", response_model=Token)
 def login_for_access_token(

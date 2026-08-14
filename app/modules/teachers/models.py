@@ -14,7 +14,7 @@ class Qualification(Base):
     id = Column(Integer, primary_key=True, index=True)
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
 
-class Availability(Base):s
+class Availability(Base):
     __tablename__ = "availabilities"
     __table_args__ = {"extend_existing": True}
 

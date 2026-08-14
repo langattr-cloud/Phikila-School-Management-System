@@ -1,10 +1,13 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import settings
 
 # ==========================================
 # PHASE 1: FOUNDATION (Active)
 # ==========================================
 from app.modules.authentication.router import router as auth_router
+from app.modules.authentication.supabase import get_supabase_claims
 from app.modules.users.router import router as users_router
 from app.modules.school.router import router as school_router
 
@@ -43,14 +46,20 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # Configure CORS
+    # Vercel frontend domains are supplied through CORS_ORIGINS. Never combine
+    # wildcard origins with credentials, because browsers reject that response.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_origins,
+        allow_origin_regex=settings.cors_origin_regex,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
     )
+
+    @app.get("/health", tags=["Health"])
+    def health_check():
+        return {"status": "ok", "environment": settings.environment}
 
     @app.get("/", tags=["Root"])
     def read_root():
@@ -63,14 +72,30 @@ def create_app() -> FastAPI:
     # ------------------------------------------
     # Register Phase 1 Routers
     # ------------------------------------------
+    protected = [Depends(get_supabase_claims)]
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
-    app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
-    app.include_router(school_router, prefix="/api/v1/school", tags=["School Profile"])
+    app.include_router(
+        users_router,
+        prefix="/api/v1/users",
+        tags=["Users"],
+        dependencies=protected,
+    )
+    app.include_router(
+        school_router,
+        prefix="/api/v1/school",
+        tags=["School Profile"],
+        dependencies=protected,
+    )
 
     # ------------------------------------------
     # Register Phase 2 Routers (Uncomment when ready)
     # ------------------------------------------
-    app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"])
+    app.include_router(
+        academics_router,
+        prefix="/api/v1/academics",
+        tags=["Academics"],
+        dependencies=protected,
+    )
     # app.include_router(departments_router, prefix="/api/v1/departments", tags=["Departments"])
     # app.include_router(subjects_router, prefix="/api/v1/subjects", tags=["Subjects"])
 

@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #17251f;
+  background: #f4f1e9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+.page-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr);
+}
+
+.brand-panel {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(2.5rem, 7vw, 7rem);
+  color: #f7f4eb;
+  background: #122d23;
+}
+
+.brand-panel::after {
+  content: '';
+  position: absolute;
+  width: 28rem;
+  height: 28rem;
+  border: 1px solid rgba(217, 180, 93, 0.2);
+  border-radius: 50%;
+  right: -13rem;
+  bottom: -11rem;
+  box-shadow: 0 0 0 5rem rgba(217, 180, 93, 0.03), 0 0 0 10rem rgba(217, 180, 93, 0.02);
+}
+
+.brand-mark {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: grid;
+  place-items: center;
+  margin-bottom: 3.5rem;
+  border: 1px solid #d9b45d;
+  border-radius: 50%;
+  color: #d9b45d;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.65rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.8rem;
+  color: #b89348;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+h1, h2 { font-family: 'Playfair Display', serif; }
+h1 { margin: 0; font-size: clamp(3rem, 6vw, 5.6rem); line-height: 0.95; letter-spacing: -0.04em; }
+h2 { margin: 0 0 0.75rem; color: #173026; font-size: clamp(2rem, 4vw, 2.8rem); letter-spacing: -0.03em; }
+
+.intro { max-width: 32rem; margin: 2rem 0 3.5rem; color: #c8d1cc; font-size: 1.05rem; line-height: 1.75; }
+.connection-card { display: flex; align-items: center; gap: 0.8rem; z-index: 1; }
+.connection-card strong, .connection-card span { display: block; }
+.connection-card strong { font-size: 0.84rem; }
+.connection-card div > span { margin-top: 0.2rem; color: #8fa098; font-size: 0.75rem; text-transform: capitalize; }
+.status-dot { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: #d9b45d; box-shadow: 0 0 0 0.3rem rgba(217, 180, 93, 0.12); }
+.status-dot.online { background: #6fd19a; box-shadow: 0 0 0 0.3rem rgba(111, 209, 154, 0.12); }
+.status-dot.offline { background: #df7c71; box-shadow: 0 0 0 0.3rem rgba(223, 124, 113, 0.12); }
+
+.auth-panel { display: grid; place-content: center; padding: 2rem; background: radial-gradient(circle at 90% 10%, #fff 0, transparent 35%), #f4f1e9; }
+.auth-card { width: min(27rem, calc(100vw - 3rem)); padding: clamp(2rem, 5vw, 3.5rem); border: 1px solid #ded9cc; border-radius: 1.25rem; background: rgba(255,255,255,0.76); box-shadow: 0 1.5rem 4rem rgba(38, 50, 43, 0.08); backdrop-filter: blur(12px); }
+.muted { margin: 0 0 2rem; color: #6d7772; line-height: 1.55; }
+label { display: block; margin: 1.15rem 0 0.45rem; font-size: 0.83rem; font-weight: 700; }
+input { width: 100%; padding: 0.9rem 1rem; border: 1px solid #d6d4ca; border-radius: 0.65rem; outline: none; color: #17251f; background: #fff; transition: border-color 150ms, box-shadow 150ms; }
+input:focus { border-color: #9a7837; box-shadow: 0 0 0 3px rgba(154, 120, 55, 0.12); }
+.primary { width: 100%; margin-top: 1.6rem; padding: 0.95rem 1.2rem; border: 0; border-radius: 0.65rem; color: white; background: #1a4735; font-weight: 700; transition: transform 150ms, background 150ms; }
+.primary:hover { background: #123426; transform: translateY(-1px); }
+.primary:disabled { cursor: wait; opacity: 0.65; }
+.text-button { display: block; margin: 1.2rem auto 0; border: 0; color: #596c62; background: transparent; text-decoration: underline; text-underline-offset: 0.25rem; }
+.message { margin: 1.2rem 0 0; padding: 0.75rem; border-radius: 0.5rem; color: #355d4a; background: #e6f0ea; font-size: 0.84rem; text-align: center; }
+.message.error { color: #8a342c; background: #f9e5e2; }
+.security-note { margin: 1.2rem 0 0; color: #89908c; font-size: 0.72rem; text-align: center; }
+.loading { margin: 0; color: #6d7772; text-align: center; }
+
+@media (max-width: 760px) {
+  .page-shell { grid-template-columns: 1fr; }
+  .brand-panel { min-height: 42vh; padding: 2rem; }
+  .brand-mark { margin-bottom: 2rem; }
+  h1 { font-size: clamp(2.8rem, 14vw, 4.2rem); }
+  .intro { margin: 1.25rem 0 2rem; }
+  .auth-panel { min-height: 58vh; padding: 1.5rem; }
+}

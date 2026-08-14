@@ -3,8 +3,11 @@ from typing import Any, Union
 from jose import jwt
 from passlib.context import CryptContext
 
-# Adjust these to your application's security settings or config file
-SECRET_KEY = "YOUR_SUPER_SECRET_KEY_CHANGE_THIS"
+from app.config import settings
+
+# Kept for the legacy username/password endpoint. New clients authenticate with
+# Supabase and send its access token to the API.
+SECRET_KEY = settings.app_jwt_secret or "local-development-only-change-me"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -22,6 +25,10 @@ def get_password_hash(password: str) -> str:
 def create_access_token(
     subject: Union[str, Any], expires_delta: timedelta = None
 ) -> str:
+  if settings.is_production and not settings.app_jwt_secret:
+    raise RuntimeError(
+        "Legacy login is disabled: set APP_JWT_SECRET or use Supabase Auth"
+    )
   if expires_delta:
     expire = datetime.utcnow() + expires_delta
   else:

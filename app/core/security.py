@@ -2,11 +2,13 @@ from datetime import datetime, timedelta
 from jose import jwt
 from passlib.hash import sha256_crypt
 
+from app.config import settings
+
 # Hashing context
 pwd_context = sha256_crypt
 
 # Secret key and algorithm
-SECRET_KEY = "YOUR_SUPER_SECRET_KEY"
+SECRET_KEY = settings.app_jwt_secret or "local-development-only-change-me"
 ALGORITHM = "HS256"
 
 # Password verification function
