@@ -16,8 +16,9 @@ import app.modules.users.models  # Added to include the users model for migratio
 # access to the values within the .ini file in use.
 config = context.config
 
-# Set the database URL from your .env file
-config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+# Use the same normalized URL as the application. ConfigParser requires literal
+# percent signs in URL-encoded passwords to be escaped.
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

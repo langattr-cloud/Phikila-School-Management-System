@@ -16,6 +16,9 @@ venv/
 frontend/node_modules/
 frontend/dist/
 
+# Deployment tooling
+.vercel/
+
 # Editors and operating systems
 .vscode/
 .idea/

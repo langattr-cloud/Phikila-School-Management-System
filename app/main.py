@@ -1,29 +1,53 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
-
-# Directory where the Vite frontend is built (frontend/ -> frontend/dist).
-# On Vercel the build command populates this before the function is packaged;
-# locally, run `cd frontend && npm run build` first. Serving the built app from
-# FastAPI lets the API and the frontend share one domain (no CORS needed).
-FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
-
-# ==========================================
-# PHASE 1: FOUNDATION (Active)
-# ==========================================
+from app.modules.academics.router import router as academics_router
 from app.modules.authentication.router import router as auth_router
 from app.modules.authentication.supabase import get_supabase_claims
-from app.modules.users.router import router as users_router
 from app.modules.school.router import router as school_router
+from app.modules.users.router import router as users_router
+
+# Directory where the Vite frontend is built (frontend/ -> frontend/dist).
+# Vercel's explicit build command populates it before the FastAPI function is
+# packaged. Vercel can promote mounted static files to its CDN, while FastAPI
+# remains the source of truth for local serving and server-side SPA fallback.
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serve real files first and fall back to index.html for browser routes.
+
+    A missing path with a file extension remains a 404, so a missing JavaScript,
+    CSS, image, or favicon is never returned as HTML. Unknown API paths also
+    remain API 404s instead of being swallowed by the frontend fallback.
+    """
+
+    backend_roots = frozenset({"api", "health", "docs", "redoc", "openapi.json"})
+
+    async def get_response(self, path: str, scope: dict):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as error:
+            is_frontend_route = (
+                error.status_code == 404
+                and scope["method"] in {"GET", "HEAD"}
+                and not PurePosixPath(path).suffix
+                and path.split("/", 1)[0] not in self.backend_roots
+            )
+            if not is_frontend_route:
+                raise
+
+        return await super().get_response("index.html", scope)
+
 
 # ==========================================
-# PHASE 2: ACADEMIC SETUP (Uncomment when ready)
+# PHASE 2+: ROUTERS TO ENABLE IN LATER PHASES
 # ==========================================
-from app.modules.academics.router import router as academics_router
 # from app.modules.departments.router import router as departments_router
 # from app.modules.subjects.router import router as subjects_router
 
@@ -55,16 +79,18 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # Vercel frontend domains are supplied through CORS_ORIGINS. Never combine
-    # wildcard origins with credentials, because browsers reject that response.
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_origin_regex=settings.cors_origin_regex,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Accept"],
-    )
+    # Same-origin traffic needs no CORS headers. Enable CORS only when exact
+    # trusted cross-origin frontends (or a deliberately scoped preview regex)
+    # have been configured. Settings rejects wildcard CORS origins.
+    if settings.cors_origins or settings.cors_origin_regex:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_origin_regex=settings.cors_origin_regex,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "Accept"],
+        )
 
     @app.get("/health", tags=["Health"])
     def health_check():
@@ -119,14 +145,19 @@ def create_app() -> FastAPI:
     # app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 
     # ------------------------------------------
-    # Serve the built frontend at / so the API and the web app share one domain.
-    # Mounted last so the API routes above (and /health, /docs) win the match.
+    # Serve the built frontend at / so the API and web app share one domain.
+    # Mounted last so API routes, health, and documentation win route matching.
     # ------------------------------------------
     if FRONTEND_DIST.is_dir():
         app.mount(
             "/",
-            StaticFiles(directory=FRONTEND_DIST, html=True),
+            SPAStaticFiles(directory=FRONTEND_DIST, html=True),
             name="frontend",
+        )
+    elif settings.is_production:
+        raise RuntimeError(
+            "frontend/dist is missing; Vercel must run the configured frontend build "
+            "before packaging the FastAPI application"
         )
 
     return app
