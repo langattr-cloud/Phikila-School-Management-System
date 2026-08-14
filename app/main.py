@@ -9,6 +9,8 @@ from app.config import settings
 from app.modules.academics.router import router as academics_router
 from app.modules.authentication.router import router as auth_router
 from app.modules.authentication.supabase import get_supabase_claims
+from app.modules.llm.router import router as llm_router
+from app.modules.platform.router import router as platform_router
 from app.modules.scheduling.router import router as scheduling_router
 from app.modules.school.router import router as school_router
 from app.modules.users.router import router as users_router
@@ -124,6 +126,19 @@ def create_app() -> FastAPI:
         scheduling_router,
         prefix="/api/v1/scheduling",
         tags=["Scheduling"],
+    )
+    # Platform administration. Every route enforces super-admin authority via
+    # its own dependency, resolved from server-side state only.
+    app.include_router(
+        platform_router,
+        prefix="/api/v1/platform",
+        tags=["Platform"],
+    )
+    # LLM provider settings. Super-admin only; provider keys never leave the server.
+    app.include_router(
+        llm_router,
+        prefix="/api/v1/llm",
+        tags=["LLM Providers"],
     )
     app.include_router(
         academics_router,

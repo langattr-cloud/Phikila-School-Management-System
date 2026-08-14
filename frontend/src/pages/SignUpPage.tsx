@@ -6,12 +6,22 @@ import { Spinner } from '../components/States'
 import { useAuth } from '../lib/auth'
 import { Link, useNavigate } from '../lib/router'
 import { assessPassword, isValidEmail, MINIMUM_PASSWORD_LENGTH } from '../lib/password'
+import { platform } from '../lib/platform'
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'School administrator',
+  scheduler: 'Timetable scheduler',
+  teacher: 'Teacher',
+  student: 'Student',
+  viewer: 'Viewer (read only)',
+}
 
 type Errors = {
   fullName?: string
   email?: string
   password?: string
   confirmPassword?: string
+  school?: string
 }
 
 function StrengthMeter({ password, describedById }: { password: string; describedById: string }) {
@@ -49,6 +59,24 @@ export function SignUpPage() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState<{ needsEmailConfirmation: boolean } | null>(null)
 
+  // What the applicant asks for. The server treats it as a request only.
+  const [role, setRole] = useState('teacher')
+  const [schoolId, setSchoolId] = useState('')
+  const [schoolName, setSchoolName] = useState('')
+  const [options, setOptions] = useState<{
+    schools: { id: number; name: string }[]
+    roles: string[]
+  }>({ schools: [], roles: ['teacher'] })
+
+  useEffect(() => {
+    // Public list of school names so an applicant can pick theirs. It exposes
+    // no school data beyond the name.
+    platform
+      .requestOptions()
+      .then(setOptions)
+      .catch(() => setOptions({ schools: [], roles: Object.keys(ROLE_LABELS) }))
+  }, [])
+
   useEffect(() => {
     document.title = 'Create an account · Phikila School System'
   }, [])
@@ -69,6 +97,10 @@ export function SignUpPage() {
     if (!confirmPassword) next.confirmPassword = 'Re-enter your password.'
     else if (confirmPassword !== password) next.confirmPassword = 'Both passwords must match.'
 
+    if (!schoolId && !schoolName.trim()) {
+      next.school = 'Choose your school, or type its name if it is not listed.'
+    }
+
     return next
   }
 
@@ -82,7 +114,11 @@ export function SignUpPage() {
     if (Object.keys(nextErrors).length > 0) return
 
     setSubmitting(true)
-    const result = await signUp(fullName, email, password)
+    const result = await signUp(fullName, email, password, {
+      requested_role: role,
+      school_id: schoolId ? Number(schoolId) : null,
+      school_name: schoolId ? null : schoolName.trim(),
+    })
     setSubmitting(false)
 
     if (!result.ok) {
@@ -113,9 +149,15 @@ export function SignUpPage() {
           We sent a confirmation link to <strong>{email.trim()}</strong>. Open it to activate your
           account, then sign in.
         </Alert>
-        <Alert tone="info" title="Access to school records">
-          New accounts start with no school permissions. A school administrator assigns your role
-          before you can view or change school data.
+        <Alert tone="info" title="Your request is awaiting approval">
+          You asked to join{' '}
+          <strong>
+            {schoolId
+              ? (options.schools.find((s) => String(s.id) === schoolId)?.name ?? 'your school')
+              : schoolName.trim()}
+          </strong>{' '}
+          as <strong>{ROLE_LABELS[role] ?? role}</strong>. A platform administrator will review it
+          before any access is granted.
         </Alert>
         <Link className="button button--primary button--block" to="/login">
           Go to sign in
@@ -192,9 +234,64 @@ export function SignUpPage() {
           error={errors.confirmPassword}
         />
 
+        <div className="field">
+          <label className="field__label" htmlFor="signup-role">
+            Your role <span className="field__required">(required)</span>
+          </label>
+          <p className="field__hint" id="signup-role-hint">
+            This is what you are requesting. An administrator confirms your actual access.
+          </p>
+          <select
+            id="signup-role"
+            className="input input--select"
+            value={role}
+            aria-describedby="signup-role-hint"
+            onChange={(event) => setRole(event.target.value)}
+          >
+            {(options.roles.length ? options.roles : Object.keys(ROLE_LABELS)).map((value) => (
+              <option key={value} value={value}>
+                {ROLE_LABELS[value] ?? value}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field">
+          <label className="field__label" htmlFor="signup-school">
+            Your school <span className="field__required">(required)</span>
+          </label>
+          <select
+            id="signup-school"
+            className="input input--select"
+            value={schoolId}
+            onChange={(event) => {
+              setSchoolId(event.target.value)
+              setErrors((current) => ({ ...current, school: undefined }))
+            }}
+          >
+            <option value="">Not listed — I will type the name</option>
+            {options.schools.map((school) => (
+              <option key={school.id} value={school.id}>
+                {school.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {!schoolId && (
+          <Field
+            label="School name"
+            required
+            placeholder="e.g. Phikila Academy"
+            value={schoolName}
+            onChange={(event) => setSchoolName(event.target.value)}
+            error={errors.school}
+          />
+        )}
+
         <p className="form__note">
-          Accounts are created without school permissions. An administrator assigns your role after
-          you register.
+          Accounts start with no access. A platform administrator reviews every request and
+          decides what access you receive.
         </p>
 
         <button className="button button--primary button--block" type="submit" disabled={submitting}>

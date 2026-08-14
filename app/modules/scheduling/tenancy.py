@@ -33,6 +33,8 @@ class TtSchool(Base):
     slug = Column(String(80), unique=True, index=True)
     timezone = Column(String(60), default="Africa/Nairobi")
     academic_year = Column(String(40))
+    # active | inactive. Deactivation is reversible and retains all data.
+    status = Column(String(20), default="active", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

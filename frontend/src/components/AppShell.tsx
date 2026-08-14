@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, normalisePath, useNavigate, useRouter } from '../lib/router'
 import { displayName, useAuth } from '../lib/auth'
+import { usePlatformSession } from '../lib/session'
 import { useToast } from './Toast'
 import { Logo, LogoMark } from './Logo'
 import {
@@ -17,6 +18,17 @@ import {
 
 type NavItem = { to: string; label: string; icon?: ReactNode }
 type NavGroup = { label: string; items: NavItem[] }
+
+const PLATFORM_NAV: NavGroup = {
+  label: 'Platform',
+  items: [
+    { to: '/platform', label: 'Platform dashboard', icon: <SchoolIcon /> },
+    { to: '/platform/schools', label: 'Schools' },
+    { to: '/platform/requests', label: 'Access requests' },
+    { to: '/platform/admins', label: 'Administrators' },
+    { to: '/settings/ai-providers', label: 'AI providers' },
+  ],
+}
 
 const NAV: NavGroup[] = [
   {
@@ -75,6 +87,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { notify } = useToast()
+  // Navigation visibility only. Backend authorization is what actually
+  // protects these routes.
+  const isSuperAdmin = usePlatformSession().session?.is_super_admin ?? false
+  const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -152,7 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const navigation = (
     <nav className="sidebar__nav" aria-label="Main">
-      {NAV.map((group) => (
+      {groups.map((group) => (
         <div className="sidebar__group" key={group.label}>
           <p className="sidebar__group-label">{group.label}</p>
           <ul className="sidebar__list">

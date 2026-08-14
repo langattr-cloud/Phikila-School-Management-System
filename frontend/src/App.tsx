@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { AuthProvider, useAuth } from './lib/auth'
+import { PlatformSessionProvider, usePlatformSession } from './lib/session'
 import { RouterProvider, normalisePath, useNavigate, useRouter } from './lib/router'
 import { ToastProvider } from './components/Toast'
 import { AppShell } from './components/AppShell'
@@ -45,6 +46,27 @@ const AcademicsPage = lazy(() =>
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then((m) => ({ default: m.LevelsPage })))
 const ProfilePage = lazy(() =>
   import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+)
+const LlmProvidersPage = lazy(() =>
+  import('./pages/LlmProvidersPage').then((m) => ({ default: m.LlmProvidersPage })),
+)
+const PlatformDashboardPage = lazy(() =>
+  import('./pages/PlatformPage').then((m) => ({ default: m.PlatformDashboardPage })),
+)
+const PlatformSchoolsPage = lazy(() =>
+  import('./pages/PlatformPage').then((m) => ({ default: m.PlatformSchoolsPage })),
+)
+const PlatformSchoolDetailPage = lazy(() =>
+  import('./pages/PlatformPage').then((m) => ({ default: m.PlatformSchoolDetailPage })),
+)
+const PlatformRequestsPage = lazy(() =>
+  import('./pages/PlatformPage').then((m) => ({ default: m.PlatformRequestsPage })),
+)
+const PlatformAdminsPage = lazy(() =>
+  import('./pages/PlatformPage').then((m) => ({ default: m.PlatformAdminsPage })),
+)
+const AwaitingApprovalPage = lazy(() =>
+  import('./pages/AwaitingApprovalPage').then((m) => ({ default: m.AwaitingApprovalPage })),
 )
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
@@ -125,19 +147,60 @@ function routeFor(pathname: string): ReactNode {
       return <VersionsPage />
     case '/profile':
       return <ProfilePage />
+
+    case '/settings/ai-providers':
+      return <LlmProvidersPage />
+    case '/platform':
+      return <PlatformDashboardPage />
+    case '/platform/schools':
+      return <PlatformSchoolsPage />
+    case '/platform/schools/detail':
+      return <PlatformSchoolDetailPage />
+    case '/platform/requests':
+      return <PlatformRequestsPage />
+    case '/platform/admins':
+      return <PlatformAdminsPage />
     default:
       return <NotFoundPage />
   }
 }
 
+/**
+ * Blocks the application shell until the account actually has access.
+ *
+ * This is UX only — every endpoint independently rejects an unapproved account,
+ * so bypassing this component grants nothing.
+ */
+function AccessGate({ children }: { children: ReactNode }) {
+  const { session, loading, error } = usePlatformSession()
+
+  if (loading) return <FullPageLoader label="Checking your access…" />
+  if (error) {
+    // Fail open to the shell: pages surface their own errors, and the backend
+    // is still the authority. Locking the user out on a transient network
+    // failure would be worse than showing an app that reports errors.
+    return <>{children}</>
+  }
+  if (session && !session.has_access) {
+    return (
+      <Suspense fallback={<FullPageLoader label="Loading…" />}>
+        <AwaitingApprovalPage />
+      </Suspense>
+    )
+  }
+  return <>{children}</>
+}
+
 function ProtectedRoutes({ pathname }: { pathname: string }) {
   return (
     <RequireAuth>
-      <AppShell>
-        <Suspense fallback={<FullPageLoader label="Loading page…" />}>
-          {routeFor(pathname)}
-        </Suspense>
-      </AppShell>
+      <AccessGate>
+        <AppShell>
+          <Suspense fallback={<FullPageLoader label="Loading page…" />}>
+            {routeFor(pathname)}
+          </Suspense>
+        </AppShell>
+      </AccessGate>
     </RequireAuth>
   )
 }
@@ -168,7 +231,9 @@ export default function App() {
     <RouterProvider>
       <ToastProvider>
         <AuthProvider>
-          <Routes />
+          <PlatformSessionProvider>
+            <Routes />
+          </PlatformSessionProvider>
         </AuthProvider>
       </ToastProvider>
     </RouterProvider>

@@ -2385,3 +2385,233 @@ a {
 .summary-card__value--warning {
   color: var(--color-warning);
 }
+
+/* ==========================================================================
+   Platform administration + AI provider settings
+   ========================================================================== */
+
+/* ---- accessible confirmation dialog ---- */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(10, 30, 52, 0.55);
+}
+
+.dialog {
+  width: min(30rem, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.dialog__title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.dialog__description {
+  margin-top: var(--space-2);
+  color: var(--color-ink-muted);
+  font-size: 0.9375rem;
+}
+
+.dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-5);
+}
+
+.button--danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.button--danger:hover:not(:disabled) {
+  background: #7f261d;
+}
+
+/* ---- provider cards ---- */
+.provider-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.provider-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.provider-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.provider-card__meta {
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+}
+
+.api-key-mask {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.05em;
+}
+
+/* ---- model manager ---- */
+.model-manager {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-line);
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.model-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.model-row__id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.model-row__meta {
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.model-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.model-result {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (min-width: 800px) {
+  .model-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .model-row__main {
+    min-width: 0;
+  }
+  .model-row__actions {
+    flex-shrink: 0;
+  }
+}
+
+/* ---- access requests ---- */
+.request-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.request-card {
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.request-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.request-card__email {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.request-card__meta,
+.request-card__note {
+  margin-top: 0.2rem;
+  color: var(--color-ink-muted);
+  font-size: 0.875rem;
+}
+
+.request-card__note {
+  font-style: italic;
+}
+
+.request-card__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+/* ---- platform admin roster ---- */
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+
+.admin-row__email {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.admin-row__meta {
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+}

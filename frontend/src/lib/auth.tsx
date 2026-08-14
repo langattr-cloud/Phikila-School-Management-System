@@ -10,8 +10,19 @@ import {
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { friendlyAuthError } from './authErrors'
+import { apiFetch } from './api'
 
 export type AuthResult = { ok: true; message?: string } | { ok: false; message: string }
+
+/**
+ * What a new user *asks* for at signup. It is only ever a request: the server
+ * records it for review and grants nothing until a super admin approves it.
+ */
+export type AccessRequestDraft = {
+  requested_role: string
+  school_id: number | null
+  school_name: string | null
+}
 
 type AuthContextValue = {
   session: Session | null
@@ -21,7 +32,12 @@ type AuthContextValue = {
   /** True while the user is inside a Supabase password-recovery link flow. */
   recoveryMode: boolean
   signIn: (email: string, password: string) => Promise<AuthResult>
-  signUp: (fullName: string, email: string, password: string) => Promise<AuthResult & { needsEmailConfirmation?: boolean }>
+  signUp: (
+    fullName: string,
+    email: string,
+    password: string,
+    request?: AccessRequestDraft,
+  ) => Promise<AuthResult & { needsEmailConfirmation?: boolean }>
   signOut: () => Promise<AuthResult>
   requestPasswordReset: (email: string) => Promise<AuthResult>
   updatePassword: (password: string) => Promise<AuthResult>
@@ -79,14 +95,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { ok: true }
   }, [])
 
-  const signUp = useCallback<AuthContextValue['signUp']>(async (fullName, email, password) => {
-    // Only non-privileged profile data is sent. Roles are never chosen by the
-    // person signing up; the backend/database remains the authority on roles.
+  const signUp = useCallback<AuthContextValue['signUp']>(
+    async (fullName, email, password, request) => {
+    // The requested role and school are stored as user metadata purely so the
+    // request survives email confirmation. They confer nothing: the server
+    // records them as a pending request that a super admin must approve, and
+    // it re-derives every permission from its own tables.
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        data: { full_name: fullName.trim() },
+        data: {
+          full_name: fullName.trim(),
+          requested_role: request?.requested_role ?? null,
+          requested_school_id: request?.school_id ?? null,
+          requested_school_name: request?.school_name ?? null,
+        },
         emailRedirectTo: `${window.location.origin}/login`,
       },
     })
@@ -100,6 +124,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Supabase returns a user without a session when email confirmation is on.
     const needsEmailConfirmation = Boolean(data.user) && !data.session
+    // If Supabase signed the user straight in, register the pending request
+    // now. Otherwise it is submitted on first sign-in (see AccessGate).
+    if (data.session && request) {
+      try {
+        await apiFetch('/api/v1/platform/access-requests', {
+          method: 'POST',
+          body: JSON.stringify({
+            requested_role: request.requested_role,
+            school_id: request.school_id,
+            school_name: request.school_name,
+          }),
+        })
+      } catch {
+        // A failed request submission must not block account creation; the
+        // AccessGate retries it the next time the user opens the app.
+      }
+    }
+
     return {
       ok: true,
       needsEmailConfirmation,
