@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, normalisePath, useNavigate, useRouter } from '../lib/router'
 import { displayName, useAuth } from '../lib/auth'
 import { useToast } from './Toast'
+import { Logo, LogoMark } from './Logo'
 import {
   CalendarIcon,
   CloseIcon,
@@ -146,13 +147,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="sidebar sidebar--desktop">
         <div className="sidebar__brand">
-          <span className="brand-mark brand-mark--sm" aria-hidden="true">
-            P
-          </span>
-          <span className="sidebar__brand-text">
-            Phikila
-            <small>School System</small>
-          </span>
+          <Logo size={34} tone="dark" />
         </div>
         {navigation}
         {accountBlock}
@@ -171,7 +166,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <MenuIcon />
           </button>
-          <span className="topbar__title">Phikila School System</span>
+          <span className="topbar__title">
+            <LogoMark size={26} />
+            <span>Phikila</span>
+          </span>
           <span className="topbar__user" title={user?.email ?? ''}>
             {user?.email}
           </span>
@@ -196,10 +194,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {...(!drawerOpen ? { inert: '' as unknown as boolean } : {})}
         >
           <div className="sidebar__brand">
-            <span className="sidebar__brand-text">
-              Phikila
-              <small>School System</small>
-            </span>
+            <Logo size={32} tone="dark" />
             <button
               type="button"
               className="icon-button"

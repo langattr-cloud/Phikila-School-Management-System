@@ -15,12 +15,18 @@
   --color-line: #dcd8cc;
   --color-line-strong: #c6c1b1;
 
-  --color-primary: #14502f;
-  --color-primary-strong: #0e3b23;
-  --color-primary-soft: #e6efe9;
-  --color-accent: #8a6a1f;
+  --color-primary: #0f2a47;
+  --color-primary-strong: #0a1e34;
+  --color-primary-soft: #e7eef5;
+  --color-accent: #0b7f60;
+  /* brand */
+  --brand-navy: #0f2a47;
+  --brand-navy-deep: #0a1e34;
+  --brand-emerald: #12a47c;
+  --brand-emerald-light: #2bc194;
+  --brand-gold: #e0a93b;
 
-  --color-success: #1d6b43;
+  --color-success: #096a50;
   --color-success-soft: #e4f1e9;
   --color-warning: #8a5a10;
   --color-warning-soft: #fbf0dc;
@@ -120,7 +126,7 @@ a {
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 3px solid var(--brand-emerald-light);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -310,7 +316,7 @@ a {
 .input:focus {
   border-color: var(--color-primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(20, 80, 47, 0.18);
+  box-shadow: 0 0 0 3px rgba(15, 42, 71, 0.18);
 }
 
 .input--invalid,
@@ -676,8 +682,8 @@ a {
 
 .auth-shell__brand {
   padding: var(--space-5) var(--space-4);
-  background: #102a20;
-  color: #f4f2e9;
+  background: var(--brand-navy-deep);
+  color: #f2f6fa;
 }
 
 .auth-shell__brand-inner {
@@ -685,29 +691,50 @@ a {
   margin: 0 auto;
 }
 
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
+.auth-shell__brand-inner > svg {
   margin-bottom: var(--space-4);
-  border: 1px solid #c9a44f;
-  border-radius: 50%;
-  color: #d9b45d;
-  font-family: var(--font-display);
-  font-size: 1.5rem;
 }
 
-.brand-mark--sm {
-  width: 2.25rem;
-  height: 2.25rem;
-  margin: 0;
-  font-size: 1.15rem;
+/* ---- brand lockup ---- */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
 }
+
+.logo__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.logo__word {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+
+.logo__sub {
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.logo--light .logo__word { color: var(--color-navy, #0f2a47); }
+.logo--light .logo__sub { color: #5b7183; }
+.logo--dark .logo__word { color: #ffffff; }
+.logo--dark .logo__sub { color: #9fb3c4; }
+
+/* The auth panel shows the mark on its own above the wordmark. */
+.auth-shell__brand .logo-mark { margin-bottom: var(--space-4); }
 
 .eyebrow {
   margin-bottom: var(--space-2);
-  color: #d3b675;
+  color: var(--brand-gold);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -723,13 +750,13 @@ a {
 .auth-shell__wordmark span {
   display: block;
   font-size: 0.55em;
-  color: #cdd6d1;
+  color: #c3d2de;
 }
 
 .auth-shell__intro {
   max-width: 32rem;
   margin-top: var(--space-3);
-  color: #c3cec8;
+  color: #b8c8d6;
   font-size: 0.95rem;
 }
 
@@ -833,8 +860,12 @@ a {
 }
 
 .topbar__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 700;
   font-size: 0.95rem;
+  letter-spacing: 0.06em;
 }
 
 .topbar__user {
@@ -853,8 +884,8 @@ a {
   gap: var(--space-4);
   width: var(--sidebar-width);
   padding: var(--space-4);
-  background: #102a20;
-  color: #e8ece9;
+  background: var(--brand-navy-deep);
+  color: #e9eff5;
 }
 
 .sidebar--desktop {
@@ -876,7 +907,7 @@ a {
 }
 
 .sidebar__brand-text small {
-  color: #a8b6ae;
+  color: #9fb3c4;
   font-family: var(--font-sans);
   font-size: 0.72rem;
   letter-spacing: 0.06em;
@@ -886,7 +917,7 @@ a {
   margin-left: auto;
   border-color: rgba(255, 255, 255, 0.24);
   background: transparent;
-  color: #e8ece9;
+  color: #e9eff5;
 }
 
 .sidebar__brand .icon-button:hover {
@@ -911,7 +942,7 @@ a {
   padding: 0.55rem 0.75rem;
   border-radius: var(--radius-md);
   border-left: 3px solid transparent;
-  color: #d5ddd8;
+  color: #ccd8e3;
   font-size: 0.9375rem;
   font-weight: 600;
   text-decoration: none;
@@ -924,7 +955,7 @@ a {
 
 .sidebar__link--active {
   background: rgba(255, 255, 255, 0.14);
-  border-left-color: #d9b45d;
+  border-left-color: var(--brand-emerald-light);
   color: #fff;
 }
 
@@ -948,7 +979,7 @@ a {
 
 .sidebar__account-email {
   margin-bottom: var(--space-3);
-  color: #a8b6ae;
+  color: #9fb3c4;
   font-size: 0.78rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -957,7 +988,7 @@ a {
 
 .sidebar__account .button--ghost {
   border-color: rgba(255, 255, 255, 0.28);
-  color: #eef2ef;
+  color: #eef3f8;
 }
 
 .sidebar__account .button--ghost:hover:not(:disabled) {

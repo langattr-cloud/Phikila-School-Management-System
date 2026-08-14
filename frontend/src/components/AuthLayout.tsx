@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { LogoMark } from './Logo'
 
 export function AuthLayout({
   title,
@@ -15,9 +16,7 @@ export function AuthLayout({
     <div className="auth-shell">
       <section className="auth-shell__brand">
         <div className="auth-shell__brand-inner">
-          <span className="brand-mark" aria-hidden="true">
-            P
-          </span>
+          <LogoMark size={56} tone="dark" />
           <p className="eyebrow">School administration, made clear</p>
           <h1 className="auth-shell__wordmark">
             Phikila
