@@ -48,21 +48,21 @@ class SPAStaticFiles(StaticFiles):
 # ==========================================
 # PHASE 2+: ROUTERS TO ENABLE IN LATER PHASES
 # ==========================================
-# from app.modules.departments.router import router as departments_router
-# from app.modules.subjects.router import router as subjects_router
+from app.modules.departments.router import router as departments_router
+from app.modules.subjects.router import router as subjects_router
 
 # ==========================================
 # PHASE 3: PEOPLE & RECORDS (Uncomment when ready)
 # ==========================================
-# from app.modules.teachers.router import router as teachers_router
-# from app.modules.students.router import router as students_router
-# from app.modules.class_register.router import router as class_register_router
+from app.modules.teachers.router import router as teachers_router
+from app.modules.students.router import router as students_router
+from app.modules.class_register.router import router as class_register_router
 
 # ==========================================
 # PHASE 4: OPERATIONS (Uncomment when ready)
 # ==========================================
-# from app.modules.timetable.router import router as timetable_router
-# from app.modules.examinations.router import router as examinations_router
+from app.modules.timetable.router import router as timetable_router
+from app.modules.examinations.router import router as examinations_router
 
 # ==========================================
 # PHASE 5: OUTPUTS (Uncomment when ready)
@@ -123,21 +123,21 @@ def create_app() -> FastAPI:
         tags=["Academics"],
         dependencies=protected,
     )
-    # app.include_router(departments_router, prefix="/api/v1/departments", tags=["Departments"])
-    # app.include_router(subjects_router, prefix="/api/v1/subjects", tags=["Subjects"])
+    app.include_router(departments_router, prefix="/api/v1/departments", tags=["Departments"], dependencies=protected)
+    app.include_router(subjects_router, prefix="/api/v1/subjects", tags=["Subjects"], dependencies=protected)
 
     # ------------------------------------------
     # Register Phase 3 Routers (Uncomment when ready)
     # ------------------------------------------
-    # app.include_router(teachers_router, prefix="/api/v1/teachers", tags=["Teachers"])
-    # app.include_router(students_router, prefix="/api/v1/students", tags=["Students"])
-    # app.include_router(class_register_router, prefix="/api/v1/class-register", tags=["Class Register"])
+    app.include_router(teachers_router, prefix="/api/v1/teachers", tags=["Teachers"], dependencies=protected)
+    app.include_router(students_router, prefix="/api/v1/students", tags=["Students"], dependencies=protected)
+    app.include_router(class_register_router, prefix="/api/v1/class-register", tags=["Class Register"], dependencies=protected)
 
     # ------------------------------------------
     # Register Phase 4 Routers (Uncomment when ready)
     # ------------------------------------------
-    # app.include_router(timetable_router, prefix="/api/v1/timetable", tags=["Timetable"])
-    # app.include_router(examinations_router, prefix="/api/v1/examinations", tags=["Examinations"])
+    app.include_router(timetable_router, prefix="/api/v1/timetable", tags=["Timetable"], dependencies=protected)
+    app.include_router(examinations_router, prefix="/api/v1/examinations", tags=["Examinations"], dependencies=protected)
 
     # ------------------------------------------
     # Register Phase 5 Routers (Uncomment when ready)

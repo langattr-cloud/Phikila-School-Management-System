@@ -1,3 +1,5 @@
+import EmptyState from '../components/ui/EmptyState'
+
 export default function Finance() {
   return (
     <div>
@@ -6,7 +8,12 @@ export default function Finance() {
         <h1 className="page-title">Finance</h1>
         <p className="muted">Fee structures, payments, and accounting.</p>
       </header>
-      <div className="card placeholder">Finance coming soon.</div>
+
+      <EmptyState
+        icon="💰"
+        title="Finance module coming soon"
+        description="Fee management, payment tracking, and financial reports will be available in a future update."
+      />
     </div>
   )
 }

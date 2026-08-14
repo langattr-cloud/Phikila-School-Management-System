@@ -1,3 +1,5 @@
+import EmptyState from '../components/ui/EmptyState'
+
 export default function Reports() {
   return (
     <div>
@@ -6,7 +8,12 @@ export default function Reports() {
         <h1 className="page-title">Reports</h1>
         <p className="muted">Generate and print report cards and transcripts.</p>
       </header>
-      <div className="card placeholder">Reports coming soon.</div>
+
+      <EmptyState
+        icon="🖨️"
+        title="Reports module coming soon"
+        description="Report card generation, transcripts, and analytics dashboards will be available in a future update."
+      />
     </div>
   )
 }
