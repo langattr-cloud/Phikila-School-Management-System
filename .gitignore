@@ -23,3 +23,11 @@ frontend/dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Local server logs
+server.log
+server.err.log
+server.pid
+# Supabase CLI local link
+backend/supabase/.temp/
+supabase/.temp/
