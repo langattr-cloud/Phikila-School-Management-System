@@ -1,7 +1,16 @@
+from pathlib import Path
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+
+# Directory where the Vite frontend is built (frontend/ -> frontend/dist).
+# On Vercel the build command populates this before the function is packaged;
+# locally, run `cd frontend && npm run build` first. Serving the built app from
+# FastAPI lets the API and the frontend share one domain (no CORS needed).
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 # ==========================================
 # PHASE 1: FOUNDATION (Active)
@@ -61,14 +70,6 @@ def create_app() -> FastAPI:
     def health_check():
         return {"status": "ok", "environment": settings.environment}
 
-    @app.get("/", tags=["Root"])
-    def read_root():
-        return {
-            "system": "Phikila School System",
-            "status": "Operational",
-            "active_phase": "Phase 1 – Foundation",
-        }
-
     # ------------------------------------------
     # Register Phase 1 Routers
     # ------------------------------------------
@@ -117,12 +118,23 @@ def create_app() -> FastAPI:
     # ------------------------------------------
     # app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 
+    # ------------------------------------------
+    # Serve the built frontend at / so the API and the web app share one domain.
+    # Mounted last so the API routes above (and /health, /docs) win the match.
+    # ------------------------------------------
+    if FRONTEND_DIST.is_dir():
+        app.mount(
+            "/",
+            StaticFiles(directory=FRONTEND_DIST, html=True),
+            name="frontend",
+        )
+
     return app
 
 
 app = create_app()
 
-if __name__ == "_main_":
+if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

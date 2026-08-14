@@ -1,10 +1,9 @@
 import { supabase } from './supabase'
 
+// Same-origin by default: the backend serves this frontend, so a relative URL
+// reaches the API on the same domain (no CORS). Set VITE_API_URL only if the
+// frontend is ever hosted on a different origin than the API.
 const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-
-if (!apiUrl) {
-  throw new Error('Missing VITE_API_URL. Set it to the deployed FastAPI origin.')
-}
 
 export class ApiError extends Error {
   constructor(
