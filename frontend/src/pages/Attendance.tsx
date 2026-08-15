@@ -147,8 +147,8 @@ function NewSessionForm({ onSubmit, onCancel }: { onSubmit: (classId: number, da
   )
 }
 
-function MarkingPanel({ session, students: studs, onMark, onBulkPresent, onClose }: {
-  session: AttendanceSession; studs: Student[];
+function MarkingPanel({ session, students, onMark, onBulkPresent, onClose }: {
+  session: AttendanceSession; students: Student[];
   onMark: (studentId: number, status: string) => void; onBulkPresent: () => void; onClose: () => void
 }) {
   return (
@@ -160,11 +160,11 @@ function MarkingPanel({ session, students: studs, onMark, onBulkPresent, onClose
           <button className="button button--ghost button--sm" onClick={onClose}>✕</button>
         </div>
       </div>
-      {studs.length === 0 ? (
+      {students.length === 0 ? (
         <p style={{ color: 'var(--color-ink-muted)' }}>No students in this class.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-          {studs.map((s) => {
+          {students.map((s) => {
             const record = session.records?.find((r) => r.student_id === s.id)
             return (
               <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2)', border: '1px solid var(--color-line)', borderRadius: 'var(--radius-md)' }}>

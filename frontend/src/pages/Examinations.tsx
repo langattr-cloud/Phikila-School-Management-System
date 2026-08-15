@@ -75,7 +75,7 @@ export default function ExaminationsPage() {
                 {series.map((s) => (
                   <div key={s.id} className="card" style={{ padding: 'var(--space-3)', flex: '1 1 14rem' }}>
                     <strong>{s.name}</strong>
-                    <Badge tone={s.status === 'active' ? 'success' : 'warning'} style={{ marginLeft: 'var(--space-2)' }}>{s.status}</Badge>
+                    <span style={{ marginLeft: 'var(--space-2)' }}><Badge tone={s.status === 'active' ? 'success' : 'warning'}>{s.status}</Badge></span>
                   </div>
                 ))}
               </div>
