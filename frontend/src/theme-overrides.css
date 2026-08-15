@@ -1,0 +1,69 @@
+:root[data-theme='dark'] {
+  --color-bg:#06111f;
+  --color-surface:rgba(11,28,48,.60);
+  --color-surface-muted:rgba(13,34,55,.56);
+  --color-ink:#edf6ff;
+  --color-ink-muted:#a7b8c9;
+  --color-line:rgba(166,218,255,.14);
+  --color-line-strong:rgba(166,218,255,.25);
+  --color-primary:#7de5d0;
+  --color-primary-strong:#a2f3e4;
+  --color-primary-soft:rgba(19,211,173,.12);
+  --color-accent:#42d6b3;
+  --color-success:#53d6a8;
+  --color-success-soft:rgba(83,214,168,.12);
+  --color-warning:#f3c35b;
+  --color-warning-soft:rgba(243,195,91,.12);
+  --color-danger:#ff8d89;
+  --color-danger-soft:rgba(255,141,137,.12);
+  --color-info:#8ed5ff;
+  --color-info-soft:rgba(142,213,255,.12);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.18);
+  --shadow-md:0 10px 30px rgba(0,0,0,.22);
+  --shadow-lg:0 25px 70px rgba(0,0,0,.34);
+}
+
+:root[data-theme='light'] {
+  --color-bg:#eef5f4;
+  --color-surface:rgba(255,255,255,.60);
+  --color-surface-muted:rgba(255,255,255,.42);
+  --color-ink:#10233a;
+  --color-ink-muted:#5d6b79;
+  --color-line:rgba(40,78,95,.14);
+  --color-line-strong:rgba(40,78,95,.24);
+}
+
+.sidebar .logo img,
+.topbar__title img,
+.landing-brand img,
+.landing-preview__top img,
+.landing-footer img {
+  display:block;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.app-shell__content {
+  background:
+    radial-gradient(34rem 24rem at 85% 8%, rgba(90,81,255,.10), transparent 70%),
+    radial-gradient(30rem 22rem at 15% 90%, rgba(20,210,173,.08), transparent 70%);
+}
+
+:root[data-theme='dark'] .app-shell__content {
+  background:
+    radial-gradient(34rem 24rem at 85% 8%, rgba(110,78,255,.15), transparent 70%),
+    radial-gradient(30rem 22rem at 15% 90%, rgba(20,210,173,.10), transparent 70%);
+}
+
+:root[data-theme='dark'] .table thead th,
+:root[data-theme='dark'] .table tbody tr:hover,
+:root[data-theme='dark'] .record-card,
+:root[data-theme='dark'] .quick-action {
+  background:rgba(255,255,255,.045);
+}
+
+:root[data-theme='dark'] .button--secondary,
+:root[data-theme='dark'] .button--ghost,
+:root[data-theme='dark'] .icon-button {
+  color:#edf6ff;
+}
