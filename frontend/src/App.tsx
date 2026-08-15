@@ -5,6 +5,7 @@ import { RouterProvider, normalisePath, useNavigate, useRouter } from './lib/rou
 import { ToastProvider } from './components/Toast'
 import { AppShell } from './components/AppShell'
 import { FullPageLoader } from './components/States'
+import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { SignUpPage } from './pages/SignUpPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
@@ -27,6 +28,11 @@ const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then((m) => ({ 
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then((m) => ({ default: m.LevelsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const LlmProvidersPage = lazy(() => import('./pages/LlmProvidersPage').then((m) => ({ default: m.LlmProvidersPage })))
+const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then((m) => ({ default: m.OcrScanPage })))
+const StudentsPage = lazy(() => import('./pages/Students').then((m) => ({ default: m.default })))
+const AttendancePage = lazy(() => import('./pages/Attendance').then((m) => ({ default: m.default })))
+const ExaminationsPage = lazy(() => import('./pages/Examinations').then((m) => ({ default: m.default })))
+const FinancePage = lazy(() => import('./pages/Finance').then((m) => ({ default: m.default })))
 const PlatformDashboardPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformDashboardPage })))
 const PlatformSchoolsPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformSchoolsPage })))
 const PlatformSchoolDetailPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformSchoolDetailPage })))
@@ -62,6 +68,25 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function LandingRedirect() {
+  const { session, initialising } = useAuth()
+  if (initialising) return <FullPageLoader label="Checking your session…" />
+  if (session) {
+    return (
+      <RequireAuth>
+        <AccessGate>
+          <AppShell>
+            <Suspense fallback={<FullPageLoader label="Loading page…" />}>
+              <DashboardPage />
+            </Suspense>
+          </AppShell>
+        </AccessGate>
+      </RequireAuth>
+    )
+  }
+  return <LandingPage />
+}
+
 function routeFor(pathname: string): ReactNode {
   switch (pathname) {
     case '/': return <DashboardPage />
@@ -79,6 +104,11 @@ function routeFor(pathname: string): ReactNode {
     case '/scheduling/constraints': return <ConstraintsPage />
     case '/scheduling/generate': return <GeneratePage />
     case '/scheduling/copilot': return <CopilotPage />
+    case '/students': return <StudentsPage />
+    case '/attendance': return <AttendancePage />
+    case '/examinations': return <ExaminationsPage />
+    case '/finance': return <FinancePage />
+    case '/ocr': return <OcrScanPage />
     case '/analytics': return <SchedulingAnalyticsPage />
     case '/versions': return <VersionsPage />
     case '/profile': return <ProfilePage />
@@ -112,6 +142,9 @@ function Routes() {
   if (PUBLIC_ROUTES.has(path)) {
     const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : <ResetPasswordPage />
     return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn>
+  }
+  if (path === '/') {
+    return <LandingRedirect />
   }
   return <ProtectedRoutes pathname={path} />
 }

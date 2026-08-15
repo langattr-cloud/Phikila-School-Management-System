@@ -11,6 +11,11 @@ import app.modules.school.models
 import app.modules.academics.models
 import app.modules.class_register.models
 import app.modules.users.models  # Added to include the users model for migration
+import app.modules.ocr.models  # OCR document scan tracking
+import app.modules.students.models_v2  # Student management
+import app.modules.attendance.models  # Attendance tracking
+import app.modules.examinations.models_v2  # Examinations & results
+import app.modules.finance.models  # Finance module
 
 # This is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
