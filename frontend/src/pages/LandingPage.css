@@ -1,0 +1,42 @@
+.body--locked { overflow: hidden; }
+.feature-card { position: relative; overflow: hidden; animation: landing-card-in 650ms cubic-bezier(.2,.75,.2,1) both; animation-delay: var(--feature-delay, 0ms); }
+.feature-card::after { content: ''; position: absolute; inset: auto -20% -45% 20%; height: 9rem; border-radius: 50%; background: var(--color-primary-soft); opacity: 0; transform: scale(.75); transition: opacity 260ms ease, transform 420ms cubic-bezier(.2,.75,.2,1); pointer-events: none; }
+.feature-card:hover::after { opacity: .55; transform: scale(1); }
+.feature-card__signal { display: inline-flex; align-items: center; gap: .4rem; margin-top: .8rem; color: var(--color-ink-muted); font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.feature-card__signal > span { width: .4rem; height: .4rem; border-radius: 50%; background: var(--brand-emerald); box-shadow: 0 0 0 4px var(--color-success-soft); }
+.feature-card__explore { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: .55rem; margin-top: 1rem; padding: .2rem 0; border: 0; background: transparent; color: var(--brand-navy); font: inherit; font-weight: 750; cursor: pointer; }
+.feature-card__explore span:last-child { transition: transform 180ms ease; }
+.feature-card__explore:hover span:last-child { transform: translateX(4px); }
+.landing-intelligence-pill { display: flex; align-items: center; gap: .6rem; min-height: 2.25rem; margin: .9rem 0 1rem; padding: .45rem .7rem; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-surface); color: var(--color-ink-muted); font-size: .76rem; font-weight: 650; animation: intelligence-pulse 4200ms ease-in-out infinite; }
+.landing-intelligence-pill__icon { display: inline-flex; color: var(--brand-emerald); }
+.landing-intelligence-pill__dot { width: .4rem; height: .4rem; margin-left: auto; border-radius: 50%; background: var(--brand-emerald); box-shadow: 0 0 0 4px var(--color-success-soft); }
+.landing-final__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 1.25rem; }
+.feature-modal-overlay, .install-modal-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1rem; background: rgba(5,16,27,.66); backdrop-filter: blur(10px); animation: modal-fade-in 180ms ease-out both; }
+.feature-modal, .install-modal { width: min(32rem,100%); max-height: min(88vh,44rem); overflow-y: auto; padding: clamp(1.25rem,4vw,2rem); border: 1px solid var(--color-line); border-radius: 1.35rem; background: var(--color-surface); box-shadow: 0 24px 80px rgba(0,0,0,.22); animation: modal-rise-in 330ms cubic-bezier(.2,.8,.2,1) both; }
+.feature-modal__topline, .install-modal__topline { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.feature-modal__eyebrow, .install-modal__eyebrow { color: var(--brand-gold); font-size: .7rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.feature-modal__close { display: grid; place-items: center; width: 2.35rem; height: 2.35rem; flex: 0 0 auto; border: 1px solid var(--color-line); border-radius: 50%; background: var(--color-surface-muted); color: var(--color-ink); font-size: 1.35rem; line-height: 1; cursor: pointer; transition: transform 160ms ease, background 160ms ease; }
+.feature-modal__close:hover { transform: rotate(4deg) scale(1.04); background: var(--color-primary-soft); }
+.feature-modal__icon { display: grid; place-items: center; width: 3.2rem; height: 3.2rem; margin: 1.4rem 0 1rem; border-radius: .9rem; background: var(--color-primary-soft); color: var(--color-primary); }
+.feature-modal h2, .install-modal h2 { font-family: var(--font-display); font-size: clamp(1.5rem,5vw,2rem); }
+.feature-modal__lead { margin-top: .65rem; color: var(--color-ink-muted); line-height: 1.6; }
+.feature-modal__details { display: grid; gap: .7rem; margin-top: 1.35rem; }
+.feature-modal__details > div { display: flex; align-items: flex-start; gap: .65rem; padding: .75rem; border-radius: .75rem; background: var(--color-surface-muted); font-size: .88rem; line-height: 1.45; }
+.feature-modal__details svg { flex: 0 0 auto; margin-top: .1rem; color: var(--brand-emerald); }
+.feature-modal__actions, .install-modal__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .65rem; margin-top: 1.4rem; }
+.install-modal { width: min(30rem,100%); text-align: center; }
+.install-modal__icon { display: block; margin: 1.3rem auto 1rem; border-radius: 1.2rem; box-shadow: 0 12px 30px rgba(10,30,52,.15); animation: install-icon-float 3.5s ease-in-out infinite; }
+.install-modal > p:not(.install-modal__note) { margin-top: .65rem; color: var(--color-ink-muted); line-height: 1.55; }
+.install-modal__steps { display: grid; gap: .6rem; margin-top: 1.25rem; text-align: left; }
+.install-modal__steps > div { display: flex; align-items: center; gap: .7rem; padding: .7rem .8rem; border: 1px solid var(--color-line); border-radius: .75rem; background: var(--color-surface-muted); font-size: .86rem; }
+.install-modal__steps strong { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; flex: 0 0 auto; border-radius: 50%; background: var(--brand-navy); color: #fff; font-size: .75rem; }
+.install-modal__note { margin-top: .9rem; color: var(--color-ink-muted); font-size: .72rem; }
+.landing-install-button { display: none; }
+@media (min-width:700px) { .landing-install-button { display: inline-flex; } }
+@media (max-width:699px) { .landing-nav__actions .landing-cta { display: none; } .landing-final__actions > .button { width: 100%; } .feature-modal__actions, .install-modal__actions { flex-direction: column-reverse; } .feature-modal__actions .button, .install-modal__actions .button { width: 100%; } }
+@keyframes landing-card-in { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+@keyframes modal-fade-in { from { opacity:0; } to { opacity:1; } }
+@keyframes modal-rise-in { from { opacity:0; transform:translateY(18px) scale(.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes intelligence-pulse { 0%,100% { transform:translateY(0); } 8% { transform:translateY(-2px); } 16% { transform:translateY(0); } }
+@keyframes install-icon-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) { .feature-card, .landing-intelligence-pill, .feature-modal-overlay, .install-modal-overlay, .feature-modal, .install-modal, .install-modal__icon { animation: none; } .feature-card::after, .feature-card__explore span:last-child, .feature-modal__close { transition: none; } }
