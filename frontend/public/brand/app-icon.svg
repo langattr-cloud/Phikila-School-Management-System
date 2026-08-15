@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
+  <title>Phikila School Management System</title>
+  <rect width="512" height="512" rx="112" fill="#0A1E34"/>
+  <g transform="translate(74.24 74.24) scale(5.68)">
+  <path d="M20 5H44A11 11 0 0 1 55 16V30.6C55 43.4 45.5 52.9 32 58.4 18.5 52.9 9 43.4 9 30.6V16A11 11 0 0 1 20 5Z" fill="#1B3E63"/>
+  <path d="M21 9.2H43A8 8 0 0 1 51 17.2V30.2C51 40.7 43.2 48.5 32 53.2 20.8 48.5 13 40.7 13 30.2V17.2A8 8 0 0 1 21 9.2Z" fill="none" stroke="#2BC194" stroke-width="1.05" opacity="0.45"/>
+
+  <!-- open book: the primary education symbol, dominant in the silhouette -->
+  <path d="M31.05 21.9C28.3 19.6 24.6 18.2 20.3 18.2A2.3 2.3 0 0 0 18 20.5V36.8A2.3 2.3 0 0 0 20.3 39.1C24.6 39.1 28.3 40.3 31.05 42.3Z" fill="#FFFFFF"/>
+  <path d="M32.95 21.9C35.7 19.6 39.4 18.2 43.7 18.2A2.3 2.3 0 0 1 46 20.5V36.8A2.3 2.3 0 0 1 43.7 39.1C39.4 39.1 35.7 40.3 32.95 42.3Z" fill="#FFFFFF"/>
+
+  <!-- verification badge: trusted, checked school administration -->
+  <circle cx="41.6" cy="37.6" r="9.2" fill="#1B3E63"/>
+  <circle cx="41.6" cy="37.6" r="7.3" fill="#2BC194"/>
+  <path d="M38.1 37.7 40.8 40.4 45.3 35.0" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- gold accent bookmark on the spine: the active record -->
+  <path d="M30.9 17.6H33.1V25.4L32 24.1 30.9 25.4Z" fill="#E0A93B"/></g>
+</svg>

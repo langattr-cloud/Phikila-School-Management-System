@@ -28,6 +28,7 @@ frontend/dist/
 server.log
 server.err.log
 server.pid
+
 # Supabase CLI local link
 backend/supabase/.temp/
 supabase/.temp/
