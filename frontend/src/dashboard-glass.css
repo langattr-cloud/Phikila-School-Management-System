@@ -1,7 +1,6 @@
 /* Dashboard visual layer: controlled glassmorphism with strong contrast. */
-.dashboard-glass {
+:root {
   --dash-glass: rgba(15, 42, 71, 0.82);
-  --dash-glass-strong: rgba(10, 30, 52, 0.9);
   --dash-border: rgba(255, 255, 255, 0.16);
   --dash-text: #f7fbff;
   --dash-muted: #b9c9d8;
