@@ -169,7 +169,8 @@ export function SignUpPage() {
   return (
     <AuthLayout
       title="Create your account"
-      subtitle="Register with your school email address."
+      subtitle="Set up your secure account, then request access to your school workspace."
+      wide
       footer={
         <p className="auth-shell__footer-text">
           Already have an account? <Link to="/login">Sign in</Link>
@@ -182,8 +183,14 @@ export function SignUpPage() {
         </Alert>
       )}
 
-      <form className="form" onSubmit={handleSubmit} noValidate>
-        <Field
+      <form className="form auth-signup-form" onSubmit={handleSubmit} noValidate>
+        <section className="auth-form-section" aria-labelledby="account-details-heading">
+          <header className="auth-form-section__header">
+            <span>01</span>
+            <div><h3 id="account-details-heading">Account details</h3><p>Tell us who will use this account.</p></div>
+          </header>
+          <div className="auth-form-grid auth-form-grid--two">
+            <Field
           label="Full name"
           name="fullName"
           autoComplete="name"
@@ -209,7 +216,16 @@ export function SignUpPage() {
           error={errors.email}
         />
 
-        <PasswordField
+          </div>
+        </section>
+
+        <section className="auth-form-section" aria-labelledby="account-security-heading">
+          <header className="auth-form-section__header">
+            <span>02</span>
+            <div><h3 id="account-security-heading">Secure your account</h3><p>Choose a strong password only you know.</p></div>
+          </header>
+          <div className="auth-form-grid auth-form-grid--two">
+            <PasswordField
           label="Password"
           name="password"
           autoComplete="new-password"
@@ -234,7 +250,16 @@ export function SignUpPage() {
           error={errors.confirmPassword}
         />
 
-        <div className="field">
+          </div>
+        </section>
+
+        <section className="auth-form-section" aria-labelledby="access-request-heading">
+          <header className="auth-form-section__header">
+            <span>03</span>
+            <div><h3 id="access-request-heading">Access request</h3><p>Choose the school and role you need.</p></div>
+          </header>
+          <div className="auth-form-grid auth-form-grid--two">
+            <div className="field">
           <label className="field__label" htmlFor="signup-role">
             Your role <span className="field__required">(required)</span>
           </label>
@@ -276,10 +301,12 @@ export function SignUpPage() {
               </option>
             ))}
           </select>
-        </div>
+            </div>
+          </div>
 
-        {!schoolId && (
-          <Field
+          {!schoolId && (
+            <Field
+            className="auth-form-section__school-name"
             label="School name"
             required
             placeholder="e.g. Phikila Academy"
@@ -289,10 +316,11 @@ export function SignUpPage() {
           />
         )}
 
-        <p className="form__note">
-          Accounts start with no access. A platform administrator reviews every request and
-          decides what access you receive.
-        </p>
+          <p className="form__note auth-form-section__note">
+            Accounts start with no access. A platform administrator reviews every request and
+            decides what access you receive.
+          </p>
+        </section>
 
         <button className="button button--primary button--block" type="submit" disabled={submitting}>
           {submitting && <Spinner label="Creating your account" />}
