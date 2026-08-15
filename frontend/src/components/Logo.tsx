@@ -17,7 +17,7 @@ export function LogoMark({
 }) {
   return (
     <span
-      className={`logo__mark ${className ?? ''}`.trim()}
+      className={`logo__mark logo__mark--${tone} ${className ?? ''}`.trim()}
       style={{ width: size, height: size }}
       role={title ? 'img' : undefined}
       aria-label={title}
