@@ -9,6 +9,7 @@ from app.config import settings
 from app.modules.academics.router import router as academics_router
 from app.modules.authentication.router import router as auth_router
 from app.modules.authentication.supabase import get_supabase_claims
+from app.modules.email.router import router as email_router
 from app.modules.llm.router import router as llm_router
 from app.modules.platform.router import router as platform_router
 from app.modules.scheduling.router import router as scheduling_router
@@ -139,6 +140,12 @@ def create_app() -> FastAPI:
         llm_router,
         prefix="/api/v1/llm",
         tags=["LLM Providers"],
+    )
+    # Resend email and transactional notifications.
+    app.include_router(
+        email_router,
+        prefix="/api/v1/email",
+        tags=["Email & Notifications"],
     )
     app.include_router(
         academics_router,

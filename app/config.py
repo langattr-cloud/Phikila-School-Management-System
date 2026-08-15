@@ -44,6 +44,14 @@ class Settings:
         self.supabase_jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
         self.app_jwt_secret = os.getenv("APP_JWT_SECRET", "")
 
+        # Resend Email integration
+        self.resend_api_key = os.getenv(
+            "RESEND_API_KEY", "re_S8do2b6i_4bfLTUMJsUK5uJU27CmeDhpv"
+        )
+        self.resend_from_email = os.getenv(
+            "RESEND_FROM_EMAIL", "Phikila School System <onboarding@resend.dev>"
+        )
+
     @staticmethod
     def _csv(value: str) -> list[str]:
         return [item.strip().rstrip("/") for item in value.split(",") if item.strip()]

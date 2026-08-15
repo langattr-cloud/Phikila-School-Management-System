@@ -33,6 +33,7 @@ const PlatformSchoolDetailPage = lazy(() => import('./pages/PlatformPage').then(
 const PlatformRequestsPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformRequestsPage })))
 const PlatformAdminsPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformAdminsPage })))
 const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then((m) => ({ default: m.PlatformAuditPage })))
+const PlatformEmailPage = lazy(() => import('./pages/PlatformEmailPage').then((m) => ({ default: m.PlatformEmailPage })))
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then((m) => ({ default: m.AwaitingApprovalPage })))
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
@@ -88,6 +89,7 @@ function routeFor(pathname: string): ReactNode {
     case '/platform/requests': return <PlatformRequestsPage />
     case '/platform/admins': return <PlatformAdminsPage />
     case '/platform/audit': return <PlatformAuditPage />
+    case '/platform/email': return <PlatformEmailPage />
     default: return <NotFoundPage />
   }
 }
