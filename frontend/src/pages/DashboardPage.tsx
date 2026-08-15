@@ -1,28 +1,38 @@
 import { useCallback } from 'react'
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  GraduationCap,
+  Layers3,
+  School,
+  Settings2,
+  Sparkles,
+  UsersRound,
+} from 'lucide-react'
 import { PageHeader } from '../components/PageHeader'
 import { Badge, EmptyState, ErrorState, LoadingBlock, Skeleton } from '../components/States'
 import { Alert } from '../components/Alert'
 import { QualityBars } from '../components/QualityBars'
-import {
-  CalendarIcon,
-  LayersIcon,
-  SchoolIcon,
-  UserIcon,
-} from '../components/icons'
 import { friendlyApiError, api } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { displayName, useAuth } from '../lib/auth'
 import { Link } from '../lib/router'
 import { scheduling, type Dashboard } from '../lib/scheduling'
+import './DashboardPage.css'
 
-function SummaryCard({
+type Tone = 'default' | 'warning' | 'danger' | 'success'
+
+function MetricCard({
   label,
   value,
   detail,
   loading,
   icon,
   to,
-  tone,
+  tone = 'default',
 }: {
   label: string
   value: string | number
@@ -30,21 +40,54 @@ function SummaryCard({
   loading: boolean
   icon: React.ReactNode
   to: string
-  tone?: 'danger' | 'warning'
+  tone?: Tone
 }) {
   return (
-    <li className="summary-card">
-      <Link className="summary-card__link" to={to}>
-        <span className="summary-card__icon" aria-hidden="true">
-          {icon}
-        </span>
-        <span className="summary-card__label">{label}</span>
-        <span className={`summary-card__value ${tone ? `summary-card__value--${tone}` : ''}`}>
-          {loading ? <Skeleton width="3rem" height="1.6rem" /> : value}
-        </span>
-        <span className="summary-card__detail">{loading ? <Skeleton width="70%" /> : detail}</span>
-      </Link>
-    </li>
+    <Link className={`dashboard-metric dashboard-metric--${tone}`} to={to}>
+      <span className="dashboard-metric__icon" aria-hidden="true">{icon}</span>
+      <span className="dashboard-metric__label">{label}</span>
+      <span className="dashboard-metric__value">
+        {loading ? <Skeleton width="3rem" height="1.9rem" /> : value}
+      </span>
+      <span className="dashboard-metric__detail">{loading ? <Skeleton width="80%" /> : detail}</span>
+      <ArrowUpRight className="dashboard-metric__arrow" size={17} aria-hidden="true" />
+    </Link>
+  )
+}
+
+function ModuleCard({
+  eyebrow,
+  title,
+  description,
+  icon,
+  to,
+  stats,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  icon: React.ReactNode
+  to: string
+  stats: Array<{ label: string; value: string | number }>
+}) {
+  return (
+    <Link className="dashboard-module" to={to}>
+      <div className="dashboard-module__head">
+        <span className="dashboard-module__icon" aria-hidden="true">{icon}</span>
+        <span className="dashboard-module__eyebrow">{eyebrow}</span>
+        <ChevronRight className="dashboard-module__chevron" size={18} aria-hidden="true" />
+      </div>
+      <h3 className="dashboard-module__title">{title}</h3>
+      <p className="dashboard-module__description">{description}</p>
+      <div className="dashboard-module__stats">
+        {stats.map((stat) => (
+          <span key={stat.label} className="dashboard-module__stat">
+            <strong>{stat.value}</strong>
+            <small>{stat.label}</small>
+          </span>
+        ))}
+      </div>
+    </Link>
   )
 }
 
@@ -55,8 +98,6 @@ export function DashboardPage() {
     [],
   )
   const { data, loading, error, reload } = useAsync<Dashboard>(scheduling.dashboard, toMessage)
-
-  // Fetch school profile and academic data from the database
   const schoolQuery = useAsync(api.school, toMessage)
   const yearsQuery = useAsync(api.academicYears, toMessage)
   const termsQuery = useAsync(api.terms, toMessage)
@@ -64,16 +105,19 @@ export function DashboardPage() {
 
   const hard = data?.conflicts.hard ?? 0
   const soft = data?.conflicts.soft ?? 0
+  const unassigned = data?.lessons.unassigned ?? 0
+  const scheduled = data?.lessons.scheduled ?? 0
+  const required = data?.lessons.required ?? 0
   const version = data?.version ?? null
-  const setupIncomplete =
-    !loading && (data?.counts.teachers ?? 0) === 0 && (data?.counts.classes ?? 0) === 0
-
   const school = schoolQuery.data
-  const currentYear = yearsQuery.data?.find((y) => y.is_current)
-  const currentTerm = termsQuery.data?.find((t) => t.is_current)
+  const currentYear = yearsQuery.data?.find((year) => year.is_current)
+  const currentTerm = termsQuery.data?.find((term) => term.is_current)
+  const setupIncomplete = !loading && (data?.counts.teachers ?? 0) === 0 && (data?.counts.classes ?? 0) === 0
+  const hasAttention = setupIncomplete || hard > 0 || unassigned > 0 || soft > 0
+  const systemReady = Boolean(data?.solver_available)
 
   return (
-    <>
+    <div className="dashboard-page">
       <PageHeader
         title="Dashboard"
         description={`Signed in as ${displayName(user)}.`}
@@ -98,257 +142,252 @@ export function DashboardPage() {
         />
       ) : (
         <>
-          {setupIncomplete && (
-            <Alert tone="info" title="Set up your school">
-              Add your teachers, subjects, classes and rooms, then define what each class studies
-              each week. <Link to="/setup/teachers">Start with teachers</Link>.
+          {schoolQuery.error && !schoolQuery.loading && (
+            <Alert tone="info" title="School profile not set up yet">
+              <Link to="/setup/school">Set up your school profile</Link> to complete your school workspace.
             </Alert>
           )}
+
+          <section className="dashboard-hero" aria-labelledby="dashboard-hero-title">
+            <div className="dashboard-hero__glow" aria-hidden="true" />
+            <div className="dashboard-hero__copy">
+              <span className="dashboard-hero__eyebrow">PHIKILA COMMAND CENTER</span>
+              <h2 id="dashboard-hero-title">
+                {school?.name || 'Your school'}
+                <span>is {systemReady ? 'ready to operate' : 'waiting for setup'}.</span>
+              </h2>
+              <p>
+                {currentYear?.name || 'Academic year not set'}
+                {currentTerm ? ` · ${currentTerm.name}` : ''}
+                {' · '}
+                {systemReady ? 'Scheduling engine online' : 'Scheduling engine unavailable'}
+              </p>
+            </div>
+            <div className="dashboard-hero__status">
+              <span className={`dashboard-status-dot ${systemReady ? 'dashboard-status-dot--ok' : 'dashboard-status-dot--warn'}`} />
+              <span>{systemReady ? 'Operations online' : 'Action required'}</span>
+            </div>
+          </section>
 
           {data && !data.solver_available && (
             <Alert tone="error" title="Scheduling engine unavailable">
-              Timetables cannot be generated on this server because the optimisation engine is not
-              installed.
+              Timetables cannot be generated on this server because the optimisation engine is not installed.
             </Alert>
           )}
 
-          {/* ---- School Profile ---- */}
-          {school && (
-            <section aria-labelledby="school-heading" className="section card">
-              <h2 className="section__title" id="school-heading">
-                School Profile
-              </h2>
-              <div className="dashboard-columns dashboard-columns--two">
-                <div className="detail-list detail-list--two">
-                  <dl className="detail-list__full">
-                    <dt>School name</dt>
-                    <dd>{school.name || 'Not set'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Code</dt>
-                    <dd>{school.code || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>County</dt>
-                    <dd>{school.county || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Email</dt>
-                    <dd>{school.email || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Phone</dt>
-                    <dd>{school.phone || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Principal</dt>
-                    <dd>{school.principal_name || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Motto</dt>
-                    <dd className="detail-list__full">{school.motto || '—'}</dd>
-                  </dl>
-                </div>
+          <section className="dashboard-section" aria-labelledby="overview-title">
+            <div className="dashboard-section__head">
+              <div>
+                <span className="dashboard-section__eyebrow">OVERVIEW</span>
+                <h2 id="overview-title">Your school at a glance</h2>
               </div>
-            </section>
-          )}
-
-          {schoolQuery.error && !schoolQuery.loading && (
-            <Alert tone="info" title="School profile not set up yet">
-              <Link to="/setup/school">Set up your school profile</Link> to see it here.
-            </Alert>
-          )}
-
-          {/* ---- Academic Overview ---- */}
-          <section aria-labelledby="academic-heading" className="section">
-            <h2 className="section__title" id="academic-heading">
-              Academic Overview
-            </h2>
-            <ul className="summary-grid">
-              <SummaryCard
-                label="Academic years"
-                value={yearsQuery.data?.length ?? 0}
-                detail={currentYear ? `Current: ${currentYear.name}` : 'No active year'}
-                loading={yearsQuery.loading}
-                icon={<CalendarIcon />}
-                to="/setup/academic-years"
-              />
-              <SummaryCard
-                label="Terms"
-                value={termsQuery.data?.length ?? 0}
-                detail={currentTerm ? `Current: ${currentTerm.name}` : 'No active term'}
-                loading={termsQuery.loading}
-                icon={<CalendarIcon />}
-                to="/setup/academic-years"
-              />
-              <SummaryCard
-                label="Levels"
-                value={levelsQuery.data?.length ?? 0}
-                detail={levelsQuery.data?.length ? 'Grade levels defined' : 'No levels set up'}
-                loading={levelsQuery.loading}
-                icon={<LayersIcon />}
-                to="/setup/levels"
-              />
-              <SummaryCard
-                label="School status"
-                value={school?.is_active !== false ? 'Active' : 'Inactive'}
-                detail={school ? (school.sub_county ? `${school.sub_county}, ${school.county}` : 'Location not set') : 'Set up school'}
-                loading={schoolQuery.loading}
-                icon={<SchoolIcon />}
-                to="/setup/school"
-              />
-            </ul>
-          </section>
-
-          {/* ---- School Overview (scheduling) ---- */}
-          <section aria-labelledby="overview-heading" className="section">
-            <h2 className="section__title" id="overview-heading">
-              Scheduling Overview
-            </h2>
-            <ul className="summary-grid">
-              <SummaryCard
+              <span className="dashboard-section__hint">Live from your school data</span>
+            </div>
+            <div className="dashboard-metrics">
+              <MetricCard
                 label="Teachers"
                 value={data?.counts.teachers ?? 0}
                 detail="Staff available for scheduling"
                 loading={loading}
-                icon={<UserIcon />}
+                icon={<UsersRound size={20} />}
                 to="/setup/teachers"
               />
-              <SummaryCard
+              <MetricCard
                 label="Classes"
                 value={data?.counts.classes ?? 0}
                 detail="Teaching groups"
                 loading={loading}
-                icon={<SchoolIcon />}
+                icon={<School size={20} />}
                 to="/setup/classes"
               />
-              <SummaryCard
+              <MetricCard
                 label="Subjects"
                 value={data?.counts.subjects ?? 0}
-                detail="Subjects on the curriculum"
+                detail="Curriculum subjects"
                 loading={loading}
-                icon={<LayersIcon />}
+                icon={<Layers3 size={20} />}
                 to="/setup/subjects"
               />
-              <SummaryCard
+              <MetricCard
                 label="Rooms"
                 value={data?.counts.rooms ?? 0}
                 detail="Bookable spaces"
                 loading={loading}
-                icon={<SchoolIcon />}
+                icon={<GraduationCap size={20} />}
                 to="/setup/rooms"
               />
-            </ul>
+            </div>
           </section>
 
-          <section aria-labelledby="status-heading" className="section">
-            <h2 className="section__title" id="status-heading">
-              Timetable status
-            </h2>
-            <ul className="summary-grid">
-              <SummaryCard
-                label="Scheduled lessons"
-                value={data?.lessons.scheduled ?? 0}
-                detail={`of ${data?.lessons.required ?? 0} required each week`}
-                loading={loading}
-                icon={<CalendarIcon />}
-                to="/timetable"
-              />
-              <SummaryCard
-                label="Unassigned"
-                value={data?.lessons.unassigned ?? 0}
-                detail={
-                  (data?.lessons.unassigned ?? 0) > 0
-                    ? 'Lessons still to be placed'
-                    : 'Every lesson is placed'
-                }
-                loading={loading}
-                icon={<CalendarIcon />}
-                to="/scheduling/requirements"
-                tone={(data?.lessons.unassigned ?? 0) > 0 ? 'warning' : undefined}
-              />
-              <SummaryCard
-                label="Hard conflicts"
-                value={hard}
-                detail={hard > 0 ? 'Must be resolved before publishing' : 'None — ready to publish'}
-                loading={loading}
-                icon={<LayersIcon />}
-                to="/timetable"
-                tone={hard > 0 ? 'danger' : undefined}
-              />
-              <SummaryCard
-                label="Warnings"
-                value={soft}
-                detail={soft > 0 ? 'Preferences not fully met' : 'All preferences met'}
-                loading={loading}
-                icon={<LayersIcon />}
-                to="/timetable"
-                tone={soft > 0 ? 'warning' : undefined}
-              />
-            </ul>
-          </section>
-
-          <div className="dashboard-columns">
-            <section aria-labelledby="quality-heading" className="card section">
-              <div className="panel__head">
-                <h2 className="section__title" id="quality-heading">
-                  Timetable quality
-                </h2>
-                {version && (
-                  <Badge tone={version.status === 'published' ? 'success' : 'warning'}>
-                    v{version.number} {version.status}
-                  </Badge>
+          <section className="dashboard-main-grid" aria-label="Operational overview">
+            <article className={`dashboard-panel dashboard-panel--attention ${hasAttention ? 'dashboard-panel--attention-open' : ''}`}>
+              <div className="dashboard-panel__head">
+                <div>
+                  <span className="dashboard-section__eyebrow">NEEDS ATTENTION</span>
+                  <h2>{hasAttention ? 'A few things need your attention.' : 'Everything looks in order.'}</h2>
+                </div>
+                {hasAttention ? <AlertTriangle size={22} aria-hidden="true" /> : <CheckCircle2 size={22} aria-hidden="true" />}
+              </div>
+              <div className="dashboard-attention-list">
+                {hard > 0 && (
+                  <Link to="/timetable" className="dashboard-attention-item dashboard-attention-item--danger">
+                    <span className="dashboard-attention-item__count">{hard}</span>
+                    <span><strong>Hard conflicts</strong><small>Must be resolved before publishing.</small></span>
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </Link>
+                )}
+                {unassigned > 0 && (
+                  <Link to="/scheduling/requirements" className="dashboard-attention-item dashboard-attention-item--warning">
+                    <span className="dashboard-attention-item__count">{unassigned}</span>
+                    <span><strong>Unassigned lessons</strong><small>Lessons still need placement.</small></span>
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </Link>
+                )}
+                {soft > 0 && (
+                  <Link to="/timetable" className="dashboard-attention-item">
+                    <span className="dashboard-attention-item__count">{soft}</span>
+                    <span><strong>Schedule warnings</strong><small>Preferences are not fully met.</small></span>
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </Link>
+                )}
+                {setupIncomplete && (
+                  <Link to="/setup/teachers" className="dashboard-attention-item">
+                    <span className="dashboard-attention-item__count"><Settings2 size={18} /></span>
+                    <span><strong>Finish school setup</strong><small>Add your core teaching and class structure.</small></span>
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </Link>
+                )}
+                {!hasAttention && (
+                  <div className="dashboard-empty-inline">
+                    <CheckCircle2 size={18} />
+                    <span>No unresolved scheduling issues are currently reported.</span>
+                  </div>
                 )}
               </div>
+            </article>
+
+            <article className="dashboard-panel">
+              <div className="dashboard-panel__head">
+                <div>
+                  <span className="dashboard-section__eyebrow">TIMETABLE HEALTH</span>
+                  <h2>{version ? `Version ${version.number}` : 'No timetable yet'}</h2>
+                </div>
+                {version && <Badge tone={version.status === 'published' ? 'success' : 'warning'}>{version.status}</Badge>}
+              </div>
               {loading ? (
-                <LoadingBlock label="Loading the quality score" rows={4} />
+                <LoadingBlock label="Loading timetable health" rows={4} />
               ) : version ? (
-                <QualityBars quality={data?.quality ?? {}} />
+                <>
+                  <div className="dashboard-health-hero">
+                    <span className="dashboard-health-hero__value">{required > 0 ? Math.round((scheduled / required) * 100) : 0}%</span>
+                    <span className="dashboard-health-hero__copy">scheduled coverage</span>
+                  </div>
+                  <QualityBars quality={data?.quality ?? {}} />
+                  <Link className="dashboard-panel__link" to="/timetable">Open timetable <ArrowUpRight size={16} /></Link>
+                </>
               ) : (
                 <EmptyState
                   title="No timetable yet"
-                  description="Generate a timetable to see its quality score and where it can improve."
-                  icon={<CalendarIcon width={22} height={22} />}
-                  action={
-                    <Link className="button button--primary button--sm" to="/scheduling/generate">
-                      Generate a timetable
-                    </Link>
-                  }
+                  description="Generate a timetable to start tracking quality and coverage."
+                  icon={<CalendarDays width={22} height={22} />}
+                  action={<Link className="button button--primary button--sm" to="/scheduling/generate">Generate timetable</Link>}
                 />
               )}
-            </section>
+            </article>
+          </section>
 
-            <section aria-labelledby="activity-heading" className="card section">
-              <h2 className="section__title" id="activity-heading">
-                Recent activity
-              </h2>
-              {loading ? (
-                <LoadingBlock label="Loading recent activity" rows={3} />
-              ) : (data?.recent.length ?? 0) === 0 ? (
-                <EmptyState
-                  title="Nothing yet"
-                  description="Changes to your timetable will appear here."
-                />
-              ) : (
-                <ul className="activity-list">
-                  {data!.recent.map((entry, index) => (
-                    <li className="activity" key={index}>
-                      <span className="activity__dot" aria-hidden="true" />
-                      <div>
-                        <p className="activity__summary">{entry.summary}</p>
-                        <p className="activity__meta">
-                          {entry.actor ?? 'system'}
-                          {entry.at ? ` · ${new Date(entry.at).toLocaleString()}` : ''}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
+          <section className="dashboard-section" aria-labelledby="modules-title">
+            <div className="dashboard-section__head">
+              <div>
+                <span className="dashboard-section__eyebrow">WORKSPACES</span>
+                <h2 id="modules-title">Manage the school</h2>
+              </div>
+            </div>
+            <div className="dashboard-module-grid">
+              <ModuleCard
+                eyebrow="School profile"
+                title={school?.name || 'School setup'}
+                description="Identity, contacts, location and school-level configuration."
+                icon={<School size={21} />}
+                to="/setup/school"
+                stats={[
+                  { label: 'status', value: school?.is_active !== false ? 'Active' : 'Inactive' },
+                  { label: 'code', value: school?.code || '—' },
+                ]}
+              />
+              <ModuleCard
+                eyebrow="Academics"
+                title="Academic calendar"
+                description="Years, terms, levels and the structure behind the school day."
+                icon={<CalendarDays size={21} />}
+                to="/setup/academic-years"
+                stats={[
+                  { label: 'years', value: yearsQuery.data?.length ?? 0 },
+                  { label: 'terms', value: termsQuery.data?.length ?? 0 },
+                ]}
+              />
+              <ModuleCard
+                eyebrow="Curriculum"
+                title="Teachers & subjects"
+                description="Connect your teaching team, curriculum and class structure."
+                icon={<UsersRound size={21} />}
+                to="/setup/teachers"
+                stats={[
+                  { label: 'teachers', value: data?.counts.teachers ?? 0 },
+                  { label: 'subjects', value: data?.counts.subjects ?? 0 },
+                ]}
+              />
+              <ModuleCard
+                eyebrow="Scheduling"
+                title="Timetable operations"
+                description="Build schedules, inspect constraints and monitor what needs attention."
+                icon={<Sparkles size={21} />}
+                to="/timetable"
+                stats={[
+                  { label: 'scheduled', value: scheduled },
+                  { label: 'conflicts', value: hard },
+                ]}
+              />
+            </div>
+          </section>
+
+          <section className="dashboard-section dashboard-section--activity" aria-labelledby="activity-title">
+            <div className="dashboard-section__head">
+              <div>
+                <span className="dashboard-section__eyebrow">ACTIVITY</span>
+                <h2 id="activity-title">Recent operations</h2>
+              </div>
+              {data?.recent.length ? <Link className="dashboard-panel__link" to="/timetable">View workspace <ArrowUpRight size={16} /></Link> : null}
+            </div>
+            {loading ? (
+              <LoadingBlock label="Loading recent activity" rows={4} />
+            ) : (data?.recent.length ?? 0) === 0 ? (
+              <div className="dashboard-empty-inline dashboard-empty-inline--large">
+                <Sparkles size={18} />
+                <span>No recent timetable activity has been recorded yet.</span>
+              </div>
+            ) : (
+              <ul className="dashboard-activity-list">
+                {data!.recent.slice(0, 6).map((entry, index) => (
+                  <li className="dashboard-activity" key={`${entry.summary}-${index}`}>
+                    <span className="dashboard-activity__dot" aria-hidden="true" />
+                    <div>
+                      <strong>{entry.summary}</strong>
+                      <span>{entry.actor ?? 'system'}{entry.at ? ` · ${new Date(entry.at).toLocaleString()}` : ''}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {levelsQuery.error && !levelsQuery.loading && (
+            <Alert tone="info" title="Academic levels are not configured">
+              <Link to="/setup/levels">Configure academic levels</Link> to complete the academic structure.
+            </Alert>
+          )}
         </>
       )}
-    </>
+    </div>
   )
 }
