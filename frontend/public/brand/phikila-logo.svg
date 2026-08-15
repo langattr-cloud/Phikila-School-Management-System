@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
+<title id="title">Phikila</title>
+<desc id="desc">Phikila academic logo in gold and black</desc>
+<rect width="1254" height="1254" fill="#fff"/>
+<circle cx="627" cy="627" r="576" fill="none" stroke="#c89428" stroke-width="15"/>
+<circle cx="627" cy="627" r="548" fill="none" stroke="#c89428" stroke-width="5"/>
+<g fill="#c89428"><path d="M627 87l13 42 42 13-42 13-13 42-13-42-42-13 42-13z"/><path d="M164 547l13 42 42 13-42 13-13 42-13-42-42-13 42-13z"/><path d="M1090 547l13 42 42 13-42 13-13 42-13-42-42-13 42-13z"/><path d="M627 1030l13 42 42 13-42 13-13 42-13-42-42-13 42-13z"/></g>
+<path d="M375 299l252-95 252 95-252 95z" fill="#c89428"/><path d="M478 330h298v93c-67 38-199 38-298 0z" fill="#c89428"/><path d="M491 339v91c86 38 187 38 273 0v-91c-76 25-197 25-273 0z" fill="#fff" opacity=".95"/><path d="M418 319v84" stroke="#c89428" stroke-width="8"/><circle cx="418" cy="416" r="13" fill="#c89428"/><path d="M418 429v83M402 449v63M418 452v65M434 449v63" stroke="#c89428" stroke-width="7"/>
+<path d="M492 390c40-25 83-36 123-27 18 4 28 17 28 38v286c0 25-11 38-34 40l-70 5v-16l34-10c16-5 24-17 24-37V435c0-22-13-34-39-34h-66z" fill="#111"/><path d="M627 399c42-36 100-49 165-31 51 14 83 45 91 92-42-31-82-45-119-43-54 3-96 25-137 65z" fill="#c89428"/><path d="M462 714c63-30 115-39 165-25 50 14 97 10 167-8-47 28-101 43-160 44-58 1-115-3-172-11z" fill="#c89428"/><path d="M462 729c63-25 115-31 165-18 50 13 97 9 167-7-48 22-101 34-160 35-58 1-115-2-172-10z" fill="#111"/>
+<text x="627" y="914" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="150" font-weight="500" letter-spacing="2" fill="#111">Phikila</text><path d="M306 974h280M674 974h274" stroke="#c89428" stroke-width="4"/><path d="M627 957l17 17-17 17-17-17z" fill="#c89428"/>
+</svg>
