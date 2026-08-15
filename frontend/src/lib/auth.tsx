@@ -7,10 +7,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { friendlyAuthError } from './authErrors'
 import { apiFetch } from './api'
+import { clearLocalSession, getLocalSession, localSignIn } from './localAuth'
 
 export type AuthResult = { ok: true; message?: string } | { ok: false; message: string }
 
@@ -24,12 +24,24 @@ export type AccessRequestDraft = {
   school_name: string | null
 }
 
+/** Structural view of the signed-in user used across the app. */
+export type AuthUser = {
+  id: string
+  email: string | null
+  user_metadata?: Record<string, unknown> | null
+}
+
+export type AuthSession = {
+  access_token: string
+  user: AuthUser
+}
+
 type AuthContextValue = {
-  session: Session | null
-  user: User | null
-  /** True until the persisted Supabase session has been restored. */
+  session: AuthSession | null
+  user: AuthUser | null
+  /** True until the persisted session has been restored. */
   initialising: boolean
-  /** True while the user is inside a Supabase password-recovery link flow. */
+  /** True while the user is inside a password-recovery link flow. */
   recoveryMode: boolean
   signIn: (email: string, password: string) => Promise<AuthResult>
   signUp: (
@@ -46,25 +58,97 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function displayName(user: User | null): string {
+export function displayName(user: AuthUser | null): string {
   if (!user) return ''
   const metadata = user.user_metadata as { full_name?: string; name?: string } | undefined
   return metadata?.full_name?.trim() || metadata?.name?.trim() || user.email || 'Signed-in user'
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
+/**
+ * Local (self-hosted) sign-in against the backend's own token endpoint.
+ * Used only when no Supabase project is configured.
+ */
+function LocalAuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<AuthSession | null>(() => getLocalSession())
+
+  const signIn = useCallback<AuthContextValue['signIn']>(async (email, password) => {
+    try {
+      const local = await localSignIn(email.trim(), password)
+      setSession(local)
+      return { ok: true, message: 'Signed in.' }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'We could not sign you in.'
+      return { ok: false, message }
+    }
+  }, [])
+
+  const signUp = useCallback<AuthContextValue['signUp']>(async () => {
+    return {
+      ok: false,
+      message:
+        'Account creation is disabled in this local preview. Use one of the demo accounts shown on the sign-in screen.',
+    }
+  }, [])
+
+  const signOut = useCallback<AuthContextValue['signOut']>(async () => {
+    clearLocalSession()
+    setSession(null)
+    return { ok: true, message: 'You have been signed out.' }
+  }, [])
+
+  const requestPasswordReset = useCallback<AuthContextValue['requestPasswordReset']>(async () => {
+    return {
+      ok: false,
+      message: 'Password reset is not available in this local preview.',
+    }
+  }, [])
+
+  const updatePassword = useCallback<AuthContextValue['updatePassword']>(async () => {
+    return {
+      ok: false,
+      message: 'Password changes are not available in this local preview.',
+    }
+  }, [])
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      session,
+      user: session?.user ?? null,
+      initialising: false,
+      recoveryMode: false,
+      signIn,
+      signUp,
+      signOut,
+      requestPasswordReset,
+      updatePassword,
+    }),
+    [session, signIn, signUp, signOut, requestPasswordReset, updatePassword],
+  )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+/**
+ * Supabase Auth provider — the production path. Signs the browser in
+ * directly with the public anon key and sends the access token to the API.
+ */
+function SupabaseAuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<AuthSession | null>(null)
   const [initialising, setInitialising] = useState(true)
   const [recoveryMode, setRecoveryMode] = useState(false)
 
   useEffect(() => {
     let active = true
+    if (!supabase) return
+
+    const toAuthSession = (s: { access_token: string; user: AuthUser } | null): AuthSession | null =>
+      s ? { access_token: s.access_token, user: s.user } : null
 
     supabase.auth
       .getSession()
       .then(({ data }) => {
         if (!active) return
-        setSession(data.session)
+        setSession(toAuthSession(data.session as { access_token: string; user: AuthUser } | null))
       })
       .finally(() => {
         if (active) setInitialising(false)
@@ -74,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return
       if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true)
       if (event === 'SIGNED_OUT') setRecoveryMode(false)
-      setSession(nextSession)
+      setSession(toAuthSession(nextSession as { access_token: string; user: AuthUser } | null))
       setInitialising(false)
     })
 
@@ -85,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = useCallback<AuthContextValue['signIn']>(async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase!.auth.signInWithPassword({
       email: email.trim(),
       password,
     })
@@ -97,62 +181,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback<AuthContextValue['signUp']>(
     async (fullName, email, password, request) => {
-    // The requested role and school are stored as user metadata purely so the
-    // request survives email confirmation. They confer nothing: the server
-    // records them as a pending request that a super admin must approve, and
-    // it re-derives every permission from its own tables.
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          full_name: fullName.trim(),
-          requested_role: request?.requested_role ?? null,
-          requested_school_id: request?.school_id ?? null,
-          requested_school_name: request?.school_name ?? null,
+      // The requested role and school are stored as user metadata purely so the
+      // request survives email confirmation. They confer nothing: the server
+      // records them as a pending request that a super admin must approve, and
+      // it re-derives every permission from its own tables.
+      const { data, error } = await supabase!.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            requested_role: request?.requested_role ?? null,
+            requested_school_id: request?.school_id ?? null,
+            requested_school_name: request?.school_name ?? null,
+          },
+          emailRedirectTo: `${window.location.origin}/login`,
         },
-        emailRedirectTo: `${window.location.origin}/login`,
-      },
-    })
+      })
 
-    if (error) {
+      if (error) {
+        return {
+          ok: false,
+          message: friendlyAuthError(error, 'We could not create your account. Please try again.'),
+        }
+      }
+
+      // Supabase returns a user without a session when email confirmation is on.
+      const needsEmailConfirmation = Boolean(data.user) && !data.session
+      // If Supabase signed the user straight in, register the pending request
+      // now. Otherwise it is submitted on first sign-in (see AccessGate).
+      if (data.session && request) {
+        try {
+          await apiFetch('/api/v1/platform/access-requests', {
+            method: 'POST',
+            body: JSON.stringify({
+              requested_role: request.requested_role,
+              school_id: request.school_id,
+              school_name: request.school_name,
+            }),
+          })
+        } catch {
+          // A failed request submission must not block account creation; the
+          // AccessGate retries it the next time the user opens the app.
+        }
+      }
+
       return {
-        ok: false,
-        message: friendlyAuthError(error, 'We could not create your account. Please try again.'),
+        ok: true,
+        needsEmailConfirmation,
+        message: needsEmailConfirmation
+          ? 'Check your inbox and open the confirmation link to activate your account.'
+          : 'Your account is ready.',
       }
-    }
-
-    // Supabase returns a user without a session when email confirmation is on.
-    const needsEmailConfirmation = Boolean(data.user) && !data.session
-    // If Supabase signed the user straight in, register the pending request
-    // now. Otherwise it is submitted on first sign-in (see AccessGate).
-    if (data.session && request) {
-      try {
-        await apiFetch('/api/v1/platform/access-requests', {
-          method: 'POST',
-          body: JSON.stringify({
-            requested_role: request.requested_role,
-            school_id: request.school_id,
-            school_name: request.school_name,
-          }),
-        })
-      } catch {
-        // A failed request submission must not block account creation; the
-        // AccessGate retries it the next time the user opens the app.
-      }
-    }
-
-    return {
-      ok: true,
-      needsEmailConfirmation,
-      message: needsEmailConfirmation
-        ? 'Check your inbox and open the confirmation link to activate your account.'
-        : 'Your account is ready.',
-    }
-  }, [])
+    },
+    [],
+  )
 
   const signOut = useCallback<AuthContextValue['signOut']>(async () => {
-    const { error } = await supabase.auth.signOut()
+    const { error } = await supabase!.auth.signOut()
     if (error) {
       return { ok: false, message: friendlyAuthError(error, 'We could not sign you out. Please try again.') }
     }
@@ -162,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestPasswordReset = useCallback<AuthContextValue['requestPasswordReset']>(
     async (email) => {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error } = await supabase!.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       })
       // Account existence is never revealed: rate limiting and transport
@@ -179,7 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const updatePassword = useCallback<AuthContextValue['updatePassword']>(async (password) => {
-    const { error } = await supabase.auth.updateUser({ password })
+    const { error } = await supabase!.auth.updateUser({ password })
     if (error) {
       return {
         ok: false,
@@ -193,7 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
-      user: session?.user ?? null,
+      user: (session?.user as AuthUser | undefined) ?? null,
       initialising,
       recoveryMode,
       signIn,
@@ -206,6 +292,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  return supabase ? (
+    <SupabaseAuthProvider>{children}</SupabaseAuthProvider>
+  ) : (
+    <LocalAuthProvider>{children}</LocalAuthProvider>
+  )
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

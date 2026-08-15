@@ -9,7 +9,17 @@ import { friendlyApiError } from '../lib/api'
 import { scheduling } from '../lib/scheduling'
 import { useToast } from '../components/Toast'
 
-type Constraint = Record<string, unknown> & { id: number; code?: string; name?: string; kind?: string; priority?: string; weight?: number }
+type Constraint = {
+  id: number
+  kind?: string
+  scope?: string
+  target_id?: number | null
+  is_hard?: boolean
+  weight?: number | null
+  params?: Record<string, unknown>
+  enabled?: boolean
+  note?: string | null
+}
 
 export function ConstraintsPage() {
   const { notify } = useToast()
@@ -41,7 +51,15 @@ export function ConstraintsPage() {
     if (!name.trim() || saving) return
     setSaving(true)
     try {
-      await scheduling.createConstraint({ name: name.trim(), kind, priority: kind, weight: Number(weight) || 1 })
+      // Maps onto the solver's real constraint model: a school-wide rule that
+      // is either hard (must hold) or soft (weighted preference).
+      await scheduling.createConstraint({
+        kind: 'school_rule',
+        scope: 'school',
+        is_hard: kind === 'hard',
+        weight: Number(weight) || 1,
+        note: name.trim(),
+      })
       notify('Constraint added.', 'success'); setName(''); setFormOpen(false); await load()
     } catch (err) { notify(friendlyApiError(err, 'create the constraint'), 'error') }
     finally { setSaving(false) }
@@ -53,8 +71,8 @@ export function ConstraintsPage() {
   }
 
   const columns: Column<Constraint>[] = [
-    { key: 'name', header: 'Constraint', render: (row) => String(row.name ?? row.code ?? `Constraint #${row.id}`) },
-    { key: 'kind', header: 'Type', render: (row) => <Badge tone={row.kind === 'hard' || row.priority === 'hard' ? 'warning' : 'success'}>{String(row.kind ?? row.priority ?? 'soft')}</Badge> },
+    { key: 'name', header: 'Constraint', render: (row) => String(row.note ?? row.kind ?? `Constraint #${row.id}`) },
+    { key: 'kind', header: 'Type', render: (row) => <Badge tone={row.is_hard ? 'warning' : 'success'}>{row.is_hard ? 'Hard rule' : 'Soft preference'}</Badge> },
     { key: 'weight', header: 'Weight', render: (row) => row.weight == null ? '—' : String(row.weight) },
   ]
 

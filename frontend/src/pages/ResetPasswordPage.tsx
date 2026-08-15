@@ -49,7 +49,7 @@ export function ResetPasswordPage() {
     }
 
     // Force a fresh sign-in with the new password.
-    await supabase.auth.signOut()
+    await supabase?.auth.signOut()
     setSubmitting(false)
     notify('Password updated. Sign in with your new password.', 'success')
     navigate('/login?notice=password-updated', { replace: true })

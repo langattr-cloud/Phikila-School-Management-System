@@ -19,11 +19,16 @@ const vercelManagedVariables = new Set([
 
 export default defineConfig(({ mode }) => {
   const environment = loadEnv(mode, '.', 'VITE_')
-  const missing = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'].filter(
-    (name) => !environment[name]?.trim(),
-  )
-  if (missing.length > 0) {
-    throw new Error(`Missing required public build variables: ${missing.join(', ')}`)
+
+  // Both Supabase variables are required together for the production auth
+  // path. When both are absent the app runs in local auth mode (the backend's
+  // own token endpoint); a half-configured pair is a configuration error.
+  const hasSupabaseUrl = Boolean(environment['VITE_SUPABASE_URL']?.trim())
+  const hasSupabaseKey = Boolean(environment['VITE_SUPABASE_ANON_KEY']?.trim())
+  if (hasSupabaseUrl !== hasSupabaseKey) {
+    throw new Error(
+      'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set together, or both omitted for local mode',
+    )
   }
 
   const unexpected = Object.keys(environment).filter(

@@ -26,14 +26,30 @@ export function MyTimetablePage() {
   useEffect(() => {
     let active = true
     cachedFetch('mytt:options', async () => {
-      const [classes, teachers] = await Promise.all([scheduling.classes(), scheduling.teachers()])
-      return { classes, teachers }
+      const [classes, teachers, me] = await Promise.all([
+        scheduling.classes(),
+        scheduling.teachers(),
+        scheduling.me(),
+      ])
+      return { classes, teachers, me }
     })
       .then((result) => {
         if (!active) return
-        setOptions(result.data)
-        const first = result.data.classes[0]?.id ?? null
-        setTargetId((current) => current ?? first)
+        const { classes, teachers, me } = result.data
+        setOptions({ classes, teachers })
+        setTargetId((current) => {
+          if (current !== null) return current
+          // Teachers land on their own timetable, students on their class.
+          if (me.teacher_id) {
+            setScope('teacher')
+            return me.teacher_id
+          }
+          if (me.class_id) {
+            setScope('class')
+            return me.class_id
+          }
+          return classes[0]?.id ?? null
+        })
       })
       .catch(() => {
         if (active) setError('Could not load your school data.')

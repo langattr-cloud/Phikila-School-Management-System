@@ -6,12 +6,20 @@ import { Spinner } from '../components/States'
 import { useAuth } from '../lib/auth'
 import { Link, useNavigate, useSearchParams } from '../lib/router'
 import { isValidEmail } from '../lib/password'
+import { isLocalAuthMode } from '../lib/supabase'
 import { useToast } from '../components/Toast'
 
 type Errors = { email?: string; password?: string }
 
+const DEMO_ACCOUNTS = [
+  { label: 'School admin', email: 'admin@phikila.com', hint: 'Full access, including platform tools' },
+  { label: 'Teacher', email: 'teacher@phikila.com', hint: "Mr. Kamau's timetable" },
+  { label: 'Student', email: 'student@phikila.com', hint: 'Form 3A timetable' },
+]
+
 export function LoginPage() {
   const { signIn } = useAuth()
+  const localMode = isLocalAuthMode()
   const navigate = useNavigate()
   const params = useSearchParams()
   const { notify } = useToast()
@@ -86,6 +94,33 @@ export function LoginPage() {
         <Alert tone="error" title="We could not sign you in">
           {formError}
         </Alert>
+      )}
+
+      {localMode && (
+        <div className="demo-accounts">
+          <h2 className="demo-accounts__title">Demo accounts</h2>
+          <p className="demo-accounts__note">One click signs you in. Password: demo2026</p>
+          <ul className="demo-accounts__list">
+            {DEMO_ACCOUNTS.map((account) => (
+              <li key={account.email}>
+                <button
+                  type="button"
+                  className="demo-account"
+                  disabled={submitting}
+                  onClick={() => {
+                    setEmail(account.email)
+                    setPassword('demo2026')
+                    setErrors({})
+                    setFormError(null)
+                  }}
+                >
+                  <span className="demo-account__label">{account.label}</span>
+                  <span className="demo-account__hint">{account.hint}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <form className="form" onSubmit={handleSubmit} noValidate>

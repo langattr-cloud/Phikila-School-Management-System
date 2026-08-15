@@ -159,3 +159,62 @@ export const GridIcon = (props: IconProps) => (
     <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
   </Icon>
 )
+
+export const UnlockIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="5" y="11" width="14" height="9" rx="1.5" />
+    <path d="M8 11V7a4 4 0 0 1 7.4-2.2" />
+  </Icon>
+)
+
+export const TrashIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+  </Icon>
+)
+
+export const DuplicateIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="8" y="8" width="12" height="12" rx="1.5" />
+    <path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" />
+  </Icon>
+)
+
+export const PrintIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M7 8V4h10v4M7 17H5a1.5 1.5 0 0 1-1.5-1.5v-6A1.5 1.5 0 0 1 5 8h14a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 19 17h-2" />
+    <rect x="7" y="14" width="10" height="6" rx="1" />
+  </Icon>
+)
+
+export const DownloadIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 4v10m0 0 4-4m-4 4-4-4" />
+    <path d="M5 19h14" />
+  </Icon>
+)
+
+export const MinusIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M5 12h14" />
+  </Icon>
+)
+
+export const PlusIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+)
+
+export const MoonIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
+  </Icon>
+)
+
+export const SunIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" />
+  </Icon>
+)

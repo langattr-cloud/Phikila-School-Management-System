@@ -1,3 +1,4 @@
+import { getLocalSession } from './localAuth'
 import { supabase } from './supabase'
 
 // Same-origin by default: the backend serves this frontend, so a relative URL
@@ -44,11 +45,19 @@ export async function apiFetch<T>(
   }
 
   if (authenticated) {
-    const { data, error } = await supabase.auth.getSession()
-    if (error || !data.session) {
-      throw new ApiError('Please sign in again.', 401)
+    if (supabase) {
+      const { data, error } = await supabase.auth.getSession()
+      if (error || !data.session) {
+        throw new ApiError('Please sign in again.', 401)
+      }
+      headers.set('Authorization', `Bearer ${data.session.access_token}`)
+    } else {
+      const session = getLocalSession()
+      if (!session) {
+        throw new ApiError('Please sign in again.', 401)
+      }
+      headers.set('Authorization', `Bearer ${session.access_token}`)
     }
-    headers.set('Authorization', `Bearer ${data.session.access_token}`)
   }
 
   const response = await fetch(`${apiUrl}${path}`, { ...init, headers })

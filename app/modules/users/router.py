@@ -2,9 +2,10 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.modules.authentication.security import get_password_hash
 from . import models, schemas
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(tags=["Users"])
 
 
 @router.post(
@@ -27,11 +28,11 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
   if db_user_username:
     raise HTTPException(status_code=400, detail="Username already taken")
 
-  # Create new user instance
+  # Create new user instance (password is always stored hashed)
   db_user = models.User(
       username=user.username,
       email=user.email,
-      hashed_password=user.password,  # Replace with hashed password utility if applicable
+      hashed_password=get_password_hash(user.password),
       role=getattr(user, "role", "Teacher"),
   )
   db.add(db_user)

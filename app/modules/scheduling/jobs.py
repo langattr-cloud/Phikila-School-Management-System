@@ -235,5 +235,13 @@ def _persist(db: Session, school_id: int, result, actor: str | None) -> m.TtVers
             )
         )
     db.commit()
+
+    # The CP-SAT model treats rooms as fixed-per-requirement; a deterministic
+    # post-pass houses every lesson that still needs a room, respecting room
+    # type, capacity, availability and double-booking.
+    from .engine import assign_rooms_to_lessons
+
+    assign_rooms_to_lessons(db, school_id, version.id)
+
     db.refresh(version)
     return version
