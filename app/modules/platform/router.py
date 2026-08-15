@@ -17,6 +17,11 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.email import (
+    send_access_approval_email,
+    send_access_rejection_email,
+    send_feature_announcement_email,
+)
 from app.modules.scheduling.models import TtClass, TtTeacher
 from app.modules.scheduling.tenancy import ROLE_ORDER, TtMembership, TtSchool
 
@@ -108,6 +113,12 @@ class DecisionIn(BaseModel):
         if value is not None and value not in GRANTABLE_ROLES:
             raise ValueError("That role cannot be granted.")
         return value
+
+
+class FeatureBroadcastIn(BaseModel):
+    title: str = Field(min_length=3, max_length=160)
+    description: str = Field(min_length=10, max_length=2000)
+    school_id: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +293,8 @@ def decide_access_request(
             entity="access_request", entity_id=row.id,
         )
         db.commit()
+        if row.email:
+            send_access_rejection_email(row.email, payload.note)
         return {"status": "rejected"}
 
     school_id = payload.school_id or row.requested_school_id
@@ -330,7 +343,43 @@ def decide_access_request(
         entity="access_request", entity_id=row.id, school_id=school_id,
     )
     db.commit()
+
+    if row.email:
+        send_access_approval_email(row.email, school.name, granted)
+
     return {"status": "approved", "role": granted, "school_id": school_id}
+
+
+# ---------------------------------------------------------------------------
+# Feature Announcements / Email Broadcast
+# ---------------------------------------------------------------------------
+@router.post("/broadcast-feature-email")
+def broadcast_feature_email(
+    payload: FeatureBroadcastIn,
+    db: Session = Depends(get_db),
+    identity: Identity = Depends(require_super_admin),
+):
+    """Send feature announcement emails to registered users in the database."""
+    query = db.query(TtMembership.email).filter(TtMembership.is_active.is_(True))
+    if payload.school_id:
+        query = query.filter(TtMembership.school_id == payload.school_id)
+
+    rows = query.distinct().all()
+    recipients = [r[0] for r in rows if r[0]]
+
+    if not recipients:
+        return {"status": "no_recipients", "recipient_count": 0}
+
+    success = send_feature_announcement_email(recipients, payload.title, payload.description)
+
+    audit(
+        db, identity, "feature_broadcast_sent",
+        f"Broadcast feature announcement '{payload.title}' to {len(recipients)} users",
+        entity="broadcast",
+    )
+    db.commit()
+
+    return {"status": "sent" if success else "failed", "recipient_count": len(recipients)}
 
 
 # ---------------------------------------------------------------------------
