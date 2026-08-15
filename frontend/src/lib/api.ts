@@ -1,4 +1,4 @@
-import { getLocalSession } from './localAuth'
+import { clearLocalSession, getLocalSession } from './localAuth'
 import { supabase } from './supabase'
 
 // Same-origin by default: the backend serves this frontend, so a relative URL
@@ -62,10 +62,17 @@ export async function apiFetch<T>(
 
   const response = await fetch(`${apiUrl}${path}`, { ...init, headers })
   if (!response.ok) {
+    if (response.status === 401 && authenticated) {
+      // Clear stale session on 401 Unauthorized so user is cleanly taken to sign in
+      if (supabase) {
+        void supabase.auth.signOut().catch(() => {})
+      } else {
+        clearLocalSession()
+      }
+    }
+
     const payload = await response.json().catch(() => null)
     const raw = payload?.detail
-    // FastAPI returns either a plain string or a structured object. Keep the
-    // object so callers can render conflict reasons and alternatives.
     const message =
       typeof raw === 'string'
         ? raw

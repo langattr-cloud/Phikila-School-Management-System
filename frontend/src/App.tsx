@@ -10,7 +10,6 @@ import { SignUpPage } from './pages/SignUpPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
-import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/StatusPages'
 
 const TimetablePage = lazy(() => import('./pages/TimetablePage').then((m) => ({ default: m.TimetablePage })))
@@ -56,7 +55,7 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { pathname } = useRouter()
   const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'
-  useEffect(() => { if (shouldRedirect) navigate('/dashboard', { replace: true }) }, [shouldRedirect, navigate])
+  useEffect(() => { if (shouldRedirect) navigate('/', { replace: true }) }, [shouldRedirect, navigate])
   if (initialising) return <FullPageLoader label="Checking your session…" />
   if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />
   return <>{children}</>
@@ -64,7 +63,6 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
 
 function routeFor(pathname: string): ReactNode {
   switch (pathname) {
-    case '/dashboard': return <DashboardPage />
     case '/': return <DashboardPage />
     case '/timetable': return <TimetablePage />
     case '/my-timetable': return <MyTimetablePage />
@@ -109,7 +107,6 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
 function Routes() {
   const { pathname } = useRouter()
   const path = normalisePath(pathname)
-  if (path === '/') return <LandingPage />
   if (PUBLIC_ROUTES.has(path)) {
     const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : <ResetPasswordPage />
     return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn>
