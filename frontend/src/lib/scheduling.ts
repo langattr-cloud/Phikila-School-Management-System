@@ -10,6 +10,8 @@ export type Principal = {
   email: string | null
   school_id: number
   role: Role
+  teacher_id: number | null
+  class_id: number | null
   solver_available: boolean
 }
 
@@ -134,6 +136,34 @@ export type Lesson = {
   is_locked: boolean
 }
 
+export type LessonPatch = {
+  day_index?: number
+  period_index?: number
+  duration?: number
+  teacher_id?: number | null
+  class_id?: number | null
+  subject_id?: number | null
+  room_id?: number | null
+  is_locked?: boolean
+}
+
+export type Unassigned = {
+  requirement_id: number
+  subject_id: number
+  subject_name: string
+  subject_colour: string
+  class_id: number
+  class_name: string
+  teacher_id: number | null
+  teacher_name: string | null
+  room_id: number | null
+  room_name: string | null
+  periods_per_week: number
+  placed: number
+  remaining: number
+  requires_double: boolean
+}
+
 export type Conflict = {
   severity: 'hard' | 'soft'
   kind: string
@@ -235,6 +265,7 @@ export type CopilotCommand = {
   explanation: string
   source: string
   needs_confirmation: boolean
+  params?: Record<string, number | string | null>
 }
 
 /* ------------------------------------------------------------------ client */
@@ -299,6 +330,16 @@ export const scheduling = {
 
   moveLesson: (id: number, payload: { day_index: number; period_index: number; room_id?: number }) =>
     send<Lesson>(`/lessons/${id}`, 'PATCH', payload),
+  patchLesson: (id: number, payload: LessonPatch) => send<Lesson>(`/lessons/${id}`, 'PATCH', payload),
+  duplicateLesson: (id: number) => send<Lesson>(`/lessons/${id}/duplicate`, 'POST'),
+  deleteLesson: (id: number) => send<void>(`/lessons/${id}`, 'DELETE'),
+  createLesson: (
+    versionId: number,
+    payload: { requirement_id: number; day_index: number; period_index: number; duration?: number },
+  ) => send<Lesson>(`/versions/${versionId}/lessons`, 'POST', payload),
+  unassigned: (versionId: number) => get<Unassigned[]>(`/versions/${versionId}/unassigned`),
+  assignRooms: (versionId: number) =>
+    send<{ assigned: number }>(`/versions/${versionId}/assign-rooms`, 'POST'),
   explain: (id: number, day_index: number, period_index: number) =>
     send<Explanation>(`/lessons/${id}/explain`, 'POST', { day_index, period_index }),
   suggestions: (id: number) => get<{ alternatives: Alternative[] }>(`/lessons/${id}/suggestions`),
@@ -313,9 +354,11 @@ export const scheduling = {
   interpret: (text: string) =>
     send<{ command: CopilotCommand }>('/copilot/interpret', 'POST', { text }),
   applyCommand: (command: CopilotCommand) =>
-    send<{ applied: boolean; requires_regeneration: boolean }>('/copilot/apply', 'POST', {
-      command,
-    }),
+    send<{ applied: boolean; requires_regeneration: boolean; message?: string }>(
+      '/copilot/apply',
+      'POST',
+      { command },
+    ),
 }
 
 /* ------------------------------------------------------- derived helpers */

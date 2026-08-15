@@ -11,8 +11,10 @@ import {
   LayersIcon,
   LogOutIcon,
   MenuIcon,
+  MoonIcon,
   SchoolIcon,
   SparkIcon,
+  SunIcon,
   UserIcon,
 } from './icons'
 
@@ -97,8 +99,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [offline, setOffline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine === false : false,
   )
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem('phikila.theme') === 'dark'
+      ? 'dark'
+      : 'light',
+  )
   const drawerRef = useRef<HTMLElement | null>(null)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem('phikila.theme', theme)
+  }, [theme])
 
   // Close the drawer whenever the route changes so navigation never leaves it open.
   useEffect(() => {
@@ -251,6 +263,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               Offline
             </span>
           )}
+          <button
+            type="button"
+            className="icon-button topbar__theme"
+            onClick={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}
+          </button>
           <span className="topbar__user" title={user?.email ?? ''}>
             {user?.email}
           </span>

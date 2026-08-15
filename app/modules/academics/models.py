@@ -43,7 +43,7 @@ class Level(Base):
     __tablename__ = "levels"
 
     id = Column(Integer, primary_key=True, index=True)
-    school_id = Column(Integer, ForeignKey("schools_info.id"), nullable=False)
+    school_id = Column(Integer, ForeignKey("school_info.id"), nullable=False)
     name = Column(String, nullable=False)  # e.g., "Grade 8"
     code = Column(String, nullable=False, index=True)  # e.g., "G8"
     display_order = Column(Integer, nullable=False)

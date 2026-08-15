@@ -11,9 +11,15 @@ import { scheduling, type CopilotCommand } from '../lib/scheduling'
 const EXAMPLES = [
   'Give Form 4A Friday afternoon free',
   'Keep Mr Otieno free on Monday morning',
+  'Find a free period for Form 3A and Mr. Kamau.',
+  'Find rooms available at 11:20',
+  'Show me all teachers with more than two consecutive free periods.',
+  'Why can\'t I put Physics in Lab 2 on Tuesday?',
   'Balance teacher workloads',
   'Prioritise morning lessons',
 ]
+
+const QUESTION_ACTIONS = new Set(['find_free', 'find_room', 'find_gaps', 'explain'])
 
 /**
  * The assistant translates a sentence into a structured constraint. It never
@@ -50,9 +56,14 @@ export function CopilotPage() {
     if (!command || applying) return
     setApplying(true)
     try {
-      await scheduling.applyCommand(command)
+      const result = await scheduling.applyCommand(command)
       setApplied(true)
-      notify('Rule saved. Regenerate to apply it.', 'success')
+      notify(
+        result.applied
+          ? 'Rule saved. Regenerate to apply it.'
+          : (result.message ?? 'Nothing needed to change.'),
+        result.applied ? 'success' : 'info',
+      )
     } catch (err) {
       notify(friendlyApiError(err, 'apply that rule'), 'error')
     } finally {
@@ -123,7 +134,9 @@ export function CopilotPage() {
       {command && (
         <section className="card section">
           <div className="panel__head">
-            <h2 className="section__title">Proposed change</h2>
+            <h2 className="section__title">
+              {QUESTION_ACTIONS.has(command.action) ? 'Answer' : 'Proposed change'}
+            </h2>
             <Badge tone={understood ? 'success' : 'warning'}>
               {understood ? `${Math.round(command.confidence * 100)}% confident` : 'Not understood'}
             </Badge>
@@ -179,6 +192,10 @@ export function CopilotPage() {
                   Regenerate the timetable for it to take effect.{' '}
                   <Link to="/scheduling/generate">Generate now</Link>.
                 </Alert>
+              ) : QUESTION_ACTIONS.has(command.action) ? (
+                <p className="form__note">
+                  This answer was computed from the current timetable and constraints.
+                </p>
               ) : (
                 <div className="form__row">
                   <button className="button button--primary" onClick={apply} disabled={applying}>

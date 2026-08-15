@@ -341,6 +341,26 @@ def solve(
             if len(overlapping) > 1:
                 model.AddAtMostOne(overlapping)
 
+    # --- HARD: capacity of special room types (labs, computer rooms) --------
+    # Lessons whose subject requires a specific room type may never exceed the
+    # number of rooms of that type in any one slot. The post-solve room
+    # allocator then always finds a concrete room.
+    rooms_by_type: dict[str, int] = {}
+    for room in data.rooms.values():
+        if room.room_type and room.room_type != "classroom":
+            rooms_by_type[room.room_type] = rooms_by_type.get(room.room_type, 0) + 1
+    for room_type, count in rooms_by_type.items():
+        for day, period in slots:
+            demand = [
+                x[(r.id, day, period)]
+                for r in data.requirements
+                if (r.id, day, period) in x
+                and data.subjects.get(r.subject_id) is not None
+                and data.subjects[r.subject_id].required_room_type == room_type
+            ]
+            if len(demand) > count:
+                model.Add(sum(demand) <= count)
+
     # --- HARD: respect locked (pinned) lessons ------------------------------
     for req_id, pinned in data.locked.items():
         for day, period in pinned:

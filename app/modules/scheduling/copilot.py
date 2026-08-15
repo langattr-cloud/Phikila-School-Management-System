@@ -23,12 +23,17 @@ from dataclasses import dataclass, field
 from typing import Any
 
 # Commands the engine knows how to execute. An LLM cannot invent new ones.
+# The find_* actions are pure database queries: the router answers them from
+# the stored timetable and never invents data.
 SUPPORTED_ACTIONS = {
     "avoid_lessons",   # keep slots free for a class or teacher
     "set_weight",      # retune a soft-constraint weight
     "explain",         # answer a "why" question
     "rebalance",       # re-run optimisation favouring workload balance
     "improve",         # re-run optimisation with current weights
+    "find_free",       # question: when are this class and teacher both free?
+    "find_room",       # question: which rooms are free at a given time?
+    "find_gaps",       # question: which teachers have long free runs?
     "unknown",
 }
 
@@ -72,6 +77,7 @@ class Command:
     explanation: str = ""
     source: str = "rules"            # rules | llm
     needs_confirmation: bool = True
+    params: dict[str, Any] = field(default_factory=dict)  # extra query arguments
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -90,6 +96,7 @@ class Command:
             "explanation": self.explanation,
             "source": self.source,
             "needs_confirmation": self.needs_confirmation,
+            "params": self.params,
         }
 
 
@@ -99,6 +106,8 @@ class SchoolVocabulary:
 
     classes: dict[int, str] = field(default_factory=dict)
     teachers: dict[int, str] = field(default_factory=dict)
+    subjects: dict[int, str] = field(default_factory=dict)
+    rooms: dict[int, str] = field(default_factory=dict)
     periods: list[dict] = field(default_factory=list)  # {index, name, start_time, is_teaching}
     days: list[dict] = field(default_factory=list)     # {index, name}
 
@@ -144,6 +153,15 @@ def _match_name(text: str, options: dict[int, str]) -> tuple[int | None, str | N
             if re.search(rf"\b{re.escape(part)}\b", lowered):
                 return ident, name, 0.72
     return None, None, 0.0
+
+
+def _day_from_text(lowered: str, vocab: SchoolVocabulary) -> tuple[int | None, str | None]:
+    """Resolve a weekday mention, or None when the text names no day."""
+    for word, index in DAY_WORDS.items():
+        if re.search(rf"\b{word}\b", lowered):
+            name = next((d["name"] for d in vocab.days if d["index"] == index), word.title())
+            return index, name
+    return None, None
 
 
 class RuleBasedParser:
@@ -199,6 +217,79 @@ class RuleBasedParser:
                     ),
                     source=self.source,
                 )
+
+        # --- questions: find free periods -----------------------------------
+        # "Find a free period for Form 3A and Mr. Kamau."
+        if ("free period" in lowered or "free slot" in lowered or "free time" in lowered) and (
+            "find" in lowered or "for " in lowered or "when is" in lowered
+        ):
+            class_id, class_name, class_conf = _match_name(lowered, vocab.classes)
+            teacher_id, teacher_name, teacher_conf = _match_name(lowered, vocab.teachers)
+            day_index, day_name = _day_from_text(lowered, vocab)
+            kind = None
+            target, target_id = None, None
+            if teacher_id is not None and class_id is not None:
+                kind = "both"
+                target = f"{class_name} and {teacher_name}"
+            elif class_id is not None:
+                kind = "class"
+                target, target_id = class_name, class_id
+            elif teacher_id is not None:
+                kind = "teacher"
+                target, target_id = teacher_name, teacher_id
+            if kind is None:
+                return Command(
+                    "unknown", confidence=0.2,
+                    explanation="I could not tell which class or teacher you meant.",
+                    source=self.source,
+                )
+            return Command(
+                "find_free",
+                target=target,
+                target_kind=kind,
+                target_id=target_id,
+                day=day_index,
+                day_name=day_name,
+                confidence=0.9,
+                explanation="Looking up shared free periods in the current timetable…",
+                source=self.source,
+                params={"class_id": class_id, "teacher_id": teacher_id},
+            )
+
+        # --- questions: which rooms are free at a time -----------------------
+        # "Find rooms available at 11:20."
+        if ("room" in lowered) and ("available" in lowered or "free" in lowered) and re.search(
+            r"\b\d{1,2}[:.]\d{2}\b", lowered
+        ):
+            match = re.search(r"\b(\d{1,2})[:.](\d{2})\b", lowered)
+            hour, minute = int(match.group(1)), int(match.group(2))
+            day_index, day_name = _day_from_text(lowered, vocab)
+            return Command(
+                "find_room",
+                day=day_index,
+                day_name=day_name,
+                confidence=0.9,
+                explanation="Looking up room availability…",
+                source=self.source,
+                params={"hour": hour, "minute": minute},
+            )
+
+        # --- questions: teachers with long free runs -------------------------
+        # "Show me all teachers with more than two consecutive free periods."
+        if ("consecutive free" in lowered or "free periods in a row" in lowered) and (
+            "teacher" in lowered or "staff" in lowered
+        ):
+            min_free = 3
+            match = re.search(r"more than (\d+)", lowered)
+            if match:
+                min_free = int(match.group(1)) + 1
+            return Command(
+                "find_gaps",
+                confidence=0.9,
+                explanation="Checking consecutive free periods for every teacher…",
+                source=self.source,
+                params={"min_free": min_free},
+            )
 
         # --- keep slots free ------------------------------------------------
         free_intent = any(

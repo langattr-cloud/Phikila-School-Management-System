@@ -177,9 +177,52 @@ class LessonOut(ORMModel):
 
 
 class LessonMoveIn(BaseModel):
+    """Move a lesson to a new slot (kept for the drag-and-drop flow)."""
+
     day_index: int = Field(ge=0, le=6)
     period_index: int = Field(ge=0, le=30)
     room_id: int | None = None
+
+
+class LessonPatch(BaseModel):
+    """Edit one lesson. Only the fields present in the payload are applied,
+    so callers can change a single aspect (e.g. only the teacher) safely."""
+
+    day_index: int | None = Field(default=None, ge=0, le=6)
+    period_index: int | None = Field(default=None, ge=0, le=30)
+    duration: int | None = Field(default=None, ge=1, le=10)
+    teacher_id: int | None = None
+    class_id: int | None = None
+    subject_id: int | None = None
+    room_id: int | None = None
+    is_locked: bool | None = None
+
+
+class LessonCreate(BaseModel):
+    """Place an unscheduled requirement period onto the grid."""
+
+    requirement_id: int
+    day_index: int = Field(ge=0, le=6)
+    period_index: int = Field(ge=0, le=30)
+    duration: int = Field(default=1, ge=1, le=10)
+    room_id: int | None = None
+
+
+class UnassignedOut(BaseModel):
+    requirement_id: int
+    subject_id: int
+    subject_name: str
+    subject_colour: str
+    class_id: int
+    class_name: str
+    teacher_id: int | None
+    teacher_name: str | None
+    room_id: int | None
+    room_name: str | None
+    periods_per_week: int
+    placed: int
+    remaining: int
+    requires_double: bool
 
 
 class VersionOut(ORMModel):

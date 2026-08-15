@@ -1,6 +1,11 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from app.modules.academics.repository import AcademicYearRepository, TermRepository
+from app.modules.academics.repository import (
+    AcademicYearRepository,
+    LevelRepository,
+    StreamRepository,
+    TermRepository,
+)
 from app.modules.academics import schemas
 
 
@@ -25,7 +30,7 @@ class AcademicYearService:
 
 
 class TermService:
-    def __init__init_(self, db: Session):
+    def __init__(self, db: Session):
         self.repository = TermRepository(db)
 
     def get_terms(self, school_id: int):
@@ -69,7 +74,7 @@ class LevelService:
         return self.repository.create_level(school_id, data)
 
 class StreamService:
-    def _init_(self, db: Session):
+    def __init__(self, db: Session):
         self.repository = StreamRepository(db)
 
     def get_streams(self, level_id: int):

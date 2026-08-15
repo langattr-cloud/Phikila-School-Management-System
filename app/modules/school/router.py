@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.school import schemas, services
 
-router = APIRouter(prefix="/school", tags=["School Profile"])
+router = APIRouter(tags=["School Profile"])
 
 @router.post("/", response_model=schemas.SchoolResponse, status_code=status.HTTP_201_CREATED)
 def create_school_profile(school_data: schemas.SchoolCreate, db: Session = Depends(get_db)):

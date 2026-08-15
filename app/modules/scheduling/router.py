@@ -24,6 +24,9 @@ from . import models as m
 from . import schemas as s
 from .engine import (
     DEFAULT_DAYS,
+    _blockers,
+    _name_lookup,
+    assign_rooms_to_lessons,
     detect_conflicts,
     explain_move,
     load_calendar,
@@ -170,6 +173,10 @@ def whoami(principal: Principal = Depends(resolve_principal)):
         "email": principal.email,
         "school_id": principal.school_id,
         "role": principal.role,
+        # Links a teacher/student account to their own timetable row, so the
+        # mobile "My timetable" screen can default straight to them.
+        "teacher_id": principal.teacher_id,
+        "class_id": principal.class_id,
         "solver_available": ORTOOLS_AVAILABLE,
     }
 
@@ -390,13 +397,14 @@ def version_lessons(
 
 
 @router.patch("/lessons/{lesson_id}", response_model=s.LessonOut)
-def move_lesson(
+def update_lesson(
     lesson_id: int,
-    payload: s.LessonMoveIn,
+    payload: s.LessonPatch,
     db: Session = Depends(get_db),
     principal: Principal = Depends(require_role("admin", "scheduler")),
 ):
-    """Move a lesson. Hard conflicts are rejected with the reasons why."""
+    """Edit a lesson: move it, resize it, or change its teacher, class,
+    subject or room. Hard conflicts are rejected with the reasons why."""
     lesson = _owned(db, m.TtLesson, principal.school_id, lesson_id)
     version = _owned(db, m.TtVersion, principal.school_id, lesson.version_id)
     if version.status == "published":
@@ -405,35 +413,305 @@ def move_lesson(
             "Published timetables are immutable. Create a new draft to make changes.",
         )
 
-    verdict = explain_move(db, principal.school_id, lesson_id, payload.day_index, payload.period_index)
-    if not verdict["allowed"]:
+    changed = payload.model_fields_set
+
+    # Locked lessons cannot be altered — except by an explicit unlock, so a
+    # pinned lesson can never be moved or changed by accident.
+    structural_keys = {"day_index", "period_index", "duration", "teacher_id", "class_id", "subject_id", "room_id"}
+    if lesson.is_locked and changed & structural_keys:
+        unlocking = changed == {"is_locked"} and payload.is_locked is False
+        if not unlocking:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "message": "This lesson is locked. Unlock it before moving or changing it.",
+                    "reasons": [{"factor": "Locked lesson", "detail": "Locked lessons keep their slot when the timetable is regenerated."}],
+                    "alternatives": [],
+                },
+            )
+
+    # Reference rows must exist and belong to the school.
+    if "teacher_id" in changed and payload.teacher_id is not None:
+        _owned(db, m.TtTeacher, principal.school_id, payload.teacher_id)
+    if "class_id" in changed and payload.class_id is not None:
+        _owned(db, m.TtClass, principal.school_id, payload.class_id)
+    if "subject_id" in changed and payload.subject_id is not None:
+        _owned(db, m.TtSubject, principal.school_id, payload.subject_id)
+    if "room_id" in changed and payload.room_id is not None:
+        _owned(db, m.TtRoom, principal.school_id, payload.room_id)
+
+    new_day = payload.day_index if "day_index" in changed else lesson.day_index
+    new_period = payload.period_index if "period_index" in changed else lesson.period_index
+    new_duration = payload.duration if "duration" in changed else (lesson.duration or 1)
+    new_teacher = payload.teacher_id if "teacher_id" in changed else lesson.teacher_id
+    new_class = payload.class_id if "class_id" in changed else lesson.class_id
+    new_room = payload.room_id if "room_id" in changed else lesson.room_id
+    new_subject = payload.subject_id if "subject_id" in changed else lesson.subject_id
+
+    reasons = _blockers(
+        db,
+        principal.school_id,
+        lesson,
+        new_day,
+        new_period,
+        teacher_id=new_teacher,
+        class_id=new_class,
+        room_id=new_room,
+        subject_id=new_subject,
+        duration=new_duration,
+    )
+    if reasons:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             {
-                "message": "That move breaks a hard constraint.",
-                "reasons": verdict["reasons"],
-                "alternatives": verdict["alternatives"],
+                "message": "That change breaks a hard constraint.",
+                "reasons": reasons,
+                "alternatives": suggest_slots(db, principal.school_id, lesson, limit=3),
             },
         )
 
-    before = {"day_index": lesson.day_index, "period_index": lesson.period_index}
-    lesson.day_index = payload.day_index
-    lesson.period_index = payload.period_index
-    if payload.room_id is not None:
-        _owned(db, m.TtRoom, principal.school_id, payload.room_id)
-        lesson.room_id = payload.room_id
-    after = {"day_index": lesson.day_index, "period_index": lesson.period_index}
+    before = {
+        "day_index": lesson.day_index,
+        "period_index": lesson.period_index,
+        "duration": lesson.duration,
+        "teacher_id": lesson.teacher_id,
+        "class_id": lesson.class_id,
+        "subject_id": lesson.subject_id,
+        "room_id": lesson.room_id,
+        "is_locked": lesson.is_locked,
+    }
+    for key, value in payload.model_dump().items():
+        if key in changed:
+            setattr(lesson, key, value)
+    after = {
+        "day_index": lesson.day_index,
+        "period_index": lesson.period_index,
+        "duration": lesson.duration,
+        "teacher_id": lesson.teacher_id,
+        "class_id": lesson.class_id,
+        "subject_id": lesson.subject_id,
+        "room_id": lesson.room_id,
+        "is_locked": lesson.is_locked,
+    }
 
     calendar = load_calendar(db, principal.school_id)
-    day_name = next((d.name for d in calendar.days if d.index == payload.day_index), payload.day_index)
-    period_name = next((p.name for p in calendar.periods if p.index == payload.period_index), payload.period_index)
+    day_name = next((d.name for d in calendar.days if d.index == lesson.day_index), lesson.day_index)
+    period_name = next((p.name for p in calendar.periods if p.index == lesson.period_index), lesson.period_index)
     _audit(
-        db, principal, "move", "lesson", lesson.id,
-        f"Moved a lesson to {day_name} {period_name}", before, after,
+        db, principal, "update", "lesson", lesson.id,
+        f"Edited a lesson ({day_name} {period_name})", before, after,
     )
     db.commit()
     db.refresh(lesson)
     return lesson
+
+
+@router.post("/versions/{version_id}/lessons", response_model=s.LessonOut, status_code=201)
+def create_lesson(
+    version_id: int,
+    payload: s.LessonCreate,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    """Place one unscheduled requirement period onto the grid."""
+    version = _owned(db, m.TtVersion, principal.school_id, version_id)
+    if version.status == "published":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Published timetables are immutable. Create a new draft to make changes.",
+        )
+    requirement = _owned(db, m.TtLessonRequirement, principal.school_id, payload.requirement_id)
+    if requirement.class_id is None or requirement.subject_id is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This requirement is incomplete.")
+
+    placed = (
+        db.query(func.count(m.TtLesson.id))
+        .filter(
+            m.TtLesson.school_id == principal.school_id,
+            m.TtLesson.version_id == version_id,
+            m.TtLesson.requirement_id == requirement.id,
+        )
+        .scalar()
+        or 0
+    )
+    if placed >= (requirement.periods_per_week or 0):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"All {requirement.periods_per_week} weekly periods of this requirement are already scheduled.",
+        )
+
+    lesson = m.TtLesson(
+        school_id=principal.school_id,
+        version_id=version_id,
+        requirement_id=requirement.id,
+        class_id=requirement.class_id,
+        subject_id=requirement.subject_id,
+        teacher_id=requirement.teacher_id,
+        room_id=payload.room_id or requirement.room_id,
+        day_index=payload.day_index,
+        period_index=payload.period_index,
+        duration=payload.duration,
+    )
+    reasons = _blockers(
+        db,
+        principal.school_id,
+        lesson,
+        payload.day_index,
+        payload.period_index,
+        duration=payload.duration,
+    )
+    if reasons:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "message": "That slot breaks a hard constraint.",
+                "reasons": reasons,
+                "alternatives": [],
+            },
+        )
+
+    db.add(lesson)
+    calendar = load_calendar(db, principal.school_id)
+    day_name = next((d.name for d in calendar.days if d.index == payload.day_index), payload.day_index)
+    period_name = next((p.name for p in calendar.periods if p.index == payload.period_index), payload.period_index)
+    _audit(
+        db, principal, "create", "lesson", None,
+        f"Scheduled a {requirement.subject.name if requirement.subject else 'lesson'} for "
+        f"{requirement.tt_class.name if requirement.tt_class else 'a class'} at {day_name} {period_name}",
+    )
+    db.commit()
+    db.refresh(lesson)
+    return lesson
+
+
+@router.post("/lessons/{lesson_id}/duplicate", response_model=s.LessonOut, status_code=201)
+def duplicate_lesson(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    """Copy a lesson so it can be dragged somewhere else.
+
+    The copy is a free lesson (no requirement link), so duplicating never
+    changes a subject's weekly quota — the copy simply appears as an extra
+    lesson, and if it lands on an occupied slot the conflict engine explains
+    exactly what is wrong.
+    """
+    lesson = _owned(db, m.TtLesson, principal.school_id, lesson_id)
+    version = _owned(db, m.TtVersion, principal.school_id, lesson.version_id)
+    if version.status == "published":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Published timetables are immutable. Create a new draft to make changes.",
+        )
+    copy = m.TtLesson(
+        school_id=principal.school_id,
+        version_id=lesson.version_id,
+        requirement_id=None,
+        class_id=lesson.class_id,
+        subject_id=lesson.subject_id,
+        teacher_id=lesson.teacher_id,
+        room_id=lesson.room_id,
+        day_index=lesson.day_index,
+        period_index=lesson.period_index,
+        duration=lesson.duration,
+        is_locked=False,
+    )
+    db.add(copy)
+    _audit(db, principal, "duplicate", "lesson", lesson.id, "Duplicated a lesson")
+    db.commit()
+    db.refresh(copy)
+    return copy
+
+
+@router.delete("/lessons/{lesson_id}", status_code=204)
+def delete_lesson(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    lesson = _owned(db, m.TtLesson, principal.school_id, lesson_id)
+    version = _owned(db, m.TtVersion, principal.school_id, lesson.version_id)
+    if version.status == "published":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Published timetables are immutable. Create a new draft to make changes.",
+        )
+    _audit(db, principal, "delete", "lesson", lesson.id, "Deleted a lesson")
+    db.delete(lesson)
+    db.commit()
+
+
+@router.get("/versions/{version_id}/unassigned", response_model=list[s.UnassignedOut])
+def unassigned_lessons(
+    version_id: int,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(resolve_principal),
+):
+    """Requirement periods that still have to be scheduled, for the
+    unassigned-lessons panel."""
+    version = _owned(db, m.TtVersion, principal.school_id, version_id)
+    lessons = (
+        db.query(m.TtLesson)
+        .filter(m.TtLesson.school_id == principal.school_id, m.TtLesson.version_id == version.id)
+        .all()
+    )
+    placed: dict[int, int] = {}
+    for lesson in lessons:
+        if lesson.requirement_id:
+            placed[lesson.requirement_id] = placed.get(lesson.requirement_id, 0) + 1
+
+    names = _name_lookup(db, principal.school_id)
+    rows = (
+        db.query(m.TtLessonRequirement)
+        .filter(m.TtLessonRequirement.school_id == principal.school_id)
+        .order_by(m.TtLessonRequirement.class_id, m.TtLessonRequirement.subject_id)
+        .all()
+    )
+    out: list[s.UnassignedOut] = []
+    for req in rows:
+        got = placed.get(req.id, 0)
+        remaining = (req.periods_per_week or 0) - got
+        if remaining <= 0:
+            continue
+        subject = db.query(m.TtSubject).filter(m.TtSubject.id == req.subject_id).first()
+        out.append(
+            s.UnassignedOut(
+                requirement_id=req.id,
+                subject_id=req.subject_id,
+                subject_name=subject.name if subject else "Unknown",
+                subject_colour=subject.colour if subject and subject.colour else "#0F2A47",
+                class_id=req.class_id,
+                class_name=names["class"].get(req.class_id, "Unknown"),
+                teacher_id=req.teacher_id,
+                teacher_name=names["teacher"].get(req.teacher_id),
+                room_id=req.room_id,
+                room_name=names["room"].get(req.room_id),
+                periods_per_week=req.periods_per_week or 0,
+                placed=got,
+                remaining=remaining,
+                requires_double=bool(req.double_periods),
+            )
+        )
+    return out
+
+
+@router.post("/versions/{version_id}/assign-rooms")
+def assign_rooms(
+    version_id: int,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    version = _owned(db, m.TtVersion, principal.school_id, version_id)
+    if version.status == "published":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Published timetables are immutable. Create a new draft to make changes.",
+        )
+    assigned = assign_rooms_to_lessons(db, principal.school_id, version_id)
+    _audit(db, principal, "assign-rooms", "version", version_id, f"Assigned rooms to {assigned} lessons")
+    db.commit()
+    return {"assigned": assigned}
 
 
 @router.post("/lessons/{lesson_id}/explain")
@@ -819,6 +1097,8 @@ def _vocabulary(db: Session, school_id: int) -> ai.SchoolVocabulary:
     return ai.SchoolVocabulary(
         classes={c.id: c.name for c in db.query(m.TtClass).filter(m.TtClass.school_id == school_id)},
         teachers={t.id: t.name for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id == school_id)},
+        subjects={s.id: s.name for s in db.query(m.TtSubject).filter(m.TtSubject.school_id == school_id)},
+        rooms={r.id: r.name for r in db.query(m.TtRoom).filter(m.TtRoom.school_id == school_id)},
         periods=[
             {"index": p.index, "name": p.name, "start_time": p.start_time, "is_teaching": p.is_teaching}
             for p in calendar.periods
@@ -827,15 +1107,244 @@ def _vocabulary(db: Session, school_id: int) -> ai.SchoolVocabulary:
     )
 
 
+def _slot_label(calendar, day: int, period: int) -> str:
+    day_name = next((d.name for d in calendar.days if d.index == day), f"Day {day}")
+    row = next((p for p in calendar.periods if p.index == period), None)
+    return f"{day_name} {row.name if row else f'P{period}'}" + (
+        f" ({row.start_time})" if row and row.is_teaching else ""
+    )
+
+
+def _answer_find_free(db: Session, school_id: int, command: ai.Command) -> ai.Command:
+    """Answer 'find a free period for X and Y' from the stored timetable."""
+    version = db.query(m.TtVersion).filter(
+        m.TtVersion.school_id == school_id, m.TtVersion.status != "archived"
+    ).order_by(m.TtVersion.number.desc()).first()
+    if not version:
+        command.explanation = "There is no timetable version yet, so every teaching period is free."
+        return command
+
+    calendar = load_calendar(db, school_id)
+    days = [d.index for d in calendar.days if d.is_active]
+    if command.day is not None:
+        days = [command.day]
+
+    lessons = db.query(m.TtLesson).filter(
+        m.TtLesson.school_id == school_id, m.TtLesson.version_id == version.id
+    ).all()
+    class_id = command.params.get("class_id")
+    teacher_id = command.params.get("teacher_id")
+    class_busy = {(l.day_index, l.period_index) for l in lessons if class_id and l.class_id == class_id}
+    teacher_busy = {(l.day_index, l.period_index) for l in lessons if teacher_id and l.teacher_id == teacher_id}
+
+    free = []
+    for day in days:
+        for period in calendar.teaching_indexes:
+            slot = (day, period)
+            if slot in class_busy or slot in teacher_busy:
+                continue
+            free.append(slot)
+    if not free:
+        command.explanation = (
+            f"{command.target} have no shared free teaching period "
+            f"{'on ' + command.day_name if command.day_name else 'this week'}."
+        )
+    else:
+        shown = ", ".join(_slot_label(calendar, d, p) for d, p in free[:8])
+        command.explanation = (
+            f"{command.target} are both free in {len(free)} period(s): {shown}"
+            + ("…" if len(free) > 8 else ".")
+        )
+    return command
+
+
+def _answer_find_room(db: Session, school_id: int, command: ai.Command) -> ai.Command:
+    """Answer 'rooms available at 11:20' from the stored timetable."""
+    calendar = load_calendar(db, school_id)
+    hour, minute = int(command.params.get("hour", 0)), int(command.params.get("minute", 0))
+    target = hour * 60 + minute
+    period = None
+    for candidate in calendar.periods:
+        if not candidate.is_teaching:
+            continue
+        try:
+            start_hour, start_min = [int(x) for x in candidate.start_time.split(":")]
+            end_hour, end_min = [int(x) for x in candidate.end_time.split(":")]
+        except ValueError:
+            continue
+        if start_hour * 60 + start_min <= target < end_hour * 60 + end_min:
+            period = candidate
+            break
+    if period is None:
+        command.explanation = (
+            f"{hour:02d}:{minute:02d} falls outside the teaching day, so every room is available."
+        )
+        return command
+
+    version = db.query(m.TtVersion).filter(
+        m.TtVersion.school_id == school_id, m.TtVersion.status != "archived"
+    ).order_by(m.TtVersion.number.desc()).first()
+    busy_rooms = set()
+    if version:
+        lessons = db.query(m.TtLesson).filter(
+            m.TtLesson.school_id == school_id, m.TtLesson.version_id == version.id
+        ).all()
+        for lesson in lessons:
+            if command.day is not None and lesson.day_index != command.day:
+                continue
+            if lesson.period_index <= period.index < lesson.period_index + (lesson.duration or 1):
+                if lesson.room_id:
+                    busy_rooms.add(lesson.room_id)
+    rooms = db.query(m.TtRoom).filter(m.TtRoom.school_id == school_id).order_by(m.TtRoom.name).all()
+    free_rooms = [room.name for room in rooms if room.id not in busy_rooms]
+    when = f"{command.day_name} " if command.day_name else ""
+    if not free_rooms:
+        command.explanation = f"No rooms are free at {period.start_time} {when}({period.name})."
+    else:
+        command.explanation = (
+            f"Rooms free at {period.start_time} {when}({period.name}): {', '.join(free_rooms[:12])}"
+            + ("…" if len(free_rooms) > 12 else ".")
+        )
+    return command
+
+
+def _answer_find_gaps(db: Session, school_id: int, command: ai.Command) -> ai.Command:
+    """Answer 'teachers with more than two consecutive free periods'."""
+    version = db.query(m.TtVersion).filter(
+        m.TtVersion.school_id == school_id, m.TtVersion.status != "archived"
+    ).order_by(m.TtVersion.number.desc()).first()
+    min_free = int(command.params.get("min_free", 3))
+    if not version:
+        command.explanation = "There is no timetable yet, so this question has nothing to measure."
+        return command
+
+    calendar = load_calendar(db, school_id)
+    lessons = db.query(m.TtLesson).filter(
+        m.TtLesson.school_id == school_id, m.TtLesson.version_id == version.id
+    ).all()
+    teachers = db.query(m.TtTeacher).filter(m.TtTeacher.school_id == school_id).all()
+    hits = []
+    for teacher in teachers:
+        longest = 0
+        for day in calendar.day_indexes:
+            busy = sorted(l.period_index for l in lessons if l.teacher_id == teacher.id and l.day_index == day)
+            if len(busy) < 2:
+                continue
+            run = 0
+            for current, previous in zip(busy[1:], busy):
+                gap = current - previous - 1
+                run = run + 1 if current == previous + 1 else 0
+                longest = max(longest, gap)
+        if longest >= min_free:
+            hits.append((teacher.name, longest))
+    if not hits:
+        command.explanation = f"No teacher has {min_free} or more consecutive free periods."
+    else:
+        hits.sort(key=lambda pair: -pair[1])
+        command.explanation = (
+            "Teachers with long free runs: "
+            + "; ".join(f"{name} ({count} in a row)" for name, count in hits[:8])
+            + "."
+        )
+    return command
+
+
+def _answer_explain(db: Session, school_id: int, command: ai.Command, text: str) -> ai.Command:
+    """Answer a 'why can't I put X in room Y on day Z' question with real data."""
+    lowered = text.lower()
+    vocab = _vocabulary(db, school_id)
+    subject_id, subject_name, _ = ai._match_name(lowered, vocab.subjects)
+    room_id, room_name, _ = ai._match_name(lowered, vocab.rooms)
+    day_index, day_name = ai._day_from_text(lowered, vocab)
+    calendar = load_calendar(db, school_id)
+
+    version = db.query(m.TtVersion).filter(
+        m.TtVersion.school_id == school_id, m.TtVersion.status != "archived"
+    ).order_by(m.TtVersion.number.desc()).first()
+    if not version:
+        command.explanation = "There is no timetable version yet, so nothing is blocking anything."
+        return command
+
+    lessons = db.query(m.TtLesson).filter(
+        m.TtLesson.school_id == school_id, m.TtLesson.version_id == version.id
+    ).all()
+
+    parts: list[str] = []
+    if room_id is not None and day_index is not None:
+        occupants = sorted(
+            (l for l in lessons if l.room_id == room_id and l.day_index == day_index),
+            key=lambda l: l.period_index,
+        )
+        if occupants:
+            labels = ", ".join(
+                f"{_slot_label(calendar, l.day_index, l.period_index)} "
+                f"{vocab.subjects.get(l.subject_id, 'a lesson')} "
+                f"({vocab.classes.get(l.class_id, 'another class')})"
+                for l in occupants
+            )
+            parts.append(f"{room_name} is occupied on {day_name} by: {labels}.")
+        else:
+            parts.append(f"{room_name} has no lessons on {day_name}.")
+    elif room_id is not None:
+        week = {}
+        for l in lessons:
+            if l.room_id == room_id:
+                week.setdefault(l.day_index, []).append(_slot_label(calendar, l.day_index, l.period_index))
+        if week:
+            summary = "; ".join(
+                f"{vocab.days[d]['name']}: {', '.join(slots[:6])}"
+                for d, slots in sorted(week.items())
+            )
+            parts.append(f"{room_name} is used as follows — {summary}.")
+        else:
+            parts.append(f"{room_name} is free all week.")
+
+    if subject_id is not None:
+        placed = sorted(
+            (l for l in lessons if l.subject_id == subject_id),
+            key=lambda l: (l.day_index, l.period_index),
+        )
+        if placed:
+            where = ", ".join(_slot_label(calendar, l.day_index, l.period_index) for l in placed[:12])
+            parts.append(
+                f"{subject_name} currently sits at {where}. Pick one of those slots and check "
+                "the grid's 'Why?' explorer to see exactly what blocks a different slot."
+            )
+        else:
+            parts.append(f"{subject_name} is not on the timetable at all yet.")
+
+    command.explanation = (
+        " ".join(parts)
+        if parts
+        else "I could not tell which subject or room you meant. Try: 'Why can't I put Physics in Lab 2 on Tuesday?'"
+    )
+    return command
+
+
 @router.post("/copilot/interpret")
 def copilot_interpret(
     payload: s.CopilotIn,
     db: Session = Depends(get_db),
     principal: Principal = Depends(require_role("admin", "scheduler")),
 ):
-    """Turn a sentence into a structured command. Never applies it."""
+    """Turn a sentence into a structured command. Never applies it.
+
+    Question-style commands (find_free / find_room / find_gaps) are answered
+    here, directly from the stored timetable and constraint data — the AI
+    assistant describes the database, it never invents timetable data.
+    """
     parser = ai.get_parser()
     command = parser.parse(payload.text, _vocabulary(db, principal.school_id))
+
+    if command.action == "find_free":
+        command = _answer_find_free(db, principal.school_id, command)
+    elif command.action == "find_room":
+        command = _answer_find_room(db, principal.school_id, command)
+    elif command.action == "find_gaps":
+        command = _answer_find_gaps(db, principal.school_id, command)
+    elif command.action == "explain":
+        command = _answer_explain(db, principal.school_id, command, payload.text)
+
     return {"command": command.as_dict()}
 
 
@@ -873,6 +1382,14 @@ def copilot_apply(
         db.commit()
         db.refresh(row)
         return {"applied": True, "constraint_id": row.id, "requires_regeneration": True}
+
+    if action in {"find_free", "find_room", "find_gaps", "explain"}:
+        # These were questions: the answer was already computed at interpret
+        # time from the stored timetable. Nothing needs to change.
+        return {
+            "applied": False,
+            "message": "That was a question — the answer came from the current timetable, so nothing was changed.",
+        }
 
     if action in {"set_weight", "rebalance", "improve"}:
         key = command.get("weight_key")
