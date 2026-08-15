@@ -8,6 +8,7 @@ import {
   CalendarIcon,
   CloseIcon,
   DashboardIcon,
+  InboxIcon,
   LayersIcon,
   LogOutIcon,
   MenuIcon,
@@ -29,6 +30,7 @@ const PLATFORM_NAV: NavGroup = {
     { to: '/platform/requests', label: 'Access requests' },
     { to: '/platform/admins', label: 'Administrators' },
     { to: '/platform/audit', label: 'Audit trail' },
+    { to: '/platform/email', label: 'Email & templates', icon: <InboxIcon /> },
     { to: '/settings/ai-providers', label: 'AI providers' },
   ],
 }

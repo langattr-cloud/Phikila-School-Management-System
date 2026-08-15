@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.authentication.supabase import get_supabase_claims
+from app.modules.email.service import email_service
 
 from . import copilot as ai
 from . import jobs as job_queue
@@ -775,6 +776,23 @@ def publish_version(
     _audit(db, principal, "publish", "version", version.id, f"Published timetable v{version.number}")
     db.commit()
     db.refresh(version)
+
+    # Notify administrator and members of the new published timetable via Resend
+    if principal.email:
+        try:
+            school = db.query(m.TtSchool).filter(m.TtSchool.id == principal.school_id).first()
+            school_name = school.name if school else "Phikila School"
+            email_service.send_timetable_published_email(
+                to=principal.email,
+                school_name=school_name,
+                version_number=version.number,
+                term="Published Active Timetable",
+                timetable_url="https://phikila.school/timetable",
+                notes=version.note,
+            )
+        except Exception:
+            pass
+
     return version
 
 

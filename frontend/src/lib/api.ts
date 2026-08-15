@@ -32,19 +32,12 @@ export function friendlyApiError(error: unknown, action: string): string {
   return `We could not ${action}. Check your connection and try again.`
 }
 
-async function getAccessToken(): Promise<string> {
-  const { data, error } = await supabase.auth.getSession()
-  if (error || !data.session) {
-    throw new ApiError('Please sign in again.', 401)
-  }
-  return data.session.access_token
-}
-
 /**
  * Attempt to refresh the Supabase session by hitting the Supabase API.
  * Returns the new access token, or null if the refresh failed.
  */
 async function refreshSessionToken(): Promise<string | null> {
+  if (!supabase) return null
   const { data, error } = await supabase.auth.getUser()
   if (error || !data.user) return null
   // getUser() triggers a refresh internally; re-read the session for the

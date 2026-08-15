@@ -9,8 +9,7 @@ import {
   SchoolIcon,
   UserIcon,
 } from '../components/icons'
-import { friendlyApiError } from '../lib/api'
-import { api } from '../lib/api'
+import { friendlyApiError, api } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { displayName, useAuth } from '../lib/auth'
 import { Link } from '../lib/router'

@@ -17,6 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.modules.email.service import email_service
 from app.modules.scheduling.models import TtClass, TtTeacher
 from app.modules.scheduling.tenancy import ROLE_ORDER, TtMembership, TtSchool
 
@@ -225,6 +226,18 @@ def submit_access_request(
     if existing is None:
         db.add(row)
     db.commit()
+
+    # Trigger transactional confirmation email via Resend
+    if row.email:
+        try:
+            email_service.send_access_request_submitted_email(
+                to=row.email,
+                school_name=school_name,
+                requested_role=payload.requested_role,
+            )
+        except Exception:
+            pass
+
     return {"status": "pending"}
 
 
@@ -282,6 +295,18 @@ def decide_access_request(
             entity="access_request", entity_id=row.id,
         )
         db.commit()
+
+        # Send rejection notification email via Resend
+        if row.email:
+            try:
+                email_service.send_access_request_rejected_email(
+                    to=row.email,
+                    school_name=row.requested_school_name,
+                    reason=payload.note,
+                )
+            except Exception:
+                pass
+
         return {"status": "rejected"}
 
     school_id = payload.school_id or row.requested_school_id
@@ -330,6 +355,18 @@ def decide_access_request(
         entity="access_request", entity_id=row.id, school_id=school_id,
     )
     db.commit()
+
+    # Send approval notification email via Resend
+    if row.email:
+        try:
+            email_service.send_access_request_approved_email(
+                to=row.email,
+                school_name=school.name,
+                role=granted,
+            )
+        except Exception:
+            pass
+
     return {"status": "approved", "role": granted, "school_id": school_id}
 
 
@@ -585,6 +622,18 @@ def add_administrator(
         entity="membership", entity_id=user_id, school_id=school_id,
     )
     db.commit()
+
+    # Send role assignment notification via Resend
+    try:
+        email_service.send_role_assigned_email(
+            to=email,
+            school_name=school.name,
+            role=payload.role,
+            assigned_by=identity.email or "School Administrator",
+        )
+    except Exception:
+        pass
+
     return {"user_id": user_id, "email": email, "role": payload.role}
 
 
