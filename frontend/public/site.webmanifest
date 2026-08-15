@@ -8,9 +8,8 @@
   "background_color": "#06111F",
   "theme_color": "#0A1E34",
   "icons": [
-    { "src": "/brand/phikila-logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/brand/favicon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/brand/favicon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/brand/phikila-logo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/phikila-logo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
   ],
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
