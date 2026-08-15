@@ -28,6 +28,7 @@ const PLATFORM_NAV: NavGroup = {
     { to: '/platform/schools', label: 'Schools' },
     { to: '/platform/requests', label: 'Access requests' },
     { to: '/platform/admins', label: 'Administrators' },
+    { to: '/platform/audit', label: 'Audit trail' },
     { to: '/settings/ai-providers', label: 'AI providers' },
   ],
 }
@@ -50,12 +51,15 @@ const NAV: NavGroup[] = [
       { to: '/setup/subjects', label: 'Subjects' },
       { to: '/setup/classes', label: 'Classes' },
       { to: '/setup/rooms', label: 'Rooms' },
+      { to: '/setup/academic-years', label: 'Academic calendar' },
+      { to: '/setup/levels', label: 'Levels' },
     ],
   },
   {
     label: 'Scheduling',
     items: [
       { to: '/scheduling/requirements', label: 'Lesson requirements' },
+      { to: '/scheduling/constraints', label: 'Constraints' },
       { to: '/scheduling/generate', label: 'Generate' },
       { to: '/scheduling/copilot', label: 'Copilot' },
     ],
