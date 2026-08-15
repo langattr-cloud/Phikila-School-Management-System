@@ -9,19 +9,20 @@ const suggestions = [
   { label: 'Summarise today\'s activity', icon: <LayersIcon width={15} height={15} /> },
   { label: 'What needs my attention?', icon: <SparkIcon width={15} height={15} /> },
 ]
-
 type Insight = { headline: string; summary: string; actions: string[]; source: string; model?: string }
+const insightCache = new Map<string, { at: number; data: Insight }>()
 
 export function CopilotAssistantRail() {
   const { pathname } = useRouter()
-  const [insight, setInsight] = useState<Insight | null>(null)
+  const [insight, setInsight] = useState<Insight | null>(() => insightCache.get(pathname)?.data ?? null)
   useEffect(() => {
     let active = true
-    apiFetch<Insight>('/api/v1/copilot/insight').then((data) => { if (active) setInsight(data) }).catch(() => undefined)
+    const cached = insightCache.get(pathname)
+    if (cached && Date.now() - cached.at < 30000) { setInsight(cached.data); return () => { active = false } }
+    apiFetch<Insight>('/api/v1/copilot/insight').then((data) => { insightCache.set(pathname, { at: Date.now(), data }); if (active) setInsight(data) }).catch(() => undefined)
     return () => { active = false }
   }, [pathname])
   const insightText = insight?.actions?.[0] ?? insight?.summary ?? 'Copilot is ready to analyse your school workspace.'
-
   return <section className="copilot-rail glass-card" aria-labelledby="copilot-rail-title">
     <div className="copilot-rail__glow" aria-hidden="true" />
     <div className="copilot-rail__header"><span className="copilot-rail__icon" aria-hidden="true"><SparkIcon width={17} height={17} /></span><div><p className="copilot-rail__eyebrow">Phikila Copilot</p><h2 id="copilot-rail-title">Your school assistant</h2></div><span className="copilot-rail__status" title="Copilot available" aria-label="Copilot available" /></div>
