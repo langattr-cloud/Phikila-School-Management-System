@@ -73,9 +73,9 @@ export default function ExaminationsPage() {
               <h2 className="section__title">Exam Series</h2>
               <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                  {series.map((s) => (
-                   <div key={s.id} className="card" style={{ padding: 'var(--space-3)', flex: '1 1 14rem' }}>
+                   <div key={s.id} className="card" style={{ padding: 'var(--space-3)', flex: '1 1 14rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                      <strong>{s.name}</strong>
-                     <Badge tone={s.status === 'active' ? 'success' : 'warning'} style={{ marginLeft: 'var(--space-2)' }}>{s.status}</Badge>
+                     <Badge tone={s.status === 'active' ? 'success' : 'warning'}>{s.status}</Badge>
                    </div>
                  ))}
                </div>
@@ -204,6 +204,3 @@ export default function ExaminationsPage() {
      </div>
    )
  }
-    </div>
-  )
-}

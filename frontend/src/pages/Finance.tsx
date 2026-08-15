@@ -236,6 +236,3 @@ function NewPaymentForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
     </div>
   )
 }
-    </div>
-  )
-}
