@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { School, SchoolUpdate, SchoolContactUpdate } from '../lib/types'
+import { useToast } from '../context/ToastContext'
 import Modal from '../components/ui/Modal'
 import FormField from '../components/ui/FormField'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -8,6 +9,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 type Tab = 'info' | 'contact' | 'settings'
 
 export default function SchoolProfile() {
+  const { success, error: toastError } = useToast()
   const [school, setSchool] = useState<School | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -77,8 +79,9 @@ export default function SchoolProfile() {
       await api.updateSchoolContact(contactForm)
       await loadSchool()
       setEditing(false)
+      success('School profile updated successfully')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save')
+      toastError(e instanceof Error ? e.message : 'Failed to save')
     } finally {
       setSaving(false)
     }

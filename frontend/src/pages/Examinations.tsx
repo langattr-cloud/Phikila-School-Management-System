@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { Examination } from '../lib/types'
+import { useToast } from '../context/ToastContext'
+import DataTable, { type Column } from '../components/ui/DataTable'
 import Modal from '../components/ui/Modal'
 import FormField from '../components/ui/FormField'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import EmptyState from '../components/ui/EmptyState'
 
 export default function Examinations() {
+  const { success, error: toastError } = useToast()
   const [exams, setExams] = useState<Examination[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ name: '', academic_year: '', term: '' })
@@ -21,7 +22,7 @@ export default function Examinations() {
       setLoading(true)
       setExams(await api.getExaminations())
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load examinations')
+      toastError(e instanceof Error ? e.message : 'Failed to load examinations')
     } finally {
       setLoading(false)
     }
@@ -34,14 +35,21 @@ export default function Examinations() {
       await loadExams()
       setShowCreate(false)
       setForm({ name: '', academic_year: '', term: '' })
+      success('Examination created successfully')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create examination')
+      toastError(e instanceof Error ? e.message : 'Failed to create examination')
     } finally {
       setSaving(false)
     }
   }
 
   if (loading) return <LoadingSpinner text="Loading examinations…" />
+
+  const columns: Column<Record<string, unknown>>[] = [
+    { key: 'name', header: 'Name', sortable: true, className: 'td-bold' },
+    { key: 'academic_year', header: 'Academic Year', sortable: true },
+    { key: 'term', header: 'Term', sortable: true },
+  ]
 
   return (
     <div>
@@ -51,48 +59,19 @@ export default function Examinations() {
         <p className="muted">Manage exams, grading, and report cards.</p>
       </header>
 
-      {error && <div className="toast toast--error">{error}</div>}
-
-      <div className="toolbar">
-        <p className="toolbar-count">{exams.length} examination{exams.length !== 1 ? 's' : ''}</p>
-        <button className="btn btn--primary" type="button" onClick={() => setShowCreate(true)}>
-          + New Examination
-        </button>
-      </div>
-
-      {exams.length === 0 ? (
-        <EmptyState
-          icon="📝"
-          title="No examinations yet"
-          description="Create examinations to start recording assessment results."
-          action={
-            <button className="btn btn--primary" type="button" onClick={() => setShowCreate(true)}>
-              Create Examination
-            </button>
-          }
-        />
-      ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Academic Year</th>
-                <th>Term</th>
-              </tr>
-            </thead>
-            <tbody>
-              {exams.map((e) => (
-                <tr key={e.id}>
-                  <td className="td-bold">{e.name}</td>
-                  <td>{e.academic_year}</td>
-                  <td>{e.term}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={exams as unknown as Record<string, unknown>[]}
+        searchPlaceholder="Search examinations…"
+        actions={
+          <button className="btn btn--primary" type="button" onClick={() => setShowCreate(true)}>
+            + New Examination
+          </button>
+        }
+        emptyIcon="📝"
+        emptyTitle="No examinations yet"
+        emptyDescription="Create examinations to start recording assessment results."
+      />
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Examination">
         <div className="form-grid">

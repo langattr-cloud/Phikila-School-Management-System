@@ -1,36 +1,30 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { Department, DepartmentCreate } from '../lib/types'
+import { useToast } from '../context/ToastContext'
+import DataTable, { type Column } from '../components/ui/DataTable'
 import Modal from '../components/ui/Modal'
 import FormField from '../components/ui/FormField'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import EmptyState from '../components/ui/EmptyState'
 
 export default function Departments() {
+  const { success, error: toastError } = useToast()
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<DepartmentCreate>({
-    school_id: 1,
-    code: '',
-    name: '',
-    description: '',
-    status: 'Active',
+    school_id: 1, code: '', name: '', description: '', status: 'Active',
   })
 
-  useEffect(() => {
-    loadDepartments()
-  }, [])
+  useEffect(() => { loadDepartments() }, [])
 
   async function loadDepartments() {
     try {
       setLoading(true)
-      const data = await api.getDepartments()
-      setDepartments(data)
+      setDepartments(await api.getDepartments())
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load departments')
+      toastError(e instanceof Error ? e.message : 'Failed to load departments')
     } finally {
       setLoading(false)
     }
@@ -43,14 +37,22 @@ export default function Departments() {
       await loadDepartments()
       setShowCreate(false)
       setForm({ school_id: 1, code: '', name: '', description: '', status: 'Active' })
+      success('Department created successfully')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create department')
+      toastError(e instanceof Error ? e.message : 'Failed to create department')
     } finally {
       setCreating(false)
     }
   }
 
   if (loading) return <LoadingSpinner text="Loading departments…" />
+
+  const columns: Column<Record<string, unknown>>[] = [
+    { key: 'code', header: 'Code', sortable: true, render: (row) => <span className="code-badge">{String(row.code)}</span> },
+    { key: 'name', header: 'Name', sortable: true, className: 'td-bold' },
+    { key: 'description', header: 'Description', className: 'td-muted' },
+    { key: 'status', header: 'Status', render: (row) => <span className={`status-pill status-pill--${String(row.status).toLowerCase()}`}>{String(row.status)}</span> },
+  ]
 
   return (
     <div>
@@ -60,67 +62,26 @@ export default function Departments() {
         <p className="muted">Organize subjects and teachers into departments.</p>
       </header>
 
-      {error && <div className="toast toast--error">{error}</div>}
-
-      <div className="toolbar">
-        <p className="toolbar-count">{departments.length} department{departments.length !== 1 ? 's' : ''}</p>
-        <button className="btn btn--primary" type="button" onClick={() => setShowCreate(true)}>
-          + New Department
-        </button>
-      </div>
-
-      {departments.length === 0 ? (
-        <EmptyState
-          icon="🏢"
-          title="No departments yet"
-          description="Create your first department to organize subjects and teachers."
-          action={
-            <button className="btn btn--primary" type="button" onClick={() => setShowCreate(true)}>
-              Create Department
-            </button>
-          }
-        />
-      ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {departments.map((dept) => (
-                <tr key={dept.id}>
-                  <td><span className="code-badge">{dept.code}</span></td>
-                  <td className="td-bold">{dept.name}</td>
-                  <td className="td-muted">{dept.description || '—'}</td>
-                  <td>
-                    <span className={`status-pill status-pill--${dept.status.toLowerCase()}`}>
-                      {dept.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={departments as unknown as Record<string, unknown>[]}
+        searchPlaceholder="Search departments…"
+        actions={
+          <button className="btn btn--primary" type="button" onClick={() => setShowCreate(true)}>
+            + New Department
+          </button>
+        }
+        emptyIcon="🏢"
+        emptyTitle="No departments yet"
+        emptyDescription="Create your first department to organize subjects and teachers."
+      />
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Department">
         <div className="form-grid">
           <FormField label="Code" value={form.code} onChange={(v) => setForm({ ...form, code: v })} required placeholder="e.g. SCI" />
           <FormField label="Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required placeholder="e.g. Sciences" />
           <FormField as="textarea" label="Description" value={form.description ?? ''} onChange={(v) => setForm({ ...form, description: v })} placeholder="Optional description" />
-          <FormField
-            as="select"
-            label="Status"
-            value={form.status ?? 'Active'}
-            onChange={(v) => setForm({ ...form, status: v })}
-            options={[{ value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }]}
-          />
+          <FormField as="select" label="Status" value={form.status ?? 'Active'} onChange={(v) => setForm({ ...form, status: v })} options={[{ value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }]} />
         </div>
         <div className="modal-actions">
           <button className="btn btn--ghost" type="button" onClick={() => setShowCreate(false)}>Cancel</button>
