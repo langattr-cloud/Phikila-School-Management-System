@@ -4,6 +4,7 @@ import { displayName, useAuth } from '../lib/auth'
 import { usePlatformSession } from '../lib/session'
 import { useToast } from './Toast'
 import { Logo, LogoMark } from './Logo'
+import { ThemeToggle } from './ThemeToggle'
 import { CalendarIcon, CloseIcon, DashboardIcon, LayersIcon, LogOutIcon, MenuIcon, SchoolIcon, SparkIcon, UserIcon } from './icons'
 
 type NavItem = { to: string; label: string; icon?: ReactNode }
@@ -23,7 +24,7 @@ const PLATFORM_NAV: NavGroup = {
 
 const NAV: NavGroup[] = [
   { label: 'Overview', items: [
-    { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
+    { to: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
     { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> },
   ] },
@@ -50,7 +51,7 @@ const NAV: NavGroup[] = [
 ]
 
 const BOTTOM_NAV: NavItem[] = [
-  { to: '/', label: 'Home', icon: <DashboardIcon /> },
+  { to: '/dashboard', label: 'Home', icon: <DashboardIcon /> },
   { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
   { to: '/scheduling/generate', label: 'Generate', icon: <SparkIcon /> },
   { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> },
@@ -59,7 +60,6 @@ const BOTTOM_NAV: NavItem[] = [
 
 function isActive(pathname: string, to: string) {
   const current = normalisePath(pathname)
-  if (to === '/') return current === '/'
   return current === to || current.startsWith(`${to}/`)
 }
 
@@ -130,14 +130,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="app-shell__main">
       <header className="topbar">
         <button ref={menuButtonRef} type="button" className="icon-button topbar__menu" onClick={() => setDrawerOpen(true)} aria-label="Open navigation menu" aria-expanded={drawerOpen} aria-controls="mobile-navigation"><MenuIcon /></button>
-        <span className="topbar__title"><LogoMark size={26} /><span>Phikila</span></span>
+        <span className="topbar__title"><LogoMark size={30} /><span>Phikila</span></span>
         {offline && <span className="topbar__offline" role="status">Offline</span>}
         <span className="topbar__user" title={user?.email ?? ''}>{user?.email}</span>
+        <ThemeToggle />
       </header>
       {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} role="presentation" />}
       <aside id="mobile-navigation" ref={drawerRef} className={`sidebar sidebar--drawer ${drawerOpen ? 'sidebar--open' : ''}`.trim()} role="dialog" aria-modal={drawerOpen || undefined} aria-label="Navigation menu" aria-hidden={!drawerOpen} {...(!drawerOpen ? { inert: '' as unknown as boolean } : {})}>
-        <div className="sidebar__brand"><Logo size={32} tone="dark" /><button type="button" className="icon-button" onClick={() => { setDrawerOpen(false); menuButtonRef.current?.focus() }} aria-label="Close navigation menu"><CloseIcon /></button></div>{navigation}{accountBlock}
-      </aside>
+        <div className="sidebar__brand"><Logo size={32} tone="dark" /><button type="button" className="icon-button" onClick={() => { setDrawerOpen(false); menuButtonRef.current?.focus() }} aria-label="Close navigation menu"><CloseIcon /></button></div>{navigation}{accountBlock}</aside>
       <main className="app-shell__content" id="main-content">{children}</main>
       <nav className="bottom-nav" aria-label="Quick navigation">{BOTTOM_NAV.map((item) => {
         const active = isActive(pathname, item.to)
