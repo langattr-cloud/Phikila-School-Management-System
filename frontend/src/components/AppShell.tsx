@@ -5,6 +5,7 @@ import { usePlatformSession } from '../lib/session'
 import { useToast } from './Toast'
 import { Logo, LogoMark } from './Logo'
 import { ThemeToggle } from './ThemeToggle'
+import { CopilotAssistantRail } from './CopilotAssistantRail'
 import { CalendarIcon, CloseIcon, DashboardIcon, LayersIcon, LogOutIcon, MenuIcon, SchoolIcon, SparkIcon, UserIcon } from './icons'
 
 type NavItem = { to: string; label: string; icon?: ReactNode }
@@ -42,7 +43,6 @@ const NAV: NavGroup[] = [
     { to: '/scheduling/requirements', label: 'Lesson requirements' },
     { to: '/scheduling/constraints', label: 'Constraints' },
     { to: '/scheduling/generate', label: 'Generate' },
-    { to: '/scheduling/copilot', label: 'Copilot' },
   ] },
   { label: 'Insights', items: [
     { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> },
@@ -131,7 +131,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <span className="aurora-orb aurora-orb--three" />
     </div>
     <a className="skip-link" href="#main-content">Skip to main content</a>
-    <aside className="sidebar sidebar--desktop"><div className="sidebar__brand"><Logo size={34} tone="dark" /></div>{navigation}{accountBlock}</aside>
+    <aside className="sidebar sidebar--desktop">
+      <div className="sidebar__brand"><Logo size={34} tone="dark" /></div>
+      {navigation}
+      <CopilotAssistantRail />
+      {accountBlock}
+    </aside>
     <div className="app-shell__main">
       <header className="topbar">
         <button ref={menuButtonRef} type="button" className="icon-button topbar__menu" onClick={() => setDrawerOpen(true)} aria-label="Open navigation menu" aria-expanded={drawerOpen} aria-controls="mobile-navigation"><MenuIcon /></button>
@@ -142,7 +147,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
       {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} role="presentation" />}
       <aside id="mobile-navigation" ref={drawerRef} className={`sidebar sidebar--drawer ${drawerOpen ? 'sidebar--open' : ''}`.trim()} role="dialog" aria-modal={drawerOpen || undefined} aria-label="Navigation menu" aria-hidden={!drawerOpen} {...(!drawerOpen ? { inert: '' as unknown as boolean } : {})}>
-        <div className="sidebar__brand"><Logo size={32} tone="dark" /><button type="button" className="icon-button" onClick={() => { setDrawerOpen(false); menuButtonRef.current?.focus() }} aria-label="Close navigation menu"><CloseIcon /></button></div>{navigation}{accountBlock}</aside>
+        <div className="sidebar__brand"><Logo size={32} tone="dark" /><button type="button" className="icon-button" onClick={() => { setDrawerOpen(false); menuButtonRef.current?.focus() }} aria-label="Close navigation menu"><CloseIcon /></button></div>
+        {navigation}
+        <CopilotAssistantRail />
+        {accountBlock}
+      </aside>
       <main className="app-shell__content" id="main-content">{children}</main>
       <nav className="bottom-nav" aria-label="Quick navigation">{BOTTOM_NAV.map((item) => {
         const active = isActive(pathname, item.to)
