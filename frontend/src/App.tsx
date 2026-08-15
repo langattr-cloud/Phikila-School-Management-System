@@ -28,6 +28,7 @@ const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then((m) => ({ 
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then((m) => ({ default: m.LevelsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const LlmProvidersPage = lazy(() => import('./pages/LlmProvidersPage').then((m) => ({ default: m.LlmProvidersPage })))
+const CopilotSettingsPage = lazy(() => import('./pages/CopilotSettingsPage').then((m) => ({ default: m.CopilotSettingsPage })))
 const PlatformDashboardPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformDashboardPage })))
 const PlatformSchoolsPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformSchoolsPage })))
 const PlatformSchoolDetailPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformSchoolDetailPage })))
@@ -35,87 +36,12 @@ const PlatformRequestsPage = lazy(() => import('./pages/PlatformPage').then((m) 
 const PlatformAdminsPage = lazy(() => import('./pages/PlatformPage').then((m) => ({ default: m.PlatformAdminsPage })))
 const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then((m) => ({ default: m.PlatformAuditPage })))
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then((m) => ({ default: m.AwaitingApprovalPage })))
-
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
-
-function RequireAuth({ children }: { children: ReactNode }) {
-  const { session, initialising } = useAuth()
-  const { pathname, search } = useRouter()
-  const navigate = useNavigate()
-  useEffect(() => {
-    if (initialising || session) return
-    navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}`)}`, { replace: true })
-  }, [initialising, session, pathname, search, navigate])
-  if (initialising) return <FullPageLoader label="Restoring your session…" />
-  if (!session) return <FullPageLoader label="Redirecting to sign in…" />
-  return <>{children}</>
-}
-
-function RedirectIfSignedIn({ children }: { children: ReactNode }) {
-  const { session, initialising, recoveryMode } = useAuth()
-  const navigate = useNavigate()
-  const { pathname } = useRouter()
-  const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'
-  useEffect(() => { if (shouldRedirect) navigate('/dashboard', { replace: true }) }, [shouldRedirect, navigate])
-  if (initialising) return <FullPageLoader label="Checking your session…" />
-  if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />
-  return <>{children}</>
-}
-
-function routeFor(pathname: string): ReactNode {
-  switch (pathname) {
-    case '/dashboard': return <DashboardPage />
-    case '/timetable': return <TimetablePage />
-    case '/my-timetable': return <MyTimetablePage />
-    case '/setup/periods': return <PeriodsPage />
-    case '/setup/teachers': return <SetupPage kind="teachers" />
-    case '/setup/subjects': return <SetupPage kind="subjects" />
-    case '/setup/classes': return <SetupPage kind="classes" />
-    case '/setup/rooms': return <SetupPage kind="rooms" />
-    case '/setup/school': return <SchoolPage />
-    case '/setup/academic-years': return <AcademicsPage />
-    case '/setup/levels': return <LevelsPage />
-    case '/scheduling/requirements': return <RequirementsPage />
-    case '/scheduling/constraints': return <ConstraintsPage />
-    case '/scheduling/generate': return <GeneratePage />
-    case '/scheduling/copilot': return <CopilotPage />
-    case '/analytics': return <SchedulingAnalyticsPage />
-    case '/versions': return <VersionsPage />
-    case '/profile': return <ProfilePage />
-    case '/settings/ai-providers': return <LlmProvidersPage />
-    case '/platform': return <PlatformDashboardPage />
-    case '/platform/schools': return <PlatformSchoolsPage />
-    case '/platform/schools/detail': return <PlatformSchoolDetailPage />
-    case '/platform/requests': return <PlatformRequestsPage />
-    case '/platform/admins': return <PlatformAdminsPage />
-    case '/platform/audit': return <PlatformAuditPage />
-    default: return <NotFoundPage />
-  }
-}
-
-function AccessGate({ children }: { children: ReactNode }) {
-  const { session, loading, error } = usePlatformSession()
-  if (loading) return <FullPageLoader label="Checking your access…" />
-  if (error) return <>{children}</>
-  if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>
-  return <>{children}</>
-}
-
-function ProtectedRoutes({ pathname }: { pathname: string }) {
-  return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense></AppShell></AccessGate></RequireAuth>
-}
-
-function Routes() {
-  const { pathname } = useRouter()
-  const path = normalisePath(pathname)
-  if (path === '/') return <LandingPage />
-  if (PUBLIC_ROUTES.has(path)) {
-    const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : <ResetPasswordPage />
-    return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn>
-  }
-  return <ProtectedRoutes pathname={path} />
-}
-
-export default function App() {
-  return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><Routes /></PlatformSessionProvider></AuthProvider></ToastProvider></RouterProvider>
-}
+function RequireAuth({ children }: { children: ReactNode }) { const { session, initialising } = useAuth(); const { pathname, search } = useRouter(); const navigate = useNavigate(); useEffect(() => { if (initialising || session) return; navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}`)}`, { replace: true }) }, [initialising, session, pathname, search, navigate]); if (initialising) return <FullPageLoader label="Restoring your session…" />; if (!session) return <FullPageLoader label="Redirecting to sign in…" />; return <>{children}</> }
+function RedirectIfSignedIn({ children }: { children: ReactNode }) { const { session, initialising, recoveryMode } = useAuth(); const navigate = useNavigate(); const { pathname } = useRouter(); const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'; useEffect(() => { if (shouldRedirect) navigate('/dashboard', { replace: true }) }, [shouldRedirect, navigate]); if (initialising) return <FullPageLoader label="Checking your session…" />; if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />; return <>{children}</> }
+function routeFor(pathname: string): ReactNode { switch (pathname) {
+case '/dashboard': return <DashboardPage />; case '/timetable': return <TimetablePage />; case '/my-timetable': return <MyTimetablePage />; case '/setup/periods': return <PeriodsPage />; case '/setup/teachers': return <SetupPage kind="teachers" />; case '/setup/subjects': return <SetupPage kind="subjects" />; case '/setup/classes': return <SetupPage kind="classes" />; case '/setup/rooms': return <SetupPage kind="rooms" />; case '/setup/school': return <SchoolPage />; case '/setup/academic-years': return <AcademicsPage />; case '/setup/levels': return <LevelsPage />; case '/scheduling/requirements': return <RequirementsPage />; case '/scheduling/constraints': return <ConstraintsPage />; case '/scheduling/generate': return <GeneratePage />; case '/scheduling/copilot': return <CopilotPage />; case '/analytics': return <SchedulingAnalyticsPage />; case '/versions': return <VersionsPage />; case '/profile': return <ProfilePage />; case '/settings/ai-providers': return <LlmProvidersPage />; case '/settings/copilot': return <CopilotSettingsPage />; case '/platform': return <PlatformDashboardPage />; case '/platform/schools': return <PlatformSchoolsPage />; case '/platform/schools/detail': return <PlatformSchoolDetailPage />; case '/platform/requests': return <PlatformRequestsPage />; case '/platform/admins': return <PlatformAdminsPage />; case '/platform/audit': return <PlatformAuditPage />; default: return <NotFoundPage /> } }
+function AccessGate({ children }: { children: ReactNode }) { const { session, loading, error } = usePlatformSession(); if (loading) return <FullPageLoader label="Checking your access…" />; if (error) return <>{children}</>; if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>; return <>{children}</> }
+function ProtectedRoutes({ pathname }: { pathname: string }) { return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense></AppShell></AccessGate></RequireAuth> }
+function Routes() { const { pathname } = useRouter(); const path = normalisePath(pathname); if (path === '/') return <LandingPage />; if (PUBLIC_ROUTES.has(path)) { const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : <ResetPasswordPage />; return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn> } return <ProtectedRoutes pathname={path} /> }
+export default function App() { return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><Routes /></PlatformSessionProvider></AuthProvider></ToastProvider></RouterProvider> }
