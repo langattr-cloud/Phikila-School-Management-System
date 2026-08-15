@@ -1,5 +1,6 @@
 import { Link } from '../lib/router'
 import { CalendarIcon, CheckIcon, LayersIcon, SparkIcon } from './icons'
+import './CopilotAssistantRail.css'
 
 const suggestions = [
   { label: 'Find timetable conflicts', icon: <CalendarIcon width={15} height={15} /> },
