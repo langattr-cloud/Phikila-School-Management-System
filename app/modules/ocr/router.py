@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.scheduling.tenancy import Principal, require_role, resolve_principal
 
 from . import models as m
 from . import schemas as s
@@ -134,7 +134,7 @@ def list_scans(
     limit: int = Query(default=20, ge=1, le=100),
     document_type: str | None = Query(default=None),
     db: Session = Depends(get_db),
-    principal: Principal = Depends(resolve_principal_from_scan),
+    principal: Principal = Depends(resolve_principal),
 ):
     """List recent OCR scans for the school."""
     query = db.query(m.OCRScan).filter(m.OCRScan.school_id == principal.school_id)

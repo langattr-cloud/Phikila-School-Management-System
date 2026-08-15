@@ -87,7 +87,7 @@ async function generatePdf(scan: ScanResult): Promise<void> {
 
         // Table header
         doc.setFontSize(8)
-        doc.setFont('Helvetica', 'bold')
+        doc.setFont('helvetica', 'bold')
         doc.text('#', 22, y)
         doc.text('Name', 30, y)
         let x = 90
@@ -101,7 +101,7 @@ async function generatePdf(scan: ScanResult): Promise<void> {
         y += 5
 
         // Table rows
-        doc.setFont('Helvetica', 'normal')
+        doc.setFont('helvetica', 'normal')
         for (let i = 0; i < students.length; i++) {
           if (y > 270) {
             doc.addPage()
@@ -127,7 +127,7 @@ async function generatePdf(scan: ScanResult): Promise<void> {
       y += 10
 
       doc.setFontSize(8)
-      doc.setFont('Helvetica', 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text('Day', 22, y)
       doc.text('Time', 50, y)
       doc.text('Subject', 85, y)
@@ -137,7 +137,7 @@ async function generatePdf(scan: ScanResult): Promise<void> {
       doc.line(20, y, 190, y)
       y += 5
 
-      doc.setFont('Helvetica', 'normal')
+      doc.setFont('helvetica', 'normal')
       for (const e of entries) {
         if (y > 270) { doc.addPage(); y = 20 }
         doc.text(e.day || '', 22, y)
@@ -156,9 +156,9 @@ async function generatePdf(scan: ScanResult): Promise<void> {
       const kv = (data.key_value_pairs as Record<string, string>) || {}
       for (const [key, val] of Object.entries(kv)) {
         if (y > 270) { doc.addPage(); y = 20 }
-        doc.setFont('Helvetica', 'bold')
+        doc.setFont('helvetica', 'bold')
         doc.text(`${key.replace(/_/g, ' ')}:`, 24, y)
-        doc.setFont('Helvetica', 'normal')
+        doc.setFont('helvetica', 'normal')
         doc.text(String(val), 80, y)
         y += 7
       }
@@ -171,7 +171,7 @@ async function generatePdf(scan: ScanResult): Promise<void> {
     doc.setFontSize(12)
     doc.text('Raw OCR Text', 20, 20)
     doc.setFontSize(9)
-    doc.setFont('Helvetica', 'normal')
+    doc.setFont('helvetica', 'normal')
     const lines = doc.splitTextToSize(scan.raw_text, 170)
     let ty = 30
     for (const line of lines) {
@@ -604,7 +604,9 @@ function ScanResultCard({
       )}
 
       {expanded && scan.status === 'failed' && scan.error && (
-        <div style={{ marginTop: 'var(--space-3)' }}><Alert tone="error">{scan.error}</Alert></div>
+        <div style={{ marginTop: 'var(--space-3)' }}>
+          <Alert tone="error">{scan.error}</Alert>
+        </div>
       )}
     </div>
   )

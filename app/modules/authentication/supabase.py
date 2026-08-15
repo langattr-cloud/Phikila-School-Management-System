@@ -12,7 +12,6 @@ from jwt import PyJWKClient
 from app.config import settings
 from app.modules.authentication.security import SECRET_KEY
 
-
 logger = logging.getLogger(__name__)
 bearer_scheme = HTTPBearer(auto_error=False)
 

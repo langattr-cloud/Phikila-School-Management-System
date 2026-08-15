@@ -10,7 +10,7 @@ from sqlalchemy import (
     Boolean, Column, Date, DateTime, Float, ForeignKey, Integer,
     String, Text, UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship as orm_relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
@@ -62,9 +62,9 @@ class Student(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    guardians = relationship("StudentGuardian", back_populates="student", cascade="all, delete-orphan")
-    enrollments = relationship("StudentEnrollment", back_populates="student", cascade="all, delete-orphan")
-    documents = relationship("StudentDocument", back_populates="student", cascade="all, delete-orphan")
+    guardians = orm_relationship("StudentGuardian", back_populates="student", cascade="all, delete-orphan")
+    enrollments = orm_relationship("StudentEnrollment", cascade="all, delete-orphan")
+    documents = orm_relationship("StudentDocument", cascade="all, delete-orphan")
 
 
 class StudentGuardian(Base):
@@ -87,7 +87,7 @@ class StudentGuardian(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    student = relationship("Student", back_populates="guardians")
+    student = orm_relationship("Student", back_populates="guardians")
 
 
 class StudentEnrollment(Base):
