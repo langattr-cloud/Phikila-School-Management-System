@@ -10,4 +10,5 @@ psycopg2-binary>=2.9,<3
 python-dotenv>=1.0,<2
 python-jose[cryptography]>=3.3,<4
 python-multipart>=0.0.9,<1
+resend>=2.0,<3
 uvicorn[standard]>=0.30,<1

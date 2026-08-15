@@ -4,7 +4,12 @@ import { displayName, useAuth } from '../lib/auth'
 import { usePlatformSession } from '../lib/session'
 import { useToast } from './Toast'
 import { Logo, LogoMark } from './Logo'
+import { CommandPalette } from './CommandPalette'
+import { NotificationCenter } from './NotificationCenter'
+import { FloatingCopilot } from './FloatingCopilot'
+import { MobileFAB } from './MobileFAB'
 import {
+  AlertIcon,
   CalendarIcon,
   CloseIcon,
   DashboardIcon,
@@ -13,7 +18,7 @@ import {
   MenuIcon,
   MoonIcon,
   SchoolIcon,
-  SparkIcon,
+  SearchIcon,
   SunIcon,
   UserIcon,
 } from './icons'
@@ -38,6 +43,7 @@ const NAV: NavGroup[] = [
     label: 'Overview',
     items: [
       { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
+      { to: '/students', label: 'Students', icon: <UserIcon /> },
       { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
       { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> },
     ],
@@ -76,8 +82,8 @@ const NAV: NavGroup[] = [
 // The five destinations that matter on a phone.
 const BOTTOM_NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: <DashboardIcon /> },
+  { to: '/students', label: 'Students', icon: <UserIcon /> },
   { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
-  { to: '/scheduling/generate', label: 'Generate', icon: <SparkIcon /> },
   { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> },
   { to: '/my-timetable', label: 'Mine', icon: <UserIcon /> },
 ]
@@ -93,12 +99,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { notify } = useToast()
-  // Navigation visibility only. Backend authorization is what actually
-  // protects these routes.
   const isSuperAdmin = usePlatformSession().session?.is_super_admin ?? false
   const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV
 
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [offline, setOffline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine === false : false,
@@ -116,7 +122,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.localStorage.setItem('phikila.theme', theme)
   }, [theme])
 
-  // Close the drawer whenever the route changes so navigation never leaves it open.
   useEffect(() => {
     setDrawerOpen(false)
   }, [pathname])
@@ -258,15 +263,43 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <MenuIcon />
           </button>
+
           <span className="topbar__title">
             <LogoMark size={26} />
             <span>Phikila</span>
           </span>
+
+          {/* GLOBAL COMMAND PALETTE TRIGGER BUTTON */}
+          <button
+            id="cmd-k-trigger"
+            type="button"
+            className="topbar-cmd-button"
+            onClick={() => setCommandPaletteOpen(true)}
+            title="Search students, classes, actions (⌘K)"
+          >
+            <SearchIcon width={16} height={16} />
+            <span className="topbar-cmd-button__text">Search Phikila…</span>
+            <kbd className="topbar-cmd-button__kbd">⌘K</kbd>
+          </button>
+
           {offline && (
             <span className="topbar__offline" role="status">
               Offline
             </span>
           )}
+
+          {/* NOTIFICATION BELL */}
+          <button
+            type="button"
+            className="icon-button topbar__notif"
+            onClick={() => setNotificationsOpen(true)}
+            aria-label="Notifications"
+            title="Open Notification Center"
+          >
+            <AlertIcon width={18} height={18} />
+            <span className="topbar__notif-badge">3</span>
+          </button>
+
           <button
             type="button"
             className="icon-button topbar__theme"
@@ -276,6 +309,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             {theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}
           </button>
+
           <span className="topbar__user" title={user?.email ?? ''}>
             {user?.email}
           </span>
@@ -316,6 +350,24 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="app-shell__content" id="main-content">
           {children}
         </main>
+
+        {/* Global Floating AI Copilot Widget */}
+        <FloatingCopilot />
+
+        {/* Speed-dial Mobile FAB button */}
+        <MobileFAB />
+
+        {/* Command Palette Modal */}
+        <CommandPalette
+          open={commandPaletteOpen}
+          onClose={() => setCommandPaletteOpen(false)}
+        />
+
+        {/* Notification Drawer */}
+        <NotificationCenter
+          open={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+        />
 
         {/* Thumb-reachable navigation on phones. */}
         <nav className="bottom-nav" aria-label="Quick navigation">
