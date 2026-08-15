@@ -1,7 +1,7 @@
 type Tone = 'light' | 'dark'
 
-/** Shared Phikila brand asset. The uploaded/recreated emblem is used everywhere so logo and favicon stay consistent. */
-const BRAND_ASSET = '/brand/phikila-logo.svg'
+/** Shared Phikila master asset: the logo supplied for this product. */
+const BRAND_ASSET = '/brand/phikila-logo-192.png'
 
 export function LogoMark({
   size = 32,
@@ -13,7 +13,7 @@ export function LogoMark({
   title?: string
   className?: string
 }) {
-  return <img src={BRAND_ASSET} width={size} height={size} className={className} alt={title ?? ''} aria-hidden={!title} />
+  return <img src={BRAND_ASSET} width={size} height={size} className={className} alt={title ?? ''} aria-hidden={!title} loading="eager" decoding="async" />
 }
 
 export function Logo({
@@ -29,7 +29,7 @@ export function Logo({
 }) {
   return (
     <span className={`logo logo--${tone} ${className ?? ''}`.trim()}>
-      <LogoMark size={size} tone={tone} />
+      <LogoMark size={size} tone={tone} title="Phikila" />
       <span className="logo__text">
         <span className="logo__word">PHIKILA</span>
         {showTagline && <span className="logo__sub">School Management System</span>}
