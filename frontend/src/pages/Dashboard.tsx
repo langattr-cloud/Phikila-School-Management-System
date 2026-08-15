@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
-import type { School, Student, Teacher, Department } from '../lib/types'
+import type { School } from '../lib/types'
 
 export default function Dashboard() {
   const { session } = useAuth()
