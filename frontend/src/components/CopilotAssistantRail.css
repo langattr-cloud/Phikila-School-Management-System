@@ -20,6 +20,8 @@
 .copilot-rail__insight-icon { display:grid; place-items:center; width:24px; height:24px; flex:none; border-radius:8px; color:#9af2df; background:rgba(20,211,173,.12); }
 .copilot-rail__insight strong { display:block; color:#fff; font-size:.68rem; }
 .copilot-rail__insight p { margin-top:2px; color:rgba(231,242,250,.62); font-size:.64rem; line-height:1.35; }
+.copilot-rail__focus { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; padding:8px 9px; border-radius:10px; color:#e9fffa; text-decoration:none; font-size:.65rem; font-weight:750; background:linear-gradient(100deg, rgba(19,211,173,.17), rgba(98,80,255,.16)); border:1px solid rgba(129,239,216,.16); transition:transform .16s ease, border-color .16s ease, background .16s ease; }
+.copilot-rail__focus:hover { transform:translateX(2px); border-color:rgba(129,239,216,.30); background:linear-gradient(100deg, rgba(19,211,173,.23), rgba(98,80,255,.22)); }
 .copilot-rail__suggestions { display:grid; gap:4px; margin-top:9px; }
 .copilot-rail__suggestion { display:grid; grid-template-columns:19px 1fr auto; align-items:center; gap:6px; padding:7px 6px; border-radius:8px; color:rgba(231,242,250,.76); text-decoration:none; font-size:.63rem; transition:background .16s ease, transform .16s ease; }
 .copilot-rail__suggestion > span:first-child { display:inline-flex; color:#9af2df; }
