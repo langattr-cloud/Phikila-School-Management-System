@@ -4,6 +4,7 @@ import { PlatformSessionProvider, usePlatformSession } from './lib/session'
 import { RouterProvider, normalisePath, useNavigate, useRouter } from './lib/router'
 import { ToastProvider } from './components/Toast'
 import { AppShell } from './components/AppShell'
+import { FloatingCopilot } from './components/FloatingCopilot'
 import { FullPageLoader } from './components/States'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
@@ -71,19 +72,7 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
 function LandingRedirect() {
   const { session, initialising } = useAuth()
   if (initialising) return <FullPageLoader label="Checking your session…" />
-  if (session) {
-    return (
-      <RequireAuth>
-        <AccessGate>
-          <AppShell>
-            <Suspense fallback={<FullPageLoader label="Loading page…" />}>
-              <DashboardPage />
-            </Suspense>
-          </AppShell>
-        </AccessGate>
-      </RequireAuth>
-    )
-  }
+  if (session) return <ProtectedRoutes pathname="/" />
   return <LandingPage />
 }
 
@@ -133,7 +122,7 @@ function AccessGate({ children }: { children: ReactNode }) {
 }
 
 function ProtectedRoutes({ pathname }: { pathname: string }) {
-  return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense></AppShell></AccessGate></RequireAuth>
+  return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense></AppShell><FloatingCopilot /></AccessGate></RequireAuth>
 }
 
 function Routes() {
@@ -143,9 +132,7 @@ function Routes() {
     const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : <ResetPasswordPage />
     return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn>
   }
-  if (path === '/') {
-    return <LandingRedirect />
-  }
+  if (path === '/') return <LandingRedirect />
   return <ProtectedRoutes pathname={path} />
 }
 
