@@ -23,7 +23,7 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const notice = params.get('notice')
-  const nextPath = params.get('next') || '/'
+  const nextPath = params.get('next') || '/dashboard'
 
   useEffect(() => {
     document.title = 'Sign in · Phikila School System'
@@ -54,7 +54,7 @@ export function LoginPage() {
       setFormError(result.message)
       return
     }
-    navigate(nextPath.startsWith('/') ? nextPath : '/', { replace: true })
+    navigate(nextPath.startsWith('/') ? nextPath : '/dashboard', { replace: true })
     notify('Signed in successfully.', 'success')
   }
 
@@ -68,58 +68,16 @@ export function LoginPage() {
         </p>
       }
     >
-      {notice === 'signed-out' && (
-        <Alert tone="info">You have been signed out. Sign in again to continue.</Alert>
-      )}
-      {notice === 'session-expired' && (
-        <Alert tone="info">Your session expired for security. Please sign in again.</Alert>
-      )}
-      {notice === 'password-updated' && (
-        <Alert tone="success">Your password was updated. Sign in with your new password.</Alert>
-      )}
-      {notice === 'check-email' && (
-        <Alert tone="info" title="Confirm your email">
-          We sent you a confirmation link. Open it, then sign in here.
-        </Alert>
-      )}
-      {formError && (
-        <Alert tone="error" title="We could not sign you in">
-          {formError}
-        </Alert>
-      )}
+      {notice === 'signed-out' && <Alert tone="info">You have been signed out. Sign in again to continue.</Alert>}
+      {notice === 'session-expired' && <Alert tone="info">Your session expired for security. Please sign in again.</Alert>}
+      {notice === 'password-updated' && <Alert tone="success">Your password was updated. Sign in with your new password.</Alert>}
+      {notice === 'check-email' && <Alert tone="info" title="Confirm your email">We sent you a confirmation link. Open it, then sign in here.</Alert>}
+      {formError && <Alert tone="error" title="We could not sign you in">{formError}</Alert>}
 
       <form className="form" onSubmit={handleSubmit} noValidate>
-        <Field
-          label="Email address"
-          type="email"
-          name="email"
-          inputMode="email"
-          autoComplete="email"
-          placeholder="name@school.org"
-          value={email}
-          required
-          onChange={(event) => setEmail(event.target.value)}
-          onBlur={() => setErrors((current) => ({ ...current, email: validate().email }))}
-          error={errors.email}
-        />
-
-        <PasswordField
-          label="Password"
-          name="password"
-          autoComplete="current-password"
-          placeholder="Your password"
-          value={password}
-          required
-          onChange={(event) => setPassword(event.target.value)}
-          error={errors.password}
-        />
-
-        <div className="form__row form__row--between">
-          <Link className="link" to="/forgot-password">
-            Forgot your password?
-          </Link>
-        </div>
-
+        <Field label="Email address" type="email" name="email" inputMode="email" autoComplete="email" placeholder="name@school.org" value={email} required onChange={(event) => setEmail(event.target.value)} onBlur={() => setErrors((current) => ({ ...current, email: validate().email }))} error={errors.email} />
+        <PasswordField label="Password" name="password" autoComplete="current-password" placeholder="Your password" value={password} required onChange={(event) => setPassword(event.target.value)} error={errors.password} />
+        <div className="form__row form__row--between"><Link className="link" to="/forgot-password">Forgot your password?</Link></div>
         <button className="button button--primary button--block" type="submit" disabled={submitting}>
           {submitting && <Spinner label="Signing in" />}
           {submitting ? 'Signing in…' : 'Sign in'}
