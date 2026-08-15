@@ -73,10 +73,10 @@ export function DashboardPage() {
   const currentTerm = termsQuery.data?.find((t) => t.is_current)
 
   return (
-    <>
+    <div className="dashboard-page">
       <PageHeader
         title="Dashboard"
-        description={`Signed in as ${displayName(user)}.`}
+        description={`Welcome back, ${displayName(user)}. Here is your school operations overview.`}
         actions={
           <>
             <Link className="button button--secondary button--sm" to="/timetable">
@@ -112,44 +112,29 @@ export function DashboardPage() {
             </Alert>
           )}
 
-          {/* ---- School Profile ---- */}
+          {/* ---- School context ---- */}
           {school && (
-            <section aria-labelledby="school-heading" className="section card">
-              <h2 className="section__title" id="school-heading">
-                School Profile
-              </h2>
-              <div className="dashboard-columns dashboard-columns--two">
-                <div className="detail-list detail-list--two">
-                  <dl className="detail-list__full">
-                    <dt>School name</dt>
-                    <dd>{school.name || 'Not set'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Code</dt>
-                    <dd>{school.code || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>County</dt>
-                    <dd>{school.county || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Email</dt>
-                    <dd>{school.email || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Phone</dt>
-                    <dd>{school.phone || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Principal</dt>
-                    <dd>{school.principal_name || '—'}</dd>
-                  </dl>
-                  <dl>
-                    <dt>Motto</dt>
-                    <dd className="detail-list__full">{school.motto || '—'}</dd>
-                  </dl>
+            <section aria-labelledby="school-heading" className="dashboard-context card">
+              <div className="dashboard-context__identity">
+                <span className="dashboard-context__mark" aria-hidden="true"><SchoolIcon /></span>
+                <div>
+                  <p className="dashboard-context__eyebrow">Current workspace</p>
+                  <h2 id="school-heading">{school.name || 'School profile'}</h2>
+                  <p>{school.motto || 'Your connected school operations workspace'}</p>
                 </div>
+                <Badge tone={school.is_active !== false ? 'success' : 'warning'}>
+                  {school.is_active !== false ? 'Active' : 'Inactive'}
+                </Badge>
               </div>
+              <div className="dashboard-context__details">
+                <dl><dt>Academic year</dt><dd>{currentYear?.name || 'Not set'}</dd></dl>
+                <dl><dt>Current term</dt><dd>{currentTerm?.name || 'Not set'}</dd></dl>
+                <dl><dt>Location</dt><dd>{school.sub_county ? `${school.sub_county}, ${school.county || ''}` : school.county || 'Not set'}</dd></dl>
+                <dl><dt>School code</dt><dd>{school.code || 'Not set'}</dd></dl>
+                <dl><dt>Principal</dt><dd>{school.principal_name || 'Not set'}</dd></dl>
+                <dl><dt>Contact</dt><dd>{school.email || school.phone || 'Not set'}</dd></dl>
+              </div>
+              <Link className="dashboard-context__link" to="/setup/school">View school profile</Link>
             </section>
           )}
 
@@ -160,10 +145,11 @@ export function DashboardPage() {
           )}
 
           {/* ---- Academic Overview ---- */}
-          <section aria-labelledby="academic-heading" className="section">
-            <h2 className="section__title" id="academic-heading">
-              Academic Overview
-            </h2>
+          <section aria-labelledby="academic-heading" className="section dashboard-section">
+            <div className="dashboard-section__head">
+              <div><p>School structure</p><h2 className="section__title" id="academic-heading">Academic overview</h2></div>
+              <span>Configuration</span>
+            </div>
             <ul className="summary-grid">
               <SummaryCard
                 label="Academic years"
@@ -201,10 +187,11 @@ export function DashboardPage() {
           </section>
 
           {/* ---- School Overview (scheduling) ---- */}
-          <section aria-labelledby="overview-heading" className="section">
-            <h2 className="section__title" id="overview-heading">
-              Scheduling Overview
-            </h2>
+          <section aria-labelledby="overview-heading" className="section dashboard-section">
+            <div className="dashboard-section__head">
+              <div><p>Scheduling resources</p><h2 className="section__title" id="overview-heading">School overview</h2></div>
+              <span>Live counts</span>
+            </div>
             <ul className="summary-grid">
               <SummaryCard
                 label="Teachers"
@@ -241,10 +228,11 @@ export function DashboardPage() {
             </ul>
           </section>
 
-          <section aria-labelledby="status-heading" className="section">
-            <h2 className="section__title" id="status-heading">
-              Timetable status
-            </h2>
+          <section aria-labelledby="status-heading" className="section dashboard-section">
+            <div className="dashboard-section__head">
+              <div><p>Weekly readiness</p><h2 className="section__title" id="status-heading">Timetable status</h2></div>
+              <span>Current version</span>
+            </div>
             <ul className="summary-grid">
               <SummaryCard
                 label="Scheduled lessons"
@@ -289,7 +277,7 @@ export function DashboardPage() {
           </section>
 
           <div className="dashboard-columns">
-            <section aria-labelledby="quality-heading" className="card section">
+            <section aria-labelledby="quality-heading" className="card section dashboard-panel">
               <div className="panel__head">
                 <h2 className="section__title" id="quality-heading">
                   Timetable quality
@@ -318,7 +306,7 @@ export function DashboardPage() {
               )}
             </section>
 
-            <section aria-labelledby="activity-heading" className="card section">
+            <section aria-labelledby="activity-heading" className="card section dashboard-panel">
               <h2 className="section__title" id="activity-heading">
                 Recent activity
               </h2>
@@ -349,6 +337,6 @@ export function DashboardPage() {
           </div>
         </>
       )}
-    </>
+    </div>
   )
 }
