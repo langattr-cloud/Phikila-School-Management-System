@@ -1,6 +1,7 @@
 """FastAPI dependencies for verifying Supabase Auth access tokens."""
 
-from functools import lru_cache
+import logging
+import time
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
@@ -12,15 +13,32 @@ from app.config import settings
 from app.modules.authentication.security import SECRET_KEY
 
 
+logger = logging.getLogger(__name__)
 bearer_scheme = HTTPBearer(auto_error=False)
 
+# Manual cache that does NOT cache exceptions.  @lru_cache permanently caches
+# the *first* result — if the initial JWKS fetch fails (transient network
+# issue during a serverless cold start), every subsequent request also fails.
+_jwks_cache: dict[str, Any] = {"client": None, "failed_at": 0.0}
+_JWKS_RETRY_BACKOFF = 30  # seconds before retrying after a failure
 
-@lru_cache
+
 def _jwks_client() -> PyJWKClient:
+    if _jwks_cache["client"] is not None:
+        return _jwks_cache["client"]
+    # If the last attempt failed, wait before retrying to avoid hammering.
+    if _jwks_cache["failed_at"] and (time.time() - _jwks_cache["failed_at"]) < _JWKS_RETRY_BACKOFF:
+        raise RuntimeError("JWKS client unavailable (retry backoff)")
     if not settings.supabase_url:
         raise RuntimeError("SUPABASE_URL is not configured")
-    # PyJWKClient caches the JWKS and keys, so this does not fetch them per request.
-    return PyJWKClient(settings.supabase_jwks_url, cache_jwk_set=True, lifespan=3600)
+    try:
+        client = PyJWKClient(settings.supabase_jwks_url, cache_jwk_set=True, lifespan=3600)
+        _jwks_cache["client"] = client
+        _jwks_cache["failed_at"] = 0.0
+        return client
+    except Exception:
+        _jwks_cache["failed_at"] = time.time()
+        raise
 
 
 def _verify_local_token(token: str) -> dict[str, Any] | None:
@@ -102,5 +120,6 @@ def get_supabase_claims(
             issuer=settings.supabase_issuer,
             options={"require": ["exp", "sub"]},
         )
-    except (jwt.PyJWTError, RuntimeError):
+    except (jwt.PyJWTError, RuntimeError) as exc:
+        logger.warning("JWT verification failed: %s", exc)
         raise unauthorized from None

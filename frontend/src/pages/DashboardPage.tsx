@@ -3,8 +3,14 @@ import { PageHeader } from '../components/PageHeader'
 import { Badge, EmptyState, ErrorState, LoadingBlock, Skeleton } from '../components/States'
 import { Alert } from '../components/Alert'
 import { QualityBars } from '../components/QualityBars'
-import { CalendarIcon, LayersIcon, SchoolIcon, UserIcon } from '../components/icons'
+import {
+  CalendarIcon,
+  LayersIcon,
+  SchoolIcon,
+  UserIcon,
+} from '../components/icons'
 import { friendlyApiError } from '../lib/api'
+import { api } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 import { displayName, useAuth } from '../lib/auth'
 import { Link } from '../lib/router'
@@ -51,11 +57,21 @@ export function DashboardPage() {
   )
   const { data, loading, error, reload } = useAsync<Dashboard>(scheduling.dashboard, toMessage)
 
+  // Fetch school profile and academic data from the database
+  const schoolQuery = useAsync(api.school, toMessage)
+  const yearsQuery = useAsync(api.academicYears, toMessage)
+  const termsQuery = useAsync(api.terms, toMessage)
+  const levelsQuery = useAsync(api.levels, toMessage)
+
   const hard = data?.conflicts.hard ?? 0
   const soft = data?.conflicts.soft ?? 0
   const version = data?.version ?? null
   const setupIncomplete =
     !loading && (data?.counts.teachers ?? 0) === 0 && (data?.counts.classes ?? 0) === 0
+
+  const school = schoolQuery.data
+  const currentYear = yearsQuery.data?.find((y) => y.is_current)
+  const currentTerm = termsQuery.data?.find((t) => t.is_current)
 
   return (
     <>
@@ -97,9 +113,98 @@ export function DashboardPage() {
             </Alert>
           )}
 
+          {/* ---- School Profile ---- */}
+          {school && (
+            <section aria-labelledby="school-heading" className="section card">
+              <h2 className="section__title" id="school-heading">
+                School Profile
+              </h2>
+              <div className="dashboard-columns dashboard-columns--two">
+                <div className="detail-list detail-list--two">
+                  <dl className="detail-list__full">
+                    <dt>School name</dt>
+                    <dd>{school.name || 'Not set'}</dd>
+                  </dl>
+                  <dl>
+                    <dt>Code</dt>
+                    <dd>{school.code || '—'}</dd>
+                  </dl>
+                  <dl>
+                    <dt>County</dt>
+                    <dd>{school.county || '—'}</dd>
+                  </dl>
+                  <dl>
+                    <dt>Email</dt>
+                    <dd>{school.email || '—'}</dd>
+                  </dl>
+                  <dl>
+                    <dt>Phone</dt>
+                    <dd>{school.phone || '—'}</dd>
+                  </dl>
+                  <dl>
+                    <dt>Principal</dt>
+                    <dd>{school.principal_name || '—'}</dd>
+                  </dl>
+                  <dl>
+                    <dt>Motto</dt>
+                    <dd className="detail-list__full">{school.motto || '—'}</dd>
+                  </dl>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {schoolQuery.error && !schoolQuery.loading && (
+            <Alert tone="info" title="School profile not set up yet">
+              <Link to="/setup/school">Set up your school profile</Link> to see it here.
+            </Alert>
+          )}
+
+          {/* ---- Academic Overview ---- */}
+          <section aria-labelledby="academic-heading" className="section">
+            <h2 className="section__title" id="academic-heading">
+              Academic Overview
+            </h2>
+            <ul className="summary-grid">
+              <SummaryCard
+                label="Academic years"
+                value={yearsQuery.data?.length ?? 0}
+                detail={currentYear ? `Current: ${currentYear.name}` : 'No active year'}
+                loading={yearsQuery.loading}
+                icon={<CalendarIcon />}
+                to="/setup/academic-years"
+              />
+              <SummaryCard
+                label="Terms"
+                value={termsQuery.data?.length ?? 0}
+                detail={currentTerm ? `Current: ${currentTerm.name}` : 'No active term'}
+                loading={termsQuery.loading}
+                icon={<CalendarIcon />}
+                to="/setup/academic-years"
+              />
+              <SummaryCard
+                label="Levels"
+                value={levelsQuery.data?.length ?? 0}
+                detail={levelsQuery.data?.length ? 'Grade levels defined' : 'No levels set up'}
+                loading={levelsQuery.loading}
+                icon={<LayersIcon />}
+                to="/setup/levels"
+              />
+              <SummaryCard
+                label="School status"
+                value={school?.is_active !== false ? 'Active' : 'Inactive'}
+                detail={school ? (school.sub_county ? `${school.sub_county}, ${school.county}` : 'Location not set') : 'Set up school'}
+                loading={schoolQuery.loading}
+                icon={<SchoolIcon />}
+                to="/setup/school"
+              />
+            </ul>
+          </section>
+
+          {/* ---- School Overview (scheduling) ---- */}
           <section aria-labelledby="overview-heading" className="section">
             <h2 className="section__title" id="overview-heading">
-              School overview
+              Scheduling Overview
             </h2>
             <ul className="summary-grid">
               <SummaryCard

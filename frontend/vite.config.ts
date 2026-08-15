@@ -50,6 +50,18 @@ export default defineConfig(({ mode }) => {
       // remote dev/preview sandboxes (e.g. cloud workspaces). Production is
       // served by FastAPI/Vercel and never uses this dev server.
       allowedHosts: ['localhost', '127.0.0.1', '.e2b.app'],
+      proxy: {
+        // Forward API and health requests to the FastAPI backend during local
+        // development so the frontend can talk to the real server.
+        '/api': {
+          target: 'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
+        '/health': {
+          target: 'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
+      },
     },
   }
 })

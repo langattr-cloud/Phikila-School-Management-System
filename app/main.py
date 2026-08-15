@@ -11,8 +11,13 @@ from app.modules.authentication.router import router as auth_router
 from app.modules.authentication.supabase import get_supabase_claims
 from app.modules.llm.router import router as llm_router
 from app.modules.platform.router import router as platform_router
+from app.modules.attendance.router import router as attendance_router
+from app.modules.examinations.router_v2 import router as exams_router
+from app.modules.finance.router import router as finance_router
+from app.modules.ocr.router import router as ocr_router
 from app.modules.scheduling.router import router as scheduling_router
 from app.modules.school.router import router as school_router
+from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
 
 # Directory where the Vite frontend is built (frontend/ -> frontend/dist).
@@ -95,9 +100,26 @@ def create_app() -> FastAPI:
             allow_headers=["Authorization", "Content-Type", "Accept"],
         )
 
+    # Security middleware
+    from app.middleware import SecurityHeadersMiddleware, AccessLogMiddleware
+    app.add_middleware(AccessLogMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+
     @app.get("/health", tags=["Health"])
     def health_check():
         return {"status": "ok", "environment": settings.environment}
+
+    @app.get("/ready", tags=["Health"])
+    def readiness_check():
+        """Readiness probe — checks database connectivity."""
+        try:
+            from app.core.database import engine
+            with engine.connect() as conn:
+                conn.execute(__import__('sqlalchemy').text("SELECT 1"))
+            return {"status": "ready", "database": "connected"}
+        except Exception as exc:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"status": "not_ready", "error": str(exc)}, status_code=503)
 
     # ------------------------------------------
     # Register Phase 1 Routers
@@ -126,6 +148,36 @@ def create_app() -> FastAPI:
         scheduling_router,
         prefix="/api/v1/scheduling",
         tags=["Scheduling"],
+    )
+    # Student management
+    app.include_router(
+        students_router,
+        prefix="/api/v1",
+        tags=["Students"],
+    )
+    # Attendance tracking
+    app.include_router(
+        attendance_router,
+        prefix="/api/v1",
+        tags=["Attendance"],
+    )
+    # Examinations & results
+    app.include_router(
+        exams_router,
+        prefix="/api/v1",
+        tags=["Examinations"],
+    )
+    # Finance
+    app.include_router(
+        finance_router,
+        prefix="/api/v1",
+        tags=["Finance"],
+    )
+    # Document OCR — scan exam papers, student docs, timetables.
+    app.include_router(
+        ocr_router,
+        prefix="/api/v1/ocr",
+        tags=["Document OCR"],
     )
     # Platform administration. Every route enforces super-admin authority via
     # its own dependency, resolved from server-side state only.

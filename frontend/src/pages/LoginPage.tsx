@@ -4,6 +4,7 @@ import { Alert } from '../components/Alert'
 import { Field, PasswordField } from '../components/Field'
 import { Spinner } from '../components/States'
 import { useAuth } from '../lib/auth'
+import { api } from '../lib/api'
 import { Link, useNavigate, useSearchParams } from '../lib/router'
 import { isValidEmail } from '../lib/password'
 import { isLocalAuthMode } from '../lib/supabase'
@@ -29,12 +30,16 @@ export function LoginPage() {
   const [errors, setErrors] = useState<Errors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking')
 
   const notice = params.get('notice')
   const nextPath = params.get('next') || '/'
 
   useEffect(() => {
     document.title = 'Sign in · Phikila School System'
+    api.health()
+      .then(() => setApiStatus('online'))
+      .catch(() => setApiStatus('offline'))
   }, [])
 
   function validate(): Errors {
@@ -71,9 +76,29 @@ export function LoginPage() {
       title="Sign in"
       subtitle="Use your school staff account to continue."
       footer={
-        <p className="auth-shell__footer-text">
-          New to Phikila? <Link to="/signup">Create an account</Link>
-        </p>
+        <>
+          <p className="auth-shell__footer-text">
+            New to Phikila? <Link to="/signup">Create an account</Link>
+          </p>
+          <div className="login-status" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            marginTop: '0.75rem',
+            fontSize: '0.8rem',
+            color: 'var(--color-ink-muted)',
+          }}>
+            <span className={`status-dot status-dot--${apiStatus}`} />
+            <span>
+              {apiStatus === 'checking'
+                ? 'Connecting to system…'
+                : apiStatus === 'online'
+                  ? 'System connected'
+                  : 'System offline — try again later'}
+            </span>
+          </div>
+        </>
       }
     >
       {notice === 'signed-out' && (

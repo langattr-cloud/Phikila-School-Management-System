@@ -11,3 +11,17 @@ python-dotenv>=1.0,<2
 python-jose[cryptography]>=3.3,<4
 python-multipart>=0.0.9,<1
 uvicorn[standard]>=0.30,<1
+
+# ---------------------------------------------------------------------------
+# OCR backends (install at least one)
+# ---------------------------------------------------------------------------
+# Lighter option — requires system tesseract-ocr package:
+#   apt install tesseract-ocr   (Linux)
+#   brew install tesseract       (macOS)
+pytesseract>=0.3.10,<1
+
+# SOTA option — heavier but more accurate:
+#   pip install paddlepaddle paddleocr
+# Uncomment if your deployment has 500MB+ available:
+# paddlepaddle>=3.0
+# paddleocr>=2.9

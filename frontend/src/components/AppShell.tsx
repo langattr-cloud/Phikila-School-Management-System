@@ -43,11 +43,25 @@ const NAV: NavGroup[] = [
     ],
   },
   {
+    label: 'People',
+    items: [
+      { to: '/students', label: 'Students', icon: <UserIcon /> },
+      { to: '/setup/teachers', label: 'Teachers' },
+    ],
+  },
+  {
+    label: 'Academics',
+    items: [
+      { to: '/attendance', label: 'Attendance' },
+      { to: '/examinations', label: 'Examinations' },
+      { to: '/finance', label: 'Finance' },
+    ],
+  },
+  {
     label: 'Setup',
     items: [
       { to: '/setup/school', label: 'School' },
       { to: '/setup/periods', label: 'Days & periods' },
-      { to: '/setup/teachers', label: 'Teachers' },
       { to: '/setup/subjects', label: 'Subjects' },
       { to: '/setup/classes', label: 'Classes' },
       { to: '/setup/rooms', label: 'Rooms' },
@@ -62,6 +76,12 @@ const NAV: NavGroup[] = [
       { to: '/scheduling/constraints', label: 'Constraints' },
       { to: '/scheduling/generate', label: 'Generate' },
       { to: '/scheduling/copilot', label: 'Copilot' },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> },
     ],
   },
   {

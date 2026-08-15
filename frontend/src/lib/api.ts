@@ -32,6 +32,27 @@ export function friendlyApiError(error: unknown, action: string): string {
   return `We could not ${action}. Check your connection and try again.`
 }
 
+async function getAccessToken(): Promise<string> {
+  const { data, error } = await supabase.auth.getSession()
+  if (error || !data.session) {
+    throw new ApiError('Please sign in again.', 401)
+  }
+  return data.session.access_token
+}
+
+/**
+ * Attempt to refresh the Supabase session by hitting the Supabase API.
+ * Returns the new access token, or null if the refresh failed.
+ */
+async function refreshSessionToken(): Promise<string | null> {
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data.user) return null
+  // getUser() triggers a refresh internally; re-read the session for the
+  // now-fresh token.
+  const { data: session } = await supabase.auth.getSession()
+  return session?.session?.access_token ?? null
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -60,23 +81,37 @@ export async function apiFetch<T>(
     }
   }
 
-  const response = await fetch(`${apiUrl}${path}`, { ...init, headers })
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null)
-    const raw = payload?.detail
-    // FastAPI returns either a plain string or a structured object. Keep the
-    // object so callers can render conflict reasons and alternatives.
-    const message =
-      typeof raw === 'string'
-        ? raw
-        : typeof raw?.message === 'string'
-          ? raw.message
-          : `Request failed (${response.status})`
-    throw new ApiError(message, response.status, typeof raw === 'object' ? raw : undefined)
+  const doFetch = async (h: Headers) => {
+    const response = await fetch(`${apiUrl}${path}`, { ...init, headers: h })
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null)
+      const raw = payload?.detail
+      const message =
+        typeof raw === 'string'
+          ? raw
+          : typeof raw?.message === 'string'
+            ? raw.message
+            : `Request failed (${response.status})`
+      throw new ApiError(message, response.status, typeof raw === 'object' ? raw : undefined)
+    }
+    if (response.status === 204) return undefined as T
+    return response.json() as Promise<T>
   }
 
-  if (response.status === 204) return undefined as T
-  return response.json() as Promise<T>
+  try {
+    return await doFetch(headers)
+  } catch (error) {
+    // If the backend rejected our token, try to refresh once and retry.
+    if (authenticated && error instanceof ApiError && error.status === 401) {
+      const newToken = await refreshSessionToken()
+      if (newToken) {
+        const retryHeaders = new Headers(headers)
+        retryHeaders.set('Authorization', `Bearer ${newToken}`)
+        return await doFetch(retryHeaders)
+      }
+    }
+    throw error
+  }
 }
 
 export type Identity = {
