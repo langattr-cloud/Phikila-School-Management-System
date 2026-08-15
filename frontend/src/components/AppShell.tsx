@@ -125,6 +125,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   </div>
 
   return <div className="app-shell">
+    <div className="aurora-field app-aurora-field" aria-hidden="true">
+      <span className="aurora-orb aurora-orb--one" />
+      <span className="aurora-orb aurora-orb--two" />
+      <span className="aurora-orb aurora-orb--three" />
+    </div>
     <a className="skip-link" href="#main-content">Skip to main content</a>
     <aside className="sidebar sidebar--desktop"><div className="sidebar__brand"><Logo size={34} tone="dark" /></div>{navigation}{accountBlock}</aside>
     <div className="app-shell__main">
