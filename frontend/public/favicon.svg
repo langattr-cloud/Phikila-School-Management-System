@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none"><title>Phikila</title>
-  <rect width="64" height="64" rx="13" fill="#0F2A47"/>
-  <path d="M31 20.4C27.7 17.6 23.2 16 18.1 16A2.8 2.8 0 0 0 15.3 18.8V40.6A2.8 2.8 0 0 0 18.1 43.4C23.2 43.4 27.7 44.9 31 47.6Z" fill="#FFFFFF"/>
-  <path d="M33 20.4C36.3 17.6 40.8 16 45.9 16A2.8 2.8 0 0 1 48.7 18.8V40.6A2.8 2.8 0 0 1 45.9 43.4C40.8 43.4 36.3 44.9 33 47.6Z" fill="#FFFFFF"/>
-  <circle cx="44.2" cy="42.6" r="10.4" fill="#0F2A47"/>
-  <circle cx="44.2" cy="42.6" r="8.3" fill="#2BC194"/>
-  <path d="M40.2 42.7 43.3 45.8 48.5 39.6" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title"><title id="title">Phikila</title><rect width="128" height="128" fill="#fff"/><circle cx="64" cy="64" r="58" fill="none" stroke="#c9982e" stroke-width="3"/><path d="M27 39l37-13 37 13-37 13z" fill="#c9982e"/><path d="M38 47h52v13c-14 8-38 8-52 0z" fill="#d8aa45"/><path d="M34 44v25h4V47z" fill="#c9982e"/><circle cx="36" cy="72" r="4" fill="#c9982e"/><path d="M33 76c-3 8-4 14-4 19 5-4 9-4 14 0 0-5-1-11-4-19z" fill="#c9982e"/><path d="M50 50h22c16 0 25 8 25 20 0 13-9 21-25 21h-8v22H50z" fill="#111"/><path d="M64 59h8c7 0 11 4 11 11s-4 11-11 11h-8z" fill="#fff"/><path d="M36 93c10-5 20-6 28-1v13c-9-5-19-5-28 0zM92 93c-10-5-20-6-28-1v13c9-5 19-5 28 0z" fill="#111"/><path d="M64 90l7 9-7 10-7-10z" fill="#c9982e"/></svg>
