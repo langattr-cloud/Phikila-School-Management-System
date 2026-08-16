@@ -39,10 +39,13 @@ jobs:
           }
 
       - name: Show migration plan
-        run: alembic current && alembic heads
+        run: |
+          alembic current
+          alembic heads
+          echo "Production migration target: b7d2e9a41c08"
 
       - name: Apply migrations
-        run: alembic upgrade head
+        run: alembic upgrade b7d2e9a41c08
 
       - name: Verify migration state
         run: alembic current
