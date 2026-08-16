@@ -55,8 +55,26 @@ class Payment(Base):
     reference_number = Column(String(100), index=True)
     notes = Column(Text)
     received_by = Column(String(64))
+    status = Column(String(20), nullable=False, server_default="POSTED", index=True)
+    journal_id = Column(Integer, ForeignKey("finance_journals.id"), index=True)
+    reversed_at = Column(DateTime(timezone=True))
+    reversal_reason = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     invoice = relationship("StudentInvoice", back_populates="payments")
+
+
+class FinanceReceipt(Base):
+    __tablename__ = "finance_receipts"
+    __table_args__ = (UniqueConstraint("school_id", "receipt_number", name="uq_finance_receipt_number"), {"extend_existing": True})
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=False, index=True)
+    receipt_number = Column(String(80), nullable=False)
+    payment_id = Column(Integer, ForeignKey("payments.id"), nullable=False, unique=True)
+    student_id = Column(Integer, ForeignKey("students_v2.id"), nullable=False)
+    amount = Column(Numeric(14, 2), nullable=False)
+    status = Column(String(20), nullable=False, server_default="ISSUED")
+    issued_by = Column(String(64))
+    issued_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class ChartOfAccount(Base):
