@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Super Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#dce9ff",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "error": "#ba1a1a",
+                        "on-surface": "#0b1c30",
+                        "primary-container": "#0f2a47",
+                        "on-secondary-container": "#007432",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#005321",
+                        "deep-navy": "#0B1B2D",
+                        "on-secondary": "#ffffff",
+                        "primary": "#00152c",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff",
+                        "secondary": "#006e2f",
+                        "secondary-container": "#6bff8f",
+                        "primary-fixed": "#d3e4ff",
+                        "inverse-surface": "#213145",
+                        "inverse-primary": "#b0c8ed",
+                        "error-container": "#ffdad6",
+                        "border-subtle": "#E2E8F0",
+                        "secondary-fixed": "#6bff8f",
+                        "background": "#f8f9ff",
+                        "on-primary-fixed": "#001c38",
+                        "tertiary": "#221100",
+                        "on-tertiary-fixed": "#2b1700",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-container-low": "#eff4ff",
+                        "tertiary-container": "#3e2300",
+                        "surface": "#f8f9ff",
+                        "on-surface-variant": "#43474d",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "on-secondary-fixed": "#002109",
+                        "surface-dim": "#cbdbf5",
+                        "on-tertiary-container": "#b2885a",
+                        "surface-tint": "#486080",
+                        "surface-container": "#e5eeff",
+                        "surface-gray": "#F9FAFB",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "outline": "#74777e",
+                        "on-primary-fixed-variant": "#304867",
+                        "outline-variant": "#c4c6ce",
+                        "secondary-fixed-dim": "#4ae176"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "compact-padding": "8px",
+                        "gutter": "16px",
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "headline-md-mobile": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-sm": ["Geist"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, h4, h5, h6, .font-geist { font-family: 'Geist', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        /* Hide scrollbar for clean mobile look */
+        ::-webkit-scrollbar { display: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface h-screen flex flex-col md:hidden">
+<!-- Top Navigation (Mobile App Bar) -->
+<header class="bg-surface border-b border-border-subtle shadow-sm flex justify-between items-center px-4 h-16 shrink-0 z-40 sticky top-0">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary text-on-primary flex items-center justify-center font-bold">
+                 P
+             </div>
+<div class="font-headline-md-mobile text-headline-md-mobile text-primary font-bold">
+                Phikila OS
+            </div>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<button class="p-2 hover:bg-surface-variant rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<button class="p-2 hover:bg-surface-variant rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<img class="w-8 h-8 rounded-full border border-border-subtle object-cover ml-1" data-alt="A small circular avatar of a professional administrator in a modern office setting. High key lighting, clean corporate aesthetic. Soft focus background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuChSzTubp5dP2avL74B6S2qgyuDtjyzPdQjHE-qhtawCmwxkt1YQ9EVlRatvFNyYsKJkYRTuDfLnimMr9KPlVD9UvwUKIcxFKcBAoJtXO5KGOwszBvzrSmH7gUUFWmSM_R8nY1Qpufn918KJRJxMXfqBF0rfrs3Z1kwpsdt9tA4_Y5GAC8PT1JiZXjbTi-UNlDFETweiME6WUHATYypT6SFfufLhAwraUFzlC7PGqvjLYfvEKDdeBm5"/>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto px-4 py-6 pb-24">
+<!-- Header & Primary Action -->
+<div class="flex justify-between items-end mb-6">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1">SUPER ADMIN DASHBOARD</p>
+<h1 class="font-headline-md-mobile text-headline-md-mobile">Network Overview</h1>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary font-body-md text-body-md py-3 rounded-lg flex items-center justify-center gap-2 mb-8 shadow-sm active:opacity-80 transition-opacity">
+<span class="material-symbols-outlined" data-icon="add_business">add_business</span>
+            Onboard School
+        </button>
+<!-- Network KPIs (Bento-style for Mobile) -->
+<section class="mb-8">
+<h2 class="font-body-md text-body-md font-bold mb-3">System Metrics</h2>
+<div class="grid grid-cols-2 gap-3">
+<!-- KPI 1 -->
+<div class="bg-white border border-border-subtle rounded-xl p-4 shadow-[0_4px_12px_rgba(15,42,71,0.05)] col-span-2 relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-3 opacity-10 text-primary group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-[64px]" data-icon="domain">domain</span>
+</div>
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1 relative z-10">TOTAL INSTITUTIONS</p>
+<div class="flex items-baseline gap-2 relative z-10">
+<span class="font-display-lg text-display-lg">142</span>
+<span class="text-secondary flex items-center text-xs font-medium"><span class="material-symbols-outlined text-[14px]">arrow_upward</span> 12</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-2 relative z-10">Active across 4 regions</p>
+</div>
+<!-- KPI 2 -->
+<div class="bg-gradient-to-br from-deep-navy to-primary-container text-white rounded-xl p-4 border border-deep-navy relative overflow-hidden">
+<div class="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMSI+PC9yZWN0Pgo8cGF0aCBkPSJNMCAwbDhfOHptOCAwTDBfOHoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9IjAuMiIgc3Ryb2tlLXdpZHRoPSIxIj48L3BhdGg+Cjwvc3ZnPg==')]"></div>
+<p class="font-label-caps text-label-caps text-on-primary-container mb-1 relative z-10">TOTAL STUDENTS</p>
+<div class="font-headline-md-mobile text-headline-md-mobile relative z-10 mb-1">84.5K</div>
+<div class="w-full bg-black/20 h-1 rounded-full relative z-10 mt-2">
+<div class="bg-secondary-container h-1 rounded-full w-[85%]"></div>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="bg-white border border-border-subtle rounded-xl p-4 shadow-[0_4px_12px_rgba(15,42,71,0.05)]">
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-1">SYSTEM UPTIME</p>
+<div class="font-headline-md-mobile text-headline-md-mobile text-secondary mb-1">99.98%</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary inline-block"></span> Optimal
+                    </p>
+</div>
+</div>
+</section>
+<!-- Search & Filter for Institutions -->
+<section class="mb-6">
+<div class="flex items-center gap-2 mb-4">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant z-10">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-white border border-border-subtle rounded-lg font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none" placeholder="Search institutions..." type="text"/>
+</div>
+<button class="p-2 border border-border-subtle rounded-lg bg-white flex items-center justify-center text-on-surface-variant active:bg-surface-variant">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+</div>
+<!-- Quick Filters (Horizontal Scroll) -->
+<div class="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 snap-x">
+<button class="snap-start shrink-0 px-4 py-1.5 rounded-full bg-primary-container text-on-primary-container font-body-sm text-body-sm whitespace-nowrap">All Regions</button>
+<button class="snap-start shrink-0 px-4 py-1.5 rounded-full border border-border-subtle bg-white text-on-surface-variant font-body-sm text-body-sm whitespace-nowrap">North</button>
+<button class="snap-start shrink-0 px-4 py-1.5 rounded-full border border-border-subtle bg-white text-on-surface-variant font-body-sm text-body-sm whitespace-nowrap">South</button>
+<button class="snap-start shrink-0 px-4 py-1.5 rounded-full border border-border-subtle bg-white text-on-surface-variant font-body-sm text-body-sm whitespace-nowrap">East</button>
+</div>
+</section>
+<!-- Institution List (Cards for Mobile) -->
+<section>
+<h2 class="font-body-md text-body-md font-bold mb-3">Managed Institutions</h2>
+<div class="flex flex-col gap-3">
+<!-- Institution Card 1 -->
+<div class="bg-white border border-border-subtle rounded-xl p-4 shadow-[0_4px_12px_rgba(15,42,71,0.05)] active:scale-[0.98] transition-transform">
+<div class="flex justify-between items-start mb-3">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary font-bold border border-border-subtle">
+                                 O
+                             </div>
+<div>
+<h3 class="font-body-md text-body-md font-bold">Oakridge Academy</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">ID: INS-001 • North Region</p>
+</div>
+</div>
+<button class="text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-2 border-t border-border-subtle pt-3">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">STUDENTS</p>
+<p class="font-data-mono text-data-mono">1,245</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">STATUS</p>
+<p class="font-body-sm text-body-sm text-secondary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary inline-block"></span> Active
+                             </p>
+</div>
+</div>
+</div>
+<!-- Institution Card 2 -->
+<div class="bg-white border border-border-subtle rounded-xl p-4 shadow-[0_4px_12px_rgba(15,42,71,0.05)] active:scale-[0.98] transition-transform">
+<div class="flex justify-between items-start mb-3">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary font-bold border border-border-subtle">
+                                 P
+                             </div>
+<div>
+<h3 class="font-body-md text-body-md font-bold">Pinnacle High</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">ID: INS-042 • South Region</p>
+</div>
+</div>
+<button class="text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-2 border-t border-border-subtle pt-3">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">STUDENTS</p>
+<p class="font-data-mono text-data-mono">890</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">STATUS</p>
+<p class="font-body-sm text-body-sm text-secondary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary inline-block"></span> Active
+                             </p>
+</div>
+</div>
+</div>
+<!-- Institution Card 3 (Warning State) -->
+<div class="bg-white border border-error/30 rounded-xl p-4 shadow-[0_4px_12px_rgba(15,42,71,0.05)] active:scale-[0.98] transition-transform relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
+<div class="flex justify-between items-start mb-3 pl-2">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-error-container flex items-center justify-center text-on-error-container font-bold border border-error/20">
+                                 S
+                             </div>
+<div>
+<h3 class="font-body-md text-body-md font-bold">Summit Middle</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">ID: INS-112 • East Region</p>
+</div>
+</div>
+<button class="text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-2 border-t border-border-subtle pt-3 pl-2">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">STUDENTS</p>
+<p class="font-data-mono text-data-mono">450</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">STATUS</p>
+<p class="font-body-sm text-body-sm text-error flex items-center gap-1 font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-error inline-block"></span> Sync Issue
+                             </p>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full mt-4 py-3 border border-border-subtle rounded-lg font-body-md text-body-md text-on-surface-variant flex items-center justify-center gap-2 bg-white active:bg-surface-variant">
+                 View All Institutions
+             </button>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Mobile specific, derived from SideNavBar JSON semantic intent) -->
+<nav class="bg-white border-t border-border-subtle fixed bottom-0 w-full flex justify-around items-center h-16 pb-safe z-50 md:hidden">
+<button class="flex flex-col items-center gap-1 w-16 pt-2 text-primary">
+<span class="material-symbols-outlined" data-icon="dashboard" data-weight="fill">dashboard</span>
+<span class="font-label-caps text-[10px] leading-[10px] font-bold tracking-widest">Dashboard</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 pt-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="business">business</span>
+<span class="font-label-caps text-[10px] leading-[10px] font-bold tracking-widest">Schools</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 pt-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label-caps text-[10px] leading-[10px] font-bold tracking-widest">Users</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 pt-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-caps text-[10px] leading-[10px] font-bold tracking-widest">Settings</span>
+</button>
+</nav>
+</body></html>

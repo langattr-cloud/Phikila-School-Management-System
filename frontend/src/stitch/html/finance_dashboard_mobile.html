@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Finance Dashboard - Phikila OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Geist:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-high": "#dce9ff",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "error": "#ba1a1a",
+                        "on-surface": "#0b1c30",
+                        "primary-container": "#0f2a47",
+                        "on-secondary-container": "#007432",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#005321",
+                        "deep-navy": "#0B1B2D",
+                        "on-secondary": "#ffffff",
+                        "primary": "#00152c",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff",
+                        "secondary": "#006e2f",
+                        "secondary-container": "#6bff8f",
+                        "primary-fixed": "#d3e4ff",
+                        "inverse-surface": "#213145",
+                        "inverse-primary": "#b0c8ed",
+                        "error-container": "#ffdad6",
+                        "border-subtle": "#E2E8F0",
+                        "secondary-fixed": "#6bff8f",
+                        "background": "#f8f9ff",
+                        "on-primary-fixed": "#001c38",
+                        "tertiary": "#221100",
+                        "on-tertiary-fixed": "#2b1700",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-container-low": "#eff4ff",
+                        "tertiary-container": "#3e2300",
+                        "surface": "#f8f9ff",
+                        "on-surface-variant": "#43474d",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "on-secondary-fixed": "#002109",
+                        "surface-dim": "#cbdbf5",
+                        "on-tertiary-container": "#b2885a",
+                        "surface-tint": "#486080",
+                        "surface-container": "#e5eeff",
+                        "surface-gray": "#F9FAFB",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "outline": "#74777e",
+                        "on-primary-fixed-variant": "#304867",
+                        "outline-variant": "#c4c6ce",
+                        "secondary-fixed-dim": "#4ae176"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "compact-padding": "8px",
+                        "gutter": "16px",
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px"
+                    },
+                    fontFamily: {
+                        "body-lg": ["Inter"],
+                        "headline-md-mobile": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-sm": ["Geist"]
+                    },
+                    fontSize: {
+                        "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+                        "headline-md-mobile": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+                        "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "600" }],
+                        "headline-md": ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "600" }],
+                        "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+                        "label-caps": ["11px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "body-sm": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+                        "data-mono": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+                        "headline-sm": ["18px", { lineHeight: "24px", fontWeight: "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-gray text-on-surface font-body-md min-h-screen pb-[80px]">
+<!-- TopNavBar (Mobile) -->
+<header class="bg-surface text-primary border-b border-border-subtle shadow-sm fixed top-0 w-full h-16 flex justify-between items-center px-gutter z-40 md:hidden">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A small circular avatar placeholder image showing a minimalistic geometric pattern in light blues and greys, suitable for a corporate SaaS user profile in a clean, modern UI context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCrprXY5dldKgcWJwwjKeAjqpuXXDamFLws69cO_6_lU3Vn8v4xURYyCGA0ojl8Ov2IwLSA4eLhW4lFraC4HI-IZXxR0GlU4AP9K4Tas09f6o-BRnObkfsJVt10vBy8smmmrqzppEsQazcrdv6ZFgiJKYUDGT-Z3z07PWHg4sNCQaGG_51JM_QbzinKJOwNQBAVWORB5nHNuCKFlPotwjm1jTDVM_2rOTiCHx3fJu0R70E6wIA_TN1P"/>
+</div>
+<h1 class="font-headline-md-mobile text-headline-md-mobile text-primary">Phikila OS</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer active:opacity-80">search</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer active:opacity-80">notifications</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-20 px-gutter md:hidden flex flex-col gap-6">
+<!-- Header Actions -->
+<div class="flex justify-between items-end">
+<div>
+<h2 class="font-headline-md-mobile text-headline-md-mobile text-deep-navy">Finance Dashboard</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Term 2 Overview</p>
+</div>
+<!-- Secondary Action -->
+<button class="border border-border-subtle rounded text-deep-navy font-body-sm text-body-sm px-3 py-1.5 flex items-center gap-1 active:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[16px]">download</span>
+                Export
+            </button>
+</div>
+<!-- Primary Metrics Stack -->
+<section class="flex flex-col gap-3">
+<!-- Intelligence Module: Total Revenue -->
+<div class="bg-gradient-to-br from-deep-navy to-surface-tint rounded-xl p-5 shadow-[0px_4px_12px_rgba(15,42,71,0.05)] relative overflow-hidden">
+<!-- Abstract decorative element -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -translate-y-10 translate-x-10 blur-xl"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-primary/70">TOTAL REVENUE (YTD)</span>
+<h3 class="font-headline-md-mobile text-headline-md-mobile text-on-primary">KES 4,520,000</h3>
+<div class="flex items-center gap-1 mt-2 text-secondary-container bg-white/10 w-fit px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-[14px]">trending_up</span>
+<span class="font-body-sm text-body-sm">+12.5% vs Term 1</span>
+</div>
+</div>
+</div>
+<!-- Metric Card: Outstanding Balances -->
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl p-5 shadow-[0px_4px_12px_rgba(15,42,71,0.05)] flex justify-between items-center">
+<div class="flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">OUTSTANDING BALANCES</span>
+<h3 class="font-headline-md-mobile text-headline-md-mobile text-error">KES 845,200</h3>
+</div>
+<div class="w-10 h-10 rounded-full bg-error-container text-on-error-container flex items-center justify-center">
+<span class="material-symbols-outlined">warning</span>
+</div>
+</div>
+<!-- Metric Card: Expenses -->
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl p-5 shadow-[0px_4px_12px_rgba(15,42,71,0.05)] flex justify-between items-center">
+<div class="flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">OPERATING EXPENSES</span>
+<h3 class="font-headline-md-mobile text-headline-md-mobile text-deep-navy">KES 1,205,000</h3>
+</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-high text-primary flex items-center justify-center">
+<span class="material-symbols-outlined">receipt_long</span>
+</div>
+</div>
+</section>
+<!-- Payment Inbox List View -->
+<section class="flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant">PAYMENT INBOX (NEEDS REVIEW)</h3>
+<span class="font-body-sm text-body-sm text-primary cursor-pointer active:opacity-80">View All</span>
+</div>
+<div class="bg-surface-container-lowest border border-border-subtle rounded-lg shadow-[0px_4px_12px_rgba(15,42,71,0.05)] overflow-hidden">
+<!-- List Item 1 -->
+<div class="p-4 border-b border-border-subtle flex justify-between items-center active:bg-surface-gray transition-colors">
+<div class="flex gap-3 items-center">
+<div class="w-2 h-2 rounded-full bg-tertiary-fixed-dim"></div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-deep-navy font-semibold">M-Pesa Transfer</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">John Doe - Grade 8A</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-mono text-data-mono text-deep-navy">KES 15,000</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">2 HRS AGO</span>
+</div>
+</div>
+<!-- List Item 2 -->
+<div class="p-4 border-b border-border-subtle flex justify-between items-center active:bg-surface-gray transition-colors">
+<div class="flex gap-3 items-center">
+<div class="w-2 h-2 rounded-full bg-tertiary-fixed-dim"></div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-deep-navy font-semibold">Bank Deposit</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Jane Smith - Grade 10B</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-mono text-data-mono text-deep-navy">KES 45,000</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">5 HRS AGO</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent Transactions List View -->
+<section class="flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant">RECENT TRANSACTIONS</h3>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">filter_list</span>
+</div>
+<div class="bg-surface-container-lowest border border-border-subtle rounded-lg shadow-[0px_4px_12px_rgba(15,42,71,0.05)] overflow-hidden">
+<!-- Transaction 1 -->
+<div class="p-4 border-b border-border-subtle flex justify-between items-center">
+<div class="flex gap-3 items-center">
+<div class="w-8 h-8 rounded-full bg-secondary-container/20 text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-deep-navy font-semibold">Tuition Fee</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">INV-2023-089</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-mono text-data-mono text-secondary">+KES 32,500</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">OCT 12</span>
+</div>
+</div>
+<!-- Transaction 2 -->
+<div class="p-4 border-b border-border-subtle flex justify-between items-center">
+<div class="flex gap-3 items-center">
+<div class="w-8 h-8 rounded-full bg-error-container/20 text-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-deep-navy font-semibold">Supplier Payment</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Stationery Supply Co.</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-mono text-data-mono text-on-surface">-KES 12,000</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">OCT 11</span>
+</div>
+</div>
+<!-- Transaction 3 -->
+<div class="p-4 flex justify-between items-center">
+<div class="flex gap-3 items-center">
+<div class="w-8 h-8 rounded-full bg-secondary-container/20 text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-deep-navy font-semibold">Bus Fee</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">INV-2023-090</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-data-mono text-data-mono text-secondary">+KES 8,000</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">OCT 10</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom spacing for FAB -->
+<div class="h-24"></div>
+</main>
+<!-- Floating Action Button (FAB) - Generate Invoice -->
+<button class="md:hidden fixed bottom-24 right-4 bg-deep-navy text-on-primary h-14 w-14 rounded-full shadow-[0px_12px_24px_rgba(11,27,45,0.1)] flex items-center justify-center z-50 active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined text-[24px]">receipt_long</span>
+</button>
+<!-- BottomNavBar (Mobile Shell) -->
+<nav class="bg-surface text-on-surface-variant fixed bottom-0 w-full h-[80px] shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-40 md:hidden flex justify-around items-center pb-safe">
+<!-- Inactive Tab -->
+<a class="flex flex-col items-center gap-1 p-2 w-16 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined text-[24px] font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-caps text-[10px]">Dashboard</span>
+</a>
+<!-- Active Tab -->
+<a class="flex flex-col items-center gap-1 p-2 w-16 text-primary" href="#">
+<div class="bg-surface-container-high px-4 py-1 rounded-full flex items-center justify-center mb-0.5">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">payments</span>
+</div>
+<span class="font-label-caps text-[10px] font-bold">Finance</span>
+</a>
+<!-- Inactive Tab -->
+<a class="flex flex-col items-center gap-1 p-2 w-16 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined text-[24px] font-variation-settings: 'FILL' 0;">group</span>
+<span class="font-label-caps text-[10px]">Students</span>
+</a>
+<!-- Inactive Tab -->
+<a class="flex flex-col items-center gap-1 p-2 w-16 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined text-[24px] font-variation-settings: 'FILL' 0;">settings</span>
+<span class="font-label-caps text-[10px]">Settings</span>
+</a>
+</nav>
+</body></html>

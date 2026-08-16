@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Super Admin Homepage | Phikila OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#213145",
+                        "on-tertiary-fixed": "#2b1700",
+                        "on-tertiary": "#ffffff",
+                        "surface-gray": "#F9FAFB",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "surface-dim": "#cbdbf5",
+                        "surface": "#f8f9ff",
+                        "on-primary-fixed-variant": "#304867",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "primary": "#00152c",
+                        "outline": "#74777e",
+                        "secondary-fixed": "#6bff8f",
+                        "inverse-primary": "#b0c8ed",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "secondary-container": "#6bff8f",
+                        "outline-variant": "#c4c6ce",
+                        "surface-container-high": "#dce9ff",
+                        "on-primary-fixed": "#001c38",
+                        "on-tertiary-container": "#b2885a",
+                        "primary-container": "#0f2a47",
+                        "on-secondary-container": "#007432",
+                        "on-secondary-fixed": "#002109",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#ffddba",
+                        "on-secondary-fixed-variant": "#005321",
+                        "on-surface-variant": "#43474d",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#d3e4ff",
+                        "on-background": "#0b1c30",
+                        "on-secondary": "#ffffff",
+                        "surface-container-low": "#eff4ff",
+                        "tertiary-container": "#3e2300",
+                        "on-surface": "#0b1c30",
+                        "error": "#ba1a1a",
+                        "surface-bright": "#f8f9ff",
+                        "inverse-on-surface": "#eaf1ff",
+                        "border-subtle": "#E2E8F0",
+                        "deep-navy": "#0B1B2D",
+                        "tertiary": "#221100",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "secondary-fixed-dim": "#4ae176",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#486080",
+                        "secondary": "#006e2f",
+                        "surface-container-highest": "#d3e4fe"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-collapsed": "64px",
+                        "gutter": "16px",
+                        "sidebar-expanded": "240px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter", "sans-serif"],
+                        "label-caps": ["JetBrains Mono", "monospace"],
+                        "headline-sm": ["Geist", "sans-serif"],
+                        "body-md": ["Inter", "sans-serif"],
+                        "headline-md": ["Geist", "sans-serif"],
+                        "display-lg": ["Geist", "sans-serif"],
+                        "headline-md-mobile": ["Geist", "sans-serif"],
+                        "body-sm": ["Inter", "sans-serif"],
+                        "data-mono": ["JetBrains Mono", "monospace"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Custom Scrollbar for Sidebar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #304867;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #486080;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen flex antialiased">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-sidebar-expanded bg-deep-navy dark:bg-primary border-r border-outline-variant flex flex-col z-50 transition-all duration-300">
+<!-- Brand Header -->
+<div class="h-16 flex items-center px-4 border-b border-surface-tint/20 shrink-0">
+<div class="flex items-center gap-3 w-full">
+<div class="w-8 h-8 rounded bg-primary-fixed-dim/20 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary-fixed-dim text-xl">admin_panel_settings</span>
+</div>
+<div class="flex flex-col overflow-hidden">
+<span class="font-headline-md text-headline-md text-on-primary font-bold truncate tracking-tight text-white">Phikila OS</span>
+<span class="font-label-caps text-label-caps text-on-primary-container uppercase truncate">Super Admin Console</span>
+</div>
+</div>
+</div>
+<!-- Navigation Sections -->
+<nav class="flex-1 overflow-y-auto py-4 space-y-6">
+<!-- Overview Section -->
+<div class="px-2">
+<div class="px-4 mb-2">
+<span class="font-label-caps text-label-caps text-on-primary-container/60 uppercase">Overview</span>
+</div>
+<ul class="space-y-0.5">
+<li>
+<!-- ACTIVE STATE: Dashboard -->
+<a class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-2.5 px-4 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined filled text-xl shrink-0" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md truncate">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="monitoring">monitoring</span>
+<span class="font-body-md text-body-md truncate">Platform Analytics</span>
+</a>
+</li>
+</ul>
+</div>
+<!-- Schools Section -->
+<div class="px-2">
+<div class="px-4 mb-2">
+<span class="font-label-caps text-label-caps text-on-primary-container/60 uppercase">Schools</span>
+</div>
+<ul class="space-y-0.5">
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="domain">domain</span>
+<span class="font-body-md text-body-md truncate">All Schools</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="add_business">add_business</span>
+<span class="font-body-md text-body-md truncate">Add School</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="manage_accounts">manage_accounts</span>
+<span class="font-body-md text-body-md truncate">School Administrators</span>
+</a>
+</li>
+</ul>
+</div>
+<!-- Access Section -->
+<div class="px-2">
+<div class="px-4 mb-2">
+<span class="font-label-caps text-label-caps text-on-primary-container/60 uppercase">Access</span>
+</div>
+<ul class="space-y-0.5">
+<li>
+<a class="flex items-center justify-between text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<div class="flex items-center gap-3 overflow-hidden">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="pending_actions">pending_actions</span>
+<span class="font-body-md text-body-md truncate">Access Requests</span>
+</div>
+<span class="bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">12</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="group">group</span>
+<span class="font-body-md text-body-md truncate">Users</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="policy">policy</span>
+<span class="font-body-md text-body-md truncate">Roles &amp; Permissions</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Footer / Platform Settings -->
+<div class="px-2 py-4 border-t border-surface-tint/20 shrink-0">
+<ul class="space-y-0.5">
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md truncate">Platform Settings</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white hover:bg-primary-container py-2.5 px-4 transition-colors duration-200 cursor-pointer active:opacity-80 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined text-xl shrink-0" data-icon="logout">logout</span>
+<span class="font-body-md text-body-md truncate">Sign Out</span>
+</a>
+</li>
+</ul>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-sidebar-expanded flex-1 flex flex-col min-h-screen relative w-[calc(100%-240px)]">
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] h-16 bg-surface dark:bg-deep-navy border-b border-border-subtle shadow-sm flex justify-between items-center px-grid-margin z-40">
+<!-- Left: Search (Generic) -->
+<div class="flex-1 max-w-md">
+<div class="relative focus-within:ring-2 focus-within:ring-primary/10 rounded">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50" data-icon="search">search</span>
+<input class="w-full bg-surface-gray border border-border-subtle text-body-md pl-10 pr-4 py-2 rounded focus:outline-none focus:border-primary focus:bg-white transition-colors h-10" placeholder="Search schools, users, or activity..." type="text"/>
+</div>
+</div>
+<!-- Right: Actions -->
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors relative w-10 h-10 flex items-center justify-center rounded hover:bg-surface-gray">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full ring-2 ring-surface"></span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors w-10 h-10 flex items-center justify-center rounded hover:bg-surface-gray">
+<span class="material-symbols-outlined" data-icon="apps">apps</span>
+</button>
+<div class="h-6 w-px bg-border-subtle mx-2"></div>
+<div class="flex items-center gap-3 cursor-pointer p-1 rounded hover:bg-surface-gray transition-colors">
+<img class="w-8 h-8 rounded object-cover border border-border-subtle" data-alt="A professional headshot of a corporate IT executive or super administrator. The person is wearing smart-business attire, looking confident in a well-lit, modern glass office setting. Light mode aesthetic, bright, sharp, realistic photography, subtle depth of field." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSSHEJ7Q9_6TAqiI-XR7phsOMGp093VUNib48OcwDy_ATH1TmFH2tvMeTlzsfuYCZY6hV0U1ByGTcbm0pgerNnd3K2wOn9frJYYIZrhQEvhfwnasiPNdaPsXLsairqGbtJHIdWhr3DL205quQAyLqicSvc59g-pc2oo4XjTKVRDiasXd_dynsIUUdXVC-KNqebQhb6FE8k5WxYwIyas_hYWw9IjbsJd3SCDlUbxUQJBD8AWRUU3PAo"/>
+</div>
+</div>
+</header>
+<!-- Canvas -->
+<div class="flex-1 mt-16 p-grid-margin overflow-y-auto">
+<!-- Page Header -->
+<div class="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface">Platform Overview</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Super Admin global monitoring and analytics.</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-gray border border-border-subtle text-on-surface px-4 py-2 rounded font-label-caps text-label-caps hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="download">download</span>
+                        Export Report
+                    </button>
+</div>
+</div>
+<!-- KPI Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+<!-- KPI 1 -->
+<div class="bg-white border border-border-subtle rounded-lg p-5 hover:border-outline-variant transition-colors group relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-surface-container to-transparent opacity-50 rounded-bl-full -z-0"></div>
+<div class="relative z-10 flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant mb-1">Total Schools</span>
+<span class="font-display-lg text-display-lg text-on-surface">428</span>
+</div>
+<div class="w-10 h-10 rounded bg-primary-fixed/30 text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" data-icon="domain">domain</span>
+</div>
+</div>
+<div class="relative z-10 mt-4 flex items-center gap-1.5 text-secondary">
+<span class="material-symbols-outlined text-[14px]" data-icon="trending_up">trending_up</span>
+<span class="font-body-sm text-body-sm font-medium">+12 this month</span>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="bg-white border border-border-subtle rounded-lg p-5 hover:border-outline-variant transition-colors group relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-surface-container to-transparent opacity-50 rounded-bl-full -z-0"></div>
+<div class="relative z-10 flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant mb-1">Total Students</span>
+<span class="font-display-lg text-display-lg text-on-surface">142K</span>
+</div>
+<div class="w-10 h-10 rounded bg-surface-variant text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+</div>
+</div>
+<div class="relative z-10 mt-4 flex items-center gap-1.5 text-secondary">
+<span class="material-symbols-outlined text-[14px]" data-icon="trending_up">trending_up</span>
+<span class="font-body-sm text-body-sm font-medium">+5.2% YoY</span>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="bg-white border border-border-subtle rounded-lg p-5 hover:border-outline-variant transition-colors group relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-surface-container to-transparent opacity-50 rounded-bl-full -z-0"></div>
+<div class="relative z-10 flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant mb-1">Total Teachers</span>
+<span class="font-display-lg text-display-lg text-on-surface">11.4K</span>
+</div>
+<div class="w-10 h-10 rounded bg-surface-variant text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" data-icon="person_play">person_play</span>
+</div>
+</div>
+<div class="relative z-10 mt-4 flex items-center gap-1.5 text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Stable ratio</span>
+</div>
+</div>
+<!-- KPI 4: Actionable -->
+<div class="bg-deep-navy border border-deep-navy rounded-lg p-5 relative overflow-hidden shadow-[0px_4px_12px_rgba(15,42,71,0.05)]">
+<div class="absolute inset-0 opacity-10" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, #ffffff 10px, #ffffff 11px);"></div>
+<div class="relative z-10 flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-primary-container mb-1">Pending Requests</span>
+<span class="font-display-lg text-display-lg text-white">24</span>
+</div>
+<div class="w-10 h-10 rounded bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" data-icon="warning">warning</span>
+</div>
+</div>
+<div class="relative z-10 mt-4 flex items-center gap-2">
+<button class="bg-white text-deep-navy px-3 py-1.5 rounded font-label-caps text-label-caps hover:bg-surface-gray transition-colors w-full text-center">Review Now</button>
+</div>
+</div>
+</div>
+<!-- Secondary Grids (Charts & Activity) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Main Chart Canvas -->
+<div class="lg:col-span-2 bg-white border border-border-subtle rounded-lg p-5 flex flex-col h-[420px]">
+<div class="flex justify-between items-center mb-6">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Platform Growth</h2>
+<div class="flex bg-surface-gray rounded border border-border-subtle p-0.5">
+<button class="px-3 py-1 text-xs font-label-caps rounded bg-white shadow-sm text-primary">12M</button>
+<button class="px-3 py-1 text-xs font-label-caps rounded text-on-surface-variant hover:text-on-surface">YTD</button>
+<button class="px-3 py-1 text-xs font-label-caps rounded text-on-surface-variant hover:text-on-surface">ALL</button>
+</div>
+</div>
+<!-- Faux Graph Structure -->
+<div class="flex-1 relative flex items-end justify-between px-2 pt-10 pb-8 border-b border-border-subtle">
+<!-- Y-Axis Labels -->
+<div class="absolute left-0 top-0 bottom-8 w-8 flex flex-col justify-between text-[10px] font-data-mono text-on-surface-variant/50">
+<span>500</span>
+<span>250</span>
+<span>0</span>
+</div>
+<!-- Grid Lines -->
+<div class="absolute inset-0 bottom-8 left-8 border-t border-b border-border-subtle border-dashed opacity-50 flex flex-col justify-between">
+<div class="w-full h-px"></div>
+<div class="w-full h-px border-t border-border-subtle border-dashed"></div>
+<div class="w-full h-px"></div>
+</div>
+<!-- Bars -->
+<div class="w-[8%] bg-surface-container rounded-t relative group flex justify-center h-[20%] ml-8 hover:bg-primary-fixed transition-colors">
+<div class="opacity-0 group-hover:opacity-100 absolute -top-8 bg-inverse-surface text-inverse-on-surface font-label-caps text-[10px] py-1 px-2 rounded whitespace-nowrap pointer-events-none transition-opacity z-10">92 Schools</div>
+</div>
+<div class="w-[8%] bg-surface-container rounded-t relative group flex justify-center h-[35%] hover:bg-primary-fixed transition-colors"></div>
+<div class="w-[8%] bg-surface-container rounded-t relative group flex justify-center h-[42%] hover:bg-primary-fixed transition-colors"></div>
+<div class="w-[8%] bg-surface-container rounded-t relative group flex justify-center h-[55%] hover:bg-primary-fixed transition-colors"></div>
+<div class="w-[8%] bg-surface-container rounded-t relative group flex justify-center h-[60%] hover:bg-primary-fixed transition-colors"></div>
+<div class="w-[8%] bg-surface-container rounded-t relative group flex justify-center h-[68%] hover:bg-primary-fixed transition-colors"></div>
+<div class="w-[8%] bg-surface-container rounded-t relative group flex justify-center h-[75%] hover:bg-primary-fixed transition-colors"></div>
+<div class="w-[8%] bg-primary rounded-t relative group flex justify-center h-[90%] shadow-[0px_0px_10px_rgba(11,27,45,0.2)]">
+<div class="opacity-100 absolute -top-8 bg-inverse-surface text-inverse-on-surface font-label-caps text-[10px] py-1 px-2 rounded whitespace-nowrap pointer-events-none z-10">428 Schools</div>
+</div>
+<!-- X-Axis -->
+<div class="absolute bottom-0 left-8 right-0 flex justify-between text-[10px] font-data-mono text-on-surface-variant pt-2">
+<span>Jan</span>
+<span>Feb</span>
+<span>Mar</span>
+<span>Apr</span>
+<span>May</span>
+<span>Jun</span>
+<span>Jul</span>
+<span>Aug</span>
+</div>
+</div>
+</div>
+<!-- Recent Activity List -->
+<div class="bg-white border border-border-subtle rounded-lg flex flex-col h-[420px]">
+<div class="p-5 border-b border-border-subtle flex justify-between items-center shrink-0">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">System Activity</h2>
+<button class="text-primary font-label-caps text-[10px] hover:underline">VIEW LOGS</button>
+</div>
+<div class="flex-1 overflow-y-auto p-2">
+<ul class="space-y-1">
+<!-- Item 1 -->
+<li class="p-3 hover:bg-surface-gray rounded transition-colors flex gap-3 items-start">
+<div class="w-8 h-8 rounded-full bg-secondary-container/20 text-secondary flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]" data-icon="add_business">add_business</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-body-sm text-body-sm text-on-surface leading-tight">New school instance created: <span class="font-medium">Oakwood Academy</span></p>
+<p class="font-data-mono text-[10px] text-on-surface-variant/60 mt-1">2 mins ago • System</p>
+</div>
+</li>
+<!-- Item 2 -->
+<li class="p-3 hover:bg-surface-gray rounded transition-colors flex gap-3 items-start">
+<div class="w-8 h-8 rounded-full bg-error-container/20 text-error flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]" data-icon="security_update_warning">security_update_warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-body-sm text-body-sm text-on-surface leading-tight">Failed login attempt cluster detected (IP: 192.168...)</p>
+<p class="font-data-mono text-[10px] text-on-surface-variant/60 mt-1">14 mins ago • Security Daemon</p>
+</div>
+</li>
+<!-- Item 3 -->
+<li class="p-3 hover:bg-surface-gray rounded transition-colors flex gap-3 items-start">
+<div class="w-8 h-8 rounded-full bg-surface-container text-primary flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]" data-icon="manage_accounts">manage_accounts</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-body-sm text-body-sm text-on-surface leading-tight">Role permissions updated for group: <span class="font-medium">District Admins</span></p>
+<p class="font-data-mono text-[10px] text-on-surface-variant/60 mt-1">1 hr ago • Admin: J. Doe</p>
+</div>
+</li>
+<!-- Item 4 -->
+<li class="p-3 hover:bg-surface-gray rounded transition-colors flex gap-3 items-start">
+<div class="w-8 h-8 rounded-full bg-surface-container text-primary flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]" data-icon="update">update</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-body-sm text-body-sm text-on-surface leading-tight">System patch v2.4.1 deployed successfully.</p>
+<p class="font-data-mono text-[10px] text-on-surface-variant/60 mt-1">3 hrs ago • Ops</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Actions (Admin Chat/Support) -->
+<div class="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+<button class="w-12 h-12 bg-white border border-border-subtle rounded-full shadow-[0px_4px_12px_rgba(15,42,71,0.05)] text-primary flex items-center justify-center hover:bg-surface-gray transition-colors" title="Call Support">
+<span class="material-symbols-outlined" data-icon="call">call</span>
+</button>
+<button class="w-14 h-14 bg-primary text-white rounded-full shadow-[0px_12px_24px_rgba(11,27,45,0.1)] flex items-center justify-center hover:bg-primary-container transition-colors" title="Admin Chat">
+<span class="material-symbols-outlined" data-icon="chat">chat</span>
+</button>
+</div>
+</body></html>

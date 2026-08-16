@@ -1,0 +1,327 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Timetable Scheduler Dashboard - Phikila OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#b0c8ed",
+                        "on-secondary-fixed": "#002109",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary-container": "#007432",
+                        "secondary-fixed": "#6bff8f",
+                        "on-secondary-fixed-variant": "#005321",
+                        "outline-variant": "#c4c6ce",
+                        "on-tertiary-container": "#b2885a",
+                        "surface-tint": "#486080",
+                        "on-background": "#0b1c30",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "secondary-fixed-dim": "#4ae176",
+                        "secondary": "#006e2f",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#6bff8f",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "inverse-surface": "#213145",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#d3e4fe",
+                        "primary": "#00152c",
+                        "on-primary-fixed-variant": "#304867",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#0f2a47",
+                        "inverse-on-surface": "#eaf1ff",
+                        "on-surface": "#0b1c30",
+                        "tertiary-fixed": "#ffddba",
+                        "on-surface-variant": "#43474d",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "tertiary-container": "#3e2300",
+                        "primary-fixed": "#d3e4ff",
+                        "outline": "#74777e",
+                        "deep-navy": "#0B1B2D",
+                        "surface-container-low": "#eff4ff",
+                        "surface-container-high": "#dce9ff",
+                        "surface": "#f8f9ff",
+                        "surface-dim": "#cbdbf5",
+                        "border-subtle": "#E2E8F0",
+                        "tertiary": "#221100",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "surface-gray": "#F9FAFB",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#2b1700",
+                        "on-primary-fixed": "#001c38"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-expanded": "240px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px",
+                        "gutter": "16px",
+                        "sidebar-collapsed": "64px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-md-mobile": ["Geist"],
+                        "headline-sm": ["Geist"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "display-lg": ["Geist"],
+                        "data-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.background'); color: theme('colors.on-background'); font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="flex min-h-screen bg-background">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-sidebar-expanded bg-deep-navy dark:bg-primary border-r border-outline-variant flex flex-col z-50">
+<div class="p-6">
+<h1 class="font-headline-md text-headline-md text-on-primary font-bold">Phikila OS</h1>
+<p class="font-body-sm text-body-sm text-primary-fixed-dim">Admin Console</p>
+</div>
+<nav class="flex-1 flex flex-col h-full overflow-y-auto mt-4 space-y-1">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">school</span>
+<span class="font-body-md text-body-md">Academics</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body-md text-body-md">Students</span>
+</a>
+<a class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-body-md text-body-md">Timetable</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-body-md text-body-md">Finance</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="p-4 mt-auto space-y-2">
+<button class="w-full bg-primary-fixed-dim text-deep-navy font-body-md text-body-md py-2 rounded font-medium hover:opacity-90 transition-opacity">Quick Action</button>
+<div class="pt-4 border-t border-white/10">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-2 px-2 hover:bg-primary-container transition-colors duration-200 rounded" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-body-md text-body-md">Support</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-2 px-2 hover:bg-primary-container transition-colors duration-200 rounded" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-body-md text-body-md">Logout</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[240px] flex-1 flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] h-16 bg-surface dark:bg-deep-navy border-b border-border-subtle shadow-sm flex justify-between items-center px-grid-margin z-40">
+<div class="flex items-center gap-4">
+<!-- Search Left -->
+<div class="relative focus-within:ring-2 focus-within:ring-primary/10 rounded">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="pl-9 pr-4 py-1.5 bg-surface-gray border border-border-subtle rounded text-sm focus:outline-none focus:border-primary w-64" placeholder="Search resources..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps">Help</button>
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">notifications</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">apps</span></button>
+<div class="w-8 h-8 rounded-full bg-surface-dim overflow-hidden border border-border-subtle ml-2">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A professional headshot of a school administrator in a modern office setting. High quality, well lit, neutral background, corporate aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrdJLDpjntifLug1Bnp0TBpuaR1qrdsGoVw9yC3MIcYwwJm2ZTKl7eALbGCfykUdesOLJ-C8MlXbkaaxHCBZJFnxdPI9uF-Cae9grQcn-aEb8Cv9zcYx4sWkmfJBCXpfG0mjVDO39DmZK4039t9SPqWseTt0uTUF5e40EztYr70PA45wAdh7cr72cBaT-Nx7OLcRfUI_9EwHs_8tSqy6lJKQTy7xT3YUW07fHCgFBWw2NfQ9W2rbQk">
+</div>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="pt-24 px-grid-margin pb-12">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary">Scheduler Dashboard</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Manage term scheduling and teacher allocations.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 border border-primary text-primary font-body-sm text-body-sm rounded hover:bg-primary/5 transition-colors">Term Report</button>
+<button class="px-4 py-2 bg-deep-navy text-white font-body-sm text-body-sm rounded hover:opacity-90 transition-opacity flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                        Generate Timetable
+                    </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- System Status (Intelligence Module) -->
+<div class="col-span-12 md:col-span-4 bg-gradient-to-br from-deep-navy to-surface-tint rounded-xl p-6 text-white shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-label-caps text-label-caps text-primary-fixed-dim uppercase">Generation Status</h3>
+<span class="material-symbols-outlined text-secondary-fixed">check_circle</span>
+</div>
+<p class="font-display-lg text-display-lg mb-1">100%</p>
+<p class="font-body-sm text-body-sm text-primary-fixed-dim">Conflict-free schedule achieved for Term 2.</p>
+</div>
+<div class="mt-6 pt-4 border-t border-white/20 grid grid-cols-2 gap-4">
+<div>
+<p class="font-label-caps text-label-caps text-white/60 mb-1">Total Classes</p>
+<p class="font-headline-sm text-headline-sm">482</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-white/60 mb-1">Teachers</p>
+<p class="font-headline-sm text-headline-sm">34</p>
+</div>
+</div>
+</div>
+<!-- Teacher Workload Summary -->
+<div class="col-span-12 md:col-span-8 bg-surface-container-lowest border border-border-subtle rounded-xl p-6 shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-sm text-headline-sm text-primary">Teacher Workload Overview</h3>
+<button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-border-subtle">
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-2 font-medium">Teacher</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-2 font-medium">Department</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-2 font-medium">Allocated Hours</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-2 font-medium">Capacity</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-2 font-medium text-right">Status</th>
+</tr>
+</thead>
+<tbody class="font-data-mono text-data-mono text-on-surface">
+<tr class="border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<td class="py-3 px-2 font-body-sm text-body-sm font-medium">Sarah Jenkins</td>
+<td class="py-3 px-2 text-on-surface-variant">Mathematics</td>
+<td class="py-3 px-2">24 hrs</td>
+<td class="py-3 px-2">
+<div class="w-24 h-1.5 bg-surface-dim rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[80%] rounded-full"></div>
+</div>
+</td>
+<td class="py-3 px-2 text-right"><span class="inline-flex items-center gap-1 text-secondary"><span class="w-2 h-2 rounded-full bg-secondary"></span> Optimal</span></td>
+</tr>
+<tr class="border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<td class="py-3 px-2 font-body-sm text-body-sm font-medium">Michael Chang</td>
+<td class="py-3 px-2 text-on-surface-variant">Science</td>
+<td class="py-3 px-2">28 hrs</td>
+<td class="py-3 px-2">
+<div class="w-24 h-1.5 bg-surface-dim rounded-full overflow-hidden">
+<div class="h-full bg-error w-[95%] rounded-full"></div>
+</div>
+</td>
+<td class="py-3 px-2 text-right"><span class="inline-flex items-center gap-1 text-error"><span class="w-2 h-2 rounded-full bg-error"></span> Overload</span></td>
+</tr>
+<tr class="border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<td class="py-3 px-2 font-body-sm text-body-sm font-medium">Elena Rodriguez</td>
+<td class="py-3 px-2 text-on-surface-variant">Languages</td>
+<td class="py-3 px-2">18 hrs</td>
+<td class="py-3 px-2">
+<div class="w-24 h-1.5 bg-surface-dim rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[60%] rounded-full"></div>
+</div>
+</td>
+<td class="py-3 px-2 text-right"><span class="inline-flex items-center gap-1 text-on-tertiary-container"><span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim"></span> Under</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Assignment Interface -->
+<div class="col-span-12 bg-surface-container-lowest border border-border-subtle rounded-xl p-6 shadow-sm mt-2">
+<h3 class="font-headline-sm text-headline-sm text-primary mb-6">Assign to Teacher (Manual Override)</h3>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Subject / Course</label>
+<select class="w-full bg-surface border border-border-subtle rounded px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Advanced Physics (PHY-301)</option>
+<option>Calculus II (MAT-202)</option>
+</select>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Time Slot</label>
+<select class="w-full bg-surface border border-border-subtle rounded px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Mon 10:00 AM - 11:30 AM</option>
+<option>Tue 09:00 AM - 10:30 AM</option>
+</select>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Teacher</label>
+<select class="w-full bg-surface border border-border-subtle rounded px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Select available teacher...</option>
+<option>Dr. Alan Grant (Available)</option>
+<option disabled="">Dr. Ellie Sattler (Conflict)</option>
+</select>
+</div>
+<div class="flex items-end">
+<button class="w-full px-4 py-2 bg-primary text-white font-body-sm text-body-sm rounded hover:bg-primary/90 transition-colors">Assign Class</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<footer class="mt-auto border-t border-border-subtle bg-surface-container-lowest px-grid-margin py-6">
+  <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="flex flex-wrap items-center gap-4 text-body-sm text-on-surface-variant">
+      <a href="#" class="hover:text-primary transition-colors">Support</a>
+      <a href="#" class="hover:text-primary transition-colors">System status</a>
+      <a href="#" class="hover:text-primary transition-colors">Careers</a>
+      <a href="#" class="hover:text-primary transition-colors">Terms of Use</a>
+      <a href="#" class="hover:text-primary transition-colors">Report Security Issues</a>
+      <a href="#" class="hover:text-primary transition-colors">Privacy Policy</a>
+      <button class="inline-flex items-center gap-1.5 hover:text-primary transition-colors">
+        Cookie Preferences
+        <span class="flex items-center justify-center w-6 h-3.5 bg-primary rounded-full relative">
+          <span class="absolute left-0.5 w-2.5 h-2.5 bg-white rounded-full"></span>
+        </span>
+      </button>
+    </div>
+    <div class="text-body-sm text-on-surface-variant/70">
+      © 2026 Cloudflare, Inc.
+    </div>
+  </div>
+</footer></main>
+
+
+</body></html>

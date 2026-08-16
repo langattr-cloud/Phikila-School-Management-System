@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Library Management</title>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#b0c8ed",
+                      "on-secondary-fixed": "#002109",
+                      "surface-bright": "#f8f9ff",
+                      "on-secondary-container": "#007432",
+                      "secondary-fixed": "#6bff8f",
+                      "on-secondary-fixed-variant": "#005321",
+                      "outline-variant": "#c4c6ce",
+                      "on-tertiary-container": "#b2885a",
+                      "surface-tint": "#486080",
+                      "on-background": "#0b1c30",
+                      "on-tertiary-fixed-variant": "#604018",
+                      "secondary-fixed-dim": "#4ae176",
+                      "secondary": "#006e2f",
+                      "on-error": "#ffffff",
+                      "secondary-container": "#6bff8f",
+                      "on-tertiary": "#ffffff",
+                      "primary-fixed-dim": "#b0c8ed",
+                      "inverse-surface": "#213145",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-container-highest": "#d3e4fe",
+                      "primary": "#00152c",
+                      "on-primary-fixed-variant": "#304867",
+                      "on-secondary": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "primary-container": "#0f2a47",
+                      "inverse-on-surface": "#eaf1ff",
+                      "on-surface": "#0b1c30",
+                      "tertiary-fixed": "#ffddba",
+                      "on-surface-variant": "#43474d",
+                      "error": "#ba1a1a",
+                      "tertiary-fixed-dim": "#edbe8b",
+                      "tertiary-container": "#3e2300",
+                      "primary-fixed": "#d3e4ff",
+                      "outline": "#74777e",
+                      "deep-navy": "#0B1B2D",
+                      "surface-container-low": "#eff4ff",
+                      "surface-container-high": "#dce9ff",
+                      "surface": "#f8f9ff",
+                      "surface-dim": "#cbdbf5",
+                      "border-subtle": "#E2E8F0",
+                      "tertiary": "#221100",
+                      "surface-variant": "#d3e4fe",
+                      "on-primary-container": "#7a92b4",
+                      "surface-gray": "#F9FAFB",
+                      "surface-container": "#e5eeff",
+                      "background": "#f8f9ff",
+                      "on-error-container": "#93000a",
+                      "on-tertiary-fixed": "#2b1700",
+                      "on-primary-fixed": "#001c38"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "sidebar-expanded": "240px",
+                      "grid-margin": "24px",
+                      "compact-padding": "8px",
+                      "gutter": "16px",
+                      "sidebar-collapsed": "64px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Geist"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-md-mobile": [
+                              "Geist"
+                      ],
+                      "headline-sm": [
+                              "Geist"
+                      ],
+                      "label-caps": [
+                              "JetBrains Mono"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Geist"
+                      ],
+                      "data-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md-mobile": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-sm": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-sm": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "data-mono": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=Inter:wght@400;500&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+</head>
+<body class="bg-surface text-on-surface font-body-md antialiased overflow-hidden selection:bg-primary selection:text-on-primary h-screen flex">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-full overflow-y-auto bg-deep-navy dark:bg-primary text-primary-fixed-dim font-body-md text-body-md fixed left-0 top-0 w-sidebar-expanded border-r border-outline-variant flat no shadows z-50">
+<div class="p-6">
+<h1 class="font-headline-md text-headline-md text-on-primary font-bold">Phikila OS</h1>
+<p class="font-label-caps text-label-caps text-on-primary/60 mt-1 uppercase tracking-wider">Admin Console</p>
+</div>
+<div class="px-4 mb-6">
+<button class="w-full bg-primary-container text-white py-2 px-4 rounded font-label-caps text-label-caps uppercase tracking-wider hover:bg-white/10 transition-colors duration-200 cursor-pointer active:opacity-80 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="add" style="font-variation-settings: 'FILL' 1;">add</span>
+                Quick Action
+            </button>
+</div>
+<ul class="flex-1 px-2 space-y-1">
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 rounded hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                    Dashboard
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-3 px-4 rounded-r hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+                    Academics
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 rounded hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+                    Students
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 rounded hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+                    Timetable
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 rounded hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+                    Finance
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 rounded hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                    Settings
+                </a>
+</li>
+</ul>
+<div class="mt-auto px-2 pb-6 space-y-1">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 rounded hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+                Support
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 rounded hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+                Logout
+            </a>
+</div>
+</nav>
+<!-- Main Content Area Wrapper -->
+<div class="flex-1 flex flex-col md:ml-[240px] h-screen bg-surface-gray">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center px-grid-margin w-full z-40 bg-surface dark:bg-deep-navy text-primary dark:text-primary-fixed font-label-caps text-label-caps fixed top-0 right-0 md:w-[calc(100%-240px)] w-full h-16 border-b border-border-subtle shadow-sm focus-within:ring-2 focus-within:ring-primary/10 transition-colors">
+<div class="flex items-center gap-4">
+<!-- Mobile Menu Button (Visible only on mobile) -->
+<button class="md:hidden text-primary p-2 hover:bg-surface-variant rounded transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<div class="hidden md:flex items-center bg-surface-gray border border-border-subtle rounded-full px-4 py-1.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<span class="material-symbols-outlined text-outline mr-2 text-sm" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-64 text-on-surface placeholder-outline font-body-sm outline-none" placeholder="Search library..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer">
+                    Help
+                </button>
+<div class="flex items-center gap-2 border-l border-border-subtle pl-4 ml-2">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
+<span class="material-symbols-outlined" data-icon="apps">apps</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary-container overflow-hidden ml-2 border border-border-subtle cursor-pointer">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A professional headshot of a school administrator in a modern office setting. Crisp lighting, neutral background, high resolution, corporate style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpRR-RpH355zEV0Xcby6ApTX2I4XwbM0b9YPRPGWTA6NKbTLbQiZJ0EXsxbCG6XC6CfenquhGKHJv8CAuAHUEM6C-3cgB_KJvo7_C1-2ndMZfEAfd266uvUcO7PvAeTiAdcPMHjipvSK5-MZeOsbLxaVTFXTeWELHTJNhyNTysYJygHyC4N1tfstWbzPXcmokljfHElSvRoKjoUpntHJk5p_weh6vDwBwQkh5vNhtz1RuEONuBffsJ"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Canvas Area -->
+<main class="flex-1 overflow-y-auto mt-16 p-4 md:p-grid-margin">
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-background">Library Management</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Manage inventory, track issued materials, and view analytics.</p>
+</div>
+<div class="flex gap-3 w-full sm:w-auto">
+<button class="flex-1 sm:flex-none border border-border-subtle bg-surface text-primary px-4 py-2 rounded font-label-caps text-label-caps uppercase tracking-wide hover:bg-surface-variant transition-colors cursor-pointer">
+                        Export Report
+                    </button>
+<button class="flex-1 sm:flex-none bg-primary text-white px-4 py-2 rounded font-label-caps text-label-caps uppercase tracking-wide hover:bg-primary-container transition-colors cursor-pointer shadow-[0px_4px_12px_rgba(15,42,71,0.1)] flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="add_circle">add_circle</span>
+                        Add Book
+                    </button>
+</div>
+</div>
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter mb-gutter">
+<!-- Quick Assign Widget (Bento Style) -->
+<div class="lg:col-span-4 bg-white border border-border-subtle rounded-xl p-6 shadow-[0px_4px_12px_rgba(15,42,71,0.02)] flex flex-col h-full relative overflow-hidden">
+<!-- Subtle decorative background -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-surface-variant/30 rounded-bl-full -mr-8 -mt-8 z-0"></div>
+<div class="relative z-10 flex flex-col h-full">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-primary" data-icon="qr_code_scanner" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+<h3 class="font-headline-sm text-headline-sm text-on-background">Quick Assign</h3>
+</div>
+<form class="space-y-4 flex-1">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1.5 uppercase">Student ID</label>
+<input class="w-full bg-white border border-border-subtle rounded px-3 py-2 text-on-surface font-body-sm focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all" placeholder="e.g. STU-2023-01" type="text"/>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1.5 uppercase">Book ISBN / ID</label>
+<input class="w-full bg-white border border-border-subtle rounded px-3 py-2 text-on-surface font-body-sm focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all" placeholder="Scan or type ISBN" type="text"/>
+</div>
+<div class="bg-surface-low rounded border border-border-subtle p-3 mt-4 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="calendar_today">calendar_today</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Due Date</span>
+</div>
+<span class="font-data-mono text-data-mono text-on-surface">Oct 24, 2023</span>
+</div>
+</form>
+<button class="w-full mt-6 bg-deep-navy text-white py-2.5 rounded font-label-caps text-label-caps uppercase tracking-wide hover:bg-primary-container transition-colors cursor-pointer">
+                            Assign Book
+                        </button>
+</div>
+</div>
+<!-- Intelligence Modules (Analytics Overview) -->
+<div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-gutter h-full">
+<!-- Stats Card 1 -->
+<div class="bg-gradient-to-br from-deep-navy to-surface-tint rounded-xl p-6 shadow-[0px_8px_16px_rgba(11,27,45,0.08)] flex flex-col justify-between text-white relative overflow-hidden group cursor-pointer transition-transform hover:-translate-y-1">
+<div class="absolute inset-0 bg-black/10 z-0"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-caps text-label-caps text-white/80 uppercase tracking-widest">Total Inventory</span>
+<span class="material-symbols-outlined text-white/50" data-icon="library_books" style="font-variation-settings: 'FILL' 1;">library_books</span>
+</div>
+<div class="font-display-lg text-display-lg">14,285</div>
+<div class="mt-4 flex items-center gap-2 text-secondary-fixed">
+<span class="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
+<span class="font-body-sm text-body-sm">+124 this month</span>
+</div>
+</div>
+</div>
+<!-- Stats Card 2 -->
+<div class="bg-white border border-border-subtle rounded-xl p-6 shadow-[0px_4px_12px_rgba(15,42,71,0.02)] flex flex-col justify-between relative">
+<div>
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Books Issued</span>
+<div class="px-2 py-0.5 bg-surface-variant text-primary rounded text-[10px] font-bold uppercase tracking-wider">Active</div>
+</div>
+<div class="font-headline-md text-headline-md text-on-background">1,842</div>
+<!-- Mini Progress Bar -->
+<div class="w-full bg-surface-variant rounded-full h-1.5 mt-4">
+<div class="bg-primary h-1.5 rounded-full" style="width: 12%"></div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-2 text-right">12% of total inventory</p>
+</div>
+</div>
+<!-- Stats Card 3 (Overdue Focus) -->
+<div class="sm:col-span-2 bg-white border border-border-subtle rounded-xl p-6 shadow-[0px_4px_12px_rgba(15,42,71,0.02)] flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-error-container flex items-center justify-center text-error">
+<span class="material-symbols-outlined" data-icon="warning" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-background text-error">47 Overdue Materials</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Estimated outstanding fine: KES 14,100</p>
+</div>
+</div>
+<button class="border border-border-subtle text-primary px-4 py-2 rounded font-label-caps text-label-caps uppercase tracking-wide hover:bg-surface-variant transition-colors cursor-pointer hidden sm:block">
+                            View List
+                        </button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# wrangler local state and build cache
+.wrangler/
+.dev.vars
+
+# Deploy artifacts
+dist/
+worker/

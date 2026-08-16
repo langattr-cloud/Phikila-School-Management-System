@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;family=Geist:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary": "#221100",
+                      "secondary-fixed": "#6bff8f",
+                      "on-tertiary-fixed": "#2b1700",
+                      "background": "#f8f9ff",
+                      "secondary-container": "#6bff8f",
+                      "tertiary-container": "#3e2300",
+                      "tertiary-fixed": "#ffddba",
+                      "on-surface-variant": "#43474d",
+                      "primary": "#00152c",
+                      "surface-gray": "#F9FAFB",
+                      "surface-tint": "#486080",
+                      "on-primary-container": "#7a92b4",
+                      "on-secondary-fixed": "#002109",
+                      "surface-container": "#e5eeff",
+                      "surface-variant": "#d3e4fe",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "surface-bright": "#f8f9ff",
+                      "primary-fixed-dim": "#b0c8ed",
+                      "on-tertiary-fixed-variant": "#604018",
+                      "outline-variant": "#c4c6ce",
+                      "on-secondary-fixed-variant": "#005321",
+                      "inverse-on-surface": "#eaf1ff",
+                      "surface-dim": "#cbdbf5",
+                      "deep-navy": "#0B1B2D",
+                      "primary-fixed": "#d3e4ff",
+                      "surface-container-highest": "#d3e4fe",
+                      "on-secondary": "#ffffff",
+                      "on-background": "#0b1c30",
+                      "surface": "#f8f9ff",
+                      "border-subtle": "#E2E8F0",
+                      "secondary-fixed-dim": "#4ae176",
+                      "primary-container": "#0f2a47",
+                      "on-tertiary": "#ffffff",
+                      "on-tertiary-container": "#b2885a",
+                      "on-surface": "#0b1c30",
+                      "on-primary-fixed-variant": "#304867",
+                      "outline": "#74777e",
+                      "secondary": "#006e2f",
+                      "on-error-container": "#93000a",
+                      "tertiary-fixed-dim": "#edbe8b",
+                      "error": "#ba1a1a",
+                      "surface-container-high": "#dce9ff",
+                      "on-primary-fixed": "#001c38",
+                      "on-error": "#ffffff",
+                      "inverse-surface": "#213145",
+                      "inverse-primary": "#b0c8ed",
+                      "surface-container-low": "#eff4ff",
+                      "on-secondary-container": "#007432",
+                      "error-container": "#ffdad6"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "compact-padding": "8px",
+                      "sidebar-expanded": "240px",
+                      "gutter": "16px",
+                      "grid-margin": "24px",
+                      "sidebar-collapsed": "64px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Inter"],
+                      "label-caps": ["JetBrains Mono"],
+                      "headline-sm": ["Geist"],
+                      "data-mono": ["JetBrains Mono"],
+                      "headline-md-mobile": ["Geist"],
+                      "display-lg": ["Geist"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Geist"],
+                      "body-sm": ["Inter"]
+              },
+              "fontSize": {
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "headline-md-mobile": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased h-screen overflow-hidden flex">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-full overflow-y-auto bg-deep-navy dark:bg-primary fixed left-0 top-0 h-full w-sidebar-expanded border-r border-outline-variant flat no shadows z-50">
+<div class="p-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-fixed-dim/20 flex items-center justify-center overflow-hidden">
+<img alt="Phikila Logo" class="object-cover w-full h-full" data-alt="A minimalist geometric logo design in white and light blue, representing an educational institution, highly polished, vector style, flat shading, corporate identity design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9OyiLtv8zwDgx4RgAXLyJrQeAIRqL-R8uzUYWTOQyTEIgT_M1hBVRIDCrInlwO3fnrdrED2wWRtBgzgzdOL6yGoeAXe3N4wa1rXLRoj7pEhOlR8bwXYYbtHiJnz-n9oP3mHY8E58aKx5HRWSdOgIJbo86ly6IF8iz_bV7bxcmcGyQGtgSquBdSlqH1IKS8CVGo0hE50XR_vNxJiF6y7wf16D19O4xZqFnffmEiye5GcEtI-pqieUEfMNJOqtwe3S0bA"/>
+</div>
+<div>
+<div class="font-headline-md text-headline-md text-on-primary font-bold">Phikila OS</div>
+<div class="font-body-sm text-body-sm text-primary-fixed-dim opacity-70">Admin Console</div>
+</div>
+</div>
+</div>
+<div class="flex-1 mt-6">
+<div class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</div>
+<div class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">school</span>
+<span class="font-body-md text-body-md">Academics</span>
+</div>
+<div class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body-md text-body-md">Students</span>
+</div>
+<div class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-body-md text-body-md">Timetable</span>
+</div>
+<div class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-body-md text-body-md">Finance</span>
+</div>
+<div class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</div>
+</div>
+<div class="p-4 mb-4">
+<button class="w-full bg-primary-fixed text-on-primary-fixed rounded-lg py-2 px-4 font-body-md text-body-md font-medium hover:bg-primary-fixed-dim transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">add</span> Quick Action
+            </button>
+</div>
+<div class="border-t border-outline-variant/30 py-4">
+<div class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-2 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer">
+<span class="material-symbols-outlined">help</span>
+<span class="font-body-sm text-body-sm">Support</span>
+</div>
+<div class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-2 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-body-sm text-body-sm">Logout</span>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 md:ml-sidebar-expanded flex flex-col h-full bg-surface-gray relative">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center px-grid-margin w-full z-40 bg-surface dark:bg-deep-navy border-b border-border-subtle shadow-sm fixed top-0 right-0 w-[calc(100%-240px)] h-16"><div class="relative group ml-4">
+<button class="flex items-center gap-2 bg-primary-fixed text-on-primary-fixed px-4 py-2 rounded-full font-body-sm text-body-sm font-medium hover:bg-primary-fixed-dim transition-all shadow-sm">
+<span class="material-symbols-outlined text-sm">support_agent</span>
+        Contact Platform Admin
+        <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<div class="absolute top-full left-0 mt-2 w-48 bg-surface-container-lowest border border-border-subtle rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+<div class="p-1">
+<button class="w-full flex items-center gap-3 px-3 py-2 text-left text-body-sm font-body-sm text-on-surface hover:bg-surface-container-low rounded-md transition-colors">
+<span class="material-symbols-outlined text-sm">chat</span>
+                Message Admin
+            </button>
+<button class="w-full flex items-center gap-3 px-3 py-2 text-left text-body-sm font-body-sm text-on-surface hover:bg-surface-container-low rounded-md transition-colors">
+<span class="material-symbols-outlined text-sm">call</span>
+                Voice Call
+            </button>
+<button class="w-full flex items-center gap-3 px-3 py-2 text-left text-body-sm font-body-sm text-on-surface hover:bg-surface-container-low rounded-md transition-colors">
+<span class="material-symbols-outlined text-sm">videocam</span>
+                Video Call
+            </button>
+</div>
+</div>
+</div>
+<div class="flex-1 flex items-center gap-4">
+<div class="font-headline-sm text-headline-sm text-primary dark:text-primary-fixed">Phikila OS</div>
+<div class="relative max-w-md w-full ml-4 focus-within:ring-2 focus-within:ring-primary/10 rounded-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-lowest border border-border-subtle rounded-full py-2 pl-10 pr-4 text-body-sm font-body-sm text-on-surface focus:outline-none focus:border-primary" placeholder="Search settings..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:outline-none p-2 rounded-full hover:bg-surface-container-low">
+                    Help
+                </button>
+<div class="w-px h-6 bg-border-subtle mx-2"></div>
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:outline-none p-2 rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:outline-none p-2 rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-border-subtle ml-2">
+<img alt="User profile" class="object-cover w-full h-full" data-alt="Professional corporate headshot of a school administrator, neutral lighting, white background, confident smile, business attire." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8HvMXFcIrENSrJX1nlpm3PaV_FtTT1iTFSy0s53UBQnbrb5sHrUW-dZW9WUej4qAkC9GB3kOtLDiyeKWTnbxfPwpFZJ_Rk0u2I37LODCklTV_NZLJCCgPpe6gjlWfjD1_9AiZtJMOl-n3eBPtHMybr6qsSfMxPhlZPqq5bdz-ev-Rmc0UcU0-AAfbGoJnRWt1q9l6t77ieKyilbJt5y3923CHVcEX5DDilxoohHxYGlouYbCRbrFW"/>
+</div>
+</div>
+</header>
+<!-- Settings Canvas -->
+<main class="flex-1 mt-16 overflow-y-auto p-grid-margin flex gap-grid-margin">
+<!-- Settings Sidebar / Sub-nav -->
+<div class="w-64 flex-shrink-0">
+<div class="bg-surface-container-lowest border border-border-subtle rounded-lg p-4 sticky top-grid-margin shadow-sm">
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-4">Configuration</h2>
+<nav class="flex flex-col gap-1">
+<button class="w-full text-left px-4 py-2 rounded-md bg-surface-container-high text-primary font-body-md text-body-md font-medium flex items-center justify-between">
+                            School Profile
+                            <span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+<button class="w-full text-left px-4 py-2 rounded-md text-on-surface-variant hover:bg-surface-container-low font-body-md text-body-md transition-colors">
+                            Academic Year
+                        </button>
+<button class="w-full text-left px-4 py-2 rounded-md text-on-surface-variant hover:bg-surface-container-low font-body-md text-body-md transition-colors">
+                            User Management
+                        </button>
+<button class="w-full text-left px-4 py-2 rounded-md text-on-surface-variant hover:bg-surface-container-low font-body-md text-body-md transition-colors">
+                            Roles &amp; Permissions
+                        </button>
+<button class="w-full text-left px-4 py-2 rounded-md text-on-surface-variant hover:bg-surface-container-low font-body-md text-body-md transition-colors">
+                            Timetable Config
+                        </button>
+</nav>
+</div>
+</div>
+<!-- Settings Content -->
+<div class="flex-1 max-w-4xl flex flex-col gap-6 pb-20">
+<div class="flex items-center justify-between">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-background">School Profile</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Manage your institution's core identity and contact information.</p>
+</div>
+<button class="bg-deep-navy text-white px-4 py-2 rounded-md font-body-md text-body-md font-medium hover:bg-primary-container transition-colors shadow-sm">
+                        Save Changes
+                    </button>
+</div>
+<!-- Bento Grid for Profile Settings -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Identity Card -->
+<div class="col-span-1 md:col-span-2 bg-surface-container-lowest border border-border-subtle rounded-lg p-6 shadow-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-6 border-b border-border-subtle pb-2">Institution Identity</h3>
+<div class="flex gap-6 mb-6">
+<div class="flex-shrink-0">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-2">INSTITUTION LOGO</label>
+<div class="w-24 h-24 rounded-lg border-2 border-dashed border-outline-variant flex flex-col items-center justify-center bg-surface-container-low hover:bg-surface-variant transition-colors cursor-pointer group relative overflow-hidden">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">upload</span>
+<span class="font-body-sm text-body-sm text-outline mt-1 group-hover:text-primary transition-colors">Upload</span>
+<img alt="Current Logo Preview" class="absolute inset-0 w-full h-full object-cover opacity-50" data-alt="A subtle, modern school crest logo with a shield and book motif, flat vector style, navy blue and gold." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTudIVltb3CcJwkRJGtFssvU0Omc25fS915_RXYYj9GO2hzCdlCOZlBWW1XKwcglaRYbUj_9R77jWyV1TSNOmnVzWuGBhfbD5ZdXcHtxWMD07fr8AfNVl8o_sq1bvcRhAhEu2eVBghH9GpToykEedDI0SeyqmQXHjwOf_zblYFRNr_1N80T09yDkU2sh2XX26ovAQTtk2fwVRHmE2pH7eY4GSxh5m0OOWemNBjicSVKRQB_rQzoT19NHQGLxVRt64ISQ"/>
+</div>
+</div>
+<div class="flex-1 space-y-4">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">INSTITUTION NAME</label>
+<input class="w-full bg-surface-container-lowest border border-border-subtle rounded-md py-2 px-3 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" type="text" value="Phikila International Academy"/>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">REGISTRATION NUMBER</label>
+<input class="w-full bg-surface-container-lowest border border-border-subtle rounded-md py-2 px-3 text-data-mono font-data-mono text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" type="text" value="EDU-2023-88910"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Status/Quick Stats Card (Glassmorphism inspired) -->
+<div class="col-span-1 bg-gradient-to-br from-deep-navy to-surface-tint rounded-lg p-6 text-white shadow-[0px_4px_12px_rgba(15,42,71,0.15)] relative overflow-hidden flex flex-col justify-between">
+<div class="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+<div class="relative z-10">
+<h3 class="font-label-caps text-label-caps text-primary-fixed-dim mb-4">SYSTEM STATUS</h3>
+<div class="flex items-center gap-2 mb-2">
+<div class="w-2 h-2 rounded-full bg-secondary-fixed"></div>
+<span class="font-body-md text-body-md font-medium">All Systems Operational</span>
+</div>
+<div class="mt-6 space-y-3">
+<div class="flex justify-between items-center border-b border-white/10 pb-2">
+<span class="font-body-sm text-body-sm text-primary-fixed">Active Users</span>
+<span class="font-data-mono text-data-mono">1,245</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/10 pb-2">
+<span class="font-body-sm text-body-sm text-primary-fixed">Storage Used</span>
+<span class="font-data-mono text-data-mono">42.8 GB</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Contact Details Card -->
+<div class="col-span-1 md:col-span-3 bg-surface-container-lowest border border-border-subtle rounded-lg p-6 shadow-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-6 border-b border-border-subtle pb-2">Contact Information</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">PRIMARY EMAIL</label>
+<input class="w-full bg-surface-container-lowest border border-border-subtle rounded-md py-2 px-3 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" type="email" value="admin@phikila.edu"/>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">SUPPORT PHONE</label>
+<input class="w-full bg-surface-container-lowest border border-border-subtle rounded-md py-2 px-3 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" type="tel" value="+1 (555) 019-8234"/>
+</div>
+<div class="md:col-span-2">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">PHYSICAL ADDRESS</label>
+<textarea class="w-full bg-surface-container-lowest border border-border-subtle rounded-md py-2 px-3 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none" rows="2">124 Education Way, Innovation District, Cityville, ST 12345</textarea>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

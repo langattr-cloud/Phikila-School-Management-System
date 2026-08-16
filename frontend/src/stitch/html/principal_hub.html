@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Intelligence Center - Phikila OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#b0c8ed",
+                        "on-secondary-fixed": "#002109",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary-container": "#007432",
+                        "secondary-fixed": "#6bff8f",
+                        "on-secondary-fixed-variant": "#005321",
+                        "outline-variant": "#c4c6ce",
+                        "on-tertiary-container": "#b2885a",
+                        "surface-tint": "#486080",
+                        "on-background": "#0b1c30",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "secondary-fixed-dim": "#4ae176",
+                        "secondary": "#006e2f",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#6bff8f",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "inverse-surface": "#213145",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#d3e4fe",
+                        "primary": "#00152c",
+                        "on-primary-fixed-variant": "#304867",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#0f2a47",
+                        "inverse-on-surface": "#eaf1ff",
+                        "on-surface": "#0b1c30",
+                        "tertiary-fixed": "#ffddba",
+                        "on-surface-variant": "#43474d",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "tertiary-container": "#3e2300",
+                        "primary-fixed": "#d3e4ff",
+                        "outline": "#74777e",
+                        "deep-navy": "#0B1B2D",
+                        "surface-container-low": "#eff4ff",
+                        "surface-container-high": "#dce9ff",
+                        "surface": "#f8f9ff",
+                        "surface-dim": "#cbdbf5",
+                        "border-subtle": "#E2E8F0",
+                        "tertiary": "#221100",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "surface-gray": "#F9FAFB",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#2b1700",
+                        "on-primary-fixed": "#001c38"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-expanded": "240px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px",
+                        "gutter": "16px",
+                        "sidebar-collapsed": "64px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-md-mobile": ["Geist"],
+                        "headline-sm": ["Geist"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "display-lg": ["Geist"],
+                        "data-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-card {
+            background: linear-gradient(135deg, rgba(15, 42, 71, 0.9) 0%, rgba(15, 42, 71, 0.7) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        @media (min-width: 1024px) {
+            .bento-grid {
+                grid-template-columns: repeat(12, 1fr);
+            }
+            .bento-wide { grid-column: span 8; }
+            .bento-narrow { grid-column: span 4; }
+            .bento-half { grid-column: span 6; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex">
+<!-- SideNavBar -->
+<nav class="hidden md:flex bg-deep-navy dark:bg-primary text-primary-fixed-dim font-body-md text-body-md fixed left-0 top-0 h-full w-sidebar-expanded border-r border-outline-variant flex-col overflow-y-auto z-50">
+<div class="p-6">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-fixed flex items-center justify-center">
+<img alt="Phikila Logo" class="w-5 h-5 object-contain" data-alt="A minimalist logo for a school management system. High contrast, clean vector style, professional aesthetic with deep navy blue and crisp white colors. Modern sans-serif typography elements incorporated subtly. 8k resolution, precise geometry." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1kgk7tjfS6zDiRAqzaXW9eRF4-wL1dohxfYFTN75T9XHNhip_1uKCKtQltWhN8vltr14sTGRD0aW6fGCUYvQdA1FC3M2C9ovzyy4LzF_6EV7Iv7avAcqO2iAu9DdMkgZNq5mhDtOcUdywEGr1ZNvKggDDfxP33uANboXEpdr578KP6vcU83teTqf-cCNfJkmwu9uY6SD4h9qgkkChOekQXTezD3NBujllrikUSvUzMG6nBua2EQkT"/>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-on-primary font-bold">Phikila OS</h1>
+<span class="text-[10px] uppercase tracking-wider text-on-primary-container">Admin Console</span>
+</div>
+</div>
+</div>
+<div class="px-4 py-2">
+<button class="w-full py-2 px-4 bg-primary-fixed text-on-primary-fixed font-semibold rounded hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span> Quick Action
+            </button>
+</div>
+<div class="mt-4 flex-1">
+<a class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-3 px-4 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">dashboard</span> Dashboard
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">school</span> Academics
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">group</span> Students
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">calendar_today</span> Timetable
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">payments</span> Finance
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">settings</span> Settings
+            </a>
+</div>
+<div class="mt-auto border-t border-outline-variant/30 py-4">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">help</span> Support
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">logout</span> Logout
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 md:ml-[240px] flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-deep-navy text-primary dark:text-primary-fixed font-label-caps text-label-caps fixed top-0 right-0 w-full md:w-[calc(100%-240px)] h-16 border-b border-border-subtle shadow-sm flex justify-between items-center px-grid-margin z-40">
+<div class="flex items-center gap-4">
+<div class="relative focus-within:ring-2 focus-within:ring-primary/10 rounded">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-gray border border-border-subtle rounded w-64 md:w-96 text-body-sm font-body-sm focus:outline-none focus:border-primary transition-colors" placeholder="Search across Phikila OS..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-on-surface-variant hover:text-primary transition-colors">Help</button>
+<div class="flex items-center gap-4 border-l border-border-subtle pl-6">
+<button class="text-on-surface-variant hover:text-primary transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-border-subtle object-cover cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all" data-alt="Professional headshot of a school principal in a modern office setting. Crisp focus, natural lighting, wearing business casual attire. Confident and approachable expression. High resolution, corporate photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA35o0U_IxNPS2sryYseWpft7bKMfwv3AErnxmHpZ-whV09oKXAzJp7D5YCzrvtgzFSZ3-icIPTWjp6-VgCqCHCdo84c7OlPNvkdOcwxgn7_gmbu7_iljreuu1-G7lLsV7gBgaeNZfeQI1l8D9dSmhkX6PM6FWYMIAMHABDWAgPZ1xYdhcXEawJhSDGLNQcwjsj4kLF9EBfLYiyPy2n1Fn2ujZ7Sjjm2RWqKvY11Mzr9591tqLVxTNt"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 mt-16 p-grid-margin bg-background">
+<div class="mb-8 flex justify-between items-end">
+<div>
+<h2 class="font-headline-sm text-headline-sm text-primary mb-1">Intelligence Center</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Real-time systemic analysis and administrative operations.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 border border-border-subtle bg-surface hover:bg-surface-gray rounded text-body-sm font-medium flex items-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-[18px]">calendar_add_on</span> Broadcast Meeting
+                    </button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded text-body-sm font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined text-[18px]">download</span> Export Report
+                    </button>
+</div>
+</div>
+<!-- Dashboard Grid -->
+<div class="bento-grid">
+<!-- AI Insight Module (Glassmorphism) -->
+<div class="bento-wide glass-card rounded-xl p-6 text-on-primary flex flex-col relative overflow-hidden">
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary-fixed/20 rounded-full blur-3xl"></div>
+<div class="flex items-center gap-2 mb-6 opacity-90">
+<span class="material-symbols-outlined text-secondary-fixed">auto_awesome</span>
+<span class="font-label-caps text-label-caps tracking-wider">System Intelligence Briefing</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 relative z-10">
+<div>
+<h3 class="font-headline-md-mobile text-headline-md-mobile mb-4">Critical Focus Areas</h3>
+<ul class="space-y-4">
+<li class="flex gap-3 items-start">
+<span class="w-2 h-2 rounded-full bg-error mt-2 shrink-0"></span>
+<div>
+<p class="font-body-sm font-medium mb-1">Attendance Anomaly Detected</p>
+<p class="font-body-sm text-on-primary/70">3 teachers in Science Dept show consistent 10min delays arriving to Period 1 over last two weeks.</p>
+</div>
+</li>
+<li class="flex gap-3 items-start">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim mt-2 shrink-0"></span>
+<div>
+<p class="font-body-sm font-medium mb-1">Budget Optimization</p>
+<p class="font-body-sm text-on-primary/70">Library requisition forms for Q3 show 15% overlap with existing digital textbook subscriptions.</p>
+</div>
+</li>
+</ul>
+</div>
+<div class="bg-black/20 rounded-lg p-4 border border-white/10">
+<h4 class="font-label-caps text-label-caps text-primary-fixed-dim mb-3">Suggested Action</h4>
+<p class="font-body-sm mb-4">Initiate targeted sync with Science Department Head regarding morning timetable friction.</p>
+<button class="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded font-body-sm transition-colors flex items-center justify-center gap-2">
+                                Schedule Review <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Financial Summary Card -->
+<div class="bento-narrow bg-surface rounded-xl border border-border-subtle p-6 flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-sm text-headline-sm text-primary">Fee Collection</h3>
+<span class="material-symbols-outlined text-outline">more_vert</span>
+</div>
+<div class="flex-1 flex flex-col justify-center items-center text-center">
+<span class="font-display-lg text-display-lg text-primary block mb-2">82%</span>
+<span class="font-label-caps text-label-caps text-secondary flex items-center gap-1 justify-center">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> +4% vs last month
+                        </span>
+</div>
+<div class="mt-6 pt-4 border-t border-border-subtle">
+<div class="flex justify-between font-body-sm mb-2">
+<span class="text-on-surface-variant">Outstanding</span>
+<span class="font-data-mono font-medium">$45,200</span>
+</div>
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[82%]"></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Floating Action Button for Document Intelligence -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary rounded-full shadow-[0px_4px_12px_rgba(15,42,71,0.2)] flex items-center justify-center hover:scale-105 transition-transform z-50 group">
+<span class="material-symbols-outlined">document_scanner</span>
+<div class="absolute bottom-16 right-0 bg-surface border border-border-subtle rounded-lg shadow-lg p-2 flex flex-col gap-1 w-48 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity origin-bottom-right">
+<span class="font-label-caps text-label-caps px-3 py-2 text-on-surface-variant">AI Document Intake</span>
+<a class="font-body-sm px-3 py-2 hover:bg-surface-gray rounded flex items-center gap-2" href="#"><span class="material-symbols-outlined text-[16px]">upload_file</span> Upload PDF/Image</a>
+<a class="font-body-sm px-3 py-2 hover:bg-surface-gray rounded flex items-center gap-2" href="#"><span class="material-symbols-outlined text-[16px]">photo_camera</span> Scan Record</a>
+</div>
+</button>
+</body></html>

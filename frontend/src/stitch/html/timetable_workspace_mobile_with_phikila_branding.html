@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Timetable Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Geist:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#dce9ff",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "error": "#ba1a1a",
+                        "on-surface": "#0b1c30",
+                        "primary-container": "#0f2a47",
+                        "on-secondary-container": "#007432",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#005321",
+                        "deep-navy": "#0B1B2D",
+                        "on-secondary": "#ffffff",
+                        "primary": "#00152c",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff",
+                        "secondary": "#006e2f",
+                        "secondary-container": "#6bff8f",
+                        "primary-fixed": "#d3e4ff",
+                        "inverse-surface": "#213145",
+                        "inverse-primary": "#b0c8ed",
+                        "error-container": "#ffdad6",
+                        "border-subtle": "#E2E8F0",
+                        "secondary-fixed": "#6bff8f",
+                        "background": "#f8f9ff",
+                        "on-primary-fixed": "#001c38",
+                        "tertiary": "#221100",
+                        "on-tertiary-fixed": "#2b1700",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-container-low": "#eff4ff",
+                        "tertiary-container": "#3e2300",
+                        "surface": "#f8f9ff",
+                        "on-surface-variant": "#43474d",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "on-secondary-fixed": "#002109",
+                        "surface-dim": "#cbdbf5",
+                        "on-tertiary-container": "#b2885a",
+                        "surface-tint": "#486080",
+                        "surface-container": "#e5eeff",
+                        "surface-gray": "#F9FAFB",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "outline": "#74777e",
+                        "on-primary-fixed-variant": "#304867",
+                        "outline-variant": "#c4c6ce",
+                        "secondary-fixed-dim": "#4ae176"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "compact-padding": "8px",
+                        "gutter": "16px",
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "headline-md-mobile": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-sm": ["Geist"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom scrollbar for horizontal scrolling */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface antialiased min-h-screen flex flex-col font-body-lg">
+<!-- Top Navigation (Mobile Adapted) -->
+<header class="bg-surface dark:bg-deep-navy sticky top-0 z-40 border-b border-border-subtle shadow-sm px-4 py-3 flex justify-between items-center w-full">
+<div class="flex items-center gap-3">
+<img class="w-8 h-8 rounded-full object-cover" data-alt="A clean, minimalist logo icon for an educational software platform. Geometric shapes, modern, high-contrast black and white palette, simple and recognizable." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8vWdYnfhIbgXiI6JUaIWJmwBl-h9QYJ54fyUYrP67dxiIAgb_i-vctsGYvOro40OGU3NTA74TGgrkH02dYteUjJjIIFQzFBnRwg4JmLN6amuI4122RPO6vJsdaltV9Up7gtOsNm0XbYr1tdV-k56xxDVcJlVNHkVc7jeOlbDvZ_d4bNjLaENa0B0DA6OiMTeEoYj_ievW1B375cExL-FAyNQmbVj-Sq1eNdolg8-Ln136bKvZGFQ5zb7JoHIftVoRxg"/>
+<span class="font-headline-sm text-headline-sm text-primary dark:text-primary-fixed">Phikila OS</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer hover:opacity-80">search</span>
+<span class="material-symbols-outlined text-primary cursor-pointer hover:opacity-80">notifications</span>
+<img class="w-8 h-8 rounded-full object-cover border border-border-subtle cursor-pointer" data-alt="A professional headshot of a school administrator, modern setting, bright light mode aesthetic, neutral background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDuXtVZljltMBEbfy0uXcilciT8ub7lE0Qlh7rj74lNuOqj_4BNQhoNsKxDFVzHfJ1siWbNh1eRAQlqYzmBfkNmzSvMds6qDEwrhD_FMkVR8HLYSyMV_aaebUuvqxCBeCNf9rAx66PlfaqycYq7XJx02EPmqasfU1rxSVsXUTH27MzlH2fnxGN67W-i4AuK-oBlUyyhLu6Mkr8Hz8QDUg0MfClv7Z9npSZXMEg-BgAs6Srra2b85zsu"/>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto pb-24">
+<!-- Header Section -->
+<div class="px-4 py-4 space-y-1">
+<h1 class="font-headline-md-mobile text-headline-md-mobile text-primary">Timetable</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Class 10-A • Week 42</p>
+</div>
+<!-- Horizontal Date Selector -->
+<div class="px-4 pb-4">
+<div class="flex gap-2 overflow-x-auto hide-scrollbar snap-x">
+<!-- Day Card (Inactive) -->
+<div class="snap-center flex-shrink-0 w-16 p-2 rounded-lg border border-border-subtle bg-surface-container-lowest text-center cursor-pointer transition-colors hover:bg-surface-gray">
+<div class="font-label-caps text-label-caps text-on-surface-variant uppercase">Mon</div>
+<div class="font-headline-sm text-headline-sm text-primary mt-1">12</div>
+</div>
+<!-- Day Card (Active) -->
+<div class="snap-center flex-shrink-0 w-16 p-2 rounded-lg border-2 border-primary bg-primary-fixed text-center cursor-pointer shadow-sm relative">
+<div class="font-label-caps text-label-caps text-primary uppercase">Tue</div>
+<div class="font-headline-sm text-headline-sm text-primary mt-1">13</div>
+<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"></div>
+</div>
+<!-- Day Card (Inactive) -->
+<div class="snap-center flex-shrink-0 w-16 p-2 rounded-lg border border-border-subtle bg-surface-container-lowest text-center cursor-pointer transition-colors hover:bg-surface-gray">
+<div class="font-label-caps text-label-caps text-on-surface-variant uppercase">Wed</div>
+<div class="font-headline-sm text-headline-sm text-primary mt-1">14</div>
+</div>
+<!-- Day Card (Inactive) -->
+<div class="snap-center flex-shrink-0 w-16 p-2 rounded-lg border border-border-subtle bg-surface-container-lowest text-center cursor-pointer transition-colors hover:bg-surface-gray">
+<div class="font-label-caps text-label-caps text-on-surface-variant uppercase">Thu</div>
+<div class="font-headline-sm text-headline-sm text-primary mt-1">15</div>
+</div>
+<!-- Day Card (Inactive) -->
+<div class="snap-center flex-shrink-0 w-16 p-2 rounded-lg border border-border-subtle bg-surface-container-lowest text-center cursor-pointer transition-colors hover:bg-surface-gray">
+<div class="font-label-caps text-label-caps text-on-surface-variant uppercase">Fri</div>
+<div class="font-headline-sm text-headline-sm text-primary mt-1">16</div>
+</div>
+</div>
+</div>
+<!-- Vertical Schedule List -->
+<div class="px-4 space-y-3 relative">
+<!-- Time Indicator Line (Absolute) -->
+<div class="absolute left-[52px] top-0 bottom-0 w-[1px] bg-border-subtle z-0"></div>
+<!-- Current Time Line -->
+<div class="absolute left-4 right-4 top-[140px] h-[1px] bg-error z-10 flex items-center">
+<div class="w-2 h-2 rounded-full bg-error -ml-1"></div>
+</div>
+<!-- Lesson Slot 1 -->
+<div class="flex gap-4 relative z-0">
+<div class="w-12 pt-2 text-right">
+<span class="font-data-mono text-data-mono text-on-surface-variant">08:00</span>
+</div>
+<div class="flex-1 bg-surface-container-lowest border border-border-subtle rounded-xl p-3 shadow-sm border-l-4 border-l-primary-container active:scale-[0.98] transition-transform">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary">Advanced Physics</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Room 302 • Dr. Aris</p>
+</div>
+<span class="font-label-caps text-label-caps px-2 py-1 bg-surface-gray rounded text-on-surface-variant">45m</span>
+</div>
+<div class="flex items-center gap-2 mt-3 pt-3 border-t border-border-subtle">
+<span class="material-symbols-outlined text-[16px] text-primary">menu_book</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Topic: Quantum Mechanics Intro</span>
+</div>
+</div>
+</div>
+<!-- Lesson Slot 2 (Ongoing) -->
+<div class="flex gap-4 relative z-0">
+<div class="w-12 pt-2 text-right">
+<span class="font-data-mono text-data-mono text-on-surface-variant">09:00</span>
+</div>
+<div class="flex-1 bg-surface-container-high border border-primary-fixed-dim rounded-xl p-3 shadow-sm border-l-4 border-l-secondary active:scale-[0.98] transition-transform">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary">Mathematics</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Room 105 • Mr. Davis</p>
+</div>
+<span class="font-label-caps text-label-caps px-2 py-1 bg-secondary-container text-secondary rounded">Ongoing</span>
+</div>
+<div class="flex items-center gap-2 mt-3 pt-3 border-t border-primary-fixed-dim">
+<span class="material-symbols-outlined text-[16px] text-primary">assignment</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Quiz: Calculus Chapters 1-3</span>
+</div>
+</div>
+</div>
+<!-- Break Slot -->
+<div class="flex gap-4 relative z-0 py-2">
+<div class="w-12 text-right">
+<span class="font-data-mono text-data-mono text-on-surface-variant">10:30</span>
+</div>
+<div class="flex-1 flex items-center justify-center border-t border-b border-dashed border-border-subtle bg-surface-gray/50 py-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">local_cafe</span> Morning Break
+                    </span>
+</div>
+</div>
+<!-- Lesson Slot 3 -->
+<div class="flex gap-4 relative z-0">
+<div class="w-12 pt-2 text-right">
+<span class="font-data-mono text-data-mono text-on-surface-variant">11:00</span>
+</div>
+<div class="flex-1 bg-surface-container-lowest border border-border-subtle rounded-xl p-3 shadow-sm border-l-4 border-l-tertiary-fixed-dim active:scale-[0.98] transition-transform">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary">World History</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Room 201 • Ms. Lee</p>
+</div>
+<span class="font-label-caps text-label-caps px-2 py-1 bg-surface-gray rounded text-on-surface-variant">60m</span>
+</div>
+<div class="flex items-center gap-2 mt-3 pt-3 border-t border-border-subtle">
+<span class="material-symbols-outlined text-[16px] text-primary">campaign</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Guest Speaker Session</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-6 right-6 w-14 h-14 bg-deep-navy text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-primary transition-colors z-50 active:scale-95">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+</body></html>

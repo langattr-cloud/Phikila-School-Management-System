@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Super Admin - School Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#213145",
+                        "on-tertiary-fixed": "#2b1700",
+                        "on-tertiary": "#ffffff",
+                        "surface-gray": "#F9FAFB",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "surface-dim": "#cbdbf5",
+                        "surface": "#f8f9ff",
+                        "on-primary-fixed-variant": "#304867",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "primary": "#00152c",
+                        "outline": "#74777e",
+                        "secondary-fixed": "#6bff8f",
+                        "inverse-primary": "#b0c8ed",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "secondary-container": "#6bff8f",
+                        "outline-variant": "#c4c6ce",
+                        "surface-container-high": "#dce9ff",
+                        "on-primary-fixed": "#001c38",
+                        "on-tertiary-container": "#b2885a",
+                        "primary-container": "#0f2a47",
+                        "on-secondary-container": "#007432",
+                        "on-secondary-fixed": "#002109",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#ffddba",
+                        "on-secondary-fixed-variant": "#005321",
+                        "on-surface-variant": "#43474d",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#d3e4ff",
+                        "on-background": "#0b1c30",
+                        "on-secondary": "#ffffff",
+                        "surface-container-low": "#eff4ff",
+                        "tertiary-container": "#3e2300",
+                        "on-surface": "#0b1c30",
+                        "error": "#ba1a1a",
+                        "surface-bright": "#f8f9ff",
+                        "inverse-on-surface": "#eaf1ff",
+                        "border-subtle": "#E2E8F0",
+                        "deep-navy": "#0B1B2D",
+                        "tertiary": "#221100",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "secondary-fixed-dim": "#4ae176",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#486080",
+                        "secondary": "#006e2f",
+                        "surface-container-highest": "#d3e4fe"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-collapsed": "64px",
+                        "gutter": "16px",
+                        "sidebar-expanded": "240px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-sm": ["Geist"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "headline-md-mobile": ["Geist"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Glassmorphism utility for intelligence modules */
+        .glass-card {
+            background: linear-gradient(135deg, rgba(15, 42, 71, 0.8) 0%, rgba(11, 27, 45, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-surface-gray text-on-surface font-body-md h-screen overflow-hidden flex selection:bg-primary-container selection:text-white">
+<!-- SideNavBar -->
+<nav class="bg-deep-navy dark:bg-primary text-primary-fixed-dim font-body-md text-body-md fixed left-0 top-0 h-full w-sidebar-expanded border-r border-outline-variant flat no shadows flex flex-col overflow-y-auto hidden md:flex z-50">
+<!-- Brand Header -->
+<div class="px-6 py-6 border-b border-surface-tint/20 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined icon-fill text-deep-navy text-xl">admin_panel_settings</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-on-primary font-bold leading-tight">Phikila OS</h1>
+<p class="font-label-caps text-label-caps text-primary-fixed-dim/80">Admin Console</p>
+</div>
+</div>
+</div>
+<!-- Quick Action CTA -->
+<div class="px-4 mb-6">
+<button class="w-full flex items-center justify-center gap-2 bg-primary-fixed hover:bg-primary-fixed-dim text-on-primary-fixed font-body-sm font-semibold py-2 px-4 rounded transition-colors duration-200">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Quick Action
+            </button>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 px-2 space-y-1">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80 rounded-r" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80 rounded-r" href="#">
+<span class="material-symbols-outlined icon-fill">school</span>
+<span>Schools</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80 rounded-r" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Users</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80 rounded-r" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Billing</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80 rounded-r" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</div>
+<!-- Footer Links -->
+<div class="p-4 border-t border-surface-tint/20 space-y-1">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-2 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80 rounded" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span class="font-body-sm">Support</span>
+</a>
+<a class="flex items-center gap-3 text-error-container/80 hover:text-error-container py-2 px-4 hover:bg-error-container/10 transition-colors duration-200 cursor-pointer active:opacity-80 rounded" href="#">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+<span class="font-body-sm">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 md:ml-sidebar-expanded flex flex-col h-full bg-surface-gray relative">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-deep-navy text-primary dark:text-primary-fixed font-label-caps text-label-caps fixed top-0 right-0 w-[calc(100%-240px)] h-16 border-b border-border-subtle shadow-sm flex justify-between items-center px-grid-margin z-40">
+<!-- Search -->
+<div class="flex items-center flex-1 max-w-md">
+<div class="relative w-full group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary">
+<span class="material-symbols-outlined text-[18px]">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2 border border-border-subtle rounded bg-white text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all font-body-sm" placeholder="Search schools, admins, IDs..." type="text"/>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 border-r border-border-subtle pr-4">
+<button class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors focus:outline-none focus-within:ring-2 focus-within:ring-primary/10 rounded">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors focus:outline-none focus-within:ring-2 focus-within:ring-primary/10 rounded">
+<span class="material-symbols-outlined text-[20px]">apps</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:outline-none focus-within:ring-2 focus-within:ring-primary/10 rounded px-2 py-1">
+                        Help
+                    </button>
+</div>
+<button class="flex items-center gap-2 focus:outline-none">
+<img alt="User profile" class="w-8 h-8 rounded bg-surface-variant object-cover border border-border-subtle" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAr2kxUmz9STnCGJByar2cLeKHoGy5554wMT7oCROtNx6FkWSeA5MXQDvp0rYnWB3_ugQ5F47b7QqUu5zBJ0V6UE2NZd8nSg104sLx5xul4AkHDGShcMzNEEVwDEg1UqTA9XgZ3gvCeJy2xrGZm8IlxrO_uIoFb6L-QCJduLtgm7k-GyxJH0Q5boIgBMH7IEO5PAMu44MaYceFnF0df_hL3gvmylhhGClet3VwoYq6KFQ1nzw1XHFJ8"/>
+</button>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 mt-16 p-grid-margin overflow-y-auto">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+<div>
+<h2 class="font-headline-md text-headline-md text-deep-navy font-bold mb-1">School Management</h2>
+<p class="font-body-md text-on-surface-variant">Manage all tenant instances, monitor usage, and control access.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 bg-white border border-border-subtle text-deep-navy font-body-sm font-medium py-2 px-4 rounded hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/10">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                        Export
+                    </button>
+<button class="flex items-center gap-2 bg-deep-navy text-white font-body-sm font-medium py-2 px-4 rounded hover:bg-primary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-[0_4px_12px_rgba(15,42,71,0.15)]">
+<span class="material-symbols-outlined text-[18px]">domain_add</span>
+                        Provision School
+                    </button>
+</div>
+</div>
+<!-- Intelligence Modules (Bento Grid) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+<div class="glass-card rounded-lg p-5 text-white flex flex-col justify-between h-32 relative overflow-hidden">
+<div class="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-4 -translate-y-4">
+<span class="material-symbols-outlined text-8xl">domain</span>
+</div>
+<span class="font-label-caps text-label-caps text-surface-dim/80">Total Schools</span>
+<div class="flex items-end gap-2">
+<span class="font-display-lg text-display-lg font-bold leading-none">142</span>
+<span class="text-secondary-fixed-dim text-xs font-medium flex items-center mb-1"><span class="material-symbols-outlined text-[14px]">trending_up</span> 12%</span>
+</div>
+</div>
+<div class="glass-card rounded-lg p-5 text-white flex flex-col justify-between h-32 relative overflow-hidden">
+<div class="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-4 -translate-y-4">
+<span class="material-symbols-outlined text-8xl">group</span>
+</div>
+<span class="font-label-caps text-label-caps text-surface-dim/80">Total Students</span>
+<div class="flex items-end gap-2">
+<span class="font-display-lg text-display-lg font-bold leading-none">84.2k</span>
+</div>
+</div>
+<div class="bg-white border border-border-subtle rounded-lg p-5 flex flex-col justify-between h-32 shadow-[0_2px_8px_rgba(15,42,71,0.02)]">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-label-caps text-on-surface-variant">System Health</span>
+<div class="flex items-center gap-1 text-secondary font-medium text-xs bg-secondary-container/20 px-2 py-0.5 rounded">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+                            Operational
+                        </div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs">
+<span class="text-on-surface-variant">Avg Response</span>
+<span class="font-data-mono font-medium text-deep-navy">124ms</span>
+</div>
+<div class="w-full bg-surface-container rounded-full h-1.5">
+<div class="bg-secondary h-1.5 rounded-full" style="width: 15%"></div>
+</div>
+</div>
+</div>
+<div class="bg-white border border-border-subtle rounded-lg p-5 flex flex-col justify-between h-32 shadow-[0_2px_8px_rgba(15,42,71,0.02)]">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Attention Required</span>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-error-container/30 flex items-center justify-center text-error">
+<span class="material-symbols-outlined icon-fill">warning</span>
+</div>
+<div>
+<p class="font-headline-sm text-headline-sm text-error leading-none mb-1">3</p>
+<p class="text-xs text-on-surface-variant">Schools nearing license limit</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Data Table Section -->
+<div class="bg-white border border-border-subtle rounded-lg shadow-[0_2px_8px_rgba(15,42,71,0.02)] flex flex-col h-[calc(100vh-420px)] min-h-[400px]">
+<!-- Table Toolbar -->
+<div class="p-4 border-b border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface-gray/50 rounded-t-lg">
+<div class="flex items-center gap-2">
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+</div>
+<select class="block w-full pl-8 pr-8 py-1.5 border border-border-subtle rounded bg-white text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-xs font-medium appearance-none">
+<option>All Regions</option>
+<option>North County</option>
+<option>South District</option>
+<option>East Valley</option>
+</select>
+<div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</div>
+</div>
+<div class="relative group">
+<select class="block w-full pl-3 pr-8 py-1.5 border border-border-subtle rounded bg-white text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-xs font-medium appearance-none">
+<option>All Types</option>
+<option>Primary</option>
+<option>Secondary</option>
+<option>Higher Ed</option>
+</select>
+<div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</div>
+</div>
+<div class="relative group ml-2">
+<select class="block w-full pl-3 pr-8 py-1.5 border border-border-subtle rounded bg-white text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-xs font-medium appearance-none">
+<option>Status: All</option>
+<option>Active</option>
+<option>Suspended</option>
+</select>
+<div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 text-xs text-on-surface-variant">
+<span>Showing 1-10 of 142</span>
+<div class="flex items-center border border-border-subtle rounded bg-white">
+<button class="p-1 hover:bg-surface border-r border-border-subtle disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="p-1 hover:bg-surface">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Table Content (Scrollable) -->
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left border-collapse min-w-[900px]">
+<thead class="bg-white sticky top-0 z-10 shadow-[0_1px_0_#E2E8F0]">
+<tr>
+<th class="font-label-caps text-label-caps text-on-surface-variant px-compact-padding py-3 whitespace-nowrap w-10 pl-6">
+<input class="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant px-compact-padding py-3 whitespace-nowrap cursor-pointer hover:text-primary group">
+<div class="flex items-center gap-1">School Details <span class="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100">arrow_upward</span></div>
+</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant px-compact-padding py-3 whitespace-nowrap text-right">
+                                    Students
+                                </th>
+<th class="font-label-caps text-label-caps text-on-surface-variant px-compact-padding py-3 whitespace-nowrap text-right">
+                                    Teachers
+                                </th>
+<th class="font-label-caps text-label-caps text-on-surface-variant px-compact-padding py-3 whitespace-nowrap text-right">
+                                    Admins
+                                </th>
+<th class="font-label-caps text-label-caps text-on-surface-variant px-compact-padding py-3 whitespace-nowrap pl-6">
+                                    Status
+                                </th>
+<th class="font-label-caps text-label-caps text-on-surface-variant px-compact-padding py-3 whitespace-nowrap text-right pr-6">
+                                    Actions
+                                </th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle font-body-sm">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-gray transition-colors group">
+<td class="px-compact-padding py-3 pl-6">
+<input class="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+</td>
+<td class="px-compact-padding py-3">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container text-white flex items-center justify-center font-headline-sm text-headline-sm flex-shrink-0">
+                                            O
+                                        </div>
+<div>
+<p class="font-medium text-deep-navy">Oakridge High School</p>
+<p class="text-xs text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">location_on</span>
+                                                North County Region
+                                            </p>
+</div>
+</div>
+</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">1,245</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">84</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">5</td>
+<td class="px-compact-padding py-3 pl-6">
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary border border-secondary/20 text-xs font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                        Active
+                                    </div>
+</td>
+<td class="px-compact-padding py-3 text-right pr-6">
+<div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="View Dashboard">
+<span class="material-symbols-outlined text-[18px]">open_in_new</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Manage Admins">
+<span class="material-symbols-outlined text-[18px]">manage_accounts</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="View Audit">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</button>
+<div class="relative">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="More Actions">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-gray transition-colors group">
+<td class="px-compact-padding py-3 pl-6">
+<input class="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+</td>
+<td class="px-compact-padding py-3">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-tint text-white flex items-center justify-center font-headline-sm text-headline-sm flex-shrink-0">
+                                            M
+                                        </div>
+<div>
+<p class="font-medium text-deep-navy">Maplewood Elementary</p>
+<p class="text-xs text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">location_on</span>
+                                                South District
+                                            </p>
+</div>
+</div>
+</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">450</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">32</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">3</td>
+<td class="px-compact-padding py-3 pl-6">
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary border border-secondary/20 text-xs font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                        Active
+                                    </div>
+</td>
+<td class="px-compact-padding py-3 text-right pr-6">
+<div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="View Dashboard">
+<span class="material-symbols-outlined text-[18px]">open_in_new</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Manage Admins">
+<span class="material-symbols-outlined text-[18px]">manage_accounts</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="View Audit">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</button>
+<div class="relative">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="More Actions">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 3 (Suspended) -->
+<tr class="hover:bg-surface-gray transition-colors group bg-error-container/5">
+<td class="px-compact-padding py-3 pl-6">
+<input class="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+</td>
+<td class="px-compact-padding py-3">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-outline-variant text-on-surface-variant flex items-center justify-center font-headline-sm text-headline-sm flex-shrink-0">
+                                            P
+                                        </div>
+<div>
+<p class="font-medium text-on-surface-variant">Pioneer Middle School</p>
+<p class="text-xs text-on-surface-variant/70 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">location_on</span>
+                                                East Valley
+                                            </p>
+</div>
+</div>
+</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-on-surface-variant">890</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-on-surface-variant">56</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-on-surface-variant">4</td>
+<td class="px-compact-padding py-3 pl-6">
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-error-container/50 text-error border border-error/20 text-xs font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                        Suspended
+                                    </div>
+</td>
+<td class="px-compact-padding py-3 text-right pr-6">
+<div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-secondary-container/20 text-secondary transition-colors" title="Activate School">
+<span class="material-symbols-outlined text-[18px]">play_arrow</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="View Audit">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</button>
+<div class="relative">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="More Actions">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-gray transition-colors group">
+<td class="px-compact-padding py-3 pl-6">
+<input class="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+</td>
+<td class="px-compact-padding py-3">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-tertiary-container text-tertiary-fixed flex items-center justify-center font-headline-sm text-headline-sm flex-shrink-0">
+                                            W
+                                        </div>
+<div>
+<p class="font-medium text-deep-navy">Westside Academy</p>
+<p class="text-xs text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">location_on</span>
+                                                North County Region
+                                            </p>
+</div>
+</div>
+</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">2,100</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">145</td>
+<td class="px-compact-padding py-3 text-right font-data-mono text-deep-navy">8</td>
+<td class="px-compact-padding py-3 pl-6">
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary border border-secondary/20 text-xs font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                        Active
+                                    </div>
+</td>
+<td class="px-compact-padding py-3 text-right pr-6">
+<div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="View Dashboard">
+<span class="material-symbols-outlined text-[18px]">open_in_new</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Manage Admins">
+<span class="material-symbols-outlined text-[18px]">manage_accounts</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="View Audit">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</button>
+<div class="relative">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="More Actions">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+</body></html>

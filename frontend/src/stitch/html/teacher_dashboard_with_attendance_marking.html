@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Teacher Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#b0c8ed",
+                        "on-secondary-fixed": "#002109",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary-container": "#007432",
+                        "secondary-fixed": "#6bff8f",
+                        "on-secondary-fixed-variant": "#005321",
+                        "outline-variant": "#c4c6ce",
+                        "on-tertiary-container": "#b2885a",
+                        "surface-tint": "#486080",
+                        "on-background": "#0b1c30",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "secondary-fixed-dim": "#4ae176",
+                        "secondary": "#006e2f",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#6bff8f",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "inverse-surface": "#213145",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#d3e4fe",
+                        "primary": "#00152c",
+                        "on-primary-fixed-variant": "#304867",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#0f2a47",
+                        "inverse-on-surface": "#eaf1ff",
+                        "on-surface": "#0b1c30",
+                        "tertiary-fixed": "#ffddba",
+                        "on-surface-variant": "#43474d",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "tertiary-container": "#3e2300",
+                        "primary-fixed": "#d3e4ff",
+                        "outline": "#74777e",
+                        "deep-navy": "#0B1B2D",
+                        "surface-container-low": "#eff4ff",
+                        "surface-container-high": "#dce9ff",
+                        "surface": "#f8f9ff",
+                        "surface-dim": "#cbdbf5",
+                        "border-subtle": "#E2E8F0",
+                        "tertiary": "#221100",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "surface-gray": "#F9FAFB",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#2b1700",
+                        "on-primary-fixed": "#001c38"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-expanded": "240px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px",
+                        "gutter": "16px",
+                        "sidebar-collapsed": "64px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-md-mobile": ["Geist"],
+                        "headline-sm": ["Geist"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "display-lg": ["Geist"],
+                        "data-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(15, 42, 71, 0.9) 0%, rgba(15, 42, 71, 0.7) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-attended { background-color: #4ae176; }
+        .status-pending { background-color: #edbe8b; }
+        .status-missed { background-color: #ba1a1a; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md antialiased overflow-hidden flex h-screen w-screen">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-full overflow-y-auto bg-deep-navy dark:bg-primary text-primary-fixed-dim font-body-md text-body-md fixed left-0 top-0 h-full w-sidebar-expanded border-r border-outline-variant flat no shadows z-50">
+<div class="p-6">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface flex items-center justify-center">
+<span class="material-symbols-outlined text-deep-navy font-bold">school</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-on-primary font-bold">Phikila OS</h1>
+<p class="font-body-sm text-body-sm opacity-70">Admin Console</p>
+</div>
+</div>
+<button class="mt-6 w-full py-2 px-4 rounded bg-primary-fixed text-on-primary-fixed font-label-caps text-label-caps flex items-center justify-center gap-2 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined" data-weight="fill">add</span>
+                Quick Action
+            </button>
+</div>
+<div class="flex-1 px-4 py-2 space-y-1">
+<a class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-3 px-4 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">school</span>
+<span>Academics</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Students</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span>Timetable</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Finance</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</div>
+<div class="px-4 py-4 space-y-1 border-t border-outline-variant/20">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Support</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</nav>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-full md:w-[calc(100%-240px)] h-16 bg-surface dark:bg-deep-navy text-primary dark:text-primary-fixed font-label-caps text-label-caps border-b border-border-subtle shadow-sm flex justify-between items-center px-grid-margin z-40">
+<div class="flex items-center gap-4">
+<span class="font-headline-sm text-headline-sm text-primary dark:text-primary-fixed hidden md:block">Phikila OS</span>
+<button class="md:hidden p-2 text-on-surface-variant hover:text-primary transition-colors focus-within:ring-2 focus-within:ring-primary/10">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="pl-10 pr-4 py-1.5 bg-surface-container-low border border-border-subtle rounded text-body-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 w-64" placeholder="Search..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-2 sm:gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors focus-within:ring-2 focus-within:ring-primary/10 p-2 rounded-full relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors focus-within:ring-2 focus-within:ring-primary/10 p-2 rounded-full hidden sm:block">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors focus-within:ring-2 focus-within:ring-primary/10 px-3 py-1 border border-border-subtle rounded hidden lg:block">
+                Help
+            </button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-border-subtle ml-2 cursor-pointer">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A detailed headshot portrait of a professional school administrator, well lit, neutral background, sharp focus, corporate modern style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-kbyUN3nmBSHF6i1L8f84Zv07mIj3TbBJdRGFgsaiMy7xSt1BmFZr8bhzkDPcop2NzpWSGVmgs9Yw2ddBWiqT-YnCOkqzzt5yWsGRQyE3krsUJuEgawVNGrWGqK7hWSi5FCsATWbFWezODlgnBNaNITE-4oqelmRpabK13Wlbt9E7D5FAQtRCQV9aAgcr9iHD-ip_IXkhqxl_V86JowWFmVbtJYIT5ExfDJ2jhRZQChv62AHbM6G_"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 w-full md:ml-sidebar-expanded mt-16 p-grid-margin overflow-y-auto bg-surface-gray">
+<div class="max-w-7xl mx-auto space-y-6">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-background mb-1">Today's Schedule</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Wednesday, October 25th, 2023</p>
+</div>
+<div class="flex gap-3">
+<div class="flex items-center gap-2 px-3 py-1.5 bg-surface rounded border border-border-subtle">
+<span class="status-dot status-attended"></span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Attended</span>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 bg-surface rounded border border-border-subtle">
+<span class="status-dot status-pending"></span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Pending</span>
+</div>
+</div>
+</div>
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+<!-- Timetable Area (Takes up 8 columns on large screens) -->
+<div class="xl:col-span-8 space-y-4">
+<!-- Meeting Broadcast Alert -->
+<div class="bg-inverse-surface text-on-primary rounded-xl p-4 flex items-start gap-4 shadow-sm border border-outline-variant/20">
+<div class="p-2 bg-error-container rounded-lg mt-1">
+<span class="material-symbols-outlined text-on-error-container">campaign</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<h3 class="font-headline-sm text-headline-sm">Mandatory Staff Briefing</h3>
+<span class="font-label-caps text-label-caps text-inverse-primary">15:30 - 16:30</span>
+</div>
+<p class="font-body-sm text-body-sm text-inverse-on-surface/80 mb-3">Principal's Office · Focus: Upcoming end-of-term assessments and updated grading rubrics.</p>
+<div class="flex items-center gap-2 text-label-caps font-label-caps">
+<span class="material-symbols-outlined text-[14px]">location_on</span>
+<span>Main Assembly Hall A</span>
+</div>
+</div>
+<button class="px-4 py-2 bg-primary-fixed text-on-primary-fixed rounded font-label-caps text-label-caps hover:bg-primary-fixed-dim transition-colors">
+                            Acknowledge
+                        </button>
+</div>
+<!-- Timetable Grid -->
+<div class="bg-surface rounded-xl border border-border-subtle shadow-sm overflow-hidden">
+<div class="grid grid-cols-[80px_1fr] border-b border-border-subtle bg-surface-container-lowest">
+<div class="p-3 text-center border-r border-border-subtle">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Time</span>
+</div>
+<div class="p-3">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Session Details &amp; Attendance</span>
+</div>
+</div>
+<!-- Slot 1 (Attended) -->
+<div class="grid grid-cols-[80px_1fr] border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<div class="p-4 border-r border-border-subtle flex flex-col items-center justify-center bg-surface-container-lowest">
+<span class="font-data-mono text-data-mono text-on-surface">08:30</span>
+<span class="font-label-caps text-[9px] text-on-surface-variant mt-1">09:15</span>
+</div>
+<div class="p-3">
+<div class="bg-surface-container-lowest border-l-4 border-secondary-fixed p-4 rounded border-t border-r border-b border-border-subtle flex justify-between items-center group relative overflow-hidden">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h4 class="font-headline-sm text-headline-sm text-on-background">Advanced Mathematics</h4>
+<span class="px-2 py-0.5 bg-surface-container-low text-on-surface-variant rounded text-[10px] font-label-caps">Grade 11-A</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Room 302 · Topic: Integration Techniques</p>
+</div>
+<div class="flex flex-col items-end gap-2">
+<div class="flex items-center gap-1.5 text-secondary">
+<span class="status-dot status-attended"></span>
+<span class="font-label-caps text-label-caps">Marked Attended</span>
+</div>
+<span class="font-data-mono text-[10px] text-outline">Logged 08:32 AM</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Slot 2 (Pending - Current) -->
+<div class="grid grid-cols-[80px_1fr] border-b border-border-subtle bg-primary/5">
+<div class="p-4 border-r border-border-subtle flex flex-col items-center justify-center bg-surface-container-lowest relative">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<span class="font-data-mono text-data-mono text-primary font-bold">09:20</span>
+<span class="font-label-caps text-[9px] text-on-surface-variant mt-1">10:05</span>
+</div>
+<div class="p-3">
+<div class="bg-surface-container-lowest border border-primary/30 p-4 rounded shadow-sm relative overflow-hidden">
+<div class="absolute top-0 right-0 bg-primary text-on-primary px-2 py-1 text-[10px] font-label-caps rounded-bl">Active Now</div>
+<div class="flex justify-between items-center mt-2">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h4 class="font-headline-sm text-headline-sm text-on-background">Physics Laboratory</h4>
+<span class="px-2 py-0.5 bg-surface-container-low text-on-surface-variant rounded text-[10px] font-label-caps">Grade 12-B</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Lab 4 · Experiment: Wave Mechanics</p>
+</div>
+<!-- The Action Button -->
+<button class="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded shadow-sm hover:bg-primary-container transition-colors active:scale-95 cursor-pointer">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+<span class="font-label-caps text-label-caps">Mark as Taught</span>
+</button>
+</div>
+<div class="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-body-sm">
+<div class="flex items-center gap-4">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">group</span> 28/30 Present</span>
+<button class="text-primary hover:underline font-body-sm">Take Student Register</button>
+</div>
+<span class="text-error font-body-sm flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">warning</span> Action Required</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Break -->
+<div class="grid grid-cols-[80px_1fr] border-b border-border-subtle bg-surface-gray/50">
+<div class="p-2 border-r border-border-subtle flex flex-col items-center justify-center">
+<span class="font-data-mono text-[11px] text-on-surface-variant">10:05</span>
+</div>
+<div class="p-2 flex items-center justify-center text-on-surface-variant">
+<span class="font-label-caps text-label-caps opacity-60">Morning Break (20 mins)</span>
+</div>
+</div>
+<!-- Slot 3 (Upcoming) -->
+<div class="grid grid-cols-[80px_1fr] border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<div class="p-4 border-r border-border-subtle flex flex-col items-center justify-center bg-surface-container-lowest">
+<span class="font-data-mono text-data-mono text-on-surface">10:25</span>
+<span class="font-label-caps text-[9px] text-on-surface-variant mt-1">11:10</span>
+</div>
+<div class="p-3">
+<div class="bg-surface-container-lowest border border-border-subtle p-4 rounded opacity-75">
+<div class="flex justify-between items-start">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h4 class="font-headline-sm text-headline-sm text-on-background">Computer Science</h4>
+<span class="px-2 py-0.5 bg-surface-container-low text-on-surface-variant rounded text-[10px] font-label-caps">Grade 10-C</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Room 101 · Topic: Introduction to Python</p>
+</div>
+<div class="px-3 py-1 border border-border-subtle rounded text-on-surface-variant font-label-caps text-label-caps">
+                                            Upcoming
+                                        </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Sidebar (Takes up 4 columns on large screens) -->
+<div class="xl:col-span-4 space-y-6">
+<!-- Intelligence Module (Glassmorphism) -->
+<div class="glass-panel rounded-xl p-5 text-white shadow-sm border border-white/10 relative overflow-hidden">
+<!-- Decorative shader bg -->
+<div class="absolute inset-0 opacity-20 pointer-events-none mix-blend-overlay">
+
+</div>
+<div class="relative z-10">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-secondary-fixed">insights</span>
+<h3 class="font-headline-sm text-headline-sm">Performance Insight</h3>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-body-sm mb-1 opacity-90">
+<span>Attendance Logging Rate</span>
+<span class="font-data-mono">98%</span>
+</div>
+<div class="w-full bg-white/20 rounded-full h-1.5">
+<div class="bg-secondary-fixed h-1.5 rounded-full" style="width: 98%"></div>
+</div>
+</div>
+<p class="font-body-sm text-body-sm opacity-80 border-t border-white/20 pt-3">
+                                    You are in the top 5% of staff for timely lesson registration this term. Keep it up!
+                                </p>
+</div>
+</div>
+</div>
+<!-- Quick Actions Card -->
+<div class="bg-surface rounded-xl border border-border-subtle shadow-sm p-5">
+<h3 class="font-headline-sm text-headline-sm text-on-background mb-4">Quick Links</h3>
+<div class="space-y-2">
+<button class="w-full flex items-center justify-between p-3 rounded hover:bg-surface-container-low border border-transparent hover:border-border-subtle transition-colors group">
+<div class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined text-outline">description</span>
+<span class="font-body-md">Submit Lesson Plans</span>
+</div>
+<span class="material-symbols-outlined text-outline opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded hover:bg-surface-container-low border border-transparent hover:border-border-subtle transition-colors group">
+<div class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined text-outline">assignment_turned_in</span>
+<span class="font-body-md">Grade Pending Assignments</span>
+</div>
+<span class="bg-error text-on-error font-label-caps text-[10px] px-2 py-0.5 rounded-full">3</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded hover:bg-surface-container-low border border-transparent hover:border-border-subtle transition-colors group">
+<div class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined text-outline">chat</span>
+<span class="font-body-md">Message Department Head</span>
+</div>
+<span class="material-symbols-outlined text-outline opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Simple micro-interaction for the 'Mark as Taught' button
+        document.querySelectorAll('button:has(.material-symbols-outlined:contains("check_circle"))').forEach(btn => {
+            if(btn.innerText.includes('Mark as Taught')) {
+                btn.addEventListener('click', function() {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = `<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span><span class="font-label-caps text-label-caps">Logging...</span>`;
+                    this.classList.remove('bg-primary');
+                    this.classList.add('bg-surface-tint', 'pointer-events-none');
+                    
+                    setTimeout(() => {
+                        this.innerHTML = `<span class="material-symbols-outlined text-[18px]">done_all</span><span class="font-label-caps text-label-caps">Logged</span>`;
+                        this.classList.remove('bg-surface-tint');
+                        this.classList.add('bg-secondary', 'text-on-secondary');
+                        
+                        // Find parent container and update styling to match 'Attended' state
+                        const container = this.closest('.p-4');
+                        if(container) {
+                            container.classList.remove('border-primary/30');
+                            container.classList.add('border-l-4', 'border-secondary-fixed', 'border-t', 'border-r', 'border-b', 'border-border-subtle');
+                            const activeTag = container.querySelector('.absolute.top-0');
+                            if(activeTag) activeTag.remove();
+                            
+                            const actionReq = container.querySelector('.text-error');
+                            if(actionReq) {
+                                actionReq.className = 'text-secondary font-body-sm flex items-center gap-1';
+                                actionReq.innerHTML = `<span class="material-symbols-outlined text-[16px]">check</span> Verified`;
+                            }
+                        }
+                    }, 1000);
+                });
+            }
+        });
+    </script>
+</body></html>

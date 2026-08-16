@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Timetable Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        /* Grid specific styles for the timetable */
+        .timetable-grid {
+            display: grid;
+            grid-template-columns: 60px repeat(5, 1fr);
+            grid-auto-rows: minmax(60px, auto);
+            gap: 1px;
+            background-color: theme('colors.border-subtle');
+            border: 1px solid theme('colors.border-subtle');
+        }
+        .timetable-cell {
+            background-color: theme('colors.surface-container-lowest');
+            padding: 4px;
+            position: relative;
+        }
+        .timetable-header-cell {
+            background-color: theme('colors.surface-gray');
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .time-label {
+            background-color: theme('colors.surface-gray');
+            padding: 8px 4px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-end;
+            font-size: 11px;
+            color: theme('colors.on-surface-variant');
+        }
+        
+        /* Drag and Drop visual feedback classes */
+        .droppable-hover {
+            background-color: theme('colors.surface-container-low');
+            border: 2px dashed theme('colors.primary');
+        }
+
+        /* Parallelogram Styles & Animations */
+        .lesson-card-shape {
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+        }
+
+        @keyframes slideInParallelogram {
+            0% {
+                opacity: 0;
+                transform: translateX(-20px) skewX(-10deg);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0) skewX(-10deg);
+            }
+        }
+
+        .card-animate {
+            animation: slideInParallelogram 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            opacity: 0;
+            /* Ensure the element maintains the skew at the end */
+            transform: skewX(-10deg);
+        }
+
+        .card-content-counter-skew {
+            transform: skewX(10deg);
+        }
+
+        /* Staggered delays */
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+        .delay-400 { animation-delay: 400ms; }
+        .delay-500 { animation-delay: 500ms; }
+        .delay-600 { animation-delay: 600ms; }
+        .delay-700 { animation-delay: 700ms; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-surface": "#213145",
+                      "on-primary": "#ffffff",
+                      "surface-container-low": "#eff4ff",
+                      "tertiary-fixed-dim": "#edbe8b",
+                      "outline": "#74777e",
+                      "on-error": "#ffffff",
+                      "background": "#f8f9ff",
+                      "on-primary-fixed": "#001c38",
+                      "surface-dim": "#cbdbf5",
+                      "surface-container-lowest": "#ffffff",
+                      "tertiary-fixed": "#ffddba",
+                      "tertiary-container": "#3e2300",
+                      "on-surface-variant": "#43474d",
+                      "on-tertiary": "#ffffff",
+                      "primary": "#00152c",
+                      "on-secondary-fixed": "#002109",
+                      "surface-container": "#e5eeff",
+                      "inverse-on-surface": "#eaf1ff",
+                      "on-secondary": "#ffffff",
+                      "on-background": "#0b1c30",
+                      "surface": "#f8f9ff",
+                      "on-tertiary-fixed-variant": "#604018",
+                      "surface-tint": "#486080",
+                      "on-primary-fixed-variant": "#304867",
+                      "surface-gray": "#F9FAFB",
+                      "on-secondary-fixed-variant": "#005321",
+                      "tertiary": "#221100",
+                      "primary-container": "#0f2a47",
+                      "on-surface": "#0b1c30",
+                      "on-primary-container": "#7a92b4",
+                      "error": "#ba1a1a",
+                      "on-secondary-container": "#007432",
+                      "secondary": "#006e2f",
+                      "on-tertiary-container": "#b2885a",
+                      "border-subtle": "#E2E8F0",
+                      "primary-fixed-dim": "#b0c8ed",
+                      "surface-container-highest": "#d3e4fe",
+                      "primary-fixed": "#d3e4ff",
+                      "on-tertiary-fixed": "#2b1700",
+                      "secondary-container": "#6bff8f",
+                      "secondary-fixed-dim": "#4ae176",
+                      "deep-navy": "#0B1B2D",
+                      "surface-bright": "#f8f9ff",
+                      "surface-variant": "#d3e4fe",
+                      "inverse-primary": "#b0c8ed",
+                      "error-container": "#ffdad6",
+                      "on-error-container": "#93000a",
+                      "surface-container-high": "#dce9ff",
+                      "secondary-fixed": "#6bff8f",
+                      "outline-variant": "#c4c6ce"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "sidebar-collapsed": "64px",
+                      "sidebar-expanded": "240px",
+                      "grid-margin": "24px",
+                      "gutter": "16px",
+                      "compact-padding": "8px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Geist"
+                      ],
+                      "display-lg": [
+                              "Geist"
+                      ],
+                      "headline-sm": [
+                              "Geist"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "data-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "headline-md-mobile": [
+                              "Geist"
+                      ],
+                      "label-caps": [
+                              "JetBrains Mono"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-sm": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-sm": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "data-mono": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md-mobile": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+            },
+          }
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface font-body-md h-screen overflow-hidden flex">
+<!-- SideNavBar -->
+<nav class="bg-deep-navy dark:bg-primary fixed left-0 top-0 h-full w-sidebar-expanded border-r border-outline-variant flex flex-col overflow-y-auto z-50 transition-all duration-300">
+<div class="p-4 border-b border-white/10 flex items-center gap-3">
+<div class="w-8 h-8 rounded-DEFAULT bg-primary-fixed flex items-center justify-center font-headline-md text-primary font-bold">P</div>
+<div class="flex flex-col">
+<span class="font-headline-md text-headline-md text-on-primary font-bold">Phikila OS</span>
+<span class="text-[11px] text-on-primary/60 uppercase tracking-wider">Admin Console</span>
+</div>
+<button class="ml-auto text-on-primary/60 hover:text-white transition-colors" id="sidebar-toggle"><span class="material-symbols-outlined">menu_open</span></button></div>
+<div class="p-4">
+<button class="w-full bg-white/10 hover:bg-white/20 text-white font-body-sm py-2 px-4 rounded-DEFAULT transition-colors duration-200 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span> Quick Action
+            </button>
+</div>
+<div class="flex-1 py-2">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">school</span>
+<span>Academics</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Students</span>
+</a>
+<a class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span>Timetable</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Finance</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</div>
+<div class="mt-auto border-t border-white/10 py-2">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Support</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 ml-sidebar-expanded flex flex-col h-full bg-background relative transition-all duration-300">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-deep-navy border-b border-border-subtle shadow-sm flex justify-between items-center px-grid-margin w-full h-16 z-40 sticky top-0">
+<div class="flex items-center gap-4">
+<h1 class="font-headline-sm text-headline-sm text-primary dark:text-primary-fixed font-semibold">Timetable Workspace</h1>
+</div>
+<div class="flex-1 max-w-md mx-8">
+<div class="relative focus-within:ring-2 focus-within:ring-primary/10 rounded-DEFAULT">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-border-subtle rounded-DEFAULT text-body-sm font-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" placeholder="Search resources..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<div class="h-6 w-px bg-border-subtle mx-2"></div>
+<button class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors uppercase">
+                    Help
+                </button>
+<div class="w-8 h-8 rounded-full bg-surface-variant border border-border-subtle overflow-hidden flex-shrink-0 cursor-pointer">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A professional headshot of a school administrator in a modern office environment, well-lit with natural light, sharp focus, high quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFdvqreADZVQBJnL02y2GqVKWlwTxhhW2PSYjT10pfTKN6rjAWOZcNQ0Mtt4YZqZMz0ey4un0ukFKlqUWI0m53oshfIcOortzvGzQpQFgmfB6uL0sOk0zzdnRx7GcO13-fLnb0JlJwRw2B0QTcNkZPZ0g8hF1ULeZgaYj1eAxpF1i2EVgrBQvLZsEOmNKRYhs-z1m6Q5Gb8--ogn6Cu6rC0hTk4KpqFwWFelA2p5SZqCGn1MWTUpR1"/>
+</div>
+</div>
+</header>
+<!-- Workspace Content -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Left Sidebar: Unassigned Lessons -->
+<aside class="w-[280px] bg-surface-gray border-r border-border-subtle flex flex-col h-full flex-shrink-0">
+<div class="p-4 border-b border-border-subtle bg-surface-container-lowest">
+<h2 class="font-headline-sm text-headline-sm mb-1">Unassigned (24)</h2>
+<p class="text-body-sm text-on-surface-variant">Drag cards to grid</p>
+</div>
+<div class="p-4 flex flex-col gap-3 overflow-y-auto flex-1">
+<!-- Draggable Card 1 -->
+<div class="card-animate delay-100 lesson-card-shape bg-surface-container-lowest border border-border-subtle rounded-DEFAULT p-3 cursor-move hover:shadow-sm hover:border-primary/50 transition-all group relative" draggable="true">
+<div class="card-content-counter-skew">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-caps text-label-caps text-primary bg-primary-fixed-dim/20 px-1.5 py-0.5 rounded-sm">F3A - Physics</span>
+<span class="material-symbols-outlined text-outline text-[16px] group-hover:text-primary">drag_indicator</span>
+</div>
+<div class="font-body-sm text-on-surface font-medium mb-1">Dr. A. Smith</div>
+<div class="flex items-center gap-1 text-on-surface-variant text-[11px]">
+<span class="material-symbols-outlined text-[14px]">meeting_room</span> Lab 4 (Cap: 30)
+                            </div>
+</div>
+</div>
+<!-- Draggable Card 2 -->
+<div class="card-animate delay-200 lesson-card-shape bg-surface-container-lowest border border-border-subtle rounded-DEFAULT p-3 cursor-move hover:shadow-sm hover:border-primary/50 transition-all group relative" draggable="true">
+<div class="card-content-counter-skew">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-caps text-label-caps text-tertiary bg-tertiary-fixed/50 px-1.5 py-0.5 rounded-sm">F1B - History</span>
+<span class="material-symbols-outlined text-outline text-[16px] group-hover:text-primary">drag_indicator</span>
+</div>
+<div class="font-body-sm text-on-surface font-medium mb-1">Mr. J. Doe</div>
+<div class="flex items-center gap-1 text-on-surface-variant text-[11px]">
+<span class="material-symbols-outlined text-[14px]">meeting_room</span> Room 102 (Cap: 40)
+                            </div>
+</div>
+</div>
+<!-- Draggable Card 3 -->
+<div class="card-animate delay-300 lesson-card-shape bg-surface-container-lowest border border-border-subtle rounded-DEFAULT p-3 cursor-move hover:shadow-sm hover:border-primary/50 transition-all group relative" draggable="true">
+<div class="card-content-counter-skew">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-caps text-label-caps text-secondary bg-secondary-fixed/30 px-1.5 py-0.5 rounded-sm">F4C - Math</span>
+<span class="material-symbols-outlined text-outline text-[16px] group-hover:text-primary">drag_indicator</span>
+</div>
+<div class="font-body-sm text-on-surface font-medium mb-1">Ms. L. Croft</div>
+<div class="flex items-center gap-1 text-on-surface-variant text-[11px]">
+<span class="material-symbols-outlined text-[14px]">meeting_room</span> Room 205 (Cap: 35)
+                            </div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Timetable Area -->
+<div class="flex-1 flex flex-col h-full bg-surface-gray overflow-hidden">
+<!-- Action & Filter Bar -->
+<div class="bg-surface-container-lowest border-b border-border-subtle px-grid-margin py-3 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10">
+<div class="flex items-center gap-3">
+<div class="relative">
+<select class="appearance-none bg-surface border border-border-subtle text-body-sm font-body-sm rounded-DEFAULT pl-3 pr-8 py-1.5 focus:outline-none focus:border-primary cursor-pointer text-on-surface">
+<option>All Classes</option>
+<option>Form 1</option>
+<option>Form 2</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[16px] text-outline">expand_more</span>
+</div>
+<div class="relative">
+<select class="appearance-none bg-surface border border-border-subtle text-body-sm font-body-sm rounded-DEFAULT pl-3 pr-8 py-1.5 focus:outline-none focus:border-primary cursor-pointer text-on-surface">
+<option>All Teachers</option>
+<option>Dr. Smith</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[16px] text-outline">expand_more</span>
+</div>
+<div class="relative">
+<select class="appearance-none bg-surface border border-border-subtle text-body-sm font-body-sm rounded-DEFAULT pl-3 pr-8 py-1.5 focus:outline-none focus:border-primary cursor-pointer text-on-surface">
+<option>All Rooms</option>
+<option>Lab 4</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[16px] text-outline">expand_more</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-DEFAULT transition-colors" title="Undo">
+<span class="material-symbols-outlined text-[20px]">undo</span>
+</button>
+<button class="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-DEFAULT transition-colors" title="Redo">
+<span class="material-symbols-outlined text-[20px]">redo</span>
+</button>
+<div class="h-5 w-px bg-border-subtle mx-1"></div>
+<button class="px-3 py-1.5 text-body-sm font-body-sm text-error hover:bg-error-container/20 rounded-DEFAULT border border-transparent hover:border-error-container transition-colors">
+                            Clear All
+                        </button>
+<button class="px-4 py-1.5 text-body-sm font-body-sm text-primary border border-outline-variant hover:border-primary hover:bg-surface-container-high rounded-DEFAULT transition-colors bg-surface-container-lowest">
+                            Publish
+                        </button>
+<button class="px-4 py-1.5 text-body-sm font-body-sm text-white bg-deep-navy hover:bg-primary rounded-DEFAULT shadow-sm flex items-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span> Auto-Generate
+                        </button>
+</div>
+</div>
+<!-- Timetable Grid Container -->
+<div class="flex-1 overflow-auto p-grid-margin">
+<div class="min-w-[800px] timetable-grid rounded-DEFAULT overflow-hidden shadow-sm">
+<!-- Header Row -->
+<div class="timetable-header-cell border-b border-r border-border-subtle bg-surface-container-lowest"></div> <!-- Empty top-left -->
+<div class="timetable-header-cell border-b border-border-subtle font-label-caps text-label-caps text-on-surface uppercase">Monday</div>
+<div class="timetable-header-cell border-b border-border-subtle font-label-caps text-label-caps text-on-surface uppercase">Tuesday</div>
+<div class="timetable-header-cell border-b border-border-subtle font-label-caps text-label-caps text-on-surface uppercase">Wednesday</div>
+<div class="timetable-header-cell border-b border-border-subtle font-label-caps text-label-caps text-on-surface uppercase">Thursday</div>
+<div class="timetable-header-cell border-b border-border-subtle font-label-caps text-label-caps text-on-surface uppercase">Friday</div>
+<!-- 08:00 AM Row -->
+<div class="time-label border-r border-border-subtle font-data-mono">08:00</div>
+<!-- Cell M1: Assigned, Standard -->
+<div class="timetable-cell">
+<div class="card-animate delay-400 lesson-card-shape bg-primary-fixed/30 border border-primary/20 rounded-sm p-1.5 h-full w-full flex flex-col gap-0.5 hover:shadow-sm transition-all cursor-pointer group">
+<div class="card-content-counter-skew h-full flex flex-col">
+<div class="flex justify-between items-start">
+<span class="font-headline-sm text-[13px] text-primary font-bold leading-none">MATH</span>
+<span class="material-symbols-outlined text-[12px] text-primary/40 opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-medium leading-none mt-1">Ms. Croft</div>
+<div class="mt-auto text-[10px] text-on-surface-variant/80 font-data-mono leading-none">R205 • F4A</div>
+</div>
+</div>
+</div>
+<!-- Cell T1: Empty -->
+<div class="timetable-cell"></div>
+<!-- Cell W1: Assigned, Locked -->
+<div class="timetable-cell">
+<div class="card-animate delay-500 lesson-card-shape bg-surface-gray border-l-2 border-l-outline border border-border-subtle rounded-sm p-2 h-full w-full flex flex-col justify-between relative opacity-80">
+<div class="card-content-counter-skew h-full flex flex-col">
+<div class="flex justify-between items-start mb-1">
+<span class="font-body-sm font-medium text-on-surface leading-tight">Assembly</span>
+<span class="material-symbols-outlined text-[14px] text-outline">lock</span>
+</div>
+<div class="mt-auto">
+<div class="text-[11px] text-on-surface-variant font-data-mono">All Forms</div>
+<div class="text-[11px] text-on-surface-variant font-data-mono">Main Hall</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Cell Th1: Conflict -->
+<div class="timetable-cell">
+<div class="card-animate delay-600 lesson-card-shape bg-error-container/20 border-2 border-error rounded-sm p-1.5 h-full w-full flex flex-col gap-0.5 relative overflow-hidden cursor-pointer">
+<div class="card-content-counter-skew h-full flex flex-col">
+<div class="flex justify-between items-start">
+<span class="font-headline-sm text-[13px] text-error font-bold leading-none">CHEM</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-medium leading-none mt-1">Dr. Hyde</div>
+<div class="mt-auto text-[10px] text-error font-bold leading-none uppercase text-[9px]">Conflict</div>
+</div>
+</div>
+</div>
+<!-- Cell F1: Empty -->
+<div class="timetable-cell"></div>
+<!-- 09:00 AM Row -->
+<div class="time-label border-r border-border-subtle font-data-mono">09:00</div>
+<!-- Cells -->
+<div class="timetable-cell"></div>
+<div class="timetable-cell">
+<div class="card-animate delay-700 lesson-card-shape bg-secondary-fixed/30 border border-secondary/20 rounded-sm p-1.5 h-full w-full flex flex-col gap-0.5 hover:shadow-sm transition-all cursor-pointer group">
+<div class="card-content-counter-skew h-full flex flex-col">
+<div class="flex justify-between items-start">
+<span class="font-headline-sm text-[13px] text-secondary font-bold leading-none">BIOL</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-medium leading-none mt-1">Mr. Darwin</div>
+<div class="mt-auto text-[10px] text-on-surface-variant/80 font-data-mono leading-none">LAB2 • F2B</div>
+</div>
+</div>
+</div>
+<div class="timetable-cell"></div>
+<div class="timetable-cell"></div>
+<div class="timetable-cell">
+<div class="card-animate delay-700 lesson-card-shape bg-tertiary-fixed/30 border-2 border-[#d9a300] rounded-sm p-1.5 h-full w-full flex flex-col gap-0.5 relative overflow-hidden cursor-pointer" title="Capacity warning: Class size 42 exceeds Room cap 40">
+<div class="card-content-counter-skew h-full flex flex-col">
+<div class="flex justify-between items-start">
+<span class="font-headline-sm text-[13px] text-[#7a5c00] font-bold leading-none">HIST</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-medium leading-none mt-1">Mr. Doe</div>
+<div class="mt-auto text-[10px] text-[#7a5c00] font-data-mono leading-none">R102 • F1A</div>
+</div>
+</div>
+</div>
+<!-- 10:00 AM Row (Break) -->
+<div class="time-label border-r border-border-subtle font-data-mono">10:00</div>
+<div class="timetable-cell bg-surface-gray border-t border-border-subtle col-span-5 flex items-center justify-center">
+<span class="font-label-caps text-label-caps text-outline tracking-[0.2em] uppercase">Break</span>
+</div>
+</div>
+</div>
+</div>
+<aside class="w-[280px] bg-surface-gray border-l border-border-subtle flex flex-col h-full flex-shrink-0 transition-all duration-300" id="right-sidebar"><div class="p-4 border-b border-border-subtle bg-surface-container-lowest flex justify-between items-center"><h2 class="font-headline-sm text-headline-sm">Details</h2><button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined">close</span></button></div><div class="p-4 flex flex-col gap-4 overflow-y-auto flex-1"><div class="p-4 border border-dashed border-outline-variant rounded-DEFAULT text-center text-body-sm text-on-surface-variant">Select a lesson card to view details</div></div></aside></main>
+</div>
+<button class="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-deep-navy text-white shadow-lg flex items-center justify-center hover:bg-primary transition-all z-50 group" title="AI Assistant"><span class="material-symbols-outlined text-[28px] group-hover:scale-110 transition-transform">auto_awesome</span></button></body></html>
