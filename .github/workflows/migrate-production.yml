@@ -1,0 +1,48 @@
+name: Migrate production database
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type MIGRATE to confirm production migration"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    if: ${{ inputs.confirm == 'MIGRATE' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Check out production code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Validate database secret
+        run: |
+          test -n "$DATABASE_URL" || {
+            echo "DATABASE_URL GitHub Actions secret is not configured."
+            exit 1
+          }
+
+      - name: Show migration plan
+        run: alembic current && alembic heads
+
+      - name: Apply migrations
+        run: alembic upgrade head
+
+      - name: Verify migration state
+        run: alembic current
