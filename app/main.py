@@ -14,6 +14,7 @@ from app.modules.finance.router import router as finance_router
 from app.modules.finance.operations_router import router as finance_operations_router
 from app.modules.finance.account_mapping_router import router as finance_account_mapping_router
 from app.modules.finance.reports_router import router as finance_reports_router
+from app.modules.finance.completion_router import router as finance_completion_router
 from app.modules.llm.router import router as llm_router
 from app.modules.ocr.router import router as ocr_router
 from app.modules.platform.router import router as platform_router
@@ -23,7 +24,7 @@ from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
 FRONTEND_DIST=Path(__file__).resolve().parent.parent/'frontend'/'dist'
 class SPAStaticFiles(StaticFiles):
-    backend_roots=frozenset({'api','health','docs','redoc','openapi.json'})
+    backend_roots=frozenset({'api','health','ready','docs','redoc','openapi.json'})
     async def get_response(self,path:str,scope:dict):
         try:return await super().get_response(path,scope)
         except StarletteHTTPException as error:
@@ -56,6 +57,7 @@ def create_app()->FastAPI:
     app.include_router(exams_router,prefix='/api/v1',tags=['Examinations'])
     app.include_router(finance_router,prefix='/api/v1',tags=['Finance'])
     app.include_router(finance_operations_router,prefix='/api/v1',tags=['Finance Operations'])
+    app.include_router(finance_completion_router,prefix='/api/v1',tags=['Finance Treasury'])
     app.include_router(finance_account_mapping_router,prefix='/api/v1',tags=['Finance Account Mapping'])
     app.include_router(finance_reports_router,prefix='/api/v1',tags=['Finance Reports'])
     app.include_router(ocr_router,prefix='/api/v1/ocr',tags=['Document OCR'])
