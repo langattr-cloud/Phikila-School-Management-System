@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title id="title">Phikila School Management System</title>
+<desc id="desc">Gold circular Phikila education logo with graduation cap, stylised P, open book and Phikila wordmark.</desc>
+<rect width="512" height="512" fill="#fff"/>
+<circle cx="256" cy="256" r="238" fill="none" stroke="#c9982e" stroke-width="7"/>
+<circle cx="256" cy="256" r="224" fill="none" stroke="#c9982e" stroke-width="3"/>
+<g fill="#c9982e"><path d="M256 54l9 27 27 9-27 9-9 27-9-27-27-9 27-9z"/><path d="M68 256l8 24 24 8-24 8-8 24-8-24-24-8 24-8z"/><path d="M444 256l8 24 24 8-24 8-8 24-8-24-24-8 24-8z"/><path d="M256 423l7 22 22 7-22 7-7 22-7-22-22-7 22-7z"/></g>
+<path d="M154 121l102-35 102 35-102 35z" fill="#c9982e"/><path d="M185 143h142v31c-35 23-107 23-142 0z" fill="#d8aa45"/><path d="M174 136v58h8v-55z" fill="#c9982e"/><circle cx="178" cy="198" r="9" fill="#c9982e"/><path d="M174 207c-5 15-8 28-8 42 8-8 16-8 24 0 0-14-3-27-8-42z" fill="#c9982e"/>
+<path d="M221 158h65c35 0 55 19 55 45 0 28-20 47-55 47h-25v66h-40z" fill="#111"/><path d="M261 177h25c18 0 29 9 29 26 0 17-11 27-29 27h-25z" fill="#fff"/>
+<path d="M175 318c27-15 57-19 81-4v30c-25-14-54-14-81 1zM337 318c-27-15-57-19-81-4v30c25-14 54-14 81 1z" fill="#111"/><path d="M256 310l13 17-13 19-13-19z" fill="#c9982e"/>
+<text x="256" y="402" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="59" font-weight="700" letter-spacing="1" fill="#111">Phikila</text><path d="M125 425h105M282 425h105" stroke="#c9982e" stroke-width="3"/><path d="M256 419l6 6-6 6-6-6z" fill="#c9982e"/>
+</svg>
