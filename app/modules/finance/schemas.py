@@ -90,3 +90,52 @@ class FinanceOverview(BaseModel):
     invoices_count: int
     paid_count: int
     pending_count: int
+
+
+class PaymentDecodeRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=5000)
+
+
+class PaymentDecodeResponse(BaseModel):
+    amount: Decimal | None = None
+    external_reference: str | None = None
+    student_identifier: str | None = None
+    received_at: datetime | None = None
+    account_name: str | None = None
+    bank: str | None = None
+    payment_channel: str | None = None
+    raw_message: str
+
+
+class PaymentInboxCreate(BaseModel):
+    source: str = Field(min_length=1, max_length=30)
+    raw_message: str = Field(min_length=1, max_length=10000)
+    source_account: str | None = None
+    account_name: str | None = None
+    amount: Decimal | None = Field(default=None, gt=0)
+    external_reference: str | None = None
+    student_identifier: str | None = None
+    received_at: datetime | None = None
+    payment_channel: str | None = None
+
+
+class PaymentInboxResponse(BaseModel):
+    id: int
+    school_id: int
+    source: str
+    source_account: str | None = None
+    account_name: str | None = None
+    raw_message: str
+    amount: Decimal
+    external_reference: str
+    student_identifier: str | None = None
+    received_at: datetime
+    payment_channel: str | None = None
+    matched_student_id: int | None = None
+    match_method: str | None = None
+    match_confidence: Decimal | None = None
+    status: str
+    duplicate_of: int | None = None
+    notes: str | None = None
+    created_at: datetime | None = None
+    model_config = {"from_attributes": True}
