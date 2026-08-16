@@ -1,3 +1,3 @@
-import AcademicsPage from './AcademicsPage';
+import { AcademicsPage } from './AcademicsPage'
 
-export default AcademicsPage;
+export default AcademicsPage
