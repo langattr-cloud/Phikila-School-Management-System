@@ -15,7 +15,7 @@ export class ApiError extends Error {
 /** User-facing copy for an API failure. Never surfaces backend internals. */
 export function friendlyApiError(error: unknown, action: string): string {
   if (error instanceof ApiError) {
-    if (error.status === 401) return 'Your session has expired. Please sign in again.'
+    if (error.status === 401) return 'Your sign-in could not be verified. Please sign in again.'
     if (error.status === 403) return `You do not have permission to ${action}.`
     if (error.status === 404) return 'That information has not been set up yet.'
     if (error.status === 422 || error.status === 400) return 'Some details were not accepted. Check the form and try again.'
@@ -27,8 +27,9 @@ export function friendlyApiError(error: unknown, action: string): string {
 
 async function refreshSessionToken(): Promise<string | null> {
   if (!supabase) return null
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) return null
+  const { data: refreshed, error } = await supabase.auth.refreshSession()
+  if (!error && refreshed.session?.access_token) return refreshed.session.access_token
+
   const { data: session } = await supabase.auth.getSession()
   return session?.session?.access_token ?? null
 }
@@ -61,9 +62,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, authenti
   }
   try { return await doFetch(headers) }
   catch (error) {
-    if (authenticated && error instanceof ApiError && error.status === 401) {
+    if (authenticated && error instanceof ApiError && error.status === 401 && supabase) {
       const newToken = await refreshSessionToken()
-      if (newToken) { const retryHeaders = new Headers(headers); retryHeaders.set('Authorization', `Bearer ${newToken}`); return await doFetch(retryHeaders) }
+      if (newToken && newToken !== headers.get('Authorization')?.replace(/^Bearer /, '')) {
+        const retryHeaders = new Headers(headers)
+        retryHeaders.set('Authorization', `Bearer ${newToken}`)
+        return await doFetch(retryHeaders)
+      }
     }
     throw error
   }
