@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.scheduling.tenancy import Principal, require_role
 from app.modules.students.models_v2 import Student
+from app.modules.teachers.models import Teacher
 
 from . import models_v2 as m
 from . import schemas_v2 as s
@@ -41,6 +42,12 @@ def _exam_subject(db: Session, school_id: int, exam_id: int, subject_id: int, cl
     if class_id is not None:
         query = query.filter(m.ExamSubject.class_id == class_id)
     return query.first()
+
+
+def _validate_assignment_teacher(db: Session, teacher_id: int | None) -> None:
+    """Reject assignment references to non-existent teachers."""
+    if teacher_id is not None and not db.query(Teacher.id).filter(Teacher.id == teacher_id).first():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Assigned teacher does not exist.")
 
 
 def _can_enter_subject(db: Session, principal: Principal, exam_id: int, subject_id: int, student_id: int) -> bool:
@@ -158,6 +165,7 @@ def assign_exam_subject(
     ).first()
     if not exam:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination not found.")
+    _validate_assignment_teacher(db, payload.teacher_id)
     existing = _exam_subject(db, principal.school_id, exam_id, payload.subject_id, payload.class_id)
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, "That class and subject are already assigned to this examination.")
@@ -199,6 +207,19 @@ def update_exam_subject_assignment(
     ), {"id": assignment_id, "school_id": principal.school_id, "exam_id": exam_id}).first()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination subject assignment not found.")
+    _validate_assignment_teacher(db, payload.teacher_id)
+    duplicate = db.execute(text(
+        "SELECT id FROM exam_subjects WHERE school_id=:school_id AND exam_id=:exam_id "
+        "AND subject_id=:subject_id AND class_id=:class_id AND id<>:id"
+    ), {
+        "school_id": principal.school_id,
+        "exam_id": exam_id,
+        "subject_id": payload.subject_id,
+        "class_id": payload.class_id,
+        "id": assignment_id,
+    }).first()
+    if duplicate:
+        raise HTTPException(status.HTTP_409_CONFLICT, "That class and subject are already assigned to this examination.")
     db.execute(text(
         "UPDATE exam_subjects SET subject_id=:subject_id, class_id=:class_id, "
         "teacher_id=:teacher_id, total_marks=:total_marks WHERE id=:id AND school_id=:school_id"
@@ -264,8 +285,9 @@ def enter_scores(exam_id: int, payload: s.BulkScoreEntry, db: Session = Depends(
         if existing:
             existing.score = entry.score
             existing.grade = grade
+            existing.position = entry.position
             existing.remarks = entry.remarks
-            existing.entered_by = principal.user_id
+            existing.entered_by = principal.email or principal.user_id
             updated += 1
         else:
             db.add(m.ExamEntry(
@@ -275,95 +297,11 @@ def enter_scores(exam_id: int, payload: s.BulkScoreEntry, db: Session = Depends(
                 subject_id=entry.subject_id,
                 score=entry.score,
                 grade=grade,
+                position=entry.position,
                 remarks=entry.remarks,
-                entered_by=principal.user_id,
+                entered_by=principal.email or principal.user_id,
             ))
             created += 1
 
-    _audit(db, principal, "score_entry", "examination", exam_id,
-           f"Entered {created} new + {updated} updated scores for '{exam.name}'")
     db.commit()
-    return {"created": created, "updated": updated}
-
-
-@router.get("/examinations/{exam_id}/entries", response_model=list[s.ExamEntryResponse])
-def list_entries(
-    exam_id: int,
-    subject_id: int | None = Query(default=None),
-    student_id: int | None = Query(default=None),
-    db: Session = Depends(get_db),
-    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
-):
-    q = db.query(m.ExamEntry).filter(m.ExamEntry.exam_id == exam_id, m.ExamEntry.school_id == principal.school_id)
-    if subject_id:
-        q = q.filter(m.ExamEntry.subject_id == subject_id)
-    if student_id:
-        q = q.filter(m.ExamEntry.student_id == student_id)
-    return q.all()
-
-
-# ---- Results Generation ----
-
-@router.get("/examinations/{exam_id}/results", response_model=list[s.StudentResult])
-def generate_results(
-    exam_id: int,
-    class_id: int | None = Query(default=None),
-    db: Session = Depends(get_db),
-    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
-):
-    exam = db.query(m.ExaminationV2).filter(m.ExaminationV2.id == exam_id, m.ExaminationV2.school_id == principal.school_id).first()
-    if not exam:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination not found.")
-
-    entries = db.query(m.ExamEntry).filter(m.ExamEntry.exam_id == exam_id, m.ExamEntry.school_id == principal.school_id).all()
-    if not entries:
-        return []
-
-    student_entries: dict[int, list[m.ExamEntry]] = {}
-    for e in entries:
-        student_entries.setdefault(e.student_id, []).append(e)
-
-    student_ids = list(student_entries.keys())
-    students = db.query(Student).filter(Student.id.in_(student_ids), Student.school_id == principal.school_id).all()
-    student_map = {st.id: st for st in students}
-
-    results: list[s.StudentResult] = []
-    for sid, ents in student_entries.items():
-        st = student_map.get(sid)
-        if not st:
-            continue
-        if class_id is not None and st.current_class_id != class_id:
-            continue
-        total = sum(e.score or 0 for e in ents)
-        avg = total / len(ents) if ents else 0
-        subject_scores = [{"subject_id": e.subject_id, "score": e.score, "grade": e.grade} for e in ents]
-        results.append(s.StudentResult(
-            student_id=sid,
-            student_name=f"{st.first_name} {st.last_name}",
-            admission_number=st.admission_number,
-            subject_scores=subject_scores,
-            total_score=total,
-            average=round(avg, 1),
-        ))
-
-    results.sort(key=lambda r: r.total_score, reverse=True)
-    for i, r in enumerate(results):
-        r.position = i + 1
-
-    return results
-
-
-# ---- Grade Scale ----
-
-@router.get("/examinations/grade-scale", response_model=list[s.GradeScaleResponse])
-def list_grade_scale(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
-    return db.query(m.GradeScale).filter(m.GradeScale.school_id == principal.school_id).order_by(m.GradeScale.min_score.desc()).all()
-
-
-@router.post("/examinations/grade-scale", response_model=s.GradeScaleResponse, status_code=201)
-def create_grade_scale(payload: s.GradeScaleCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
-    gs = m.GradeScale(school_id=principal.school_id, **payload.model_dump())
-    db.add(gs)
-    db.commit()
-    db.refresh(gs)
-    return gs
+    return {"created": created, "updated": updated, "total": created + updated}
