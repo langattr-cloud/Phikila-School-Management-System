@@ -44,9 +44,9 @@ class Settings:
         self.supabase_jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
         self.app_jwt_secret = os.getenv("APP_JWT_SECRET", "")
 
-        self.resend_api_key = os.getenv(
-            "RESEND_API_KEY", "re_S8do2b6i_4bfLTUMJsUK5uJU27CmeDhpv"
-        )
+        # Secrets must be supplied through the deployment environment. Never ship
+        # a provider API key in source control or provide a hard-coded fallback.
+        self.resend_api_key = os.getenv("RESEND_API_KEY", "")
         self.resend_from_email = os.getenv(
             "RESEND_FROM_EMAIL", "Phikila School System <onboarding@resend.dev>"
         )
