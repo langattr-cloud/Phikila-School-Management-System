@@ -37,6 +37,7 @@ export function Logo({
   size?: number
   tone?: Tone
   showTagline?: boolean
+  title?: string
   className?: string
 }) {
   const width = Math.round(size * 2.55)
