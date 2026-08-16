@@ -30,7 +30,13 @@ class Settings:
             )
         self.cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX") or None
 
-        self.supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        # VITE_SUPABASE_URL is already required by the browser build. Accept it
+        # as a compatibility fallback so a Vercel deployment cannot accidentally
+        # enter local-auth mode simply because the server-side alias is missing.
+        self.supabase_url = (
+            os.getenv("SUPABASE_URL")
+            or os.getenv("VITE_SUPABASE_URL", "")
+        ).rstrip("/")
         # The anon/public key is safe to use for Auth's /auth/v1/user endpoint.
         # Keep the server-side name canonical, with the Vite name as a deployment
         # compatibility fallback because the same public key is already required
