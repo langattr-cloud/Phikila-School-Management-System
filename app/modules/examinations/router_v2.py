@@ -303,5 +303,88 @@ def enter_scores(exam_id: int, payload: s.BulkScoreEntry, db: Session = Depends(
             ))
             created += 1
 
+    _audit(db, principal, "score_entry", "examination", exam_id,
+           f"Entered {created} new + {updated} updated scores for '{exam.name}'")
     db.commit()
-    return {"created": created, "updated": updated, "total": created + updated}
+    return {"created": created, "updated": updated}
+
+
+@router.get("/examinations/{exam_id}/entries", response_model=list[s.ExamEntryResponse])
+def list_entries(
+    exam_id: int,
+    subject_id: int | None = Query(default=None),
+    student_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
+):
+    q = db.query(m.ExamEntry).filter(m.ExamEntry.exam_id == exam_id, m.ExamEntry.school_id == principal.school_id)
+    if subject_id:
+        q = q.filter(m.ExamEntry.subject_id == subject_id)
+    if student_id:
+        q = q.filter(m.ExamEntry.student_id == student_id)
+    return q.all()
+
+
+# ---- Results Generation ----
+
+@router.get("/examinations/{exam_id}/results", response_model=list[s.StudentResult])
+def generate_results(
+    exam_id: int,
+    class_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
+):
+    exam = db.query(m.ExaminationV2).filter(m.ExaminationV2.id == exam_id, m.ExaminationV2.school_id == principal.school_id).first()
+    if not exam:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination not found.")
+
+    entries = db.query(m.ExamEntry).filter(m.ExamEntry.exam_id == exam_id, m.ExamEntry.school_id == principal.school_id).all()
+    if not entries:
+        return []
+
+    student_entries: dict[int, list[m.ExamEntry]] = {}
+    for e in entries:
+        student_entries.setdefault(e.student_id, []).append(e)
+
+    student_ids = list(student_entries.keys())
+    students = db.query(Student).filter(Student.id.in_(student_ids), Student.school_id == principal.school_id).all()
+    student_map = {st.id: st for st in students}
+
+    results: list[s.StudentResult] = []
+    for sid, ents in student_entries.items():
+        st = student_map.get(sid)
+        if not st:
+            continue
+        total = sum(e.score or 0 for e in ents)
+        avg = total / len(ents) if ents else 0
+        subject_scores = [{"subject_id": e.subject_id, "score": e.score, "grade": e.grade} for e in ents]
+        results.append(s.StudentResult(
+            student_id=sid,
+            student_name=f"{st.first_name} {st.last_name}",
+            admission_number=st.admission_number,
+            subject_scores=subject_scores,
+            total_score=total,
+            average=round(avg, 1),
+        ))
+
+    results.sort(key=lambda r: r.total_score, reverse=True)
+    for i, r in enumerate(results):
+        r.position = i + 1
+
+    return results
+
+
+# ---- Grade Scale ----
+
+@router.get("/examinations/grade-scale", response_model=list[s.GradeScaleResponse])
+def list_grade_scale(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+    return db.query(m.GradeScale).filter(m.GradeScale.school_id == principal.school_id).order_by(m.GradeScale.min_score.desc()).all()
+
+
+@router.post("/examinations/grade-scale", response_model=s.GradeScaleResponse, status_code=201)
+def create_grade_scale(payload: s.GradeScaleCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+    gs = m.GradeScale(school_id=principal.school_id, **payload.model_dump())
+    db.add(gs)
+    db.commit()
+    db.refresh(gs)
+    return gs
