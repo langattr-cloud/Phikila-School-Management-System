@@ -22,7 +22,7 @@ class ExaminationSeries(Base):
     name = Column(String(100), nullable=False)
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"))
     term_id = Column(Integer, ForeignKey("terms.id"))
-    status = Column(String(20), default="draft")  # draft, active, archived
+    status = Column(String(20), default="draft")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     examinations = relationship("ExaminationV2", back_populates="series", cascade="all, delete-orphan")
@@ -53,7 +53,7 @@ class ExaminationV2(Base):
 
 
 class ExamSubject(Base):
-    """Links an exam to subjects and classes."""
+    """Links an exam to a subject/class and, when assigned, its responsible teacher."""
 
     __tablename__ = "exam_subjects"
     __table_args__ = (
@@ -66,6 +66,7 @@ class ExamSubject(Base):
     exam_id = Column(Integer, ForeignKey("examinations_v2.id", ondelete="CASCADE"), nullable=False, index=True)
     subject_id = Column(Integer, nullable=False)
     class_id = Column(Integer, ForeignKey("school_classes.id"), nullable=False)
+    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True, index=True)
     total_marks = Column(Integer, default=100)
     exam_date = Column(Date)
 
