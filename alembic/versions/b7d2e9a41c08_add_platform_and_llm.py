@@ -40,6 +40,8 @@ def _migrate_bootstrap_platform_admins() -> None:
 
     op.execute("DROP INDEX IF EXISTS ix_tt_platform_admins_user_id")
     op.execute("DROP INDEX IF EXISTS ix_tt_platform_admins_email")
+    op.execute("ALTER TABLE tt_platform_admins DROP CONSTRAINT IF EXISTS tt_platform_admins_pkey")
+    op.execute("ALTER TABLE tt_platform_admins DROP CONSTRAINT IF EXISTS tt_platform_admins_user_id_key")
     op.execute("ALTER TABLE tt_platform_admins RENAME TO tt_platform_admins_bootstrap")
 
     op.create_table(
