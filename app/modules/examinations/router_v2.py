@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -16,12 +17,51 @@ from . import schemas_v2 as s
 router = APIRouter()
 
 
+class ExamSubjectAssignment(BaseModel):
+    subject_id: int
+    class_id: int
+    teacher_id: int | None = Field(default=None)
+    total_marks: int = Field(default=100, ge=0)
+
+
 def _audit(db, principal, action, entity, eid, summary):
     from app.modules.scheduling.models import TtAuditEntry
     db.add(TtAuditEntry(
         school_id=principal.school_id, actor=principal.email or principal.user_id,
         action=action, entity=entity, entity_id=eid, summary=summary,
     ))
+
+
+def _exam_subject(db: Session, school_id: int, exam_id: int, subject_id: int, class_id: int | None = None):
+    query = db.query(m.ExamSubject).filter(
+        m.ExamSubject.school_id == school_id,
+        m.ExamSubject.exam_id == exam_id,
+        m.ExamSubject.subject_id == subject_id,
+    )
+    if class_id is not None:
+        query = query.filter(m.ExamSubject.class_id == class_id)
+    return query.first()
+
+
+def _can_enter_subject(db: Session, principal: Principal, exam_id: int, subject_id: int, student_id: int) -> bool:
+    """Teachers may enter marks only for an explicitly assigned exam class/subject."""
+    if principal.at_least("scheduler"):
+        return True
+    if principal.role != "teacher" or principal.teacher_id is None:
+        return False
+
+    student = (
+        db.query(Student)
+        .filter(Student.id == student_id, Student.school_id == principal.school_id)
+        .first()
+    )
+    if not student or student.current_class_id is None:
+        return False
+
+    assignment = _exam_subject(
+        db, principal.school_id, exam_id, subject_id, student.current_class_id
+    )
+    return bool(assignment and assignment.teacher_id == principal.teacher_id)
 
 
 # ---- Series ----
@@ -83,6 +123,99 @@ def delete_examination(exam_id: int, db: Session = Depends(get_db), principal: P
     db.commit()
 
 
+# ---- Exam subject/class/teacher assignments ----
+
+@router.get("/examinations/{exam_id}/subjects")
+def list_exam_subjects(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
+):
+    exam = db.query(m.ExaminationV2).filter(
+        m.ExaminationV2.id == exam_id,
+        m.ExaminationV2.school_id == principal.school_id,
+    ).first()
+    if not exam:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination not found.")
+    rows = db.execute(text(
+        "SELECT id, exam_id, subject_id, class_id, teacher_id, total_marks "
+        "FROM exam_subjects WHERE school_id = :school_id AND exam_id = :exam_id "
+        "ORDER BY class_id, subject_id"
+    ), {"school_id": principal.school_id, "exam_id": exam_id}).mappings().all()
+    return [dict(row) for row in rows]
+
+
+@router.post("/examinations/{exam_id}/subjects", status_code=201)
+def assign_exam_subject(
+    exam_id: int,
+    payload: ExamSubjectAssignment,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    exam = db.query(m.ExaminationV2).filter(
+        m.ExaminationV2.id == exam_id,
+        m.ExaminationV2.school_id == principal.school_id,
+    ).first()
+    if not exam:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination not found.")
+    existing = _exam_subject(db, principal.school_id, exam_id, payload.subject_id, payload.class_id)
+    if existing:
+        raise HTTPException(status.HTTP_409_CONFLICT, "That class and subject are already assigned to this examination.")
+
+    db.execute(text(
+        "INSERT INTO exam_subjects "
+        "(school_id, exam_id, subject_id, class_id, teacher_id, total_marks) "
+        "VALUES (:school_id, :exam_id, :subject_id, :class_id, :teacher_id, :total_marks)"
+    ), {
+        "school_id": principal.school_id,
+        "exam_id": exam_id,
+        "subject_id": payload.subject_id,
+        "class_id": payload.class_id,
+        "teacher_id": payload.teacher_id,
+        "total_marks": payload.total_marks,
+    })
+    _audit(db, principal, "assign", "exam_subject", exam_id,
+           f"Assigned subject {payload.subject_id} for class {payload.class_id} to teacher {payload.teacher_id}")
+    db.commit()
+    return {
+        "exam_id": exam_id,
+        "subject_id": payload.subject_id,
+        "class_id": payload.class_id,
+        "teacher_id": payload.teacher_id,
+        "total_marks": payload.total_marks,
+    }
+
+
+@router.patch("/examinations/{exam_id}/subjects/{assignment_id}")
+def update_exam_subject_assignment(
+    exam_id: int,
+    assignment_id: int,
+    payload: ExamSubjectAssignment,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    row = db.execute(text(
+        "SELECT id FROM exam_subjects WHERE id = :id AND school_id = :school_id AND exam_id = :exam_id"
+    ), {"id": assignment_id, "school_id": principal.school_id, "exam_id": exam_id}).first()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination subject assignment not found.")
+    db.execute(text(
+        "UPDATE exam_subjects SET subject_id=:subject_id, class_id=:class_id, "
+        "teacher_id=:teacher_id, total_marks=:total_marks WHERE id=:id AND school_id=:school_id"
+    ), {
+        "id": assignment_id,
+        "school_id": principal.school_id,
+        "subject_id": payload.subject_id,
+        "class_id": payload.class_id,
+        "teacher_id": payload.teacher_id,
+        "total_marks": payload.total_marks,
+    })
+    _audit(db, principal, "update", "exam_subject", assignment_id,
+           f"Updated examination subject assignment for exam {exam_id}")
+    db.commit()
+    return {"id": assignment_id, "exam_id": exam_id, **payload.model_dump()}
+
+
 # ---- Score Entry ----
 
 @router.post("/examinations/{exam_id}/entries", response_model=dict, status_code=201)
@@ -91,7 +224,17 @@ def enter_scores(exam_id: int, payload: s.BulkScoreEntry, db: Session = Depends(
     if not exam:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination not found.")
 
-    # Load grade scale
+    if principal.role == "teacher":
+        unauthorized = [
+            entry for entry in payload.entries
+            if not _can_enter_subject(db, principal, exam_id, entry.subject_id, entry.student_id)
+        ]
+        if unauthorized:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "You can only load marks for your assigned class and subject.",
+            )
+
     grade_scale = (
         db.query(m.GradeScale)
         .filter(m.GradeScale.school_id == principal.school_id)
@@ -176,12 +319,10 @@ def generate_results(
     if not entries:
         return []
 
-    # Group by student
     student_entries: dict[int, list[m.ExamEntry]] = {}
     for e in entries:
         student_entries.setdefault(e.student_id, []).append(e)
 
-    # Fetch student info
     student_ids = list(student_entries.keys())
     students = db.query(Student).filter(Student.id.in_(student_ids), Student.school_id == principal.school_id).all()
     student_map = {st.id: st for st in students}
@@ -190,6 +331,8 @@ def generate_results(
     for sid, ents in student_entries.items():
         st = student_map.get(sid)
         if not st:
+            continue
+        if class_id is not None and st.current_class_id != class_id:
             continue
         total = sum(e.score or 0 for e in ents)
         avg = total / len(ents) if ents else 0
@@ -203,7 +346,6 @@ def generate_results(
             average=round(avg, 1),
         ))
 
-    # Calculate positions by total score
     results.sort(key=lambda r: r.total_score, reverse=True)
     for i, r in enumerate(results):
         r.position = i + 1
