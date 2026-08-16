@@ -59,13 +59,7 @@ def _verify_local_token(token: str) -> dict[str, Any] | None:
 
 
 def _verify_with_supabase_auth_api(token: str) -> dict[str, Any] | None:
-    """Authoritative fallback for deployments with rotating/legacy JWT keys.
-
-    Supabase validates the access token itself and returns the authenticated
-    user. This prevents a stale JWKS/JWT-secret configuration from turning a
-    valid browser session into a false 401. The public anon key is used only
-    for this authenticated Auth API call; it is not a secret credential.
-    """
+    """Ask Supabase Auth to validate a token when local JWT verification fails."""
     if not settings.supabase_url or not settings.supabase_anon_key:
         return None
     try:
@@ -97,7 +91,7 @@ def _verify_with_supabase_auth_api(token: str) -> dict[str, Any] | None:
 def get_supabase_claims(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> dict[str, Any]:
-    """Validate the caller's JWT and return its claims."""
+    """Validate the caller's access token and return its claims."""
     unauthorized = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="A valid access token is required",
@@ -108,13 +102,13 @@ def get_supabase_claims(
         raise unauthorized
 
     token = credentials.credentials
-    try:
-        if not settings.supabase_url:
-            local = _verify_local_token(token)
-            if local is None:
-                raise RuntimeError("Not a valid local-development token")
-            return local
+    if not settings.supabase_url:
+        local = _verify_local_token(token)
+        if local is None:
+            raise unauthorized
+        return local
 
+    try:
         algorithm = jwt.get_unverified_header(token).get("alg")
         if algorithm == "HS256":
             if not settings.supabase_jwt_secret:
@@ -134,6 +128,8 @@ def get_supabase_claims(
             options={"require": ["exp", "sub"]},
         )
     except (jwt.PyJWKClientError, jwt.PyJWTError, RuntimeError) as exc:
+        # Supabase Auth is authoritative. A stale/missing JWKS or legacy JWT
+        # configuration must not invalidate an otherwise valid browser session.
         logger.warning("Local Supabase JWT verification failed; using Auth API fallback: %s", exc)
         claims = _verify_with_supabase_auth_api(token)
         if claims is not None:
