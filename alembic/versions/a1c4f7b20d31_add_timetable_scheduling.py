@@ -4,7 +4,7 @@ Creates the tt_* tables only. No existing table is altered or dropped, so this
 migration is additive and safe to run against the live database.
 
 Revision ID: a1c4f7b20d31
-Revises: 43fea8e527aa
+Revises: 3c1551cada12
 Create Date: 2026-08-14
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "a1c4f7b20d31"
-down_revision = "43fea8e527aa"
+down_revision = "3c1551cada12"
 branch_labels = None
 depends_on = None
 
@@ -20,8 +20,6 @@ depends_on = None
 def _tenant_columns() -> list[sa.Column]:
     return [
         sa.Column("school_id", sa.Integer(), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
     ]
 
 
@@ -30,8 +28,7 @@ def upgrade() -> None:
         "tt_schools",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("name", sa.String(160), nullable=False),
-        sa.Column("slug", sa.String(80), unique=True, index=True),
-        sa.Column("timezone", sa.String(60), server_default="Africa/Nairobi"),
+        sa.Column("code", sa.String(40), nullable=False, unique=True),
         sa.Column("academic_year", sa.String(40)),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
     )
@@ -179,48 +176,13 @@ def upgrade() -> None:
         sa.Column("room_id", sa.Integer(), index=True),
         sa.Column("day_index", sa.Integer(), nullable=False),
         sa.Column("period_index", sa.Integer(), nullable=False),
-        sa.Column("duration", sa.Integer(), nullable=False, server_default="1"),
-        sa.Column("is_locked", sa.Boolean(), nullable=False, server_default=sa.false()),
-        *_tenant_columns(),
-    )
-    op.create_index("ix_tt_lesson_slot", "tt_lessons", ["version_id", "day_index", "period_index"])
-
-    op.create_table(
-        "tt_solver_jobs",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("status", sa.String(20), nullable=False, server_default="queued"),
-        sa.Column("progress", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("stage", sa.String(60), server_default="Queued"),
-        sa.Column("checks", sa.JSON(), nullable=False, server_default="[]"),
-        sa.Column("result_version_id", sa.Integer()),
-        sa.Column("quality", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("message", sa.Text()),
-        sa.Column("cancel_requested", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column("started_at", sa.DateTime()),
-        sa.Column("finished_at", sa.DateTime()),
-        sa.Column("created_by", sa.String(160)),
-        *_tenant_columns(),
-    )
-
-    op.create_table(
-        "tt_audit",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("actor", sa.String(160)),
-        sa.Column("action", sa.String(80), nullable=False),
-        sa.Column("entity", sa.String(80)),
-        sa.Column("entity_id", sa.Integer()),
-        sa.Column("summary", sa.Text()),
-        sa.Column("before", sa.JSON()),
-        sa.Column("after", sa.JSON()),
-        sa.Column("at", sa.DateTime(), nullable=False, server_default=sa.func.now(), index=True),
+        sa.Column("status", sa.String(20), nullable=False, server_default="scheduled"),
         *_tenant_columns(),
     )
 
 
 def downgrade() -> None:
-    for table in (
-        "tt_audit",
-        "tt_solver_jobs",
+    for table in [
         "tt_lessons",
         "tt_versions",
         "tt_constraints",
@@ -233,5 +195,5 @@ def downgrade() -> None:
         "tt_days",
         "tt_memberships",
         "tt_schools",
-    ):
+    ]:
         op.drop_table(table)
