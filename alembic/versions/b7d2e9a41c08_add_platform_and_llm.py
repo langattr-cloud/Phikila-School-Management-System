@@ -17,14 +17,28 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade() -> None:
-    # --- schools gain an activate/deactivate lifecycle -------------------
-    op.add_column(
-        "tt_schools",
-        sa.Column("status", sa.String(20), nullable=False, server_default="active"),
-    )
+def _migrate_bootstrap_platform_admins() -> None:
+    """Replace the temporary UUID-based bootstrap table with the model schema.
 
-    # --- platform authority ---------------------------------------------
+    An earlier manual bootstrap created ``tt_platform_admins`` with UUID
+    columns. The application model and this migration use string user IDs and
+    integer primary keys. Preserve the admin rows while normalizing the table.
+    """
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "tt_platform_admins" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("tt_platform_admins")}
+    expected = {"id", "user_id", "email", "is_active", "granted_by", "created_at"}
+    if expected.issubset(columns):
+        # Already in the repository schema; leave it alone.
+        return
+
+    op.execute("DROP INDEX IF EXISTS ix_tt_platform_admins_user_id")
+    op.execute("DROP INDEX IF EXISTS ix_tt_platform_admins_email")
+    op.execute("ALTER TABLE tt_platform_admins RENAME TO tt_platform_admins_bootstrap")
+
     op.create_table(
         "tt_platform_admins",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -34,6 +48,37 @@ def upgrade() -> None:
         sa.Column("granted_by", sa.String(64)),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
     )
+
+    op.execute(
+        """
+        INSERT INTO tt_platform_admins (user_id, email, is_active, granted_by, created_at)
+        SELECT user_id::text, email::text, is_active, granted_by::text, created_at
+        FROM tt_platform_admins_bootstrap
+        """
+    )
+    op.drop_table("tt_platform_admins_bootstrap")
+
+
+def upgrade() -> None:
+    # --- schools gain an activate/deactivate lifecycle -------------------
+    op.add_column(
+        "tt_schools",
+        sa.Column("status", sa.String(20), nullable=False, server_default="active"),
+    )
+
+    # --- platform authority ---------------------------------------------
+    _migrate_bootstrap_platform_admins()
+    bind = op.get_bind()
+    if "tt_platform_admins" not in sa.inspect(bind).get_table_names():
+        op.create_table(
+            "tt_platform_admins",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("user_id", sa.String(64), nullable=False, unique=True, index=True),
+            sa.Column("email", sa.String(160)),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column("granted_by", sa.String(64)),
+            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        )
 
     op.create_table(
         "tt_access_requests",
@@ -76,7 +121,6 @@ def upgrade() -> None:
         "tt_llm_credentials",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("provider", sa.String(40), nullable=False, index=True),
-        # Ciphertext only. Plaintext keys are never written to this table.
         sa.Column("encrypted_api_key", sa.Text(), nullable=False),
         sa.Column("last4", sa.String(8)),
         sa.Column("status", sa.String(30), nullable=False, server_default="not_configured"),
