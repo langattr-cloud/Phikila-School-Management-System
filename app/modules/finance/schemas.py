@@ -119,6 +119,11 @@ class PaymentInboxCreate(BaseModel):
     payment_channel: str | None = None
 
 
+class PaymentInboxPostRequest(BaseModel):
+    invoice_id: int | None = None
+    reason: str | None = Field(default=None, max_length=500)
+
+
 class PaymentInboxResponse(BaseModel):
     id: int
     school_id: int
@@ -136,6 +141,10 @@ class PaymentInboxResponse(BaseModel):
     match_confidence: Decimal | None = None
     status: str
     duplicate_of: int | None = None
+    posted_payment_id: int | None = None
+    posted_at: datetime | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
     notes: str | None = None
     created_at: datetime | None = None
     model_config = {"from_attributes": True}
