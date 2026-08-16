@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './lib/api'
 import { supabase } from './lib/supabase'
 
@@ -14,6 +15,8 @@ function App() {
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const queryClient = useQueryClient()
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
@@ -23,16 +26,27 @@ function App() {
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
       setAuthLoading(false)
+      if (!nextSession) {
+        queryClient.clear()
+      }
     })
 
     return () => data.subscription.unsubscribe()
-  }, [])
+  }, [queryClient])
+
+  // Health check via TanStack Query — refetches on focus, caches for 30s
+  const { data: healthData, error: healthError } = useQuery({
+    queryKey: ['health'],
+    queryFn: () => api.health(),
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
+    retry: 1,
+  })
 
   useEffect(() => {
-    api.health()
-      .then(() => setApiStatus('online'))
-      .catch(() => setApiStatus('offline'))
-  }, [])
+    if (healthData) setApiStatus('online')
+    if (healthError) setApiStatus('offline')
+  }, [healthData, healthError])
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -62,17 +76,29 @@ function App() {
   return (
     <main className="page-shell">
       <section className="brand-panel">
-        <div className="brand-mark" aria-hidden="true">P</div>
+        <div className="brand-mark" aria-hidden="true">
+          P
+        </div>
         <p className="eyebrow">School administration, made clear</p>
-        <h1>Phikila<br />School System</h1>
+        <h1>
+          Phikila
+          <br />
+          School System
+        </h1>
         <p className="intro">
-          One secure place for your school profile, academic years, terms, levels, and streams.
+          One secure place for your school profile, academic years, terms, levels, and
+          streams.
         </p>
         <div className="connection-card">
           <span className={`status-dot ${apiStatus}`} />
           <div>
             <strong>System connection</strong>
-            <span>{apiStatus === 'checking' ? 'Checking API…' : `API ${apiStatus}`}</span>
+            <span>
+              {apiStatus === 'checking' ? 'Checking API…' : `API ${apiStatus}`}
+            </span>
+            {healthData && healthData.database && (
+              <span className="db-status">DB: {healthData.database}</span>
+            )}
           </div>
         </div>
       </section>
@@ -98,7 +124,9 @@ function App() {
             <form onSubmit={signIn}>
               <p className="eyebrow">Staff portal</p>
               <h2>Sign in to continue</h2>
-              <p className="muted">Use the account created in Supabase Authentication.</p>
+              <p className="muted">
+                Use the account created in Supabase Authentication.
+              </p>
 
               <label htmlFor="email">Email address</label>
               <input
@@ -130,7 +158,9 @@ function App() {
             </form>
           )}
         </div>
-        <p className="security-note">Protected by Supabase Auth and encrypted connections.</p>
+        <p className="security-note">
+          Protected by Supabase Auth and encrypted connections.
+        </p>
       </section>
     </main>
   )

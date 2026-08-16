@@ -7,12 +7,6 @@ const allowedPublicVariables = new Set([
   'VITE_API_URL',
 ])
 
-// Vercel injects VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG automatically at
-// build time when the Observability / Speed Insights integration is enabled.
-// It is Vercel-managed public client configuration (e.g. script/endpoint
-// paths) intended to be read by the Vercel/Vite integration in the browser,
-// not an application secret. Allow it explicitly while keeping strict
-// validation for every other VITE_* variable.
 const vercelManagedVariables = new Set([
   'VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG',
 ])
@@ -40,5 +34,19 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    server: {
+      port: 5173,
+      host: true,
+    },
+    build: {
+      sourcemap: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+          } as Record<string, string[]>,
+        },
+      },
+    },
   }
 })

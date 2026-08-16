@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/phikila
+      - ENVIRONMENT=development
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - APP_JWT_SECRET=${APP_JWT_SECRET:-dev-secret-change-me}
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+    volumes:
+      - ./:/app
+      - ./phikila.db:/phikila.db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+    env_file: .env
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: phikila
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./alembic/versions:/docker-entrypoint-initdb.d/migrations
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  worker:
+    build: .
+    command: celery -A app.celery_app worker -l info
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    working_dir: ./frontend
+    image: node:20-alpine
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  pg_data:

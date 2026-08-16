@@ -7,7 +7,9 @@ from app.config import settings
 
 engine_options: dict = {"pool_pre_ping": True}
 
-if settings.database_url.startswith("sqlite"):
+db_url = settings.resolved_database_url
+
+if db_url.startswith("sqlite"):
     engine_options["connect_args"] = {"check_same_thread": False}
 else:
     # A serverless function must not retain a pool of scarce Supabase connections.
@@ -15,7 +17,7 @@ else:
     engine_options["poolclass"] = NullPool
     engine_options["connect_args"] = {"connect_timeout": 10}
 
-engine = create_engine(settings.database_url, **engine_options)
+engine = create_engine(db_url, **engine_options)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

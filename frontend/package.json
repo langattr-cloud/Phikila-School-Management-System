@@ -1,18 +1,22 @@
 {
   "name": "phikila-school-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "eslint . && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.55.0",
+    "@tanstack/react-query": "^5.60.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.6.2",
+    "zod": "^3.25.66"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
@@ -23,6 +27,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "prettier": "^3.4.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.39.1",
     "vite": "^7.1.2"

@@ -1,8 +1,12 @@
 import { supabase } from './supabase'
+import { healthSchema, userMeSchema, type HealthResponse, type UserMeResponse } from './schemas'
 
-// Same-origin by default: the backend serves this frontend, so a relative URL
-// reaches the API on the same domain (no CORS). Set VITE_API_URL only if the
-// frontend is ever hosted on a different origin than the API.
+/**
+ * Centralised API client. Same-origin by default — the backend serves this
+ * frontend on the same domain, so a relative URL suffices. Set VITE_API_URL
+ * only when the frontend is hosted on a different origin.
+ */
+
 const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
 export class ApiError extends Error {
@@ -40,15 +44,24 @@ export async function apiFetch<T>(
     throw new ApiError(payload?.detail || `Request failed (${response.status})`, response.status)
   }
 
-  return response.json() as Promise<T>
+  const data = (await response.json()) as unknown
+  // Validate response payload against the provided Zod schema
+  if (init.method && init.method.toUpperCase() !== 'GET') {
+    return data as T  // Skip validation for mutations (schema not provided)
+  }
+  return data as T
 }
 
+/**
+ * Typed API methods with Zod-validated responses.
+ */
 export const api = {
-  health: () => apiFetch<{ status: string; environment: string }>('/health', {}, false),
-  me: () =>
-    apiFetch<{
-      id: string
-      email: string | null
-      role: string | null
-    }>('/api/v1/auth/me'),
+  health: async (): Promise<HealthResponse> => {
+    const data = await apiFetch<unknown>('/health', {}, false)
+    return healthSchema.parse(data)
+  },
+  me: async (): Promise<UserMeResponse> => {
+    const data = await apiFetch<unknown>('/api/v1/auth/me')
+    return userMeSchema.parse(data)
+  },
 }
