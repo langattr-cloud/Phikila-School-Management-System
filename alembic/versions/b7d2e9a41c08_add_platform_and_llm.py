@@ -18,21 +18,24 @@ depends_on = None
 
 
 def _migrate_bootstrap_platform_admins() -> None:
-    """Replace the temporary UUID-based bootstrap table with the model schema.
-
-    An earlier manual bootstrap created ``tt_platform_admins`` with UUID
-    columns. The application model and this migration use string user IDs and
-    integer primary keys. Preserve the admin rows while normalizing the table.
-    """
+    """Replace the temporary UUID-based bootstrap table with the model schema."""
     bind = op.get_bind()
     inspector = sa.inspect(bind)
     if "tt_platform_admins" not in inspector.get_table_names():
         return
 
-    columns = {column["name"] for column in inspector.get_columns("tt_platform_admins")}
-    expected = {"id", "user_id", "email", "is_active", "granted_by", "created_at"}
-    if expected.issubset(columns):
-        # Already in the repository schema; leave it alone.
+    rows = bind.execute(
+        sa.text(
+            """
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'tt_platform_admins'
+            """
+        )
+    ).all()
+    types = {row[0]: row[1] for row in rows}
+    if types.get("id") == "integer" and types.get("user_id") in {"character varying", "text"}:
         return
 
     op.execute("DROP INDEX IF EXISTS ix_tt_platform_admins_user_id")
@@ -60,13 +63,11 @@ def _migrate_bootstrap_platform_admins() -> None:
 
 
 def upgrade() -> None:
-    # --- schools gain an activate/deactivate lifecycle -------------------
     op.add_column(
         "tt_schools",
         sa.Column("status", sa.String(20), nullable=False, server_default="active"),
     )
 
-    # --- platform authority ---------------------------------------------
     _migrate_bootstrap_platform_admins()
     bind = op.get_bind()
     if "tt_platform_admins" not in sa.inspect(bind).get_table_names():
@@ -99,9 +100,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("user_id", name="uq_tt_access_request_user"),
     )
-    op.create_index(
-        "ix_tt_access_request_status", "tt_access_requests", ["status", "created_at"]
-    )
+    op.create_index("ix_tt_access_request_status", "tt_access_requests", ["status", "created_at"])
 
     op.create_table(
         "tt_platform_audit",
@@ -116,7 +115,6 @@ def upgrade() -> None:
         sa.Column("at", sa.DateTime(), nullable=False, server_default=sa.func.now(), index=True),
     )
 
-    # --- LLM providers ---------------------------------------------------
     op.create_table(
         "tt_llm_credentials",
         sa.Column("id", sa.Integer(), primary_key=True),
