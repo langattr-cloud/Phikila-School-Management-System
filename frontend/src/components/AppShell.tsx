@@ -4,6 +4,7 @@ import { displayName, useAuth } from '../lib/auth'
 import { usePlatformSession } from '../lib/session'
 import { useToast } from './Toast'
 import { Logo, LogoMark } from './Logo'
+import { PrintFooter } from './PrintFooter'
 import {
   CalendarIcon,
   CheckIcon,
@@ -97,7 +98,6 @@ const NAV: NavGroup[] = [
   },
 ]
 
-// The five destinations that matter on a phone.
 const BOTTOM_NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: <DashboardIcon /> },
   { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
@@ -117,8 +117,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { notify } = useToast()
-  // Navigation visibility only. Backend authorization is what actually
-  // protects these routes.
   const isSuperAdmin = usePlatformSession().session?.is_super_admin ?? false
   const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV
   const accountName = displayName(user)
@@ -142,7 +140,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.localStorage.setItem('phikila.theme', theme)
   }, [theme])
 
-  // Close the drawer whenever the route changes so navigation never leaves it open.
   useEffect(() => {
     setDrawerOpen(false)
   }, [pathname])
@@ -347,7 +344,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
 
-        {/* Thumb-reachable navigation on phones. */}
         <nav className="bottom-nav" aria-label="Quick navigation">
           {BOTTOM_NAV.map((item) => {
             const active = isActive(pathname, item.to)
@@ -366,6 +362,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             )
           })}
         </nav>
+
+        <PrintFooter />
       </div>
     </div>
   )
