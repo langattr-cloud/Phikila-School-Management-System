@@ -1,4 +1,4 @@
-"""Add finance accounting foundation and payment inbox."""
+"""Reconcile finance accounting tables with existing production schema."""
 from alembic import op
 import sqlalchemy as sa
 
@@ -12,12 +12,18 @@ def _table_exists(name):
     return name in sa.inspect(op.get_bind()).get_table_names()
 
 
+def _columns(table):
+    return {c["name"] for c in sa.inspect(op.get_bind()).get_columns(table)} if _table_exists(table) else set()
+
+
 def _index_exists(table, name):
     return name in {i["name"] for i in sa.inspect(op.get_bind()).get_indexes(table)}
 
 
 def _index(name, table, columns):
-    if not _index_exists(table, name):
+    # Existing Supabase finance tables have a different schema from the
+    # historical migration. Never create an index on a column that is absent.
+    if _table_exists(table) and not _index_exists(table, name) and all(c in _columns(table) for c in columns):
         op.create_index(name, table, columns)
 
 
