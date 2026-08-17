@@ -100,7 +100,13 @@ class ExamEntry(Base):
 
 
 class GradeScale(Base):
-    """Configurable grade boundaries per school."""
+    """Configurable grade boundaries per school.
+
+    ``education_level`` is an additive, optional CBC/KPSEA/KJSEA amendment
+    column: ``primary`` / ``junior`` rows define percentage-based CBC band
+    overrides for that education level; NULL or ``senior`` rows keep the
+    legacy raw-score behaviour for Senior School.
+    """
 
     __tablename__ = "grade_scales"
     __table_args__ = (
@@ -115,3 +121,4 @@ class GradeScale(Base):
     max_score = Column(Float, nullable=False)
     points = Column(Integer)
     description = Column(String(100))
+    education_level = Column(String(20), nullable=True)
