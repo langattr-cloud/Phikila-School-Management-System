@@ -14,8 +14,23 @@ depends_on = None
 
 
 def _table(name, *columns, constraints=()):
-    if name in sa.inspect(op.get_bind()).get_table_names():
+    inspector = sa.inspect(op.get_bind())
+    tables = set(inspector.get_table_names())
+    if name in tables:
         return
+    # PostgreSQL requires FK and referenced column types to be compatible.
+    # The production bootstrap uses bigint identities, while these historical
+    # revisions were originally generated with Integer. Adapt only the FK
+    # columns whose referenced production table already exists.
+    for column in columns:
+        for fk in list(getattr(column, "foreign_keys", ())):
+            target = fk.target_fullname.split(".")
+            if len(target) != 2 or target[0] not in tables:
+                continue
+            target_columns = {c["name"]: c["type"] for c in inspector.get_columns(target[0])}
+            target_type = target_columns.get(target[1])
+            if isinstance(target_type, sa.BigInteger):
+                column.type = sa.BigInteger()
     op.create_table(name, *columns, *constraints)
 
 
