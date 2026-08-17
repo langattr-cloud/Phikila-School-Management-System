@@ -41,8 +41,7 @@ def _create_table_if_missing(name, columns, constraints=None):
 
 
 def _ensure_status_enum():
-    bind = op.get_bind()
-    bind.execute(sa.text("""
+    op.get_bind().execute(sa.text("""
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'statusenum') THEN
@@ -75,13 +74,13 @@ def upgrade():
     _add_index("ix_subjects_id", "subjects", ["id"])
 
     _create_table_if_missing("level_subjects", [
-        sa.Column("id", sa.Integer(), nullable=False), sa.Column("level_id", sa.Integer(), nullable=False),
+        sa.Column("id", sa.Integer(), nullable=False), sa.Column("level_id", sa.BigInteger(), nullable=False),
         sa.Column("subject_id", sa.Integer(), nullable=False), sa.Column("lessons_per_week", sa.Integer()),
     ], [sa.PrimaryKeyConstraint("id"), sa.ForeignKeyConstraint(["level_id"], ["levels.id"]), sa.ForeignKeyConstraint(["subject_id"], ["subjects.id"])])
     _add_index("ix_level_subjects_id", "level_subjects", ["id"])
 
     _create_table_if_missing("terms", [
-        sa.Column("id", sa.Integer(), nullable=False), sa.Column("academic_year_id", sa.Integer(), nullable=False),
+        sa.Column("id", sa.BigInteger(), nullable=False), sa.Column("academic_year_id", sa.BigInteger(), nullable=False),
         sa.Column("name", sa.String(50), nullable=False), sa.Column("start_date", sa.Date(), nullable=False),
         sa.Column("end_date", sa.Date(), nullable=False), sa.Column("status", status_enum, nullable=True),
     ], [sa.PrimaryKeyConstraint("id"), sa.ForeignKeyConstraint(["academic_year_id"], ["academic_years.id"])])
