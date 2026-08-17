@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "d9f4c7b1e2a3"
-down_revision = ("b7d2e9a41c08", "c2f8e9a1d6b4")
+down_revision = ("b7d2e9a41c08", "c2f8e9a1d6b4", "5f8c9d2e7b1a")
 branch_labels = None
 depends_on = None
 
@@ -90,9 +90,6 @@ def upgrade() -> None:
             ],
         )
 
-        # Existing bootstrap rows may predate the required email field. Keep
-        # those rows valid without inventing a real email address; new writes
-        # remain protected by NOT NULL once the table is reconciled.
         bind.execute(
             sa.text(
                 "UPDATE tt_access_requests SET email = '' WHERE email IS NULL"
@@ -161,5 +158,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Additive reconciliation is intentionally not destructive.
     pass
