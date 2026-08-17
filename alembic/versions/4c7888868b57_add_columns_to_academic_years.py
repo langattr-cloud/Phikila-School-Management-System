@@ -69,13 +69,13 @@ def upgrade():
     _add_index("ix_curriculums_id", "curriculums", ["id"])
 
     _create_table_if_missing("subjects", [
-        sa.Column("id", sa.Integer(), nullable=False), sa.Column("name", sa.String(100), nullable=False), sa.Column("code", sa.String(20), nullable=False),
+        sa.Column("id", sa.BigInteger(), nullable=False), sa.Column("name", sa.String(100), nullable=False), sa.Column("code", sa.String(20), nullable=False),
     ], [sa.PrimaryKeyConstraint("id"), sa.UniqueConstraint("code"), sa.UniqueConstraint("name")])
     _add_index("ix_subjects_id", "subjects", ["id"])
 
     _create_table_if_missing("level_subjects", [
         sa.Column("id", sa.Integer(), nullable=False), sa.Column("level_id", sa.BigInteger(), nullable=False),
-        sa.Column("subject_id", sa.Integer(), nullable=False), sa.Column("lessons_per_week", sa.Integer()),
+        sa.Column("subject_id", sa.BigInteger(), nullable=False), sa.Column("lessons_per_week", sa.Integer()),
     ], [sa.PrimaryKeyConstraint("id"), sa.ForeignKeyConstraint(["level_id"], ["levels.id"]), sa.ForeignKeyConstraint(["subject_id"], ["subjects.id"])])
     _add_index("ix_level_subjects_id", "level_subjects", ["id"])
 
