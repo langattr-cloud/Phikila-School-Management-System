@@ -1,11 +1,7 @@
 """Add production student management tables.
 
-The student API uses students_v2 and related school-scoped tables. Keep this
-migration in the main Alembic chain so production deployments cannot expose
-an API whose tables have not been created.
-
 Revision ID: c6f1a9d2e4b7
-Revises: b7d2e9a41c08
+Revises: ab4d9e7c2f10
 Create Date: 2026-08-17
 """
 
@@ -13,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "c6f1a9d2e4b7"
-down_revision = "b7d2e9a41c08"
+down_revision = "ab4d9e7c2f10"
 branch_labels = None
 depends_on = None
 
