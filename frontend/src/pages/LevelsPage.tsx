@@ -3,21 +3,21 @@ import { PageHeader } from '../components/PageHeader'
 import { Badge, EmptyState, ErrorState } from '../components/States'
 import { DataTable, type Column } from '../components/DataTable'
 import { LayersIcon, SearchIcon } from '../components/icons'
-import { api, friendlyApiError, type Level } from '../lib/api'
+import { api, friendlyApiError, type Grade } from '../lib/api'
 import { useAsync } from '../lib/useAsync'
 
 const PAGE_SIZE = 10
 
 export function LevelsPage() {
-  const toMessage = useCallback((error: unknown) => friendlyApiError(error, 'load levels'), [])
-  const { data, loading, error, reload } = useAsync<Level[]>(api.levels, toMessage)
+  const toMessage = useCallback((error: unknown) => friendlyApiError(error, 'load grades'), [])
+  const { data, loading, error, reload } = useAsync<Grade[]>(api.grades, toMessage)
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
 
   const term = query.trim().toLowerCase()
   const filtered = useMemo(() => {
     const rows = (Array.isArray(data) ? data : []).filter(
-      (level) => !term || level.name.toLowerCase().includes(term) || level.code.toLowerCase().includes(term),
+      (grade) => !term || grade.name.toLowerCase().includes(term) || grade.code.toLowerCase().includes(term),
     )
     return [...rows].sort((a, b) => a.display_order - b.display_order)
   }, [data, term])
@@ -26,8 +26,8 @@ export function LevelsPage() {
   const currentPage = Math.min(page, pageCount)
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  const columns: Column<Level>[] = [
-    { key: 'name', header: 'Level', render: (row) => row.name },
+  const columns: Column<Grade>[] = [
+    { key: 'name', header: 'Grade', render: (row) => row.name },
     { key: 'code', header: 'Code', render: (row) => row.code },
     { key: 'order', header: 'Order', render: (row) => row.display_order },
     {
@@ -41,20 +41,20 @@ export function LevelsPage() {
   return (
     <>
       <PageHeader
-        title="Levels"
-        description="Class levels configured for this school."
-        breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Levels' }]}
+        title="Grades"
+        description="Grades configured for this school."
+        breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Grades' }]}
       />
 
       {error ? (
-        <ErrorState title="Levels could not load" message={error} onRetry={reload} />
+        <ErrorState title="Grades could not load" message={error} onRetry={reload} />
       ) : (
         <section className="card section">
           <div className="toolbar">
             <div className="search">
               <SearchIcon className="search__icon" width={18} height={18} />
               <label className="visually-hidden" htmlFor="levels-search">
-                Search levels
+                Search grades
               </label>
               <input
                 id="levels-search"
@@ -83,19 +83,19 @@ export function LevelsPage() {
           </div>
 
           <DataTable
-            caption="Levels"
+            caption="Grades"
             columns={columns}
             rows={visible}
             rowKey={(row) => row.id}
             loading={loading}
-            loadingLabel="Loading levels"
+            loadingLabel="Loading grades"
             empty={
               <EmptyState
-                title={query ? 'No matching levels' : 'No levels found'}
+                title={query ? 'No matching grades' : 'No grades found'}
                 description={
                   query
-                    ? 'No level matches your search. Clear the search to see everything.'
-                    : 'Levels appear here once they have been created for this school.'
+                    ? 'No grade matches your search. Clear the search to see everything.'
+                    : 'Grades appear here once they have been created for this school.'
                 }
                 icon={<LayersIcon width={22} height={22} />}
               />
@@ -103,7 +103,7 @@ export function LevelsPage() {
           />
 
           {!loading && filtered.length > PAGE_SIZE && (
-            <nav className="pagination" aria-label="Levels pagination">
+            <nav className="pagination" aria-label="Grades pagination">
               <button
                 type="button"
                 className="button button--secondary button--sm"
