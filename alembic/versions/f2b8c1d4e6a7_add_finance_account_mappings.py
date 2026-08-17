@@ -14,11 +14,11 @@ def upgrade():
         return
     op.create_table(
         "finance_account_mappings",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("school_id", sa.Integer(), nullable=False, index=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True),
+        sa.Column("school_id", sa.BigInteger(), nullable=False, index=True),
         sa.Column("mapping_key", sa.String(60), nullable=False),
-        sa.Column("debit_account_id", sa.Integer(), sa.ForeignKey("chart_of_accounts.id"), nullable=True),
-        sa.Column("credit_account_id", sa.Integer(), sa.ForeignKey("chart_of_accounts.id"), nullable=True),
+        sa.Column("debit_account_id", sa.BigInteger(), sa.ForeignKey("chart_of_accounts.id"), nullable=True),
+        sa.Column("credit_account_id", sa.BigInteger(), sa.ForeignKey("chart_of_accounts.id"), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
