@@ -71,7 +71,7 @@ const NAV: NavGroup[] = [
       { to: '/setup/classes', label: 'Classes', icon: <SchoolIcon /> },
       { to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> },
       { to: '/setup/academic-years', label: 'Academic calendar', icon: <CalendarIcon /> },
-      { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> },
+      { to: '/setup/levels', label: 'Grades', icon: <LayersIcon /> },
     ],
   },
   {
