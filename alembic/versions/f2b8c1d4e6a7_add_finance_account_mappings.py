@@ -9,6 +9,10 @@ depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "finance_account_mappings" in inspector.get_table_names():
+        return
     op.create_table(
         "finance_account_mappings",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -25,5 +29,4 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index("ix_finance_account_mapping_school_key", table_name="finance_account_mappings")
-    op.drop_table("finance_account_mappings")
+    pass
