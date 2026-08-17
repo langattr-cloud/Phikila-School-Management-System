@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { Badge, EmptyState, ErrorState, LoadingBlock, Skeleton } from '../components/States'
+import { Badge, EmptyState, LoadingBlock, Skeleton } from '../components/States'
 import { Alert } from '../components/Alert'
 import { QualityBars } from '../components/QualityBars'
 import { SchoolIcon, UserIcon, GridIcon, CheckIcon, SparkIcon } from '../components/icons'
@@ -62,7 +62,8 @@ export function DashboardPage() {
       </div>
     </div>
 
-    {error ? <ErrorState title="Dashboard could not load" message={error} onRetry={reload} retryLabel="Reload dashboard" /> : <>
+    <>
+      {error && <Alert tone="error" title="Scheduling summary could not load">{error} <button type="button" className="link" onClick={reload}>Try again</button></Alert>}
       {(!school && !schoolQuery.loading) && <Alert tone="info" title="Complete your school profile"><Link to="/setup/school">Set up your school profile</Link> to unlock the full operations overview.</Alert>}
       {data && !data.solver_available && <Alert tone="error" title="Scheduling engine unavailable">Timetables cannot be generated until the optimisation engine is installed on the server.</Alert>}
 
@@ -126,6 +127,6 @@ export function DashboardPage() {
       </section>
 
       {data && (hard > 0 || (data.lessons.unassigned ?? 0) > 0) && <div className="dashboard-alert"><Alert tone="error" title="Action required">There are unresolved scheduling items. Review the timetable before publishing it.</Alert></div>}
-    </>}
+    </>
   </div>
 }

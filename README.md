@@ -26,31 +26,9 @@ uvicorn app.main:app --reload
 API docs are at `http://localhost:8000/docs`; health is at
 `http://localhost:8000/health`.
 
-### Two-minute demo (no Supabase needed)
+### Local development
 
-With `DATABASE_URL` and `SUPABASE_URL` unset, the app runs in **local
-mode**: SQLite stores the data and the backend's own
-`POST /api/v1/auth/login` endpoint issues the access tokens (signed with
-`APP_JWT_SECRET`). Seed a complete school — calendar, 12 teachers, 11 rooms,
-14 subjects, 7 classes, weekly lesson requirements — and generate a real
-timetable with the CP-SAT engine:
-
-```bash
-PYTHONPATH=. python scripts/seed_demo.py   # idempotent; also runs the solver
-uvicorn app.main:app                       # then open http://localhost:8000
-```
-
-Demo logins (password `demo2026`):
-
-| Account | Role | Lands on |
-| --- | --- | --- |
-| `admin@phikila.com` | school + platform admin | whole-school timetable editor |
-| `teacher@phikila.com` | teacher | Mr. Kamau's timetable |
-| `student@phikila.com` | student | Form 3A timetable |
-
-Production is unchanged: PostgreSQL (Supabase) via `alembic upgrade head`,
-Supabase Auth in the browser. The local mode is only active when no Supabase
-project is configured.
+Configure a database and authentication settings before starting the API. Create a real administrator account with the supported bootstrap process, then sign in through the normal login form. The application does not ship with prefilled demo accounts or sample school records.
 
 ### Frontend
 
