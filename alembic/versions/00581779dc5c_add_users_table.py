@@ -1,17 +1,9 @@
-"""Add users table
-
-Revision ID: 00581779dc5c
-Revises: 46f05a7cf307
-Create Date: 2026-08-02 12:11:24.799445
-
-Production may already contain this table, so the migration reconciles it
-instead of failing on duplicate objects.
-"""
+"""Reconcile the users table with the production schema."""
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 revision: str = '00581779dc5c'
 down_revision: Union[str, Sequence[str], None] = '46f05a7cf307'
@@ -19,12 +11,17 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _bind():
+    return op.get_bind()
+
+
 def _inspector():
-    return inspect(op.get_bind())
+    return inspect(_bind())
 
 
 def _table_exists(name: str) -> bool:
-    return name in _inspector().get_table_names()
+    # to_regclass is schema-qualified and avoids inspector/search_path ambiguity.
+    return _bind().execute(text("SELECT to_regclass(:name)"), {"name": f"public.{name}"}).scalar() is not None
 
 
 def _columns(table: str) -> set[str]:
@@ -41,7 +38,8 @@ def _add_column(table: str, name: str, column: sa.Column) -> None:
 
 
 def _add_index(name: str, table: str, columns: list[str], unique: bool = False) -> None:
-    if name not in _indexes(table):
+    existing = _columns(table)
+    if name not in _indexes(table) and all(column in existing for column in columns):
         op.create_index(name, table, columns, unique=unique)
 
 
@@ -62,6 +60,8 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint('id')
         )
     else:
+        # Production already has a public.users table with a different, leaner
+        # schema. Add only the historical fields that are actually missing.
         _add_column('users', 'username', sa.Column('username', sa.String(), nullable=True))
         _add_column('users', 'email', sa.Column('email', sa.String(), nullable=True))
         _add_column('users', 'hashed_password', sa.Column('hashed_password', sa.String(), nullable=True))
@@ -78,5 +78,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Do not destructively remove an existing production users table.
     pass
