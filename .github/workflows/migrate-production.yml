@@ -38,8 +38,28 @@ jobs:
             exit 1
           }
 
-      - name: Validate migration graph
+      - name: Validate migration source and graph
         run: |
+          python -m compileall -q alembic/versions
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          revisions = {}
+          for path in Path("alembic/versions").glob("*.py"):
+              tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+              revision = None
+              for node in tree.body:
+                  if isinstance(node, ast.Assign):
+                      for target in node.targets:
+                          if isinstance(target, ast.Name) and target.id == "revision":
+                              revision = ast.literal_eval(node.value)
+              if revision is not None:
+                  if revision in revisions:
+                      raise SystemExit(f"Duplicate Alembic revision {revision}: {revisions[revision]} and {path}")
+                  revisions[revision] = path
+          print(f"Validated {len(revisions)} migration revisions with no duplicate revision IDs.")
+          PY
           alembic heads
           test "$(alembic heads | wc -l)" -eq 1
 
