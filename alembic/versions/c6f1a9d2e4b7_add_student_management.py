@@ -41,7 +41,7 @@ def upgrade() -> None:
             sa.Column("date_of_birth", sa.Date()), sa.Column("gender", sa.String(20)), sa.Column("email", sa.String(200)), sa.Column("phone", sa.String(30)),
             sa.Column("address", sa.Text()), sa.Column("nationality", sa.String(60), server_default="Kenyan"), sa.Column("national_id", sa.String(50)),
             sa.Column("photo_url", sa.String(500)), sa.Column("admission_date", sa.Date()), sa.Column("current_class_id", sa.Integer()),
-            sa.Column("level_id", sa.Integer()), sa.Column("stream_id", sa.Integer()), sa.Column("status", sa.String(20), nullable=False, server_default="active"),
+            sa.Column("level_id", sa.BigInteger()), sa.Column("stream_id", sa.BigInteger()), sa.Column("status", sa.String(20), nullable=False, server_default="active"),
             sa.Column("status_reason", sa.Text()), sa.Column("status_date", sa.Date()), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
             sa.Column("updated_at", sa.DateTime(timezone=True)), sa.UniqueConstraint("school_id", "admission_number", name="uq_student_admission"),
         )
@@ -51,7 +51,7 @@ def upgrade() -> None:
             sa.Column("middle_name", sa.String(100)), sa.Column("last_name", sa.String(100)), sa.Column("preferred_name", sa.String(100)),
             sa.Column("date_of_birth", sa.Date()), sa.Column("gender", sa.String(20)), sa.Column("email", sa.String(200)), sa.Column("phone", sa.String(30)),
             sa.Column("address", sa.Text()), sa.Column("nationality", sa.String(60)), sa.Column("national_id", sa.String(50)), sa.Column("photo_url", sa.String(500)),
-            sa.Column("admission_date", sa.Date()), sa.Column("current_class_id", sa.Integer()), sa.Column("level_id", sa.Integer()), sa.Column("stream_id", sa.Integer()),
+            sa.Column("admission_date", sa.Date()), sa.Column("current_class_id", sa.Integer()), sa.Column("level_id", sa.BigInteger()), sa.Column("stream_id", sa.BigInteger()),
             sa.Column("status", sa.String(20)), sa.Column("status_reason", sa.Text()), sa.Column("status_date", sa.Date()), sa.Column("created_at", sa.DateTime(timezone=True)), sa.Column("updated_at", sa.DateTime(timezone=True)),
         ])
 
@@ -72,8 +72,8 @@ def upgrade() -> None:
     if "student_enrollments" not in tables:
         op.create_table(
             "student_enrollments", sa.Column("id", sa.Integer(), primary_key=True), sa.Column("school_id", sa.Integer(), nullable=False),
-            sa.Column("student_id", sa.Integer(), sa.ForeignKey("students_v2.id", ondelete="CASCADE"), nullable=False), sa.Column("academic_year_id", sa.Integer(), sa.ForeignKey("academic_years.id"), nullable=False),
-            sa.Column("term_id", sa.Integer(), sa.ForeignKey("terms.id")), sa.Column("class_id", sa.Integer(), nullable=False), sa.Column("level_id", sa.Integer()), sa.Column("stream_id", sa.Integer()),
+            sa.Column("student_id", sa.Integer(), sa.ForeignKey("students_v2.id", ondelete="CASCADE"), nullable=False), sa.Column("academic_year_id", sa.BigInteger(), sa.ForeignKey("academic_years.id"), nullable=False),
+            sa.Column("term_id", sa.BigInteger(), sa.ForeignKey("terms.id")), sa.Column("class_id", sa.Integer(), nullable=False), sa.Column("level_id", sa.BigInteger()), sa.Column("stream_id", sa.BigInteger()),
             sa.Column("status", sa.String(20), server_default="active"), sa.Column("enrollment_date", sa.Date()), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
             sa.UniqueConstraint("school_id", "student_id", "academic_year_id", name="uq_enrollment_year"),
         )
