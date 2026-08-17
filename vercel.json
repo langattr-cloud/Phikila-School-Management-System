@@ -2,5 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "fastapi",
   "installCommand": "python -m pip install -r requirements.txt && npm --prefix frontend ci --include=dev",
-  "buildCommand": "npm --prefix frontend run build && test -f frontend/dist/index.html"
+  "buildCommand": "npm --prefix frontend run build && test -f frontend/dist/index.html",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 180
+    }
+  }
 }
