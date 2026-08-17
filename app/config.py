@@ -49,32 +49,23 @@ class Settings(BaseSettings):
         """Return a SQLAlchemy-ready database URL.
 
         - If DATABASE_URL is unset, use SQLite locally and require one in production.
-        - Normalise postgres:// / postgresql:// into postgresql+psycopg2://
+        - Normalise postgres:// / postgresql:// into postgresql+psycopg2://.
         """
         raw = self.database_url
         if not raw:
             if os.getenv("VERCEL") or self.environment == "production":
                 raise RuntimeError(
                     "DATABASE_URL is not configured. In the Vercel dashboard for the "
-                    "backend project (Project Settings > Environment Variables) add "
-                    "DATABASE_URL with the Supabase transaction-pooler connection "
-                    "string (port 6543, append ?sslmode=require). "
-                    "Example: postgresql://postgres.PROJECT_REF:***@REGION.pooler.supabase.com:6543/postgres?sslmode=require"
+                    '"backend project" (Project Settings > Environment Variables) add '
+                    "DATABASE_URL with the Supabase transaction pooler URL. "
+                    "Locally, copy .env.example to .env first."
                 )
             return "sqlite:///./phikila.db"
 
-        if raw.startswith("postgres://"):
-            return raw.replace("postgres://", "postgresql+psycopg2://", 1)
-        if raw.startswith("postgresql://"):
-            return raw.replace("postgresql://", "postgresql+psycopg2://", 1)
-        return raw
+        return raw.replace("postgres://", "postgresql+psycopg2://")
 
-    # ------------------------------------------------------------------
-    # Validators
-    # ------------------------------------------------------------------
-    @classmethod
-    def model_post_init(cls, __context) -> None:
-        if "*" in cls.cors_origins:
+    def model_post_init(self, __context) -> None:
+        if "*" in self.cors_origins:
             raise RuntimeError(
                 "CORS_ORIGINS must list exact trusted origins; "
                 "wildcard CORS is not allowed"
