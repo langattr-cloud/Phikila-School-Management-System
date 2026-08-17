@@ -43,6 +43,55 @@ jobs:
           alembic heads
           test "$(alembic heads | wc -l)" -eq 1
 
+      - name: Baseline existing production schema
+        run: |
+          CURRENT="$(alembic current 2>/dev/null || true)"
+          if [ -n "$CURRENT" ]; then
+            echo "Alembic already has a recorded database revision:"
+            echo "$CURRENT"
+            exit 0
+          fi
+
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, text
+
+          required = {
+              "academic_years",
+              "grade_levels",
+              "lesson_periods",
+              "school_info",
+              "school_settings",
+              "school_working_days",
+              "streams",
+              "terms",
+              "timetable_entries",
+              "timetables",
+              "working_days",
+              "timetable_allocations",
+          }
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          with engine.connect() as conn:
+              rows = conn.execute(text("""
+                  SELECT table_name
+                  FROM information_schema.tables
+                  WHERE table_schema = 'public'
+                    AND table_name = ANY(:tables)
+              """), {"tables": list(required)})
+              found = {row[0] for row in rows}
+
+          missing = sorted(required - found)
+          if missing:
+              print("Production database is not an unversioned copy of the existing base schema.")
+              print("Missing base tables:", ", ".join(missing))
+              raise SystemExit(1)
+
+          print("Existing base schema detected; stamping Alembic baseline 8b4a887cf966.")
+          PY
+
+          alembic stamp 8b4a887cf966
+
       - name: Show migration plan
         run: |
           alembic current
