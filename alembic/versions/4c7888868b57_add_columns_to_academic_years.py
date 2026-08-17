@@ -2,6 +2,7 @@
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import inspect
+from sqlalchemy.dialects import postgresql
 
 revision = "4c7888868b57"
 down_revision = "00581779dc5c"
@@ -53,7 +54,7 @@ def _ensure_status_enum():
 
 def upgrade():
     _ensure_status_enum()
-    status_enum = sa.Enum("ACTIVE", "INACTIVE", "ARCHIVED", name="statusenum", create_type=False)
+    status_enum = postgresql.ENUM("ACTIVE", "INACTIVE", "ARCHIVED", name="statusenum", create_type=False)
 
     _create_table_if_missing("academic_settings", [
         sa.Column("id", sa.Integer(), nullable=False), sa.Column("key", sa.String(100), nullable=False),
