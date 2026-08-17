@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Health &amp; Welfare Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "deep-navy": "#0B1B2D",
+                        "border-subtle": "rgba(255, 255, 255, 0.1)",
+                        "inverse-primary": "#b0c8ed",
+                        "surface-dim": "rgba(255, 255, 255, 0.05)",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "background": "#050B14",
+                        "error": "#ffb4ab",
+                        "surface-container-low": "rgba(255, 255, 255, 0.03)",
+                        "outline-variant": "rgba(255, 255, 255, 0.2)",
+                        "surface-gray": "rgba(255, 255, 255, 0.02)",
+                        "on-secondary-fixed": "#002109",
+                        "tertiary-container": "rgba(255, 221, 186, 0.1)",
+                        "surface-variant": "rgba(255, 255, 255, 0.1)",
+                        "on-secondary-container": "#6bff8f",
+                        "surface-container-lowest": "rgba(11, 27, 45, 0.4)",
+                        "on-surface-variant": "#c4c6ce",
+                        "on-error": "#690005",
+                        "on-background": "#e2e2e6",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-highest": "rgba(255, 255, 255, 0.15)",
+                        "tertiary": "#ffb77c",
+                        "surface-container": "rgba(255, 255, 255, 0.08)",
+                        "on-primary-container": "#d3e4ff",
+                        "secondary-fixed-dim": "#4ae176",
+                        "outline": "#8e9099",
+                        "inverse-on-surface": "#001f25",
+                        "surface-bright": "rgba(255, 255, 255, 0.2)",
+                        "on-tertiary-container": "#ffddba",
+                        "on-tertiary-fixed": "#2b1700",
+                        "surface-container-high": "rgba(255, 255, 255, 0.1)",
+                        "error-container": "rgba(255, 180, 171, 0.1)",
+                        "on-secondary": "#003915",
+                        "on-secondary-fixed-variant": "#005321",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "on-error-container": "#ffb4ab",
+                        "on-primary-fixed-variant": "#304867",
+                        "secondary-container": "rgba(107, 255, 143, 0.1)",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "primary": "#a0cbfb",
+                        "inverse-surface": "#a6eeff",
+                        "surface-tint": "#a0cbfb",
+                        "secondary-fixed": "#6bff8f",
+                        "on-surface": "#e2e2e6",
+                        "surface": "rgba(11, 27, 45, 0.6)",
+                        "on-tertiary": "#4a2800",
+                        "secondary": "#6bff8f",
+                        "on-primary": "#00315a",
+                        "primary-fixed": "#d3e4ff",
+                        "primary-container": "rgba(0, 73, 126, 0.4)",
+                        "on-primary-fixed": "#001c38"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px",
+                        "compact-padding": "12px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md-mobile": ["Geist"],
+                        "body-sm": ["Geist"],
+                        "data-mono": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "label-caps": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "body-lg": ["Geist"],
+                        "headline-sm": ["Geist"],
+                        "body-md": ["Geist"]
+                    },
+                    "fontSize": {
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>.confidential-blur {
+    filter: blur(4px);
+    transition: filter 0.2s ease;
+    cursor: pointer
+    }
+.confidential-blur:hover, .confidential-blur:focus {
+    filter: blur(0)
+    }
+.glass-panel {
+    background: rgba(11, 27, 45, 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1)
+    }
+.space-bg {
+    background-image: radial-gradient(circle at 15% 50%, rgba(20, 40, 80, 0.8), transparent 50%), radial-gradient(circle at 85% 30%, rgba(60, 20, 80, 0.6), transparent 50%), url(https://lh3.googleusercontent.com/aida-public/AB6AXuDf2LbltJgGMLwqMnKI2qtNwgCFcVk3wXkR6Eb3hKoNq-eaE33vGPwzo6vuh29fpqoUVzYk0KEvdxAPsOGl_c8ZWUFzdxlmoONcFe7UKmqUNCQvgWQAiUUu7Y2fYVQTQ9P_E8tYNJxntwduft-r5Wav_zFuqtYELTzgmuIqlJ2yRNQkH5gd31B6Kze1n6JysAzSG1yRZRaQod4XQVpqgPQsPrS9TWJQWbjiCPZicIpdPVHgt5w1ykkR);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed
+    }</style>
+</head>
+<body class="bg-background space-bg text-on-background font-body-md h-full flex overflow-hidden antialiased">
+<!-- SideNavBar (Shared Component) -->
+<nav class="glass-panel h-screen w-sidebar-expanded flex-shrink-0 flex flex-col transition-all duration-200 ease-in-out z-50 fixed md:relative left-0 top-0 hidden md:flex rounded-r-2xl my-2 ml-2 h-[calc(100vh-16px)]">
+<div class="p-grid-margin flex items-center gap-3 border-b border-border-subtle/50">
+<div class="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white/10 backdrop-blur-md p-1 border border-white/20">
+<img alt="Phikila Logo" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmJX9Bc-ZhqiktE1xIxG6XUCMKPd7AA1xelkWqLg_JjtKetvIIKU_H0JcBi-MXOlNMGt-cIlEA0hfPHs6c0WHNLibIz-Ogu0g7LOOkMp078rBf0tQJkd1UrdQSn3Y1QWcS813l2KNmAnqdmvhjhjjgfKa-TZKI4Y4bQQlgD3fFLlotBqI3M6IhZrkco-nIY_AH-sxbO6IDwbuvxgDyMAEj5zoDugSATJGyP6SBHPHrUkcWEmBhi2eSE-E7Tmb10kOaQQ"/>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-white font-bold tracking-tight">Phikila OS</h1>
+<p class="font-label-caps text-label-caps text-primary">Admin Console</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-3">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="domain">domain</span>
+<span class="font-body-md text-body-md">Institutions</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+<span class="font-body-md text-body-md">Academic Management</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-body-md text-body-md">Finance Hub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 border-primary bg-primary/20 text-white font-semibold transition-all duration-200 shadow-[inset_0_0_20px_rgba(160,203,251,0.1)]" href="#">
+<span class="material-symbols-outlined text-primary" data-icon="group" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-body-md text-body-md">Personnel</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-body-md text-body-md">AI Intelligence</span>
+</a>
+</div>
+<div class="p-4 mt-auto border-t border-border-subtle/50">
+<div class="bg-primary-container/30 border border-primary/20 rounded-xl p-3 mb-4 backdrop-blur-md">
+<p class="font-label-caps text-label-caps text-primary mb-1">System Status: Active</p>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#6bff8f]"></div>
+<p class="font-body-sm text-body-sm text-white">All services optimal</p>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-body-md text-body-md">Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-screen overflow-hidden p-2">
+<!-- TopNavBar (Shared Component) -->
+<header class="glass-panel h-16 w-full rounded-2xl sticky top-0 z-40 flex justify-between items-center px-grid-margin mb-4">
+<div class="flex items-center gap-6">
+<!-- Mobile Menu Toggle -->
+<button class="md:hidden text-primary">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h2 class="font-headline-sm text-headline-sm text-white hidden md:block">Health &amp; Welfare</h2>
+<div class="hidden md:flex gap-4">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors py-5 border-b-2 border-transparent" href="#">Global Search</a>
+<a class="font-body-md text-body-md text-primary font-bold border-b-2 border-primary py-5" href="#">Reports</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors py-5 border-b-2 border-transparent" href="#">Logs</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-black/20 border border-white/10 rounded-full font-body-sm text-body-sm text-white placeholder-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-64 transition-all backdrop-blur-sm" placeholder="Search records (Ctrl+K)" type="text"/>
+</div>
+<!-- Appearance Toggles -->
+<div class="flex items-center gap-2 bg-black/20 p-1 rounded-full border border-white/10 backdrop-blur-sm hidden lg:flex">
+<button class="p-1.5 text-primary bg-white/10 rounded-full transition-colors" title="Dark Mode">
+<span class="material-symbols-outlined text-sm" data-icon="dark_mode">dark_mode</span>
+</button>
+<button class="p-1.5 text-on-surface-variant hover:text-white rounded-full transition-colors" title="Font Settings">
+<span class="material-symbols-outlined text-sm" data-icon="text_format">text_format</span>
+</button>
+<button class="p-1.5 text-primary rounded-full transition-colors" title="Toggle Wallpaper">
+<span class="material-symbols-outlined text-sm" data-icon="wallpaper">wallpaper</span>
+</button>
+</div>
+<div class="flex items-center gap-2 border-l border-white/10 pl-4 ml-2">
+<button class="p-2 text-on-surface-variant hover:bg-white/10 hover:text-white rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-white/10 hover:text-white rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="apps">apps</span>
+</button>
+</div>
+<div class="flex items-center gap-3">
+<button class="hidden lg:block px-4 py-2 border border-white/20 rounded-full font-body-sm text-body-sm text-white hover:bg-white/10 transition-colors backdrop-blur-sm">
+                        Export
+                    </button>
+<button class="px-4 py-2 bg-primary/20 border border-primary/30 text-white rounded-full font-body-sm text-body-sm font-semibold hover:bg-primary/40 transition-colors flex items-center gap-2 shadow-[0_0_15px_rgba(160,203,251,0.2)] backdrop-blur-sm">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                        Add Entry
+                    </button>
+<img alt="User Profile" class="w-9 h-9 rounded-full border-2 border-primary/50 object-cover ml-2 shadow-[0_0_10px_rgba(160,203,251,0.3)]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsaN_S1bS9QKOUq9aocVmNsgi9YfLH3hNi35JK-4eSBDbmu7yeCRkI6e1-43s0dEv5i5CAF_kJV2mQJ8f_4qsSVLDRdn8AcNon_EgHyqlqSrmFZ5TbgvnvtS3hsQpqOBFJXLDtLKqzJBVjHrtx6clLQA7FTC9034EKAfVONieYHMSWvaO-pw2OLQHU9I8rppGGPhe-qrj6ttKaOo7884i4luyIlJJd6awaG7gNlPIhIOaGau7l608v"/>
+</div>
+</div>
+</header>
+<!-- Scrollable Canvas -->
+<div class="flex-1 overflow-y-auto p-gutter md:p-grid-margin glass-panel rounded-2xl flex flex-col">
+<!-- Confidentiality Header Banner -->
+<div class="bg-primary-container/40 border border-primary/20 text-white rounded-xl p-4 mb-grid-margin flex items-start gap-4 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+<span class="material-symbols-outlined text-tertiary shadow-[0_0_10px_rgba(255,183,124,0.5)] rounded-full" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span>
+<div>
+<h3 class="font-headline-sm text-headline-sm mb-1 text-white">Confidential Medical Module</h3>
+<p class="font-body-sm text-body-sm text-on-primary-container">You are viewing restricted health and welfare data. Access is logged. Hover or click masked IDs to reveal sensitive information.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-grid-margin flex-1">
+<!-- Daily Summary (Intelligence Modules) -->
+<div class="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="glass-panel rounded-xl p-5 flex flex-col justify-between hover:bg-white/5 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Clinic Visits Today</p>
+<p class="font-display-lg text-display-lg text-white mt-1 group-hover:text-primary transition-colors">24</p>
+</div>
+<div class="p-2.5 bg-primary/10 border border-primary/20 rounded-lg backdrop-blur-sm shadow-[0_0_15px_rgba(160,203,251,0.1)]">
+<span class="material-symbols-outlined text-primary" data-icon="local_hospital">local_hospital</span>
+</div>
+</div>
+<div class="flex items-center gap-2 bg-error/10 w-fit px-2 py-1 rounded-md border border-error/20">
+<span class="material-symbols-outlined text-error text-sm" data-icon="trending_up">trending_up</span>
+<span class="font-data-mono text-data-mono text-error">+12% vs avg</span>
+</div>
+</div>
+<div class="glass-panel rounded-xl p-5 flex flex-col justify-between hover:bg-white/5 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Active Medical Alerts</p>
+<p class="font-display-lg text-display-lg text-white mt-1 group-hover:text-error transition-colors">7</p>
+</div>
+<div class="p-2.5 bg-error/10 border border-error/20 rounded-lg backdrop-blur-sm shadow-[0_0_15px_rgba(255,180,171,0.1)]">
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant bg-black/20 p-2 rounded-md border border-white/5">3 severe allergies flagged today</p>
+</div>
+<div class="glass-panel rounded-xl p-5 flex flex-col justify-between hover:bg-white/5 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Pending Welfare Follow-ups</p>
+<p class="font-display-lg text-display-lg text-white mt-1 group-hover:text-primary transition-colors">11</p>
+</div>
+<div class="p-2.5 bg-primary/10 border border-primary/20 rounded-lg backdrop-blur-sm">
+<span class="material-symbols-outlined text-primary" data-icon="assignment_ind">assignment_ind</span>
+</div>
+</div>
+<div class="w-full bg-black/40 h-2 rounded-full overflow-hidden mt-2 border border-white/10">
+<div class="bg-gradient-to-r from-primary/50 to-primary h-full w-2/3 shadow-[0_0_10px_rgba(160,203,251,0.5)]"></div>
+</div>
+</div>
+</div>
+<!-- Recent Incidents (High-Density Table) -->
+<div class="lg:col-span-8 glass-panel rounded-xl flex flex-col overflow-hidden">
+<div class="p-5 border-b border-white/10 flex justify-between items-center bg-black/20 backdrop-blur-md">
+<h3 class="font-headline-sm text-headline-sm text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="list_alt">list_alt</span>
+    Recent Incidents &amp; Logs
+</h3>
+<button class="font-body-sm text-body-sm text-primary hover:text-white transition-colors bg-white/5 px-3 py-1 rounded-full border border-white/10">View All</button>
+</div>
+<div class="overflow-x-auto flex-1 p-2">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-white/10">
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Time</th>
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Student ID</th>
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Type</th>
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Severity</th>
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Action</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm text-white">
+<tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+<td class="py-compact-padding px-4 font-data-mono text-on-surface-variant">09:15 AM</td>
+<td class="py-compact-padding px-4"><span class="confidential-blur font-data-mono bg-black/30 border border-white/10 px-2 py-0.5 rounded text-primary">STU-8821</span></td>
+<td class="py-compact-padding px-4">Minor Injury (Playground)</td>
+<td class="py-compact-padding px-4 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#6bff8f]"></div> Low</td>
+<td class="py-compact-padding px-4 text-on-surface-variant">First Aid Applied</td>
+</tr>
+<tr class="border-b border-white/5 hover:bg-white/5 transition-colors bg-white/[0.02]">
+<td class="py-compact-padding px-4 font-data-mono text-on-surface-variant">10:45 AM</td>
+<td class="py-compact-padding px-4"><span class="confidential-blur font-data-mono bg-black/30 border border-white/10 px-2 py-0.5 rounded text-tertiary">STU-3490</span></td>
+<td class="py-compact-padding px-4">Asthma Flare-up</td>
+<td class="py-compact-padding px-4 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_8px_#ffb77c]"></div> Medium</td>
+<td class="py-compact-padding px-4 text-on-surface-variant">Inhaler Administered, Parent Contacted</td>
+</tr>
+<tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+<td class="py-compact-padding px-4 font-data-mono text-on-surface-variant">11:30 AM</td>
+<td class="py-compact-padding px-4"><span class="confidential-blur font-data-mono bg-error/10 border border-error/20 px-2 py-0.5 rounded text-error">STU-1102</span></td>
+<td class="py-compact-padding px-4 text-error">Suspected Concussion</td>
+<td class="py-compact-padding px-4 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-error shadow-[0_0_8px_#ffb4ab]"></div> <span class="text-error">High</span></td>
+<td class="py-compact-padding px-4 text-on-surface-variant">Resting, Medical Referral Issued</td>
+</tr>
+<tr class="border-b border-white/5 hover:bg-white/5 transition-colors bg-white/[0.02]">
+<td class="py-compact-padding px-4 font-data-mono text-on-surface-variant">01:10 PM</td>
+<td class="py-compact-padding px-4"><span class="confidential-blur font-data-mono bg-black/30 border border-white/10 px-2 py-0.5 rounded text-primary">STU-5541</span></td>
+<td class="py-compact-padding px-4">General Malaise</td>
+<td class="py-compact-padding px-4 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#6bff8f]"></div> Low</td>
+<td class="py-compact-padding px-4 text-on-surface-variant">Temperature Check, Returned to Class</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Right Column: AI Flags & Calendar -->
+<div class="lg:col-span-4 flex flex-col gap-grid-margin">
+<!-- AI Welfare Risk Indicators (Glassmorphism/Intelligence Module) -->
+<div class="bg-gradient-to-br from-primary-container/60 to-black/60 rounded-xl border border-primary/30 p-5 text-white relative overflow-hidden shadow-[0_8px_32px_rgba(0,73,126,0.3)] backdrop-blur-xl">
+<!-- Abstract decorative element -->
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl"></div>
+<div class="absolute -left-10 -bottom-10 w-32 h-32 bg-secondary/10 rounded-full blur-2xl"></div>
+<div class="flex items-center gap-2 mb-4 relative z-10">
+<span class="material-symbols-outlined text-tertiary shadow-[0_0_15px_rgba(255,183,124,0.4)] rounded-full" data-icon="psychology">psychology</span>
+<h3 class="font-headline-sm text-headline-sm">AI Welfare Flags</h3>
+</div>
+<div class="space-y-3 relative z-10">
+<div class="bg-black/40 rounded-lg border border-white/10 p-4 backdrop-blur-md hover:bg-black/60 transition-colors cursor-pointer group">
+<div class="flex justify-between items-start mb-2">
+<span class="font-data-mono text-data-mono text-tertiary confidential-blur">STU-9921</span>
+<span class="text-[10px] font-label-caps bg-error/20 border border-error/30 text-error px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,180,171,0.2)]">High Risk</span>
+</div>
+<p class="font-body-sm text-body-sm text-white/90">Sudden 40% drop in attendance coupled with multiple clinic visits (headaches).</p>
+<button class="mt-3 text-xs font-semibold text-primary group-hover:text-white transition-colors flex items-center gap-1">Review Profile <span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>
+</div>
+<div class="bg-black/40 rounded-lg border border-white/10 p-4 backdrop-blur-md hover:bg-black/60 transition-colors cursor-pointer group">
+<div class="flex justify-between items-start mb-2">
+<span class="font-data-mono text-data-mono text-primary confidential-blur">STU-4402</span>
+<span class="text-[10px] font-label-caps bg-tertiary/20 border border-tertiary/30 text-tertiary px-2 py-0.5 rounded-full">Watch</span>
+</div>
+<p class="font-body-sm text-body-sm text-white/90">Pattern of avoiding PE classes identified over 3 weeks.</p>
+<button class="mt-3 text-xs font-semibold text-primary group-hover:text-white transition-colors flex items-center gap-1">Log Observation <span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>
+</div>
+</div>
+</div>
+<!-- Appointment Calendar -->
+<div class="glass-panel border border-white/10 rounded-xl p-5 flex-1 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl"></div>
+<div class="flex justify-between items-center mb-5 relative z-10">
+<h3 class="font-headline-sm text-headline-sm text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="calendar_month">calendar_month</span>
+                                Today's Schedule
+                            </h3>
+<button class="p-1.5 text-primary bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"><span class="material-symbols-outlined text-sm" data-icon="add">add</span></button>
+</div>
+<div class="space-y-5 relative z-10">
+<div class="flex gap-4 items-start relative pl-5 before:content-[''] before:absolute before:left-[5px] before:top-2 before:bottom-[-20px] before:w-[2px] before:bg-white/10">
+<div class="absolute left-0 top-1.5 w-3 h-3 rounded-full bg-secondary shadow-[0_0_10px_#6bff8f] border-2 border-background"></div>
+<div class="w-14 shrink-0 font-data-mono text-data-mono text-primary bg-primary/10 px-2 py-1 rounded text-center border border-primary/20">14:00</div>
+<div class="bg-white/5 p-3 rounded-lg border border-white/5 flex-1">
+<p class="font-body-sm text-body-sm font-semibold text-white">Routine Checkup - Grade 5</p>
+<p class="text-xs text-on-surface-variant mt-1"><span class="confidential-blur">Class 5B (24 students)</span></p>
+</div>
+</div>
+<div class="flex gap-4 items-start relative pl-5 before:content-[''] before:absolute before:left-[5px] before:top-2 before:bottom-[-20px] before:w-[2px] before:bg-white/10">
+<div class="absolute left-0 top-1.5 w-3 h-3 rounded-full bg-tertiary shadow-[0_0_10px_#ffb77c] border-2 border-background"></div>
+<div class="w-14 shrink-0 font-data-mono text-data-mono text-tertiary bg-tertiary/10 px-2 py-1 rounded text-center border border-tertiary/20">15:30</div>
+<div class="bg-white/5 p-3 rounded-lg border border-white/5 flex-1">
+<p class="font-body-sm text-body-sm font-semibold text-white">Counselling Session</p>
+<p class="text-xs text-on-surface-variant mt-1"><span class="confidential-blur">STU-1120</span> (Follow-up)</p>
+</div>
+</div>
+<div class="flex gap-4 items-start relative pl-5">
+<div class="absolute left-0 top-1.5 w-3 h-3 rounded-full bg-white/30 border-2 border-background"></div>
+<div class="w-14 shrink-0 font-data-mono text-data-mono text-on-surface-variant px-2 py-1 text-center">16:15</div>
+<div class="p-3 flex-1">
+<p class="font-body-sm text-body-sm text-on-surface-variant">Inventory Restock (EpiPens)</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="mt-6 pt-4 pb-2 border-t border-white/10 text-on-surface-variant font-body-sm text-xs flex flex-wrap items-center justify-between gap-4 w-full bg-black/20 rounded-xl px-4 backdrop-blur-sm">
+<div class="flex flex-wrap items-center gap-4">
+<a class="hover:text-primary transition-colors" href="#">Support</a>
+<a class="hover:text-primary transition-colors" href="#">System status</a>
+<a class="hover:text-primary transition-colors" href="#">Careers</a>
+<a class="hover:text-primary transition-colors" href="#">Terms of Use</a>
+<a class="hover:text-primary transition-colors" href="#">Report Security Issues</a>
+<a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<button class="flex items-center gap-1.5 hover:text-primary transition-colors bg-white/5 px-2 py-1 rounded-full border border-white/10">
+<div class="flex items-center bg-primary/40 text-white rounded-full p-0.5 w-8 h-4 relative border border-primary/50">
+<span class="material-symbols-outlined text-[10px] absolute left-1">check</span>
+<div class="w-3 h-3 bg-white rounded-full absolute right-0.5 flex items-center justify-center shadow-[0_0_5px_rgba(255,255,255,0.8)]">
+<span class="material-symbols-outlined text-primary text-[10px]">close</span>
+</div>
+</div>
+            Cookie Preferences
+        </button>
+</div>
+<div class="text-white/50">
+        © 2026 Phikila, Inc.
+    </div>
+</footer>
+</div>
+</main>
+<script>
+        // Simple script to toggle mask on click for accessibility if hover isn't enough
+        document.querySelectorAll('.confidential-blur').forEach(el => {
+            el.addEventListener('click', function() {
+                if(this.style.filter === 'none') {
+                    this.style.filter = '';
+                } else {
+                    this.style.filter = 'none';
+                }
+            });
+        });
+    </script>
+</body></html>

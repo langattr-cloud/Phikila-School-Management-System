@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Examinations Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "deep-navy": "#0B1B2D",
+                        "border-subtle": "#E2E8F0",
+                        "inverse-primary": "#b0c8ed",
+                        "surface-dim": "#cbdbf5",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "background": "#f8f9ff",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#eff4ff",
+                        "outline-variant": "#c4c6ce",
+                        "surface-gray": "#F9FAFB",
+                        "on-secondary-fixed": "#002109",
+                        "tertiary-container": "#3e2300",
+                        "surface-variant": "#d3e4fe",
+                        "on-secondary-container": "#007432",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#43474d",
+                        "on-error": "#ffffff",
+                        "on-background": "#0b1c30",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-highest": "#d3e4fe",
+                        "tertiary": "#221100",
+                        "surface-container": "#e5eeff",
+                        "on-primary-container": "#7a92b4",
+                        "secondary-fixed-dim": "#4ae176",
+                        "outline": "#74777e",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-bright": "#f8f9ff",
+                        "on-tertiary-container": "#b2885a",
+                        "on-tertiary-fixed": "#2b1700",
+                        "surface-container-high": "#dce9ff",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#005321",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#304867",
+                        "secondary-container": "#6bff8f",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "primary": "#00152c",
+                        "inverse-surface": "#213145",
+                        "surface-tint": "#486080",
+                        "secondary-fixed": "#6bff8f",
+                        "on-surface": "#0b1c30",
+                        "surface": "#f8f9ff",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#006e2f",
+                        "on-primary": "#ffffff",
+                        "primary-fixed": "#d3e4ff",
+                        "primary-container": "#0f2a47",
+                        "on-primary-fixed": "#001c38"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md-mobile": ["Geist"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-md": ["Geist"],
+                        "label-caps": ["JetBrains Mono"],
+                        "display-lg": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-sm": ["Geist"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>body {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuA0d3khdqYJOMKyIbNRkJs0WFD0-nzoiy337Wcy9mJYmFLLAY0KVsJmrv8GmsFpUH_j1yz3tKqrYN-HiNM_G7B8uh8dNylcAe2Mpukh6LOXZdCrHsw9fW5KDpK96c3NanADnifl3RgF3qIqVpRz9Me5O1kQsihNMhEg73gEDkgLX8vnFB7CcUYrsrmk6p5xo8uGEah0cVXcufnYjOft_mKlQipqf0IHKqXn8DEVjW9O2vRRmLyDpo2D);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed
+    }
+.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24
+    }
+.material-symbols-outlined[data-weight="fill"] {
+    font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24
+    }
+/* Subtle Scrollbar for dense areas */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px
+    }
+::-webkit-scrollbar-track {
+    background: transparent
+    }
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px
+    }</style>
+</head>
+<body class="text-white font-body-md flex h-screen overflow-hidden bg-slate-900">
+<!-- SideNavBar -->
+<nav class="bg-deep-navy/40 backdrop-blur-xl text-primary-fixed font-label-caps text-label-caps h-screen w-sidebar-expanded flex-shrink-0 border-r border-white/10 transition-all duration-200 ease-in-out fixed left-0 top-0 h-full flex flex-col z-50 hidden md:flex">
+<div class="p-grid-margin flex items-center space-x-3 mb-4">
+<img alt="Phikila Logo" class="w-8 h-8 rounded-full object-cover" data-alt="Phikila logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAP9qidfeAMvF0VDisFNK9J8ZSKLNyExKUWRtWcZpJKbKbKwaiioFweIQ3k6fOfmqNd1GCaaYm_R2CdYMxmWMzeTuwc1bZeX3QD8TodEmHrr5tACGYgNQVqz6XU9snJWcgWg9MTTPXYlIeJEYvcVc3AnkJFIPjokDb2XmrDXaooeJowSI0Rb0VhqGViFGcMUvdDZmt5LtNxisRHt3HP0cCMg9AfCibv_Up1i8ez8GizeldJnoaEAGwZFsZF95BnSdYgNg"/>
+<div>
+<h1 class="font-headline-md text-headline-md text-white font-bold tracking-tight">Phikila OS</h1>
+<p class="font-body-sm text-body-sm text-primary-fixed opacity-80 mt-0.5">Admin Console</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto py-2">
+<ul class="space-y-1 px-3">
+<li>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-primary-fixed/80 hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-primary-fixed/80 hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="domain">domain</span>
+<span>Institutions</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-3 py-2 rounded border-l-4 border-inverse-primary bg-white/20 text-white font-semibold shadow-inner" href="#">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+<span>Academic Management</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-primary-fixed/80 hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span>Finance Hub</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-primary-fixed/80 hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>Personnel</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-primary-fixed/80 hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span>AI Intelligence</span>
+</a>
+</li>
+</ul>
+</div>
+<div class="p-4 border-t border-white/10">
+<div class="px-3 py-2 mb-2 text-[10px] uppercase tracking-wider text-secondary-fixed-dim flex items-center">
+<div class="w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim mr-2 animate-pulse"></div>
+                System Status: Active
+            </div>
+<ul class="space-y-1 px-3">
+<li>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-primary-fixed/80 hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span>Support</span>
+</a>
+</li>
+<li>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-primary-fixed/80 hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col md:ml-[240px] w-full min-h-screen relative">
+<!-- TopNavBar -->
+<header class="bg-deep-navy/40 backdrop-blur-xl text-white font-body-md text-body-md h-16 w-full border-b border-white/10 sticky top-0 z-40 flex justify-between items-center px-grid-margin flex-shrink-0 shadow-sm">
+<div class="flex items-center space-x-6 h-full">
+<!-- Search (Left) -->
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white/50 text-[18px]" data-icon="search">search</span>
+<input class="pl-9 pr-4 py-1.5 bg-white/10 border border-white/20 rounded-DEFAULT text-body-sm focus:border-inverse-primary focus:ring-2 focus:ring-inverse-primary/30 transition-all w-64 outline-none text-white placeholder-white/50 backdrop-blur-sm" placeholder="Search exams, rooms, subjects..." type="text"/>
+</div>
+<nav class="hidden lg:flex space-x-6 h-full">
+<a class="text-white/70 hover:text-white hover:bg-white/10 transition-colors h-full flex items-center px-2" href="#">Global Search</a>
+<a class="text-white/70 hover:text-white hover:bg-white/10 transition-colors h-full flex items-center px-2" href="#">Reports</a>
+<a class="text-white font-bold border-b-2 border-white pb-1 h-full flex items-center px-2 mt-1" href="#">Logs</a>
+</nav>
+</div>
+<div class="flex items-center space-x-4">
+<div class="hidden md:flex items-center bg-white/5 rounded-lg border border-white/10 p-1 mr-2 backdrop-blur-sm">
+<button class="p-1 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors" title="Toggle Theme">
+<span class="material-symbols-outlined text-[18px]">light_mode</span>
+</button>
+<button class="p-1 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors" title="Font Settings">
+<span class="material-symbols-outlined text-[18px]">text_fields</span>
+</button>
+<button class="p-1 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors" title="Toggle Wallpaper">
+<span class="material-symbols-outlined text-[18px]">wallpaper</span>
+</button>
+</div>
+<button class="hidden md:flex items-center px-3 py-1.5 border border-white/20 bg-white/5 backdrop-blur-sm rounded text-body-sm hover:bg-white/10 transition-colors text-white">
+<span class="material-symbols-outlined mr-1.5 text-[18px]" data-icon="download">download</span>
+                    Export
+                </button>
+<button class="bg-inverse-primary text-deep-navy px-4 py-1.5 rounded text-body-sm font-semibold hover:opacity-90 transition-opacity shadow-[0_0_15px_rgba(176,200,237,0.3)] flex items-center">
+<span class="material-symbols-outlined mr-1.5 text-[18px]" data-icon="add">add</span>
+                    Add Entry
+                </button>
+<div class="h-6 w-px bg-white/20 mx-2"></div>
+<button class="text-white/70 hover:text-white transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full border border-deep-navy shadow-[0_0_5px_rgba(186,26,26,0.8)]"></span>
+</button>
+<button class="text-white/70 hover:text-white transition-colors">
+<span class="material-symbols-outlined" data-icon="apps">apps</span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-white/20 ml-2 object-cover" data-alt="A professional headshot of a school administrator, a middle-aged woman with glasses and a friendly but focused expression, wearing a crisp dark blue blazer over a light blue blouse. She is positioned against a clean, softly lit, neutral grey background, embodying competence and authority in an educational setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAiH6poMe1ABmgtJ2zw6jv57w8m-6WXkHNwlV6wt2s0B1z1OhNGfEzXxwlRteSY3D-UBh3p6gTXMxMcE-CMRoulMXIP6RWFhpYRk2qtdVS-zC0iFGvIaHQFUMTZyvuyqpbJ88Ilk9JD5zVy0jHkXsFpuOCQpja8YsvqXZU4DlbSVKLFt9wD_4daB6s7VrAsJCXGsU2A1YfdigR4W80P0-al8Q8RpScshBtnqi4yGjkQBS0QbJ1kaBUv"/>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 overflow-y-auto p-grid-margin relative flex flex-col">
+<div class="flex-1">
+<!-- Header -->
+<div class="mb-6 flex justify-between items-end">
+<div>
+<div class="flex items-center space-x-2 text-white/60 font-label-caps text-label-caps mb-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="folder_open">folder_open</span>
+<span>Academic Management / Examinations</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-white drop-shadow-md">Examination Workspace</h2>
+</div>
+<div class="text-right">
+<div class="font-label-caps text-label-caps text-white/60 mb-1">Current Term</div>
+<div class="font-body-sm font-medium text-white/90">Term 3 - Final Assessments</div>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter mb-gutter">
+<!-- KPI Row (Cols 1-12) -->
+<div class="md:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<!-- KPI 1 -->
+<div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-4 flex flex-col justify-between shadow-[0_8px_32px_rgba(0,0,0,0.1)]">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-caps text-label-caps text-white/70">Exams This Week</span>
+<span class="material-symbols-outlined text-white/50" data-icon="event">event</span>
+</div>
+<div class="flex items-baseline space-x-2">
+<span class="font-display-lg text-display-lg text-white leading-none">42</span>
+<span class="font-body-sm text-secondary-fixed-dim flex items-center drop-shadow-[0_0_5px_rgba(74,225,118,0.5)]"><span class="material-symbols-outlined text-[14px]" data-icon="arrow_upward">arrow_upward</span> 12%</span>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-4 flex flex-col justify-between shadow-[0_8px_32px_rgba(0,0,0,0.1)]">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-caps text-label-caps text-white/70">Papers Scheduled</span>
+<span class="material-symbols-outlined text-white/50" data-icon="description">description</span>
+</div>
+<div class="flex items-baseline space-x-2">
+<span class="font-display-lg text-display-lg text-white leading-none">128</span>
+<span class="font-body-sm text-white/50">Total</span>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-4 flex flex-col justify-between shadow-[0_8px_32px_rgba(0,0,0,0.1)]">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-caps text-label-caps text-white/70">Rooms Occupied</span>
+<span class="material-symbols-outlined text-white/50" data-icon="meeting_room">meeting_room</span>
+</div>
+<div class="flex items-baseline space-x-2">
+<span class="font-display-lg text-display-lg text-white leading-none">14</span>
+<span class="font-body-sm text-white/50">/ 20</span>
+</div>
+<div class="w-full bg-white/10 mt-3 h-1.5 rounded-full overflow-hidden backdrop-blur-sm">
+<div class="bg-inverse-primary h-full w-[70%] shadow-[0_0_10px_rgba(176,200,237,0.5)]"></div>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="bg-white/10 backdrop-blur-md border border-error/30 rounded-lg p-4 flex flex-col justify-between shadow-[0_8px_32px_rgba(186,26,26,0.1)] relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-br from-error/20 to-transparent opacity-50 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<span class="font-label-caps text-label-caps text-error-container drop-shadow-sm">Pending Results</span>
+<span class="material-symbols-outlined text-error-container" data-icon="pending_actions">pending_actions</span>
+</div>
+<div class="flex items-baseline space-x-2 relative z-10">
+<span class="font-display-lg text-display-lg text-error-container leading-none drop-shadow-[0_0_8px_rgba(255,218,214,0.6)]">15</span>
+<span class="font-body-sm text-white/60">Batches</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="mt-8 pt-4 border-t border-white/20 text-body-sm text-white/60 flex flex-col sm:flex-row justify-between items-center w-full pb-2">
+<div class="flex flex-wrap gap-x-6 gap-y-2 mb-4 sm:mb-0">
+<a class="hover:text-white transition-colors" href="https://phikila.com/support">Support</a>
+<a class="hover:text-white transition-colors" href="https://phikila.com/status">System status</a>
+<a class="hover:text-white transition-colors" href="https://phikila.com/careers">Careers</a>
+<a class="hover:text-white transition-colors" href="https://phikila.com/terms">Terms of Use</a>
+<a class="hover:text-white transition-colors" href="https://phikila.com/security">Report Security Issues</a>
+<a class="hover:text-white transition-colors" href="https://phikila.com/privacy">Privacy Policy</a>
+<button class="hover:text-white transition-colors flex items-center space-x-1.5 group">
+<span>Cookie Preferences</span>
+<div class="flex items-center bg-[#0051C3] rounded-full h-3.5 px-0.5 shadow-[0_0_5px_rgba(0,81,195,0.5)]">
+<span class="material-symbols-outlined text-white text-[10px] font-bold" data-icon="check">check</span>
+<span class="material-symbols-outlined text-white/70 text-[10px]" data-icon="close">close</span>
+</div>
+</button>
+</div>
+<div class="whitespace-nowrap">
+        © 2026 Phikila, Inc.
+    </div>
+</footer>
+</main>
+</div>
+</body></html>

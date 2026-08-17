@@ -73,29 +73,21 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Sign in"
-      subtitle="Use your school staff account to continue."
+      title="Welcome back"
+      subtitle="Sign in with your school account to continue to your workspace."
       footer={
         <>
           <p className="auth-shell__footer-text">
             New to Phikila? <Link to="/signup">Create an account</Link>
           </p>
-          <div className="login-status" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            marginTop: '0.75rem',
-            fontSize: '0.8rem',
-            color: 'var(--color-ink-muted)',
-          }}>
+          <div className="login-status" aria-live="polite">
             <span className={`status-dot status-dot--${apiStatus}`} />
             <span>
               {apiStatus === 'checking'
-                ? 'Connecting to system…'
+                ? 'Checking system status…'
                 : apiStatus === 'online'
-                  ? 'System connected'
-                  : 'System offline — try again later'}
+                  ? 'All systems operational'
+                  : 'System status unavailable'}
             </span>
           </div>
         </>
@@ -182,7 +174,7 @@ export function LoginPage() {
 
         <button className="button button--primary button--block" type="submit" disabled={submitting}>
           {submitting && <Spinner label="Signing in" />}
-          {submitting ? 'Signing in…' : 'Sign in'}
+          {submitting ? 'Signing in…' : 'Continue to workspace'}
         </button>
       </form>
     </AuthLayout>

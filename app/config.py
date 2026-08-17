@@ -8,9 +8,6 @@ class Settings:
     """Small dependency-free settings object for local and serverless deployments."""
 
     def __init__(self) -> None:
-        # VERCEL_ENV is a system variable. Prefer it for the production target so
-        # a stale/missing ENVIRONMENT setting can never make production report
-        # itself as development. ENVIRONMENT remains explicit and recommended.
         vercel_environment = os.getenv("VERCEL_ENV", "").lower()
         self.environment = (
             "production"
@@ -19,9 +16,6 @@ class Settings:
         )
         self.database_url = self._database_url(os.getenv("DATABASE_URL"))
 
-        # Same-origin browser requests do not use CORS. Local development gets
-        # the two Vite origins by default; Vercel gets no cross-origin access
-        # unless exact origins are deliberately configured.
         default_cors_origins = (
             ""
             if self.is_production
@@ -36,18 +30,29 @@ class Settings:
             )
         self.cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX") or None
 
-        self.supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        # VITE_SUPABASE_URL is already required by the browser build. Accept it
+        # as a compatibility fallback so a Vercel deployment cannot accidentally
+        # enter local-auth mode simply because the server-side alias is missing.
+        self.supabase_url = (
+            os.getenv("SUPABASE_URL")
+            or os.getenv("VITE_SUPABASE_URL", "")
+        ).rstrip("/")
+        # The anon/public key is safe to use for Auth's /auth/v1/user endpoint.
+        # Keep the server-side name canonical, with the Vite name as a deployment
+        # compatibility fallback because the same public key is already required
+        # by the browser build.
+        self.supabase_anon_key = os.getenv("SUPABASE_ANON_KEY") or os.getenv(
+            "VITE_SUPABASE_ANON_KEY", ""
+        )
         self.supabase_jwt_audience = os.getenv(
             "SUPABASE_JWT_AUDIENCE", "authenticated"
         )
-        # Only needed by older Supabase projects that still issue HS256 tokens.
         self.supabase_jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
         self.app_jwt_secret = os.getenv("APP_JWT_SECRET", "")
 
-        # Resend Email integration
-        self.resend_api_key = os.getenv(
-            "RESEND_API_KEY", "re_S8do2b6i_4bfLTUMJsUK5uJU27CmeDhpv"
-        )
+        # Secrets must be supplied through the deployment environment. Never ship
+        # a provider API key in source control or provide a hard-coded fallback.
+        self.resend_api_key = os.getenv("RESEND_API_KEY", "")
         self.resend_from_email = os.getenv(
             "RESEND_FROM_EMAIL", "Phikila School System <onboarding@resend.dev>"
         )
@@ -58,7 +63,6 @@ class Settings:
 
     @staticmethod
     def _database_url(value: str | None) -> str:
-        # SQLite keeps initial local setup simple; production must always supply DATABASE_URL.
         if not value:
             if os.getenv("VERCEL") or os.getenv("ENVIRONMENT", "").lower() == "production":
                 raise RuntimeError(
@@ -71,7 +75,6 @@ class Settings:
                 )
             return "sqlite:///./phikila.db"
 
-        # SQLAlchemy needs an explicit driver. Supabase provides a postgresql:// URL.
         if value.startswith("postgres://"):
             return value.replace("postgres://", "postgresql+psycopg2://", 1)
         if value.startswith("postgresql://"):
@@ -80,8 +83,6 @@ class Settings:
 
     @property
     def is_production(self) -> bool:
-        # Treat previews as production-like for database/JWT safety even though
-        # their health response can retain an explicitly configured preview label.
         return self.environment == "production" or bool(os.getenv("VERCEL"))
 
     @property
@@ -90,10 +91,10 @@ class Settings:
 
     @property
     def supabase_jwks_url(self) -> str:
-        return f"{self.supabase_issuer}/.well-known/jwks.json"
+        return f"{self.supabase_url}/auth/v1/.well-known/jwks.json"
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
 

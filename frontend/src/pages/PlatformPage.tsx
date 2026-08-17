@@ -5,7 +5,7 @@ import { Badge, EmptyState, ErrorState, LoadingBlock, Skeleton } from '../compon
 import { DataTable, type Column } from '../components/DataTable'
 import { Field } from '../components/Field'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { SchoolIcon, SearchIcon, UserIcon } from '../components/icons'
+import { DashboardIcon, InboxIcon, LayersIcon, SchoolIcon, SearchIcon, UserIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { Link, useNavigate, useSearchParams } from '../lib/router'
 import { friendlyApiError } from '../lib/api'
@@ -36,24 +36,26 @@ export function PlatformDashboardPage() {
   const { data, loading, error, reload } = useAsync<PlatformOverview>(platform.overview, toMessage)
 
   const cards = [
-    { label: 'Schools', value: data?.schools ?? 0, to: '/platform/schools' },
-    { label: 'Users with access', value: data?.users ?? 0, to: '/platform/schools' },
-    { label: 'Teachers', value: data?.teachers ?? 0, to: '/platform/schools' },
-    { label: 'Classes', value: data?.classes ?? 0, to: '/platform/schools' },
+    { label: 'Schools', value: data?.schools ?? 0, detail: 'Registered institutions', to: '/platform/schools', icon: <SchoolIcon /> },
+    { label: 'Users with access', value: data?.users ?? 0, detail: 'Approved platform users', to: '/platform/schools', icon: <UserIcon /> },
+    { label: 'Teachers', value: data?.teachers ?? 0, detail: 'Across all schools', to: '/platform/schools', icon: <UserIcon /> },
+    { label: 'Classes', value: data?.classes ?? 0, detail: 'Active teaching groups', to: '/platform/schools', icon: <LayersIcon /> },
     {
       label: 'Pending requests',
       value: data?.pending_requests ?? 0,
+      detail: 'Awaiting a decision',
       to: '/platform/requests',
+      icon: <InboxIcon />,
       highlight: (data?.pending_requests ?? 0) > 0,
     },
-    { label: 'Platform admins', value: data?.super_admins ?? 0, to: '/platform/admins' },
+    { label: 'Platform admins', value: data?.super_admins ?? 0, detail: 'Deployment administrators', to: '/platform/admins', icon: <DashboardIcon /> },
   ]
 
   return (
-    <>
+    <div className="dashboard-page platform-dashboard">
       <PageHeader
         title="Platform dashboard"
-        description="Every school on this deployment."
+        description="A clear operational view across every school on this deployment."
         breadcrumbs={[{ label: 'Platform' }, { label: 'Dashboard' }]}
         actions={
           <Link className="button button--primary button--sm" to="/platform/schools">
@@ -77,22 +79,24 @@ export function PlatformDashboardPage() {
             {cards.map((card) => (
               <li className="summary-card" key={card.label}>
                 <Link className="summary-card__link" to={card.to}>
-                  <span className="summary-card__icon" aria-hidden="true">
-                    <SchoolIcon />
-                  </span>
+                  <span className="summary-card__icon" aria-hidden="true">{card.icon}</span>
                   <span className="summary-card__label">{card.label}</span>
                   <span
                     className={`summary-card__value ${card.highlight ? 'summary-card__value--warning' : ''}`}
                   >
                     {loading ? <Skeleton width="3rem" height="1.6rem" /> : card.value}
                   </span>
+                  <span className="summary-card__detail">{card.detail}</span>
                 </Link>
               </li>
             ))}
           </ul>
 
-          <section className="card section">
-            <h2 className="section__title">Recent platform activity</h2>
+          <section className="card section dashboard-panel platform-dashboard__activity">
+            <div className="dashboard-section__head">
+              <div><p>Deployment activity</p><h2 className="section__title">Recent platform activity</h2></div>
+              <span>Latest changes</span>
+            </div>
             {loading ? (
               <LoadingBlock label="Loading recent activity" rows={3} />
             ) : (data?.recent.length ?? 0) === 0 ? (
@@ -119,7 +123,7 @@ export function PlatformDashboardPage() {
           </section>
         </>
       )}
-    </>
+    </div>
   )
 }
 

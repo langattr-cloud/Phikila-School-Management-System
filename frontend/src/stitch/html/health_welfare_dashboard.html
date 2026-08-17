@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Health &amp; Welfare Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "deep-navy": "#0B1B2D",
+                        "border-subtle": "#E2E8F0",
+                        "inverse-primary": "#b0c8ed",
+                        "surface-dim": "#cbdbf5",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "background": "#f8f9ff",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#eff4ff",
+                        "outline-variant": "#c4c6ce",
+                        "surface-gray": "#F9FAFB",
+                        "on-secondary-fixed": "#002109",
+                        "tertiary-container": "#3e2300",
+                        "surface-variant": "#d3e4fe",
+                        "on-secondary-container": "#007432",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#43474d",
+                        "on-error": "#ffffff",
+                        "on-background": "#0b1c30",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-highest": "#d3e4fe",
+                        "tertiary": "#221100",
+                        "surface-container": "#e5eeff",
+                        "on-primary-container": "#7a92b4",
+                        "secondary-fixed-dim": "#4ae176",
+                        "outline": "#74777e",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-bright": "#f8f9ff",
+                        "on-tertiary-container": "#b2885a",
+                        "on-tertiary-fixed": "#2b1700",
+                        "surface-container-high": "#dce9ff",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#005321",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#304867",
+                        "secondary-container": "#6bff8f",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "primary": "#00152c",
+                        "inverse-surface": "#213145",
+                        "surface-tint": "#486080",
+                        "secondary-fixed": "#6bff8f",
+                        "on-surface": "#0b1c30",
+                        "surface": "#f8f9ff",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#006e2f",
+                        "on-primary": "#ffffff",
+                        "primary-fixed": "#d3e4ff",
+                        "primary-container": "#0f2a47",
+                        "on-primary-fixed": "#001c38"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md-mobile": ["Geist"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-md": ["Geist"],
+                        "label-caps": ["JetBrains Mono"],
+                        "display-lg": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-sm": ["Geist"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .confidential-blur {
+            filter: blur(4px);
+            transition: filter 0.2s ease;
+            cursor: pointer;
+        }
+        .confidential-blur:hover, .confidential-blur:focus {
+            filter: blur(0px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md h-full flex overflow-hidden antialiased">
+<!-- SideNavBar (Shared Component) -->
+<nav class="bg-deep-navy h-screen w-sidebar-expanded flex-shrink-0 border-r border-on-primary-fixed-variant flex flex-col transition-all duration-200 ease-in-out z-50 fixed md:relative left-0 top-0 hidden md:flex">
+<div class="p-grid-margin flex items-center gap-3">
+<div class="w-8 h-8 rounded-DEFAULT bg-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-primary-container" data-icon="domain" style="font-variation-settings: 'FILL' 1;">domain</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-surface-container-lowest font-bold tracking-tight">Phikila OS</h1>
+<p class="font-label-caps text-label-caps text-on-primary-container">Admin Console</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-on-primary-container hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-on-primary-container hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="domain">domain</span>
+<span class="font-body-md text-body-md">Institutions</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-on-primary-container hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+<span class="font-body-md text-body-md">Academic Management</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-on-primary-container hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-body-md text-body-md">Finance Hub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT border-l-4 border-inverse-primary bg-white/10 text-surface-container-lowest font-semibold transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="group" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-body-md text-body-md">Personnel</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-on-primary-container hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-body-md text-body-md">AI Intelligence</span>
+</a>
+</div>
+<div class="p-4 mt-auto">
+<div class="bg-primary-container rounded-lg p-3 mb-4">
+<p class="font-label-caps text-label-caps text-inverse-primary mb-1">System Status: Active</p>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary-fixed"></div>
+<p class="font-body-sm text-body-sm text-surface-container-lowest">All services optimal</p>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-on-primary-container hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-body-md text-body-md">Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT text-on-primary-container hover:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar (Shared Component) -->
+<header class="bg-surface-container-lowest h-16 w-full border-b border-border-subtle sticky top-0 z-40 flex justify-between items-center px-grid-margin">
+<div class="flex items-center gap-6">
+<!-- Mobile Menu Toggle -->
+<button class="md:hidden text-primary">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h2 class="font-headline-sm text-headline-sm text-deep-navy hidden md:block">Health &amp; Welfare</h2>
+<div class="hidden md:flex gap-4">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors py-5 border-b-2 border-transparent" href="#">Global Search</a>
+<a class="font-body-md text-body-md text-primary font-bold border-b-2 border-primary py-5" href="#">Reports</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors py-5 border-b-2 border-transparent" href="#">Logs</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-gray border border-border-subtle rounded-DEFAULT font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-64 transition-all" placeholder="Search records (Ctrl+K)" type="text"/>
+</div>
+<div class="flex items-center gap-2 border-l border-border-subtle pl-4 ml-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-gray rounded-DEFAULT transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-gray rounded-DEFAULT transition-colors">
+<span class="material-symbols-outlined" data-icon="apps">apps</span>
+</button>
+</div>
+<div class="flex items-center gap-3">
+<button class="hidden lg:block px-4 py-2 border border-border-subtle rounded-DEFAULT font-body-sm text-body-sm text-primary hover:bg-surface-gray transition-colors">
+                        Export
+                    </button>
+<button class="px-4 py-2 bg-deep-navy text-surface-container-lowest rounded-DEFAULT font-body-sm text-body-sm font-semibold hover:bg-primary transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                        Add Entry
+                    </button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-border-subtle object-cover ml-2" data-alt="A professional headshot of a female school nurse wearing a subtle blue medical scrub top. She is in a brightly lit, modern clinical office environment. The lighting is clean, sterile, and high-key, reflecting a modern SaaS aesthetic. Deep navy accents subtly frame the background, communicating trust and confidentiality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsaN_S1bS9QKOUq9aocVmNsgi9YfLH3hNi35JK-4eSBDbmu7yeCRkI6e1-43s0dEv5i5CAF_kJV2mQJ8f_4qsSVLDRdn8AcNon_EgHyqlqSrmFZ5TbgvnvtS3hsQpqOBFJXLDtLKqzJBVjHrtx6clLQA7FTC9034EKAfVONieYHMSWvaO-pw2OLQHU9I8rppGGPhe-qrj6ttKaOo7884i4luyIlJJd6awaG7gNlPIhIOaGau7l608v"/>
+</div>
+</div>
+</header>
+<!-- Scrollable Canvas -->
+<div class="flex-1 overflow-y-auto p-gutter md:p-grid-margin bg-background">
+<!-- Confidentiality Header Banner -->
+<div class="bg-primary-container text-surface-container-lowest rounded-lg p-4 mb-grid-margin flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="security" style="font-variation-settings: 'FILL' 1;">security</span>
+<div>
+<h3 class="font-headline-sm text-headline-sm mb-1">Confidential Medical Module</h3>
+<p class="font-body-sm text-body-sm text-on-primary-container">You are viewing restricted health and welfare data. Access is logged. Hover or click masked IDs to reveal sensitive information.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-grid-margin">
+<!-- Daily Summary (Intelligence Modules) -->
+<div class="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="bg-surface-container-lowest border border-border-subtle rounded-lg p-4 flex flex-col justify-between hover:shadow-sm transition-shadow">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Clinic Visits Today</p>
+<p class="font-display-lg text-display-lg text-deep-navy mt-1">24</p>
+</div>
+<div class="p-2 bg-surface-container-low rounded-DEFAULT">
+<span class="material-symbols-outlined text-primary" data-icon="local_hospital">local_hospital</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-error text-sm" data-icon="trending_up">trending_up</span>
+<span class="font-data-mono text-data-mono text-error">+12% vs avg</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-border-subtle rounded-lg p-4 flex flex-col justify-between hover:shadow-sm transition-shadow">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Active Medical Alerts</p>
+<p class="font-display-lg text-display-lg text-deep-navy mt-1">7</p>
+</div>
+<div class="p-2 bg-error-container rounded-DEFAULT">
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">3 severe allergies flagged today</p>
+</div>
+<div class="bg-surface-container-lowest border border-border-subtle rounded-lg p-4 flex flex-col justify-between hover:shadow-sm transition-shadow">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Pending Welfare Follow-ups</p>
+<p class="font-display-lg text-display-lg text-deep-navy mt-1">11</p>
+</div>
+<div class="p-2 bg-surface-container-high rounded-DEFAULT">
+<span class="material-symbols-outlined text-primary" data-icon="assignment_ind">assignment_ind</span>
+</div>
+</div>
+<div class="w-full bg-surface-variant h-1.5 rounded-full overflow-hidden mt-2">
+<div class="bg-primary h-full w-2/3"></div>
+</div>
+</div>
+</div>
+<!-- Recent Incidents (High-Density Table) -->
+<div class="lg:col-span-8 bg-surface-container-lowest border border-border-subtle rounded-lg flex flex-col">
+<div class="p-4 border-b border-border-subtle flex justify-between items-center bg-surface-gray rounded-t-lg">
+<h3 class="font-headline-sm text-headline-sm text-deep-navy">Recent Incidents &amp; Logs</h3>
+<button class="font-body-sm text-body-sm text-primary hover:underline">View All</button>
+</div>
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-border-subtle">
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Time</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Student ID</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Type</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Severity</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant font-medium">Action</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm text-on-surface">
+<tr class="border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<td class="py-compact-padding px-4 font-data-mono">09:15 AM</td>
+<td class="py-compact-padding px-4"><span class="confidential-blur font-data-mono bg-surface-dim px-1 rounded">STU-8821</span></td>
+<td class="py-compact-padding px-4">Minor Injury (Playground)</td>
+<td class="py-compact-padding px-4 flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-secondary-fixed"></div> Low</td>
+<td class="py-compact-padding px-4 text-on-surface-variant">First Aid Applied</td>
+</tr>
+<tr class="border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<td class="py-compact-padding px-4 font-data-mono">10:45 AM</td>
+<td class="py-compact-padding px-4"><span class="confidential-blur font-data-mono bg-surface-dim px-1 rounded">STU-3490</span></td>
+<td class="py-compact-padding px-4">Asthma Flare-up</td>
+<td class="py-compact-padding px-4 flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-tertiary-fixed-dim"></div> Medium</td>
+<td class="py-compact-padding px-4 text-on-surface-variant">Inhaler Administered, Parent Contacted</td>
+</tr>
+<tr class="border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<td class="py-compact-padding px-4 font-data-mono">11:30 AM</td>
+<td class="py-compact-padding px-4"><span class="confidential-blur font-data-mono bg-surface-dim px-1 rounded">STU-1102</span></td>
+<td class="py-compact-padding px-4">Suspected Concussion</td>
+<td class="py-compact-padding px-4 flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-error"></div> High</td>
+<td class="py-compact-padding px-4 text-on-surface-variant">Resting, Medical Referral Issued</td>
+</tr>
+<tr class="border-b border-border-subtle hover:bg-surface-gray transition-colors">
+<td class="py-compact-padding px-4 font-data-mono">01:10 PM</td>
+<td class="py-compact-padding px-4"><span class="confidential-blur font-data-mono bg-surface-dim px-1 rounded">STU-5541</span></td>
+<td class="py-compact-padding px-4">General Malaise</td>
+<td class="py-compact-padding px-4 flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-secondary-fixed"></div> Low</td>
+<td class="py-compact-padding px-4 text-on-surface-variant">Temperature Check, Returned to Class</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Right Column: AI Flags & Calendar -->
+<div class="lg:col-span-4 flex flex-col gap-grid-margin">
+<!-- AI Welfare Risk Indicators (Glassmorphism/Intelligence Module) -->
+<div class="bg-gradient-to-br from-deep-navy to-[#1a365d] rounded-lg border border-[#2d4a77] p-5 text-surface-container-lowest relative overflow-hidden shadow-md">
+<!-- Abstract decorative element -->
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-primary-fixed-dim opacity-10 rounded-full blur-2xl"></div>
+<div class="flex items-center gap-2 mb-4 relative z-10">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="psychology">psychology</span>
+<h3 class="font-headline-sm text-headline-sm">AI Welfare Flags</h3>
+</div>
+<div class="space-y-3 relative z-10">
+<div class="bg-white/10 rounded border border-white/5 p-3 backdrop-blur-sm">
+<div class="flex justify-between items-start mb-1">
+<span class="font-data-mono text-data-mono text-tertiary-fixed-dim confidential-blur">STU-9921</span>
+<span class="text-[10px] font-label-caps bg-error/20 text-error-container px-1.5 py-0.5 rounded">High Risk</span>
+</div>
+<p class="font-body-sm text-body-sm text-surface-container-highest">Sudden 40% drop in attendance coupled with multiple clinic visits (headaches).</p>
+<button class="mt-2 text-xs font-semibold text-inverse-primary hover:text-white transition-colors">Review Profile →</button>
+</div>
+<div class="bg-white/10 rounded border border-white/5 p-3 backdrop-blur-sm">
+<div class="flex justify-between items-start mb-1">
+<span class="font-data-mono text-data-mono text-surface-dim confidential-blur">STU-4402</span>
+<span class="text-[10px] font-label-caps bg-tertiary-container text-tertiary-fixed px-1.5 py-0.5 rounded">Watch</span>
+</div>
+<p class="font-body-sm text-body-sm text-surface-container-highest">Pattern of avoiding PE classes identified over 3 weeks.</p>
+<button class="mt-2 text-xs font-semibold text-inverse-primary hover:text-white transition-colors">Log Observation →</button>
+</div>
+</div>
+</div>
+<!-- Appointment Calendar -->
+<div class="bg-surface-container-lowest border border-border-subtle rounded-lg p-5 flex-1">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-headline-sm text-headline-sm text-deep-navy flex items-center gap-2">
+<span class="material-symbols-outlined text-outline" data-icon="calendar_month">calendar_month</span>
+                                Today's Schedule
+                            </h3>
+<button class="p-1 text-primary hover:bg-surface-container-low rounded"><span class="material-symbols-outlined text-sm" data-icon="add">add</span></button>
+</div>
+<div class="space-y-4">
+<div class="flex gap-3 items-start relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1 before:bottom-0 before:w-0.5 before:bg-border-subtle">
+<div class="absolute left-[-3px] top-1.5 w-2 h-2 rounded-full bg-secondary-fixed"></div>
+<div class="w-14 shrink-0 font-data-mono text-data-mono text-on-surface-variant pt-0.5">14:00</div>
+<div>
+<p class="font-body-sm text-body-sm font-semibold text-deep-navy">Routine Checkup - Grade 5</p>
+<p class="text-xs text-on-surface-variant mt-0.5"><span class="confidential-blur">Class 5B (24 students)</span></p>
+</div>
+</div>
+<div class="flex gap-3 items-start relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1 before:bottom-0 before:w-0.5 before:bg-border-subtle">
+<div class="absolute left-[-3px] top-1.5 w-2 h-2 rounded-full bg-tertiary-fixed-dim"></div>
+<div class="w-14 shrink-0 font-data-mono text-data-mono text-on-surface-variant pt-0.5">15:30</div>
+<div>
+<p class="font-body-sm text-body-sm font-semibold text-deep-navy">Counselling Session</p>
+<p class="text-xs text-on-surface-variant mt-0.5"><span class="confidential-blur">STU-1120</span> (Follow-up)</p>
+</div>
+</div>
+<div class="flex gap-3 items-start relative pl-4">
+<div class="absolute left-[-3px] top-1.5 w-2 h-2 rounded-full bg-border-subtle"></div>
+<div class="w-14 shrink-0 font-data-mono text-data-mono text-outline pt-0.5">16:15</div>
+<div>
+<p class="font-body-sm text-body-sm text-outline">Inventory Restock (EpiPens)</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Simple script to toggle mask on click for accessibility if hover isn't enough
+        document.querySelectorAll('.confidential-blur').forEach(el => {
+            el.addEventListener('click', function() {
+                if(this.style.filter === 'none') {
+                    this.style.filter = '';
+                } else {
+                    this.style.filter = 'none';
+                }
+            });
+        });
+    </script>
+</body></html>

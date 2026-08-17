@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Student Directory</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#dce9ff",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "error": "#ba1a1a",
+                        "on-surface": "#0b1c30",
+                        "primary-container": "#0f2a47",
+                        "on-secondary-container": "#007432",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#005321",
+                        "deep-navy": "#0B1B2D",
+                        "on-secondary": "#ffffff",
+                        "primary": "#00152c",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff",
+                        "secondary": "#006e2f",
+                        "secondary-container": "#6bff8f",
+                        "primary-fixed": "#d3e4ff",
+                        "inverse-surface": "#213145",
+                        "inverse-primary": "#b0c8ed",
+                        "error-container": "#ffdad6",
+                        "border-subtle": "#E2E8F0",
+                        "secondary-fixed": "#6bff8f",
+                        "background": "#f8f9ff",
+                        "on-primary-fixed": "#001c38",
+                        "tertiary": "#221100",
+                        "on-tertiary-fixed": "#2b1700",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-container-low": "#eff4ff",
+                        "tertiary-container": "#3e2300",
+                        "surface": "#f8f9ff",
+                        "on-surface-variant": "#43474d",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "on-secondary-fixed": "#002109",
+                        "surface-dim": "#cbdbf5",
+                        "on-tertiary-container": "#b2885a",
+                        "surface-tint": "#486080",
+                        "surface-container": "#e5eeff",
+                        "surface-gray": "#F9FAFB",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "outline": "#74777e",
+                        "on-primary-fixed-variant": "#304867",
+                        "outline-variant": "#c4c6ce",
+                        "secondary-fixed-dim": "#4ae176"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "compact-padding": "8px",
+                        "gutter": "16px",
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "headline-md-mobile": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen flex flex-col relative">
+<header class="sticky top-0 z-40 bg-surface/95 backdrop-blur-md border-b border-border-subtle w-full flex flex-col gap-compact-padding p-gutter shadow-sm">
+<div class="flex items-center justify-between w-full">
+<h1 class="font-headline-md-mobile text-headline-md-mobile text-on-surface">Directory</h1>
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-lowest border border-border-subtle text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 300;">add</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-2 w-full">
+<div class="relative flex-grow">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-variation-settings: 'wght' 300; font-size: 20px;">search</span>
+<input class="w-full h-10 pl-10 pr-4 bg-surface-container-lowest border border-border-subtle rounded-lg font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" placeholder="Search by name or admission ID..." type="text"/>
+</div>
+<button class="h-10 px-3 flex items-center justify-center gap-2 rounded-lg bg-surface-container-lowest border border-border-subtle text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 300; font-size: 20px;">tune</span>
+<span class="font-label-caps text-label-caps hidden sm:block">Filter</span>
+</button>
+</div>
+<div class="flex items-center gap-2 overflow-x-auto hide-scrollbar pt-1 pb-1">
+<span class="px-3 py-1 bg-primary text-on-primary rounded-full font-label-caps text-label-caps whitespace-nowrap">All Grades</span>
+<span class="px-3 py-1 bg-surface-container-lowest border border-border-subtle text-on-surface-variant rounded-full font-label-caps text-label-caps whitespace-nowrap hover:bg-surface-container cursor-pointer transition-colors">Grade 10</span>
+<span class="px-3 py-1 bg-surface-container-lowest border border-border-subtle text-on-surface-variant rounded-full font-label-caps text-label-caps whitespace-nowrap hover:bg-surface-container cursor-pointer transition-colors">Grade 11</span>
+<span class="px-3 py-1 bg-surface-container-lowest border border-border-subtle text-on-surface-variant rounded-full font-label-caps text-label-caps whitespace-nowrap hover:bg-surface-container cursor-pointer transition-colors">Grade 12</span>
+</div>
+</header>
+<main class="flex-grow p-gutter flex flex-col gap-compact-padding pb-24">
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl p-gutter flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
+<img class="w-12 h-12 rounded-full object-cover bg-surface-variant" data-alt="Close up portrait photo of a young high school student, bright modern lighting, professional corporate SaaS application avatar style, neutral light background, sharp focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXTEV_NinIpLVsiWBLTlplwqkY_vq4PkFvasXDXCPpVg3OhHBBKCqAEUo9YIGYE2GSO7bnKcby1Ybkbnn9z_TX2aONleIe9P4NYawsE6cB7OBUpHzXibETp35IrvlkQYPBDG_Da983Gdbp-t9qEONui8unQ_msCXWm3GIHhIKx9CWk1AnZIf1o1ZGiIE7t9KKQBSf3n93EwbnVTwECYmWySz1RwrUvCG73A3__qVzQVgTcX0de1SJL"/>
+<div class="flex flex-col flex-grow min-w-0">
+<div class="flex items-center justify-between gap-2 mb-0.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">Eleanor Vance</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant shrink-0">#STD-9021</span>
+</div>
+<div class="flex items-center gap-2 mb-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">Grade 11-A</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">eleanor.v@school.edu</span>
+</div>
+<div class="w-full flex flex-col gap-1">
+<div class="flex justify-between items-center w-full">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Attendance</span>
+<span class="font-data-mono text-data-mono text-on-surface">98%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed rounded-full" style="width: 98%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl p-gutter flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
+<img class="w-12 h-12 rounded-full object-cover bg-surface-variant" data-alt="Close up portrait photo of a teenage male student with short hair, bright modern lighting, professional corporate SaaS application avatar style, neutral light background, sharp focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAA9dNF3itrApTIW-6X2UOBVh4kZa38iD6XPyVaaL5d_HiMBM68sYyBnFbIziBdBrhGTgg-o9ww5vLlkUSDxNpVPBwgRV1oBY73AU1QD88rP9ZJlO-xxr8bAUeeWuP00RrKfqQzXNr1OZ3R5r1T7qkL4y-sfulGfI8K5IcRwaxxp2M2n5VV4XO6O3GR1NNXAAaEqr1myDF8vOMH5Cv5Yxpz6ONEMIlk8sNwW5_jmFxrBCciR6B2Dp-h"/>
+<div class="flex flex-col flex-grow min-w-0">
+<div class="flex items-center justify-between gap-2 mb-0.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">Marcus Chen</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant shrink-0">#STD-8842</span>
+</div>
+<div class="flex items-center gap-2 mb-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">Grade 10-C</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">m.chen@school.edu</span>
+</div>
+<div class="w-full flex flex-col gap-1">
+<div class="flex justify-between items-center w-full">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Attendance</span>
+<span class="font-data-mono text-data-mono text-on-surface">82%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-fixed rounded-full" style="width: 82%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl p-gutter flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-headline-md">
+                SJ
+            </div>
+<div class="flex flex-col flex-grow min-w-0">
+<div class="flex items-center justify-between gap-2 mb-0.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">Sarah Jenkins</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant shrink-0">#STD-9104</span>
+</div>
+<div class="flex items-center gap-2 mb-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">Grade 12-B</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">s.jenkins@school.edu</span>
+</div>
+<div class="w-full flex flex-col gap-1">
+<div class="flex justify-between items-center w-full">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Attendance</span>
+<span class="font-data-mono text-data-mono text-on-surface">65%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 65%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl p-gutter flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
+<img class="w-12 h-12 rounded-full object-cover bg-surface-variant" data-alt="Close up portrait photo of a young female high school student with glasses, bright modern lighting, professional corporate SaaS application avatar style, neutral light background, sharp focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5fMcETsDqkAYbWUM2GgLrxpuO1rB5Ah5LsKjRJlCB6xWnsK-v1tRNnI6bM2ngYPw4gVbB7blCqEwk-KHlfwnVMmxaIQq4xoGuH-wbzJgUuNT0NiVa2Mk7uchL2WVivvTKDn8pulhAjnHfdXBn5A3GZ9owZisBkNkNXVIvWEobe7ElLHqpPoric2npNzowFsq1TfnTYKtuY1Y1QKZD0ylCY7_Mzw5M4iZ7IBbzc49CoXCSjpxFZgj8"/>
+<div class="flex flex-col flex-grow min-w-0">
+<div class="flex items-center justify-between gap-2 mb-0.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">Aisha Patel</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant shrink-0">#STD-9055</span>
+</div>
+<div class="flex items-center gap-2 mb-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">Grade 11-A</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">a.patel@school.edu</span>
+</div>
+<div class="w-full flex flex-col gap-1">
+<div class="flex justify-between items-center w-full">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Attendance</span>
+<span class="font-data-mono text-data-mono text-on-surface">100%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<nav class="fixed bottom-0 w-full bg-surface-container-lowest border-t border-border-subtle flex justify-around items-center px-2 py-3 z-50 pb-[max(env(safe-area-inset-bottom),12px)] shadow-[0_-4px_12px_rgba(11,27,45,0.03)] md:hidden">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant w-16" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 300;">dashboard</span>
+<span class="font-label-caps text-[9px] font-semibold tracking-wider">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant w-16" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 300;">school</span>
+<span class="font-label-caps text-[9px] font-semibold tracking-wider">Academic</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary w-16" href="#">
+<div class="bg-primary-fixed/30 px-4 py-0.5 rounded-full mb-0.5 flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 400, 'FILL' 1;">group</span>
+</div>
+<span class="font-label-caps text-[9px] font-semibold tracking-wider text-primary">Students</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant w-16" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 300;">calendar_today</span>
+<span class="font-label-caps text-[9px] font-semibold tracking-wider">Schedule</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant w-16" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 300;">menu</span>
+<span class="font-label-caps text-[9px] font-semibold tracking-wider">More</span>
+</a>
+</nav>
+</body></html>

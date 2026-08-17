@@ -51,14 +51,14 @@ export default defineConfig(({ mode }) => {
       // served by FastAPI/Vercel and never uses this dev server.
       allowedHosts: ['localhost', '127.0.0.1', '.e2b.app'],
       proxy: {
-        // Forward API and health requests to the FastAPI backend during local
-        // development so the frontend can talk to the real server.
+        // Forward API and health requests to the Cloudflare Worker backend
+        // during local development (`wrangler dev` runs on :8787).
         '/api': {
-          target: 'http://127.0.0.1:8000',
+          target: 'http://127.0.0.1:8787',
           changeOrigin: true,
         },
         '/health': {
-          target: 'http://127.0.0.1:8000',
+          target: 'http://127.0.0.1:8787',
           changeOrigin: true,
         },
       },

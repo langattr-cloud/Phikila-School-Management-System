@@ -4,10 +4,13 @@ import { displayName, useAuth } from '../lib/auth'
 import { usePlatformSession } from '../lib/session'
 import { useToast } from './Toast'
 import { Logo, LogoMark } from './Logo'
+import { PrintFooter } from './PrintFooter'
 import {
   CalendarIcon,
+  CheckIcon,
   CloseIcon,
   DashboardIcon,
+  GridIcon,
   InboxIcon,
   LayersIcon,
   LogOutIcon,
@@ -25,13 +28,13 @@ type NavGroup = { label: string; items: NavItem[] }
 const PLATFORM_NAV: NavGroup = {
   label: 'Platform',
   items: [
-    { to: '/platform', label: 'Platform dashboard', icon: <SchoolIcon /> },
-    { to: '/platform/schools', label: 'Schools' },
-    { to: '/platform/requests', label: 'Access requests' },
-    { to: '/platform/admins', label: 'Administrators' },
-    { to: '/platform/audit', label: 'Audit trail' },
+    { to: '/platform', label: 'Platform dashboard', icon: <DashboardIcon /> },
+    { to: '/platform/schools', label: 'Schools', icon: <SchoolIcon /> },
+    { to: '/platform/requests', label: 'Access requests', icon: <InboxIcon /> },
+    { to: '/platform/admins', label: 'Administrators', icon: <UserIcon /> },
+    { to: '/platform/audit', label: 'Audit trail', icon: <LayersIcon /> },
     { to: '/platform/email', label: 'Email & templates', icon: <InboxIcon /> },
-    { to: '/settings/ai-providers', label: 'AI providers' },
+    { to: '/settings/ai-providers', label: 'AI providers', icon: <SparkIcon /> },
   ],
 }
 
@@ -48,36 +51,36 @@ const NAV: NavGroup[] = [
     label: 'People',
     items: [
       { to: '/students', label: 'Students', icon: <UserIcon /> },
-      { to: '/setup/teachers', label: 'Teachers' },
+      { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> },
     ],
   },
   {
     label: 'Academics',
     items: [
-      { to: '/attendance', label: 'Attendance' },
-      { to: '/examinations', label: 'Examinations' },
-      { to: '/finance', label: 'Finance' },
+      { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> },
+      { to: '/examinations', label: 'Examinations', icon: <LayersIcon /> },
+      { to: '/finance', label: 'Finance', icon: <GridIcon /> },
     ],
   },
   {
     label: 'Setup',
     items: [
-      { to: '/setup/school', label: 'School' },
-      { to: '/setup/periods', label: 'Days & periods' },
-      { to: '/setup/subjects', label: 'Subjects' },
-      { to: '/setup/classes', label: 'Classes' },
-      { to: '/setup/rooms', label: 'Rooms' },
-      { to: '/setup/academic-years', label: 'Academic calendar' },
-      { to: '/setup/levels', label: 'Levels' },
+      { to: '/setup/school', label: 'School', icon: <SchoolIcon /> },
+      { to: '/setup/periods', label: 'Days & periods', icon: <CalendarIcon /> },
+      { to: '/setup/subjects', label: 'Subjects', icon: <LayersIcon /> },
+      { to: '/setup/classes', label: 'Classes', icon: <SchoolIcon /> },
+      { to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> },
+      { to: '/setup/academic-years', label: 'Academic calendar', icon: <CalendarIcon /> },
+      { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> },
     ],
   },
   {
     label: 'Scheduling',
     items: [
-      { to: '/scheduling/requirements', label: 'Lesson requirements' },
-      { to: '/scheduling/constraints', label: 'Constraints' },
-      { to: '/scheduling/generate', label: 'Generate' },
-      { to: '/scheduling/copilot', label: 'Copilot' },
+      { to: '/scheduling/requirements', label: 'Lesson requirements', icon: <LayersIcon /> },
+      { to: '/scheduling/constraints', label: 'Constraints', icon: <CheckIcon /> },
+      { to: '/scheduling/generate', label: 'Generate', icon: <SparkIcon /> },
+      { to: '/scheduling/copilot', label: 'Copilot', icon: <SparkIcon /> },
     ],
   },
   {
@@ -95,7 +98,6 @@ const NAV: NavGroup[] = [
   },
 ]
 
-// The five destinations that matter on a phone.
 const BOTTOM_NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: <DashboardIcon /> },
   { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
@@ -115,10 +117,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { notify } = useToast()
-  // Navigation visibility only. Backend authorization is what actually
-  // protects these routes.
   const isSuperAdmin = usePlatformSession().session?.is_super_admin ?? false
   const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV
+  const accountName = displayName(user)
+  const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -138,7 +140,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.localStorage.setItem('phikila.theme', theme)
   }, [theme])
 
-  // Close the drawer whenever the route changes so navigation never leaves it open.
   useEffect(() => {
     setDrawerOpen(false)
   }, [pathname])
@@ -237,10 +238,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const accountBlock = (
     <div className="sidebar__account">
-      <p className="sidebar__account-name" title={displayName(user)}>
-        {displayName(user)}
-      </p>
-      <p className="sidebar__account-email">{user?.email}</p>
+      <div className="sidebar__account-profile">
+        <span className="sidebar__account-avatar" aria-hidden="true">{accountInitial}</span>
+        <div>
+          <p className="sidebar__account-name" title={accountName}>{accountName}</p>
+          <p className="sidebar__account-email">{user?.email}</p>
+        </div>
+      </div>
       <button
         type="button"
         className="button button--ghost button--block"
@@ -299,7 +303,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             {theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}
           </button>
           <span className="topbar__user" title={user?.email ?? ''}>
-            {user?.email}
+            <span className="topbar__avatar" aria-hidden="true">{accountInitial}</span>
+            <span className="topbar__user-email">{user?.email}</span>
           </span>
         </header>
 
@@ -339,7 +344,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
 
-        {/* Thumb-reachable navigation on phones. */}
         <nav className="bottom-nav" aria-label="Quick navigation">
           {BOTTOM_NAV.map((item) => {
             const active = isActive(pathname, item.to)
@@ -358,6 +362,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             )
           })}
         </nav>
+
+        <PrintFooter />
       </div>
     </div>
   )

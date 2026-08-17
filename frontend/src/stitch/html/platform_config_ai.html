@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Platform Settings - Phikila OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Geist:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#213145",
+                        "on-tertiary-fixed": "#2b1700",
+                        "on-tertiary": "#ffffff",
+                        "surface-gray": "#F9FAFB",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "surface-dim": "#cbdbf5",
+                        "surface": "#f8f9ff",
+                        "on-primary-fixed-variant": "#304867",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "primary": "#00152c",
+                        "outline": "#74777e",
+                        "secondary-fixed": "#6bff8f",
+                        "inverse-primary": "#b0c8ed",
+                        "surface-container": "#e5eeff",
+                        "background": "#f8f9ff",
+                        "secondary-container": "#6bff8f",
+                        "outline-variant": "#c4c6ce",
+                        "surface-container-high": "#dce9ff",
+                        "on-primary-fixed": "#001c38",
+                        "on-tertiary-container": "#b2885a",
+                        "primary-container": "#0f2a47",
+                        "on-secondary-container": "#007432",
+                        "on-secondary-fixed": "#002109",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#ffddba",
+                        "on-secondary-fixed-variant": "#005321",
+                        "on-surface-variant": "#43474d",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#d3e4ff",
+                        "on-background": "#0b1c30",
+                        "on-secondary": "#ffffff",
+                        "surface-container-low": "#eff4ff",
+                        "tertiary-container": "#3e2300",
+                        "on-surface": "#0b1c30",
+                        "error": "#ba1a1a",
+                        "surface-bright": "#f8f9ff",
+                        "inverse-on-surface": "#eaf1ff",
+                        "border-subtle": "#E2E8F0",
+                        "deep-navy": "#0B1B2D",
+                        "tertiary": "#221100",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "secondary-fixed-dim": "#4ae176",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#486080",
+                        "secondary": "#006e2f",
+                        "surface-container-highest": "#d3e4fe"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-collapsed": "64px",
+                        "gutter": "16px",
+                        "sidebar-expanded": "240px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-sm": ["Geist"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "headline-md-mobile": ["Geist"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #F9FAFB; }
+        .nav-active { border-left: 4px solid #dce9ff; background-color: rgba(255,255,255,0.1); color: white; }
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid #E2E8F0; }
+        .input-ring:focus-within { box-shadow: 0 0 0 2px rgba(0, 21, 44, 0.1); border-color: #00152c; }
+        .toggle-checkbox:checked { right: 0; border-color: #00152c; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #00152c; }
+        .toggle-checkbox:checked + .toggle-label:after { transform: translateX(100%); border-color: white; }
+    </style>
+</head>
+<body class="text-on-surface bg-surface-gray min-h-screen flex font-body-md text-body-md">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-full overflow-y-auto bg-deep-navy fixed left-0 top-0 h-full w-sidebar-expanded border-r border-outline-variant z-50">
+<div class="px-6 py-8 border-b border-white/10">
+<h1 class="font-headline-md text-headline-md text-on-primary font-bold">Phikila OS</h1>
+<p class="font-label-caps text-label-caps text-on-primary-container/70 mt-1">Admin Console</p>
+</div>
+<div class="flex-1 py-4 flex flex-col gap-1">
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">school</span>
+                Academics
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">group</span>
+                Students
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">calendar_today</span>
+                Timetable
+            </a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-3 px-4 hover:bg-primary-container transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">payments</span>
+                Finance
+            </a>
+<a class="flex items-center gap-3 bg-white/10 text-white border-l-4 border-surface-container-high py-3 px-4 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+                Settings
+            </a>
+</div>
+<div class="px-4 py-4 border-t border-white/10 flex flex-col gap-1">
+<button class="w-full py-2 px-4 bg-primary-container text-white rounded-lg font-label-caps text-label-caps hover:bg-white/20 transition-colors mb-4">Quick Action</button>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-2 px-4 transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">help</span>
+<span class="text-sm">Support</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container/70 hover:text-white py-2 px-4 transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span class="text-sm">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-sidebar-expanded flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="bg-surface fixed top-0 right-0 w-full md:w-[calc(100%-240px)] h-16 border-b border-border-subtle shadow-sm flex justify-between items-center px-grid-margin z-40">
+<div class="flex items-center gap-4 w-1/3">
+<div class="relative w-full max-w-md input-ring rounded-lg">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-white border border-border-subtle rounded-lg focus:outline-none font-body-sm text-body-sm text-on-surface placeholder-on-surface-variant transition-all" placeholder="Search settings..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="font-label-caps text-label-caps text-on-surface-variant hidden lg:block">Help</span>
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors focus-within:ring-2 focus-within:ring-primary/10 rounded-full p-1">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors focus-within:ring-2 focus-within:ring-primary/10 rounded-full p-1">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-border-subtle object-cover ml-2" data-alt="A professional corporate headshot of a school administrator in a modern office setting. The lighting is bright and clean, typical of a high-end corporate portrait. The person is looking directly at the camera with a confident, slight smile. The background is slightly blurred but suggests a bright, modern architectural space. The overall tone is professional, trustworthy, and authoritative." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDp2j9D-vXwDmpEivRSzlYfncjSkYCdlQFMP_BMkvGOQbkeZ_t9SrNtYK7tr3Ri9Tr2KzLuPZYUDUJGUUqnBggh632AtpBBqGmNjjHl0JG9XQ54svLDwcWXvTJa3-XD7itt9yQF6x7kQDSXAlkKbXfkFYGI9QoQNeQE7j1YEXxjq1sBdnhGhzk1WJs8A4C3Tfn1r0qSt6YJK6YzfbGOlb4wnFpXmD5gajMkQw_ihNFYT99yf0U0CeKM"/>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="mt-16 p-grid-margin lg:p-8 max-w-7xl mx-auto w-full">
+<div class="mb-8">
+<h2 class="font-headline-md text-headline-md text-on-background mb-2">Platform Settings</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage global system configurations, AI integrations, and security protocols.</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter lg:gap-6 items-start">
+<!-- Left Column (General & Security) -->
+<div class="lg:col-span-8 space-y-6">
+<!-- General Settings -->
+<section class="bg-white border border-border-subtle rounded-xl overflow-hidden shadow-[0px_4px_12px_rgba(15,42,71,0.02)]">
+<div class="px-6 py-4 border-b border-border-subtle bg-surface-gray">
+<h3 class="font-headline-sm text-headline-sm text-on-background flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-lg">tune</span>
+                                General Configuration
+                            </h3>
+</div>
+<div class="p-6 space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant block">Institution Name</label>
+<div class="input-ring rounded-lg">
+<input class="w-full px-4 py-2.5 bg-white border border-border-subtle rounded-lg focus:outline-none font-body-md text-body-md text-on-surface transition-all" type="text" value="Phikila International Academy"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant block">System Timezone</label>
+<div class="input-ring rounded-lg relative">
+<select class="w-full px-4 py-2.5 bg-white border border-border-subtle rounded-lg focus:outline-none font-body-md text-body-md text-on-surface appearance-none transition-all cursor-pointer">
+<option>UTC+00:00 (GMT)</option>
+<option selected="">UTC-05:00 (EST)</option>
+<option>UTC+01:00 (CET)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<div class="border-t border-border-subtle pt-6">
+<div class="flex items-center justify-between">
+<div>
+<h4 class="font-body-md text-body-md font-semibold text-on-background">Maintenance Mode</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Suspend access for non-admin users during system updates.</p>
+</div>
+<div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-border-subtle z-10 transition-transform duration-200 ease-in-out" id="maintenance-toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-border-subtle cursor-pointer transition-colors duration-200 ease-in-out" for="maintenance-toggle"></label>
+</div>
+</div>
+</div>
+<div class="flex justify-end pt-4">
+<button class="bg-deep-navy text-white px-6 py-2 rounded-lg font-label-caps text-label-caps hover:bg-primary-container transition-colors shadow-sm">Save Changes</button>
+</div>
+</div>
+</section>
+<!-- Security Settings -->
+<section class="bg-white border border-border-subtle rounded-xl overflow-hidden shadow-[0px_4px_12px_rgba(15,42,71,0.02)]">
+<div class="px-6 py-4 border-b border-border-subtle bg-surface-gray">
+<h3 class="font-headline-sm text-headline-sm text-on-background flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-lg">security</span>
+                                Super Admin Security
+                            </h3>
+</div>
+<div class="p-6 space-y-8">
+<!-- Password Change -->
+<div>
+<h4 class="font-body-md text-body-md font-semibold text-on-background mb-4">Update Password</h4>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant block">Current Password</label>
+<div class="input-ring rounded-lg">
+<input class="w-full px-4 py-2 bg-white border border-border-subtle rounded-lg focus:outline-none font-body-md text-body-md text-on-surface transition-all" placeholder="••••••••" type="password"/>
+</div>
+</div>
+<div class="hidden md:block"></div>
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant block">New Password</label>
+<div class="input-ring rounded-lg">
+<input class="w-full px-4 py-2 bg-white border border-border-subtle rounded-lg focus:outline-none font-body-md text-body-md text-on-surface transition-all" type="password"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant block">Confirm New Password</label>
+<div class="input-ring rounded-lg">
+<input class="w-full px-4 py-2 bg-white border border-border-subtle rounded-lg focus:outline-none font-body-md text-body-md text-on-surface transition-all" type="password"/>
+</div>
+</div>
+</div>
+<button class="mt-4 border border-deep-navy text-deep-navy px-4 py-2 rounded-lg font-label-caps text-label-caps hover:bg-surface-container-low transition-colors">Update Password</button>
+</div>
+<div class="border-t border-border-subtle pt-6">
+<div class="flex items-center justify-between">
+<div>
+<h4 class="font-body-md text-body-md font-semibold text-on-background flex items-center gap-2">
+                                            Two-Factor Authentication (2FA)
+                                            <span class="inline-flex items-center justify-center w-2 h-2 rounded-full bg-secondary"></span>
+</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Require an extra layer of security for Super Admin logins.</p>
+</div>
+<div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-border-subtle z-10 transition-transform duration-200 ease-in-out" id="2fa-toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-border-subtle cursor-pointer transition-colors duration-200 ease-in-out" for="2fa-toggle"></label>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column (AI Providers) -->
+<div class="lg:col-span-4 space-y-6">
+<section class="bg-gradient-to-b from-primary-container to-deep-navy rounded-xl overflow-hidden shadow-[0px_12px_24px_rgba(11,27,45,0.1)] text-white relative">
+<!-- Abstract Background Detail -->
+<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(circle at top right, #ffffff 0%, transparent 60%);"></div>
+<div class="px-6 py-5 border-b border-white/10 relative z-10">
+<h3 class="font-headline-sm text-headline-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-inverse-primary text-xl">smart_toy</span>
+                                AI Engine Provider
+                            </h3>
+</div>
+<div class="p-6 relative z-10 space-y-6">
+<!-- Active Provider Status -->
+<div class="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
+<div class="flex justify-between items-start mb-4">
+<div>
+<span class="font-label-caps text-label-caps text-primary-fixed-dim block mb-1">Active Provider</span>
+<div class="font-headline-sm text-headline-sm flex items-center gap-2">
+                                            OpenAI
+                                            <span class="flex items-center gap-1 text-[10px] uppercase tracking-wider bg-secondary/20 text-secondary-fixed px-2 py-0.5 rounded-full border border-secondary/30">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed"></span> Connected
+                                            </span>
+</div>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between text-xs">
+<span class="text-white/60 font-data-mono">Model</span>
+<span class="text-white/90 font-data-mono">gpt-4-turbo</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-white/60 font-data-mono">Latency</span>
+<span class="text-white/90 font-data-mono">120ms</span>
+</div>
+</div>
+</div>
+<!-- Provider Switcher Form -->
+<div class="space-y-4 pt-2">
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-white/70 block">Switch Provider</label>
+<div class="relative">
+<select class="w-full px-4 py-2.5 bg-white/10 border border-white/20 text-white rounded-lg focus:outline-none focus:border-primary-fixed-dim font-body-md text-body-md appearance-none transition-all cursor-pointer">
+<option class="text-on-background">OpenAI</option>
+<option class="text-on-background">Anthropic</option>
+<option class="text-on-background">Custom Endpoint</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-white/70 block flex justify-between">
+                                        API Key
+                                        <a class="text-primary-fixed-dim hover:text-white transition-colors underline" href="#">Get Key</a>
+</label>
+<div class="relative rounded-lg group">
+<input class="w-full px-4 py-2.5 bg-white/5 border border-white/20 text-white rounded-lg focus:outline-none focus:border-primary-fixed-dim font-data-mono text-data-mono transition-all" type="password" value="sk-••••••••••••••••••••••••"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">visibility</span>
+</button>
+</div>
+</div>
+<div class="pt-2">
+<button class="w-full bg-white text-deep-navy px-4 py-2.5 rounded-lg font-label-caps text-label-caps hover:bg-surface-gray transition-colors shadow-sm text-center flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">sync</span>
+                                        Test Connection
+                                    </button>
+</div>
+</div>
+<div class="border-t border-white/10 pt-4 text-center">
+<p class="text-xs text-white/50 font-body-sm">Alternatively, connect via <a class="text-primary-fixed-dim hover:underline" href="#">OAuth</a> for supported providers.</p>
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Simple script to handle toggles visually if needed beyond CSS
+        document.querySelectorAll('.toggle-checkbox').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                if(this.checked) {
+                    this.nextElementSibling.style.backgroundColor = '#00152c';
+                } else {
+                    this.nextElementSibling.style.backgroundColor = '#E2E8F0';
+                }
+            });
+            // Init state
+            if(toggle.checked) toggle.nextElementSibling.style.backgroundColor = '#00152c';
+        });
+    </script>
+</body></html>

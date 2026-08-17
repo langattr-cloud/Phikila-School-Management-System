@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-surface-dim" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila Inventory &amp; Storekeeper Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "deep-navy": "#0B1B2D",
+                        "border-subtle": "rgba(226, 232, 240, 0.2)",
+                        "inverse-primary": "#b0c8ed",
+                        "surface-dim": "#cbdbf5",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "background": "#f8f9ff",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#eff4ff",
+                        "outline-variant": "#c4c6ce",
+                        "surface-gray": "rgba(249, 250, 251, 0.1)",
+                        "on-secondary-fixed": "#002109",
+                        "tertiary-container": "#3e2300",
+                        "surface-variant": "#d3e4fe",
+                        "on-secondary-container": "#007432",
+                        "surface-container-lowest": "rgba(255, 255, 255, 0.1)",
+                        "on-surface-variant": "#d1d5db",
+                        "on-error": "#ffffff",
+                        "on-background": "#ffffff",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-highest": "#d3e4fe",
+                        "tertiary": "#221100",
+                        "surface-container": "#e5eeff",
+                        "on-primary-container": "#e2e8f0",
+                        "secondary-fixed-dim": "#4ae176",
+                        "outline": "#74777e",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-bright": "#f8f9ff",
+                        "on-tertiary-container": "#b2885a",
+                        "on-tertiary-fixed": "#2b1700",
+                        "surface-container-high": "#dce9ff",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#005321",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "on-error-container": "#ff8a8a",
+                        "on-primary-fixed-variant": "rgba(48, 72, 103, 0.3)",
+                        "secondary-container": "#6bff8f",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "primary": "#60a5fa",
+                        "inverse-surface": "#213145",
+                        "surface-tint": "#486080",
+                        "secondary-fixed": "#6bff8f",
+                        "on-surface": "#ffffff",
+                        "surface": "rgba(248, 249, 255, 0.1)",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#006e2f",
+                        "on-primary": "#ffffff",
+                        "primary-fixed": "#d3e4ff",
+                        "primary-container": "#0f2a47",
+                        "on-primary-fixed": "#001c38"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px",
+                        "compact-padding": "8px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md-mobile": ["Geist"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-md": ["Geist"],
+                        "label-caps": ["JetBrains Mono"],
+                        "display-lg": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-sm": ["Geist"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=Inter:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<style>body {
+    font-family: "Inter", sans-serif;
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuA-7ipFzKbnrA1ZG47ocPbl_mradZma4ssa99-9XK5wAo0kUxaBtf9q90eUzTMvI47Oz2uEYgVss7r6TvVh9ewbadysKYIrouGPjznz7jljoZgg15ECEPIOMNGjAJzfj-u0w35hGHDIaLSDr20zjz6v6iKFVqeMmCnqLTAKAK6vU8pmoKbN-7DAdO9bDGzqyRo7oQRTvbIP142FIUzV_7YGarEKFy_1L1q94j7rVPyncp_vlb7NpV-3);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed
+    }
+.glass-panel {
+    background: rgba(11, 27, 45, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1)
+    }
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1)
+    }
+.h-screen {
+    height: 100vh
+    }
+.w-sidebar-expanded {
+    width: 240px
+    }
+.text-primary-fixed {
+    color: #d3e4ff
+    }
+.font-label-caps {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    line-height: 16px;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    text-transform: uppercase
+    }
+.font-headline-md {
+    font-family: "Geist", sans-serif;
+    font-size: 24px;
+    line-height: 32px;
+    letter-spacing: -0.01em;
+    font-weight: 600
+    }
+.text-surface-container-lowest {
+    color: #fff
+    }
+.border-r {
+    border-right-width: 1px
+    }
+.border-l-4 {
+    border-left-width: 4px
+    }
+.border-inverse-primary {
+    border-color: #b0c8ed
+    }
+.bg-white\/10 {
+    background-color: rgba(255, 255, 255, 0.1)
+    }
+.hover\:bg-white\/5:hover {
+    background-color: rgba(255, 255, 255, 0.05)
+    }
+.fixed {
+    position: fixed
+    }
+.left-0 {
+    left: 0
+    }
+.top-0 {
+    top: 0
+    }
+.h-full {
+    height: 100%
+    }
+.flex {
+    display: flex
+    }
+.flex-col {
+    flex-direction: column
+    }
+.font-body-md {
+    font-family: "Inter", sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400
+    }
+.font-headline-sm {
+    font-family: "Geist", sans-serif;
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 600
+    }
+.h-16 {
+    height: 4rem
+    }
+.w-full {
+    width: 100%
+    }
+.border-b {
+    border-bottom-width: 1px
+    }
+.sticky {
+    position: sticky
+    }
+.z-40 {
+    z-index: 40
+    }
+.justify-between {
+    justify-content: space-between
+    }
+.items-center {
+    align-items: center
+    }
+.px-grid-margin {
+    padding-left: 24px;
+    padding-right: 24px
+    }
+.card-level-1 {
+    @apply glass-card;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)
+    }
+.card-level-2 {
+    @apply glass-card;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2)
+    }
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px
+    }
+.status-low {
+    background-color: #ff8a8a
+    }
+.status-ok {
+    background-color: #4ae176
+    }
+.table-row-hover:hover {
+    background-color: rgba(255, 255, 255, 0.05)
+    }
+.input-base {
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white
+    }
+.input-base:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+    outline: none
+    }
+.btn-primary {
+    background-color: rgba(96, 165, 250, 0.8);
+    color: #fff;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2)
+    }
+.btn-primary:hover {
+    background-color: rgba(96, 165, 250, 1)
+    }
+.btn-ghost {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05)
+    }
+.btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.1)
+    }
+/* Select dropdown text fix */
+select.input-base option {
+    color: #000
+    }</style>
+</head>
+<body class="flex font-body-md text-on-surface bg-transparent min-h-screen">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col glass-panel h-screen w-sidebar-expanded flex-shrink-0 border-r border-on-primary-fixed-variant fixed left-0 top-0 transition-all duration-200 ease-in-out z-50">
+<div class="p-6 flex items-center gap-4">
+<img alt="Phikila Logo" class="w-10 h-10 rounded-full object-cover bg-white shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcCEioUW8Y3eVGOzyFisNdVZgDXnbtbPeQfxDA0toBNLQe34RIQu4euHfSASwsBLyfppD6mkaUxA1dGxJUfDQ8JMZ7ENxFi8VQo4ttNHSLZOFcb6IbITelEABgDrpPQ6Isknw2qrgGYpsaIM7oCIdiYCMeR0LNV5YrgfnGR9ptJC_GTi_LJyxEUaUq5hoXHa2JTiN9Mxjtv82d59zBKxhXnogdTq-qmNJJkOqOOHpaK2I5xj3ouvJ4aRNaEx7qOOEzsw"/>
+<div>
+<h1 class="font-headline-md text-surface-container-lowest font-bold tracking-tight">Phikila OS</h1>
+<p class="font-label-caps text-on-primary-container mt-1">Admin Console</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto py-4 flex flex-col gap-2">
+<a class="flex items-center gap-3 px-6 py-3 text-on-primary-container hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-primary-container hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="domain">domain</span>
+<span class="font-body-md">Institutions</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 border-l-4 border-inverse-primary bg-white/20 text-surface-container-lowest font-semibold transition-colors shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-body-md">Academic Management</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-primary-container hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-body-md">Finance Hub</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-primary-container hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-body-md">Personnel</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-primary-container hover:bg-white/10 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-body-md">AI Intelligence</span>
+</a>
+</div>
+<div class="p-6 border-t border-on-primary-fixed-variant">
+<div class="text-xs text-on-primary-container mb-4 font-data-mono flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_#6bff8f]"></span>
+    System Status: Active
+</div>
+<a class="flex items-center gap-3 py-2 text-on-primary-container hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-body-md">Support</span>
+</a>
+<a class="flex items-center gap-3 py-2 text-on-primary-container hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md">Settings</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-[240px] flex flex-col min-h-screen bg-black/20">
+<!-- TopNavBar -->
+<header class="h-16 w-full glass-panel border-b border-border-subtle sticky top-0 z-40 flex justify-between items-center px-grid-margin transition-opacity">
+<div class="flex items-center gap-6">
+<h2 class="font-headline-sm text-white md:hidden">Phikila OS</h2>
+<nav class="hidden md:flex gap-6 h-full">
+<a class="text-on-surface-variant hover:text-white font-body-md py-5 border-b-2 border-transparent hover:border-white/30 transition-colors" href="#">Global Search</a>
+<a class="text-white font-bold border-b-2 border-primary py-5 font-body-md transition-colors" href="#">Reports</a>
+<a class="text-on-surface-variant hover:text-white font-body-md py-5 border-b-2 border-transparent hover:border-white/30 transition-colors" href="#">Logs</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<!-- Controls -->
+<div class="hidden md:flex items-center gap-3 mr-4 border-r border-border-subtle pr-4">
+<button class="text-on-surface-variant hover:text-white transition-colors" title="Toggle Light/Dark Mode">
+<span class="material-symbols-outlined text-[20px]" data-icon="light_mode">light_mode</span>
+</button>
+<button class="text-on-surface-variant hover:text-white transition-colors" title="Typography Settings">
+<span class="material-symbols-outlined text-[20px]" data-icon="text_format">text_format</span>
+</button>
+<button class="text-white transition-colors" title="Toggle Wallpaper">
+<span class="material-symbols-outlined text-[20px]" data-icon="wallpaper">wallpaper</span>
+</button>
+</div>
+<div class="hidden md:flex gap-2">
+<button class="btn-ghost px-4 py-2 rounded text-sm font-semibold transition-colors">Export</button>
+<button class="btn-primary px-4 py-2 rounded text-sm font-semibold transition-colors">Add Entry</button>
+</div>
+<div class="flex items-center gap-3 pl-2">
+<button class="text-on-surface-variant hover:text-white transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 rounded-full bg-error border border-transparent"></span>
+</button>
+<button class="text-on-surface-variant hover:text-white transition-colors">
+<span class="material-symbols-outlined" data-icon="apps">apps</span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full bg-surface-variant border border-border-subtle object-cover shadow-[0_0_10px_rgba(255,255,255,0.2)]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyNcEKZb_aczjk-0LntpL199U5NV4zrAKDt7NPe0qsfYkF78BI2IU6f2dfksvHfDMutGLaflgC6Dh7moIrAwNzszNL_eyjOVXeQX86fcOcBKLaW9-1dqVoCKh2Wb0PesPU0tlDuXbzfd-elg8t518O2jJs303JDlJeOSdoakw3EFMl9m-FI0SINfOjETA0XGThgEqftzpkzAkU7CH_oXjDSbGAZpdIybYvxWygZEQiMJP6cDDLO7Nr"/>
+</div>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="p-grid-margin flex-1 overflow-y-auto">
+<div class="flex justify-between items-end mb-6">
+<div>
+<h1 class="font-headline-md text-white mb-1 drop-shadow-md">Inventory &amp; Storekeeper</h1>
+<p class="font-body-md text-on-surface-variant">Asset management and supply tracking</p>
+</div>
+<div class="flex gap-3">
+<select class="input-base px-3 py-2 rounded text-sm font-body-md">
+<option>All Categories</option>
+<option>Stationery</option>
+<option>Lab Equipment</option>
+<option>Textbooks</option>
+</select>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+<!-- Stats Column (Col 1) -->
+<div class="md:col-span-1 flex flex-col gap-6">
+<!-- Intelligence Module Style -->
+<div class="rounded-lg p-5 bg-gradient-to-br from-blue-900/60 to-purple-900/40 text-white shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/20 relative overflow-hidden backdrop-blur-xl">
+<div class="absolute -right-4 -top-4 opacity-20">
+<span class="material-symbols-outlined text-9xl" data-icon="account_balance_wallet">account_balance_wallet</span>
+</div>
+<h3 class="font-label-caps text-blue-200 mb-2 drop-shadow-sm">Total Stock Value</h3>
+<div class="font-display-lg font-bold mb-1 drop-shadow-md">$452.8K</div>
+<p class="text-xs text-blue-100/80 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary-fixed" data-icon="trending_up">trending_up</span> +2.4% vs last month
+                        </p>
+</div>
+<div class="card-level-1 rounded-lg p-5 flex flex-col justify-between h-full">
+<div>
+<h3 class="font-label-caps text-on-surface-variant mb-4">Quick Stats</h3>
+<div class="flex items-center justify-between mb-4 pb-4 border-b border-border-subtle">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-error/20 border border-error/30 text-error-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]" data-icon="warning">warning</span>
+</div>
+<span class="font-body-sm font-semibold">Low-stock Items</span>
+</div>
+<span class="font-data-mono font-bold text-error-container drop-shadow-[0_0_5px_rgba(255,138,138,0.5)]">12</span>
+</div>
+<div class="flex items-center justify-between mb-4 pb-4 border-b border-border-subtle">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-white/10 border border-white/20 text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]" data-icon="pending_actions">pending_actions</span>
+</div>
+<span class="font-body-sm font-semibold">Pending POs</span>
+</div>
+<span class="font-data-mono font-bold text-white">5</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-secondary-container/20 border border-secondary-container/30 text-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]" data-icon="output">output</span>
+</div>
+<span class="font-body-sm font-semibold">Issued Today</span>
+</div>
+<span class="font-data-mono font-bold text-white">47</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Data (Col 2-4) -->
+<div class="md:col-span-3 flex flex-col gap-6">
+<!-- Alerts Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="card-level-2 rounded-lg p-4 border-l-4 border-error/80 flex items-start gap-4 bg-error/10">
+<span class="material-symbols-outlined text-error-container mt-1" data-icon="error">error</span>
+<div>
+<h4 class="font-body-sm font-bold text-white">Low stock: A4 Graph Books</h4>
+<p class="font-body-sm text-on-surface-variant mt-1">Current qty: 45 (Reorder level: 100). Vendor lead time is 5 days.</p>
+<button class="text-xs font-semibold text-primary mt-2 uppercase tracking-wide hover:text-white transition-colors">Create PO</button>
+</div>
+</div>
+<div class="card-level-2 rounded-lg p-4 border-l-4 border-tertiary-fixed-dim/80 flex items-start gap-4 bg-tertiary-container/30">
+<span class="material-symbols-outlined text-tertiary-fixed-dim mt-1" data-icon="science">science</span>
+<div>
+<h4 class="font-body-sm font-bold text-white">Lab chemicals nearing expiry</h4>
+<p class="font-body-sm text-on-surface-variant mt-1">3 batches of Isopropyl Alcohol expire in 14 days in Lab B.</p>
+<button class="text-xs font-semibold text-primary mt-2 uppercase tracking-wide hover:text-white transition-colors">Review Stock</button>
+</div>
+</div>
+</div>
+<!-- Stock Table -->
+<div class="card-level-1 rounded-lg overflow-hidden flex-1 flex flex-col">
+<div class="p-4 border-b border-border-subtle flex justify-between items-center bg-black/20">
+<h3 class="font-headline-sm text-white">Inventory Status</h3>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" data-icon="search">search</span>
+<input class="input-base pl-9 pr-4 py-1.5 rounded text-sm w-64 font-body-sm bg-black/40 border-white/10" placeholder="Search items..." type="text"/>
+</div>
+</div>
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-black/40 border-b border-border-subtle">
+<th class="px-4 py-3 font-label-caps text-on-surface-variant whitespace-nowrap">Item Name</th>
+<th class="px-4 py-3 font-label-caps text-on-surface-variant whitespace-nowrap">Category</th>
+<th class="px-4 py-3 font-label-caps text-on-surface-variant text-right whitespace-nowrap">Qty</th>
+<th class="px-4 py-3 font-label-caps text-on-surface-variant text-right whitespace-nowrap">Reorder</th>
+<th class="px-4 py-3 font-label-caps text-on-surface-variant whitespace-nowrap">Supplier</th>
+<th class="px-4 py-3 font-label-caps text-on-surface-variant text-center whitespace-nowrap">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-sm divide-y divide-border-subtle">
+<tr class="table-row-hover transition-colors">
+<td class="px-4 py-compact-padding font-semibold text-white">Microscopes (Leica X1)</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">Lab Equipment</td>
+<td class="px-4 py-compact-padding text-right font-data-mono"><span class="status-dot status-ok shadow-[0_0_5px_#4ae176]"></span> 24</td>
+<td class="px-4 py-compact-padding text-right font-data-mono text-on-surface-variant">5</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">SciTech Supplies</td>
+<td class="px-4 py-compact-padding text-center">
+<button class="text-on-surface-variant hover:text-white"><span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span></button>
+</td>
+</tr>
+<tr class="table-row-hover transition-colors bg-error/10">
+<td class="px-4 py-compact-padding font-semibold text-white">A4 Graph Books</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">Stationery</td>
+<td class="px-4 py-compact-padding text-right font-data-mono text-error-container font-bold"><span class="status-dot status-low shadow-[0_0_5px_#ff8a8a]"></span> 45</td>
+<td class="px-4 py-compact-padding text-right font-data-mono text-on-surface-variant">100</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">EduPrint Ltd</td>
+<td class="px-4 py-compact-padding text-center">
+<button class="text-on-surface-variant hover:text-white"><span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span></button>
+</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="px-4 py-compact-padding font-semibold text-white">Calculators (Casio FX)</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">Stationery</td>
+<td class="px-4 py-compact-padding text-right font-data-mono"><span class="status-dot status-ok shadow-[0_0_5px_#4ae176]"></span> 112</td>
+<td class="px-4 py-compact-padding text-right font-data-mono text-on-surface-variant">50</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">Office Depot</td>
+<td class="px-4 py-compact-padding text-center">
+<button class="text-on-surface-variant hover:text-white"><span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span></button>
+</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="px-4 py-compact-padding font-semibold text-white">Biology Gr.10 Textbook</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">Textbooks</td>
+<td class="px-4 py-compact-padding text-right font-data-mono"><span class="status-dot status-ok shadow-[0_0_5px_#4ae176]"></span> 340</td>
+<td class="px-4 py-compact-padding text-right font-data-mono text-on-surface-variant">50</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">Pearson Pub.</td>
+<td class="px-4 py-compact-padding text-center">
+<button class="text-on-surface-variant hover:text-white"><span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span></button>
+</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="px-4 py-compact-padding font-semibold text-white">Beakers (250ml Glass)</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">Lab Equipment</td>
+<td class="px-4 py-compact-padding text-right font-data-mono"><span class="status-dot status-ok shadow-[0_0_5px_#4ae176]"></span> 89</td>
+<td class="px-4 py-compact-padding text-right font-data-mono text-on-surface-variant">20</td>
+<td class="px-4 py-compact-padding text-on-surface-variant">SciTech Supplies</td>
+<td class="px-4 py-compact-padding text-center">
+<button class="text-on-surface-variant hover:text-white"><span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-3 border-t border-border-subtle bg-black/20 text-center">
+<button class="text-xs font-semibold text-primary uppercase tracking-wide hover:text-white hover:underline transition-colors">View Full Inventory</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Movement Log Layout (Bottom Row) -->
+<div class="card-level-1 rounded-lg">
+<div class="p-4 border-b border-border-subtle bg-black/20 flex justify-between items-center">
+<h3 class="font-headline-sm text-white">Recent Movement Log</h3>
+<button class="text-xs font-semibold text-primary uppercase tracking-wide border border-border-subtle px-3 py-1 rounded hover:bg-white/10 transition-colors">Export Log</button>
+</div>
+<div class="p-4">
+<ul class="space-y-4">
+<li class="flex items-start gap-4">
+<div class="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[16px] text-white" data-icon="arrow_upward">arrow_upward</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="font-body-sm font-semibold text-white">Issued: 30x A4 Whiteboard Markers</p>
+<span class="font-data-mono text-xs text-on-surface-variant">10:42 AM</span>
+</div>
+<p class="font-body-sm text-on-surface-variant mt-0.5">To: Dept. of Mathematics (Req: Sarah Jenkins)</p>
+</div>
+</li>
+<li class="flex items-start gap-4">
+<div class="w-8 h-8 rounded-full bg-secondary-container/20 border border-secondary-container/30 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[16px] text-secondary-container" data-icon="arrow_downward">arrow_downward</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="font-body-sm font-semibold text-white">Returned: 1x Digital Projector (Sony XYZ)</p>
+<span class="font-data-mono text-xs text-on-surface-variant">09:15 AM</span>
+</div>
+<p class="font-body-sm text-on-surface-variant mt-0.5">From: Staff Room B (Condition: Good)</p>
+</div>
+</li>
+<li class="flex items-start gap-4">
+<div class="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[16px] text-white" data-icon="inventory">inventory</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="font-body-sm font-semibold text-white">Stock Intake: 500x Examination Pads</p>
+<span class="font-data-mono text-xs text-on-surface-variant">Yesterday</span>
+</div>
+<p class="font-body-sm text-on-surface-variant mt-0.5">PO #4492 - EduPrint Ltd (Received in full)</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Footer Maintained as Requested -->
+<footer class="border-t border-border-subtle glass-panel px-grid-margin py-4 w-full mt-auto">
+<div class="flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-on-surface-variant font-body-sm">
+<a class="hover:text-white transition-colors" href="#">Support</a>
+<a class="hover:text-white transition-colors" href="#">System status</a>
+<a class="hover:text-white transition-colors" href="#">Careers</a>
+<a class="hover:text-white transition-colors" href="#">Terms of Use</a>
+<a class="hover:text-white transition-colors" href="#">Report Security Issues</a>
+<a class="hover:text-white transition-colors" href="#">Privacy Policy</a>
+<button class="flex items-center gap-1 bg-white/5 border border-white/10 text-white rounded-full px-2 py-0.5 hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-[14px] text-[#6bff8f]">check</span>
+<span class="material-symbols-outlined text-[14px] text-[#ff8a8a]">close</span>
+<span>Cookie Preferences</span>
+</button>
+</div>
+<div class="text-xs text-on-surface-variant font-body-sm whitespace-nowrap">
+            © 2026 Phikila, Inc.
+        </div>
+</div>
+</footer>
+</main>
+</body></html>

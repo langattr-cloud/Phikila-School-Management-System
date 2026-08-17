@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phikila OS - Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=Inter:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#dce9ff",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#edbe8b",
+                        "tertiary-fixed": "#ffddba",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#604018",
+                        "error": "#ba1a1a",
+                        "on-surface": "#0b1c30",
+                        "primary-container": "#0f2a47",
+                        "on-secondary-container": "#007432",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#005321",
+                        "deep-navy": "#0B1B2D",
+                        "on-secondary": "#ffffff",
+                        "primary": "#00152c",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff",
+                        "secondary": "#006e2f",
+                        "secondary-container": "#6bff8f",
+                        "primary-fixed": "#d3e4ff",
+                        "inverse-surface": "#213145",
+                        "inverse-primary": "#b0c8ed",
+                        "error-container": "#ffdad6",
+                        "border-subtle": "#E2E8F0",
+                        "secondary-fixed": "#6bff8f",
+                        "background": "#f8f9ff",
+                        "on-primary-fixed": "#001c38",
+                        "tertiary": "#221100",
+                        "on-tertiary-fixed": "#2b1700",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-container-low": "#eff4ff",
+                        "tertiary-container": "#3e2300",
+                        "surface": "#f8f9ff",
+                        "on-surface-variant": "#43474d",
+                        "primary-fixed-dim": "#b0c8ed",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-container": "#7a92b4",
+                        "on-secondary-fixed": "#002109",
+                        "surface-dim": "#cbdbf5",
+                        "on-tertiary-container": "#b2885a",
+                        "surface-tint": "#486080",
+                        "surface-container": "#e5eeff",
+                        "surface-gray": "#F9FAFB",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "outline": "#74777e",
+                        "on-primary-fixed-variant": "#304867",
+                        "outline-variant": "#c4c6ce",
+                        "secondary-fixed-dim": "#4ae176"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "compact-padding": "8px",
+                        "gutter": "16px",
+                        "sidebar-expanded": "240px",
+                        "sidebar-collapsed": "64px",
+                        "grid-margin": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "headline-md-mobile": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-sm": ["Geist"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md antialiased md:hidden overflow-x-hidden pb-[80px]">
+<!-- Top Navigation (Compact Header) -->
+<header class="fixed top-0 left-0 w-full h-16 bg-surface dark:bg-deep-navy border-b border-border-subtle shadow-sm flex justify-between items-center px-gutter z-40 transition-colors">
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:outline-none p-1 rounded">
+<span class="material-symbols-outlined text-[24px]">menu</span>
+</button>
+<img alt="Phikila Logo" class="h-10 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8JWIELQB_R_3_LIb2Dl6wAmnV3cdjj73xRiZk8JOM8FeYYyipLhxHSxSTKzyKplXTPZOMVX6pSDs9JF3yHNx5R6k2YQSLVO_CXGEfQQFmwwTSalPHQhH76ghsR0nUlW6WSE6ubgLSIVJFOwVVxrdmT8O2BY3VgFMGXhZJ1jReIhByl2B_OdWRCTKLW7s3_YV1dTK_ChIMze-tkpe62VUxqi4NZSGSrd7zgHSL8qQ8ZXdtZy2s1A4svvfODC9s_nc_qw"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary/10 rounded-full p-1">
+<span class="material-symbols-outlined text-[22px]">notifications</span>
+</button>
+<img alt="User profile" class="w-8 h-8 rounded-full object-cover border border-border-subtle" data-alt="A small, circular avatar portrait of a professional administrator in a brightly lit modern office setting. The style is a clean, corporate headshot suitable for an educational software dashboard profile picture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHrItRlrI3GuK1zbi2DOcOij6igE3yBoZFTLJZTxCAPqHVmNiGDcHSpbikrsV4yh1IKfvpMXt_MxMazGSA4w4mWkpWlMEAro0jzaVI3lasFODo2nqawf44wIhmiD0dcQP3zSOkihYaOqAnJYf-HCqFWHM0eRciO2-FrzTLRjNJFeM_5XEOtl0_0PgYagW-nKbXOC-BYIZcKjKJp2EUAp0PNqwxmVDH0rcgGl1G_bHC7F3a9UavyDAo"/>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="mt-16 px-gutter py-6 flex flex-col gap-6">
+<!-- Header & Greetings -->
+<section>
+<h1 class="font-headline-md-mobile text-headline-md-mobile text-primary mb-1">Administrator Dashboard</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Today is Tuesday, Oct 24.</p>
+</section>
+<!-- Intelligence Module (At a Glance) -->
+<section class="bg-gradient-to-br from-deep-navy to-[#1a3a5a] text-white rounded-xl p-5 shadow-sm relative overflow-hidden">
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+<div class="relative z-10 flex flex-col gap-3">
+<div class="flex items-center gap-2 mb-2 text-primary-fixed-dim">
+<span class="material-symbols-outlined text-[18px]">insights</span>
+<span class="font-label-caps text-label-caps uppercase">System Intelligence</span>
+</div>
+<h2 class="font-body-lg text-body-lg text-white mb-1">Attendance anomaly detected.</h2>
+<p class="font-body-sm text-body-sm text-surface-dim/80 mb-4">Grade 10 shows a 12% drop in attendance today compared to the monthly average. Review required.</p>
+<button class="bg-white/10 hover:bg-white/20 text-white font-body-sm text-body-sm px-4 py-2 rounded-lg border border-white/20 self-start transition-colors backdrop-blur-sm">View Report</button>
+</div>
+</section>
+<!-- KPIs Vertical Stack -->
+<section class="flex flex-col gap-4">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">Core Metrics</h3>
+<!-- KPI Card 1 -->
+<div class="bg-white border border-border-subtle rounded-xl p-4 flex flex-col gap-2">
+<div class="flex justify-between items-start">
+<span class="font-body-md text-body-md text-on-surface-variant">Total Students</span>
+<span class="material-symbols-outlined text-[20px] text-primary-container/70">school</span>
+</div>
+<div class="flex items-end gap-3 mt-1">
+<span class="font-headline-md-mobile text-headline-md-mobile text-primary">2,450</span>
+<span class="font-body-sm text-body-sm text-secondary flex items-center mb-1">
+<span class="material-symbols-outlined text-[16px] mr-1">trending_up</span>+12
+                    </span>
+</div>
+</div>
+<!-- KPI Card 2 -->
+<div class="bg-white border border-border-subtle rounded-xl p-4 flex flex-col gap-2">
+<div class="flex justify-between items-start">
+<span class="font-body-md text-body-md text-on-surface-variant">Daily Attendance</span>
+<span class="material-symbols-outlined text-[20px] text-primary-container/70">how_to_reg</span>
+</div>
+<div class="flex items-end gap-3 mt-1">
+<span class="font-headline-md-mobile text-headline-md-mobile text-primary">94.2%</span>
+<span class="font-body-sm text-body-sm text-error flex items-center mb-1">
+<span class="material-symbols-outlined text-[16px] mr-1">trending_down</span>-1.5%
+                    </span>
+</div>
+</div>
+<!-- KPI Card 3 -->
+<div class="bg-white border border-border-subtle rounded-xl p-4 flex flex-col gap-2">
+<div class="flex justify-between items-start">
+<span class="font-body-md text-body-md text-on-surface-variant">Pending Approvals</span>
+<span class="material-symbols-outlined text-[20px] text-primary-container/70">pending_actions</span>
+</div>
+<div class="flex items-end gap-3 mt-1">
+<span class="font-headline-md-mobile text-headline-md-mobile text-primary">18</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mb-1 ml-auto">Needs action</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Mobile) -->
+<nav class="fixed bottom-0 left-0 w-full h-[72px] bg-white border-t border-border-subtle flex justify-around items-center px-2 z-50">
+<a class="flex flex-col items-center gap-1 p-2 text-primary focus:outline-none" href="#">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-label-caps text-label-caps text-[10px]">Dashboard</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 text-on-surface-variant hover:text-primary focus:outline-none transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">school</span>
+<span class="font-label-caps text-label-caps text-[10px]">Academics</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 text-on-surface-variant hover:text-primary focus:outline-none transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">group</span>
+<span class="font-label-caps text-label-caps text-[10px]">Students</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 text-on-surface-variant hover:text-primary focus:outline-none transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">calendar_today</span>
+<span class="font-label-caps text-label-caps text-[10px]">Timetable</span>
+</a>
+</nav>
+</body></html>
