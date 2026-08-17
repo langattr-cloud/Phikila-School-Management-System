@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="phikila-badge-mark-title">
+<title id="phikila-badge-mark-title">Phikila</title>
+<defs>
+<linearGradient id="pkm-gold" x1="0.08" y1="0" x2="0.92" y2="1">
+<stop offset="0" stop-color="#e7cd88"/>
+<stop offset="0.28" stop-color="#c9982e"/>
+<stop offset="0.55" stop-color="#b0801f"/>
+<stop offset="0.78" stop-color="#d7ab48"/>
+<stop offset="1" stop-color="#eed79a"/>
+</linearGradient>
+<linearGradient id="pkm-gold-soft" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#f0dca6"/>
+<stop offset="0.45" stop-color="#cfa03a"/>
+<stop offset="1" stop-color="#a97a1c"/>
+</linearGradient>
+<linearGradient id="pkm-gold-cap" x1="0.15" y1="0" x2="0.85" y2="1">
+<stop offset="0" stop-color="#f2e0af"/>
+<stop offset="0.35" stop-color="#cfa235"/>
+<stop offset="0.7" stop-color="#b2821f"/>
+<stop offset="1" stop-color="#e3c273"/>
+</linearGradient>
+<linearGradient id="pkm-ink" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#20232a"/>
+<stop offset="1" stop-color="#0e1014"/>
+</linearGradient>
+</defs>
+
+<circle cx="256" cy="256" r="250" fill="#ffffff"/>
+<circle cx="256" cy="256" r="233" fill="none" stroke="url(#pkm-gold)" stroke-width="13"/>
+<circle cx="256" cy="256" r="212" fill="none" stroke="url(#pkm-gold)" stroke-width="4"/>
+
+<g fill="url(#pkm-gold-soft)">
+<path d="M256 40 Q259 60 279 63 Q259 66 256 86 Q253 66 233 63 Q253 60 256 40 Z"/>
+<path d="M76 233 Q79 253 99 256 Q79 259 76 279 Q73 259 53 256 Q73 253 76 233 Z"/>
+<path d="M436 233 Q439 253 459 256 Q439 259 436 279 Q433 259 413 256 Q433 253 436 233 Z"/>
+<path d="M256 426 Q259 446 279 449 Q259 452 256 472 Q253 452 233 449 Q253 446 256 426 Z"/>
+</g>
+
+<!-- Emblem (cap, letter P, open book) enlarged to fill the ring. -->
+<g transform="translate(256,256) scale(1.32) translate(-256,-199)">
+  <path d="M199 122h114v27c0 19-24 28-57 28s-57-9-57-28z" fill="url(#pkm-gold-cap)"/>
+  <path d="M256 78l114 47-114 47-114-47z" fill="url(#pkm-gold-cap)"/>
+  <path d="M256 78l114 47-114 47z" fill="#c19029" opacity="0.35"/>
+  <path d="M256 168l-100-41v-5l100 41 100-41v5z" fill="#ffffff" opacity="0.85"/>
+  <path d="M162 122h7v46h-7z" fill="url(#pkm-gold-soft)"/>
+  <circle cx="165.5" cy="174" r="9" fill="url(#pkm-gold-soft)"/>
+  <path d="M157 182h17c3 15 5 28 5 41-8-8-19-8-27 0 0-13 2-26 5-41z" fill="url(#pkm-gold-soft)"/>
+
+  <path d="M250 136h44c40 0 66 22 66 52 0 32-28 54-70 54h-34v-20h26c28 0 44-14 44-34 0-20-16-32-44-32h-32z" fill="url(#pkm-gold)"/>
+  <path d="M196 300h76v-9l-22-3v-56h26c36 0 60-19 60-48 0-30-24-46-62-46h-78v9l18 3v141l-18 3z" fill="url(#pkm-ink)"/>
+
+  <path d="M176 272c34-15 58-12 78 4v11c-20-15-44-18-78-4z" fill="url(#pkm-gold-soft)"/>
+  <path d="M336 272c-34-15-58-12-78 4v11c20-15 44-18 78-4z" fill="url(#pkm-gold-soft)"/>
+  <path d="M170 286c36-14 62-10 84 8v18c-22-17-48-20-84-8z" fill="url(#pkm-ink)"/>
+  <path d="M342 286c-36-14-62-10-84 8v18c22-17 48-20 84-8z" fill="url(#pkm-ink)"/>
+  <path d="M256 284l11 15-11 16-11-16z" fill="url(#pkm-gold-soft)"/>
+</g>
+</svg>

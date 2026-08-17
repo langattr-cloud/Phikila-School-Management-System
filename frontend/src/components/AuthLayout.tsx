@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Logo } from './Logo'
+import { BrandBadge } from './Logo'
 import { CalendarIcon, CheckIcon, LockIcon } from './icons'
 import { Link } from '../lib/router'
 
@@ -21,7 +21,7 @@ export function AuthLayout({
       <section className="auth-shell__brand">
         <div className="auth-shell__brand-inner">
           <Link className="auth-shell__logo" to="/" aria-label="Back to Phikila home">
-            <Logo size={40} tone="dark" />
+            <BrandBadge size={72} withWordmark title="" />
           </Link>
 
           <div className="auth-shell__brand-content">

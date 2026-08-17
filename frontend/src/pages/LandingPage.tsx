@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { LogoMark } from '../components/Logo'
+import { BrandBadge, LogoMark } from '../components/Logo'
 import {
   CalendarIcon,
   CheckIcon,
@@ -87,7 +87,7 @@ export function LandingPage() {
       <header className="landing__hero">
         <nav className="landing__nav" aria-label="Main navigation">
           <a className="landing__brand" href="#top" aria-label="Phikila home">
-            <LogoMark size={38} tone="dark" />
+            <BrandBadge size={46} title="" />
             <span className="landing__brand-copy">
               <span className="landing__brand-name">PHIKILA</span>
               <span className="landing__brand-tagline">School Management System</span>
@@ -350,7 +350,7 @@ export function LandingPage() {
         <div className="landing__footer-main">
           <div className="landing__footer-brand">
             <span className="landing__brand">
-              <LogoMark size={34} tone="dark" />
+              <BrandBadge size={44} title="" />
               <span className="landing__brand-copy">
                 <span className="landing__brand-name">PHIKILA</span>
                 <span className="landing__brand-tagline">School Management System</span>

@@ -28,6 +28,34 @@ export function LogoMark({
   )
 }
 
+/**
+ * The official circular Phikila badge (gold ring, graduation cap, serif P and
+ * open book). Used on the public landing page and the sign in / sign up flow.
+ */
+export function BrandBadge({
+  size = 44,
+  withWordmark = false,
+  title = 'Phikila School Management System',
+  className,
+}: {
+  size?: number
+  /** Use the version that carries the "Phikila" wordmark inside the ring. */
+  withWordmark?: boolean
+  title?: string
+  className?: string
+}) {
+  return (
+    <img
+      src={withWordmark ? '/brand/phikila-badge.svg' : '/brand/phikila-badge-mark.svg'}
+      width={size}
+      height={size}
+      className={['brand-badge', className].filter(Boolean).join(' ')}
+      alt={title}
+      decoding="async"
+    />
+  )
+}
+
 /** Full Phikila lockup using the supplied logo treatment. */
 export function Logo({
   size = 40,
