@@ -31,20 +31,12 @@ jobs:
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
 
-      - name: Validate database secret
-        run: |
-          test -n "$DATABASE_URL" || {
-            echo "DATABASE_URL GitHub Actions secret is not configured."
-            exit 1
-          }
-
       - name: Validate migration source and graph
         run: |
           python -m compileall -q alembic/versions
           python - <<'PY'
-          import ast
           from pathlib import Path
-
+          import ast
           revisions = {}
           for path in Path("alembic/versions").glob("*.py"):
               tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -54,14 +46,21 @@ jobs:
                       for target in node.targets:
                           if isinstance(target, ast.Name) and target.id == "revision":
                               revision = ast.literal_eval(node.value)
-              if revision is not None:
+              if revision:
                   if revision in revisions:
                       raise SystemExit(f"Duplicate Alembic revision {revision}: {revisions[revision]} and {path}")
                   revisions[revision] = path
-          print(f"Validated {len(revisions)} migration revisions with no duplicate revision IDs.")
+          print(f"Validated {len(revisions)} Alembic revisions")
           PY
           alembic heads
           test "$(alembic heads | wc -l)" -eq 1
+
+      - name: Validate database secret
+        run: |
+          test -n "$DATABASE_URL" || {
+            echo "DATABASE_URL GitHub Actions secret is not configured."
+            exit 1
+          }
 
       - name: Baseline existing production schema
         run: |
@@ -77,62 +76,28 @@ jobs:
           from sqlalchemy import create_engine, text
 
           baseline_tables = {
-              "academic_years",
-              "grade_levels",
-              "lesson_periods",
-              "school_info",
-              "school_settings",
-              "school_working_days",
-              "streams",
-              "terms",
-              "timetable_entries",
-              "timetables",
-              "working_days",
-              "timetable_allocations",
+              "academic_years", "grade_levels", "lesson_periods", "school_info",
+              "school_settings", "school_working_days", "streams", "terms",
+              "timetable_entries", "timetables", "working_days", "timetable_allocations",
           }
-
           engine = create_engine(os.environ["DATABASE_URL"])
           with engine.begin() as conn:
               rows = conn.execute(text("""
-                  SELECT table_name
-                  FROM information_schema.tables
-                  WHERE table_schema = 'public'
-                    AND table_name = ANY(:tables)
+                  SELECT table_name FROM information_schema.tables
+                  WHERE table_schema = 'public' AND table_name = ANY(:tables)
               """), {"tables": list(baseline_tables)})
               found = {row[0] for row in rows}
-
               missing = baseline_tables - found
               if missing == {"grade_levels", "school_working_days"}:
-                  print("Production has the existing baseline schema except two empty foundation tables.")
-                  print("Creating missing baseline tables before stamping 8b4a887cf966.")
-                  conn.execute(text("""
-                      CREATE TABLE IF NOT EXISTS grade_levels (
-                          id INTEGER NOT NULL PRIMARY KEY
-                      )
-                  """))
-                  conn.execute(text("""
-                      CREATE TABLE IF NOT EXISTS school_working_days (
-                          id INTEGER NOT NULL PRIMARY KEY
-                      )
-                  """))
-                  conn.execute(text("""
-                      CREATE INDEX IF NOT EXISTS ix_grade_levels_id
-                      ON grade_levels (id)
-                  """))
-                  conn.execute(text("""
-                      CREATE INDEX IF NOT EXISTS ix_school_working_days_id
-                      ON school_working_days (id)
-                  """))
+                  conn.execute(text("CREATE TABLE IF NOT EXISTS grade_levels (id INTEGER NOT NULL PRIMARY KEY)"))
+                  conn.execute(text("CREATE TABLE IF NOT EXISTS school_working_days (id INTEGER NOT NULL PRIMARY KEY)"))
+                  conn.execute(text("CREATE INDEX IF NOT EXISTS ix_grade_levels_id ON grade_levels (id)"))
+                  conn.execute(text("CREATE INDEX IF NOT EXISTS ix_school_working_days_id ON school_working_days (id)"))
                   missing = set()
-
               if missing:
-                  print("Production database does not match the known existing baseline.")
                   print("Missing base tables:", ", ".join(sorted(missing)))
                   raise SystemExit(1)
-
-          print("Existing baseline schema confirmed; stamping Alembic baseline 8b4a887cf966.")
           PY
-
           alembic stamp 8b4a887cf966
 
       - name: Show migration plan
