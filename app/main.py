@@ -18,8 +18,9 @@ from app.modules.finance.completion_router import router as finance_completion_r
 from app.modules.llm.router import router as llm_router
 from app.modules.ocr.router import router as ocr_router
 from app.modules.platform.router import router as platform_router
-from app.modules.scheduling.calendar_dates_router import router as calendar_dates_router
 from app.modules.scheduling.router import router as scheduling_router
+from app.modules.scheduling.profile_router import router as timetable_profile_router
+from app.modules.scheduling.calendar_dates_router import router as calendar_dates_router
 from app.modules.school.router import router as school_router
 from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
@@ -53,6 +54,7 @@ def create_app()->FastAPI:
     app.include_router(users_router,prefix='/api/v1/users',tags=['Users'],dependencies=protected)
     app.include_router(school_router,prefix='/api/v1/school',tags=['School Profile'],dependencies=protected)
     app.include_router(scheduling_router,prefix='/api/v1/scheduling',tags=['Scheduling'])
+    app.include_router(timetable_profile_router,prefix='/api/v1/scheduling',tags=['Timetable Profiles'])
     app.include_router(calendar_dates_router,prefix='/api/v1/scheduling/calendar-dates',tags=['Scheduling Calendar Dates'])
     app.include_router(students_router,prefix='/api/v1',tags=['Students'])
     app.include_router(attendance_router,prefix='/api/v1',tags=['Attendance'])
