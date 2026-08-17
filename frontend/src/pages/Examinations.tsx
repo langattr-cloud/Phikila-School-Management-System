@@ -3,7 +3,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, EmptyState, LoadingBlock } from '../components/States'
 import { friendlyApiError } from '../lib/api'
-import { examinations, type ExamSeries, type Examination, type StudentResult } from '../lib/examinations'
+import { examinations, type ExamSeries, type Examination, type StudentResult, type ResultsAnalysis } from '../lib/examinations'
 
 export default function ExaminationsPage() {
   const [series, setSeries] = useState<ExamSeries[]>([])
@@ -12,6 +12,7 @@ export default function ExaminationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedExam, setSelectedExam] = useState<Examination | null>(null)
   const [results, setResults] = useState<StudentResult[]>([])
+  const [analysis, setAnalysis] = useState<ResultsAnalysis | null>(null)
   const [showNewSeries, setShowNewSeries] = useState(false)
   const [showNewExam, setShowNewExam] = useState(false)
 
@@ -33,8 +34,12 @@ export default function ExaminationsPage() {
 
   async function loadResults(examId: number) {
     try {
-      const r = await examinations.generateResults(examId)
+      const [r, a] = await Promise.all([
+        examinations.generateResults(examId),
+        examinations.resultsAnalysis(examId),
+      ])
       setResults(r)
+      setAnalysis(a)
       setSelectedExam(exams.find((e) => e.id === examId) || null)
     } catch (err) {
       setError(friendlyApiError(err, 'generate results'))
@@ -60,7 +65,7 @@ export default function ExaminationsPage() {
       {showNewExam && <NewExamForm series={series} onCreated={() => { setShowNewExam(false); load() }} onCancel={() => setShowNewExam(false)} />}
 
       {selectedExam && results.length > 0 && (
-        <ResultsTable exam={selectedExam} results={results} onClose={() => { setSelectedExam(null); setResults([]) }} />
+        <ResultsTable exam={selectedExam} results={results} analysis={analysis} onClose={() => { setSelectedExam(null); setResults([]); setAnalysis(null) }} />
       )}
 
       {loading ? (
@@ -163,7 +168,15 @@ export default function ExaminationsPage() {
    )
  }
 
- function ResultsTable({ exam, results, onClose }: { exam: Examination; results: StudentResult[]; onClose: () => void }) {
+ const CBC_BAND_LEGEND = [
+   { code: 'EE', label: 'Exceeding Expectations', range: '80–100%' },
+   { code: 'ME', label: 'Meeting Expectations', range: '50–79%' },
+   { code: 'AE', label: 'Approaching Expectations', range: '40–49%' },
+   { code: 'BE', label: 'Below Expectations', range: '0–39%' },
+ ]
+
+ function ResultsTable({ exam, results, analysis, onClose }: { exam: Examination; results: StudentResult[]; analysis: ResultsAnalysis | null; onClose: () => void }) {
+   const cbcResults = results.filter((r) => r.education_level === 'primary' || r.education_level === 'junior')
    return (
      <div className="card section" style={{ marginBottom: 'var(--space-4)' }}>
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
@@ -173,6 +186,39 @@ export default function ExaminationsPage() {
        <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem', marginBottom: 'var(--space-3)' }}>
          {results.length} students · Total: {exam.total_marks} · Pass: {exam.passing_marks}
        </p>
+
+       {analysis && (
+         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-3)' }}>
+           {analysis.cohort_mean !== undefined && analysis.cohort_mean !== null && (
+             <span className="badge badge--info" title="Cohort mean percentage">Cohort mean: {analysis.cohort_mean}%</span>
+           )}
+           {Object.entries(analysis.band_distribution).map(([band, count]) => (
+             <span key={band} className="badge" title={CBC_BAND_LEGEND.find((b) => b.code === band)?.label}>
+               {band}: {count}
+             </span>
+           ))}
+           {analysis.progress_summary.improved !== undefined && (
+             <span className="badge badge--success" title="Students who improved on the previous exam in this series">
+               Improved: {analysis.progress_summary.improved}
+             </span>
+           )}
+           {analysis.progress_summary.declined !== undefined && (
+             <span className="badge badge--warning" title="Students whose mean dropped since the previous exam">
+               Declined: {analysis.progress_summary.declined}
+             </span>
+           )}
+         </div>
+       )}
+
+       {cbcResults.length > 0 && (
+         <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--color-ink-muted)', marginBottom: 'var(--space-3)' }}>
+           <strong>CBC / KPSEA / KJSEA bands:</strong>
+           {CBC_BAND_LEGEND.map((b) => (
+             <span key={b.code}><Badge tone="success">{b.code}</Badge> {b.label} ({b.range})</span>
+           ))}
+         </div>
+       )}
+
        {results.length > 0 && (
          <div style={{ overflowX: 'auto' }}>
            <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
@@ -183,6 +229,10 @@ export default function ExaminationsPage() {
                  <th style={{ padding: 'var(--space-2)', textAlign: 'left' }}>Adm No</th>
                  <th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Total</th>
                  <th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Average</th>
+                 <th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Mean %</th>
+                 <th style={{ padding: 'var(--space-2)', textAlign: 'left' }}>Band</th>
+                 <th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Deviation</th>
+                 <th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Progress</th>
                  <th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Position</th>
                </tr>
              </thead>
@@ -194,6 +244,19 @@ export default function ExaminationsPage() {
                    <td style={{ padding: 'var(--space-2)' }}>{r.admission_number}</td>
                    <td style={{ padding: 'var(--space-2)', textAlign: 'right', fontWeight: 700 }}>{r.total_score}</td>
                    <td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>{r.average}</td>
+                   <td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>{r.percentage !== undefined && r.percentage !== null ? `${r.percentage}%` : '—'}</td>
+                   <td style={{ padding: 'var(--space-2)' }}>
+                     {r.band ? <Badge tone="success">{r.band}</Badge> : '—'}
+                     {r.band_label ? <span style={{ fontSize: '0.72rem', color: 'var(--color-ink-muted)', marginLeft: 'var(--space-1)' }}>{r.band_label}</span> : null}
+                   </td>
+                   <td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>
+                     {r.deviation !== undefined && r.deviation !== null
+                       ? `${r.deviation > 0 ? '+' : ''}${r.deviation}`
+                       : '—'}
+                   </td>
+                   <td style={{ padding: 'var(--space-2)', textAlign: 'right', color: r.progress && r.progress > 0 ? 'var(--color-success, #0a7d3c)' : r.progress && r.progress < 0 ? 'var(--color-danger, #b3261e)' : undefined }}>
+                     {r.progress !== undefined && r.progress !== null ? `${r.progress > 0 ? '+' : ''}${r.progress}` : '—'}
+                   </td>
                    <td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>{r.position}</td>
                  </tr>
                ))}

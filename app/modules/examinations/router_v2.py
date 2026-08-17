@@ -14,6 +14,8 @@ from app.modules.teachers.models import Teacher
 
 from . import models_v2 as m
 from . import schemas_v2 as s
+from .grading import compute_grade, percentage_for
+from .results import build_results, resolve_student_education_level
 
 router = APIRouter()
 
@@ -256,6 +258,7 @@ def enter_scores(exam_id: int, payload: s.BulkScoreEntry, db: Session = Depends(
                 "You can only load marks for your assigned class and subject.",
             )
 
+    # Legacy Senior School grade scale (raw-score based, unchanged behaviour).
     grade_scale = (
         db.query(m.GradeScale)
         .filter(m.GradeScale.school_id == principal.school_id)
@@ -263,15 +266,38 @@ def enter_scores(exam_id: int, payload: s.BulkScoreEntry, db: Session = Depends(
         .all()
     )
 
+    # Subject totals drive the Raw Score → Percentage stage for CBC levels.
+    student_ids = {entry.student_id for entry in payload.entries}
+    students = {
+        st.id: st
+        for st in db.query(Student).filter(
+            Student.id.in_(student_ids), Student.school_id == principal.school_id
+        ).all()
+    }
+    subject_totals = {
+        row.subject_id: float(row.total_marks or 0) or float(exam.total_marks or 0)
+        for row in db.query(m.ExamSubject).filter(
+            m.ExamSubject.exam_id == exam_id, m.ExamSubject.school_id == principal.school_id
+        ).all()
+    }
+
     created = 0
     updated = 0
     for entry in payload.entries:
         grade = entry.grade
-        if not grade and grade_scale:
-            for gs in grade_scale:
-                if gs.min_score <= entry.score <= gs.max_score:
-                    grade = gs.grade
-                    break
+        if not grade:
+            student = students.get(entry.student_id)
+            if student is not None:
+                _, education_level = resolve_student_education_level(db, student)
+                total = subject_totals.get(entry.subject_id, float(exam.total_marks or 0))
+                # CBC (primary/junior): percentage-based band mapping; senior
+                # keeps the legacy raw-score lookup below.
+                grade = compute_grade(db, principal.school_id, education_level, entry.score, total)
+            if not grade and grade_scale:
+                for gs in grade_scale:
+                    if gs.min_score <= entry.score <= gs.max_score:
+                        grade = gs.grade
+                        break
 
         existing = (
             db.query(m.ExamEntry)
@@ -322,7 +348,17 @@ def list_entries(
         q = q.filter(m.ExamEntry.subject_id == subject_id)
     if student_id:
         q = q.filter(m.ExamEntry.student_id == student_id)
-    return q.all()
+    entries = q.all()
+    exam = db.query(m.ExaminationV2).filter(m.ExaminationV2.id == exam_id, m.ExaminationV2.school_id == principal.school_id).first()
+    totals = {
+        row.subject_id: float(row.total_marks or 0) or float((exam.total_marks or 0) if exam else 0)
+        for row in db.query(m.ExamSubject).filter(
+            m.ExamSubject.exam_id == exam_id, m.ExamSubject.school_id == principal.school_id
+        ).all()
+    }
+    for entry in entries:
+        entry.percentage = percentage_for(entry.score, totals.get(entry.subject_id) or (exam.total_marks if exam else None))
+    return entries
 
 
 # ---- Results Generation ----
@@ -338,34 +374,14 @@ def generate_results(
     if not exam:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination not found.")
 
-    entries = db.query(m.ExamEntry).filter(m.ExamEntry.exam_id == exam_id, m.ExamEntry.school_id == principal.school_id).all()
-    if not entries:
+    rows, _ = build_results(db, exam, class_id=class_id)
+    if not rows:
         return []
 
-    student_entries: dict[int, list[m.ExamEntry]] = {}
-    for e in entries:
-        student_entries.setdefault(e.student_id, []).append(e)
-
-    student_ids = list(student_entries.keys())
-    students = db.query(Student).filter(Student.id.in_(student_ids), Student.school_id == principal.school_id).all()
-    student_map = {st.id: st for st in students}
-
     results: list[s.StudentResult] = []
-    for sid, ents in student_entries.items():
-        st = student_map.get(sid)
-        if not st:
-            continue
-        total = sum(e.score or 0 for e in ents)
-        avg = total / len(ents) if ents else 0
-        subject_scores = [{"subject_id": e.subject_id, "score": e.score, "grade": e.grade} for e in ents]
-        results.append(s.StudentResult(
-            student_id=sid,
-            student_name=f"{st.first_name} {st.last_name}",
-            admission_number=st.admission_number,
-            subject_scores=subject_scores,
-            total_score=total,
-            average=round(avg, 1),
-        ))
+    for row in rows:
+        row.pop("_level_code", None)
+        results.append(s.StudentResult(**row))
 
     results.sort(key=lambda r: r.total_score, reverse=True)
     for i, r in enumerate(results):
@@ -374,11 +390,27 @@ def generate_results(
     return results
 
 
+@router.get("/examinations/{exam_id}/results/analysis", response_model=s.ResultsAnalysis)
+def results_analysis(
+    exam_id: int,
+    class_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
+):
+    exam = db.query(m.ExaminationV2).filter(m.ExaminationV2.id == exam_id, m.ExaminationV2.school_id == principal.school_id).first()
+    if not exam:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Examination not found.")
+    _, analysis = build_results(db, exam, class_id=class_id)
+    return s.ResultsAnalysis(**analysis)
+
+
 # ---- Grade Scale ----
 
 @router.get("/examinations/grade-scale", response_model=list[s.GradeScaleResponse])
 def list_grade_scale(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
-    return db.query(m.GradeScale).filter(m.GradeScale.school_id == principal.school_id).order_by(m.GradeScale.min_score.desc()).all()
+    return db.query(m.GradeScale).filter(m.GradeScale.school_id == principal.school_id).order_by(
+        m.GradeScale.education_level.desc(), m.GradeScale.min_score.desc()
+    ).all()
 
 
 @router.post("/examinations/grade-scale", response_model=s.GradeScaleResponse, status_code=201)

@@ -2,7 +2,7 @@ from decimal import Decimal
 import pytest
 from fastapi import HTTPException
 from app.modules.finance.accounting_service import post_journal
-from app.modules.finance.models import ChartOfAccount
+from app.modules.finance.models import ChartOfAccount, JournalEntry
 
 
 def test_post_journal_rejects_unbalanced(db_session):
@@ -32,4 +32,5 @@ def test_post_journal_creates_balanced_entries(db_session):
     ], created_by="tester")
     db_session.commit()
     assert journal.id
-    assert sum(x.debit for x in journal.entries) == sum(x.credit for x in journal.entries)
+    lines = db_session.query(JournalEntry).filter(JournalEntry.journal_id == journal.id).all()
+    assert sum(x.debit for x in lines) == sum(x.credit for x in lines)

@@ -34,17 +34,44 @@ export interface ExamEntry {
   grade?: string
   position?: number
   remarks?: string
+  percentage?: number
+}
+
+export interface SubjectScore {
+  subject_id: number
+  score: number
+  grade?: string
+  percentage?: number
+  band?: string
+  band_label?: string
 }
 
 export interface StudentResult {
   student_id: number
   student_name: string
   admission_number: string
-  subject_scores: { subject_id: number; score: number; grade?: string }[]
+  subject_scores: SubjectScore[]
   total_score: number
   average: number
   position?: number
   grade?: string
+  education_level?: 'primary' | 'junior' | 'senior'
+  percentage?: number
+  band?: string
+  band_label?: string
+  deviation?: number
+  progress?: number
+}
+
+export interface ResultsAnalysis {
+  exam_id: number
+  exam_name: string
+  cohort_size: number
+  education_levels: Record<string, number>
+  cohort_mean?: number
+  band_distribution: Record<string, number>
+  subject_analysis: { subject_id: number; entries: number; mean_percentage?: number; band_distribution: Record<string, number> }[]
+  progress_summary: Record<string, number>
 }
 
 export interface GradeScale {
@@ -55,6 +82,7 @@ export interface GradeScale {
   max_score: number
   points?: number
   description?: string
+  education_level?: 'primary' | 'junior' | 'senior' | null
 }
 
 const get = <T,>(path: string) => apiFetch<T>(path)
@@ -91,6 +119,11 @@ export const examinations = {
   generateResults: (examId: number, classId?: number) => {
     const q = classId ? `?class_id=${classId}` : ''
     return get<StudentResult[]>(`${BASE}/examinations/${examId}/results${q}`)
+  },
+
+  resultsAnalysis: (examId: number, classId?: number) => {
+    const q = classId ? `?class_id=${classId}` : ''
+    return get<ResultsAnalysis>(`${BASE}/examinations/${examId}/results/analysis${q}`)
   },
 
   // Grade scale
