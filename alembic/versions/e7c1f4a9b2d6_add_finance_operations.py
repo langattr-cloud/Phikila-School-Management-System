@@ -1,8 +1,8 @@
 """Add Finance operations, treasury, procurement, budget and reporting tables.
 
 Existing Supabase bootstrap tables are preserved. Missing tables are created.
-Student references are kept nullable until the dedicated student migration
-reconciles the full students_v2 schema.
+Student identifiers in this migration remain plain integers because the
+students_v2 table is created by a later Alembic revision.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -14,22 +14,12 @@ depends_on = None
 
 
 def _table(name, *columns, constraints=()):
-    bind = op.get_bind()
-    if name in sa.inspect(bind).get_table_names():
+    if name in sa.inspect(op.get_bind()).get_table_names():
         return
     op.create_table(name, *columns, *constraints)
 
 
-def _ensure_student_reference_table():
-    """Provide only the PK needed by finance FKs; c6f1 owns the full schema."""
-    if "students_v2" in sa.inspect(op.get_bind()).get_table_names():
-        return
-    op.create_table("students_v2", sa.Column("id", sa.Integer(), primary_key=True))
-
-
 def upgrade() -> None:
-    _ensure_student_reference_table()
-
     _table("finance_fiscal_periods",
         sa.Column("id", sa.Integer(), primary_key=True), sa.Column("school_id", sa.Integer(), nullable=False, index=True),
         sa.Column("name", sa.String(100), nullable=False), sa.Column("academic_year_id", sa.Integer()), sa.Column("term_id", sa.Integer()),
