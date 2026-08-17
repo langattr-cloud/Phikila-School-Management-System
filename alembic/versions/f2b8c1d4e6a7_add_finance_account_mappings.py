@@ -10,8 +10,7 @@ depends_on = None
 
 def upgrade():
     bind = op.get_bind()
-    inspector = sa.inspect(bind)
-    if "finance_account_mappings" in inspector.get_table_names():
+    if "finance_account_mappings" in sa.inspect(bind).get_table_names():
         return
     op.create_table(
         "finance_account_mappings",
