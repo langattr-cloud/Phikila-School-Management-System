@@ -116,7 +116,11 @@ export type Term = {
   school_id: number
 }
 
-export type Level = {
+/**
+ * Grade is the user-facing term for the existing academic level resource.
+ * The API endpoint remains /levels for backward compatibility.
+ */
+export type Grade = {
   id: number
   name: string
   code: string
@@ -125,11 +129,14 @@ export type Level = {
   school_id: number
 }
 
+export type Level = Grade
+
 export const api = {
   health: () => apiFetch<{ status: string; environment: string }>('/health', {}, false),
   me: () => apiFetch<Identity>('/api/v1/auth/me'),
   school: () => apiFetch<SchoolProfile>('/api/v1/school/'),
   academicYears: () => apiFetch<AcademicYear[]>('/api/v1/academics/years'),
   terms: () => apiFetch<Term[]>('/api/v1/academics/terms'),
-  levels: () => apiFetch<Level[]>('/api/v1/academics/levels'),
+  grades: () => apiFetch<Grade[]>('/api/v1/academics/levels'),
+  levels: () => apiFetch<Grade[]>('/api/v1/academics/levels'),
 }
