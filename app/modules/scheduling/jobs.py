@@ -1,4 +1,4 @@
-"""Database-backed solver job queue.
+"""Database-backed solver job execution.
 
 Long optimisation runs must not block an HTTP request, so ``enqueue`` persists
 a job row and a background thread executes it, writing progress back to the
@@ -10,7 +10,6 @@ changing a single endpoint.
 from __future__ import annotations
 
 import logging
-import threading
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -55,11 +54,15 @@ def create_job(db: Session, school_id: int, actor: str | None) -> m.TtSolverJob:
 
 
 def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0) -> None:
-    """Start the job on a background thread."""
-    thread = threading.Thread(
-        target=_run_job, args=(job_id, school_id, max_seconds), daemon=True
-    )
-    thread.start()
+    """Run the solver while the serverless invocation is still alive.
+
+    Vercel does not guarantee that daemon/background threads continue after an
+    HTTP response finishes. The old implementation could therefore return a
+    queued job and then have its worker terminated before it generated a
+    timetable. Running the job synchronously keeps the database lifecycle
+    deterministic and ensures the returned job is already completed or failed.
+    """
+    _run_job(job_id, school_id, max_seconds)
 
 
 def _set_checks(checks: list[dict], keys: list[str], state: str) -> list[dict]:
