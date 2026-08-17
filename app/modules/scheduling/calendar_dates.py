@@ -1,12 +1,8 @@
-"""Standalone calendar-date resource for scheduling setup.
-
-Dates are concrete calendar occurrences. They are deliberately not derived
-from, stored as, or converted into recurring weekday rules.
-"""
+"""Standalone concrete calendar dates for timetable setup."""
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import Column, Date, DateTime, Integer, String, UniqueConstraint
 
@@ -15,9 +11,7 @@ from app.core.database import Base
 
 class TtCalendarDate(Base):
     __tablename__ = "tt_calendar_dates"
-    __table_args__ = (
-        UniqueConstraint("school_id", "date", name="uq_tt_calendar_date"),
-    )
+    __table_args__ = (UniqueConstraint("school_id", "date", name="uq_tt_calendar_date"),)
 
     id = Column(Integer, primary_key=True)
     school_id = Column(Integer, nullable=False, index=True)
