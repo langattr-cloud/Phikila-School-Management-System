@@ -1,4 +1,4 @@
-"""Reconcile timetable bootstrap tables with the production Supabase schema."""
+"""Reconcile timetable bootstrap tables with the production schema."""
 
 from alembic import op
 import sqlalchemy as sa
@@ -11,9 +11,9 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    existing = set(sa.inspect(bind).get_table_names())
+    tables = set(sa.inspect(bind).get_table_names())
 
-    if "tt_schools" not in existing:
+    if "tt_schools" not in tables:
         op.create_table(
             "tt_schools",
             sa.Column("id", sa.Integer(), primary_key=True),
@@ -23,8 +23,7 @@ def upgrade() -> None:
             sa.Column("academic_year", sa.String(40)),
             sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         )
-
-    if "tt_memberships" not in existing:
+    if "tt_memberships" not in tables:
         op.create_table(
             "tt_memberships",
             sa.Column("id", sa.Integer(), primary_key=True),
@@ -39,8 +38,9 @@ def upgrade() -> None:
             sa.UniqueConstraint("user_id", "school_id", name="uq_tt_membership"),
         )
 
-    # The remaining tt_* scheduling tables are already present in the
-    # production bootstrap schema. Do not recreate or overwrite them.
+    # The remaining tt_* schema is already provisioned by the production
+    # Supabase bootstrap. Do not recreate it or alter existing timetable data.
+    return
 
 
 def downgrade() -> None:
