@@ -273,21 +273,39 @@ export function LandingPage() {
       </section>
 
       <section className="landing__capabilities" id="capabilities">
-        <div className="landing__section-heading landing__section-heading--left">
-          <p className="landing__eyebrow">A platform that grows with the work</p>
-          <h2>Every essential workflow. One consistent experience.</h2>
+        <div className="landing__capabilities-heading">
+          <div className="landing__section-heading landing__section-heading--left">
+            <p className="landing__eyebrow">A platform that grows with the work</p>
+            <h2>Every essential workflow. One consistent experience.</h2>
+          </div>
         </div>
-        <div className="landing__feature-grid">
-          {FEATURES.map((feature) => (
-            <article className="landing__feature-card" key={feature.title}>
-              <span className="landing__feature-icon">{feature.icon}</span>
-              <div>
-                <p className="landing__feature-eyebrow">{feature.eyebrow}</p>
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
-              </div>
-            </article>
-          ))}
+
+        {/* The capability cards ride a continuous right-to-left ticker. The list
+            is rendered twice so the track can loop seamlessly; the duplicate
+            pass is decorative and hidden from assistive technology. */}
+        <div
+          className="landing__marquee"
+          role="group"
+          aria-label="Every essential workflow, one consistent experience"
+        >
+          <div className="landing__marquee-track">
+            {[0, 1].map((copy) => (
+              <ul className="landing__marquee-group" key={copy} aria-hidden={copy === 1 || undefined}>
+                {FEATURES.map((feature) => (
+                  <li key={`${copy}-${feature.title}`}>
+                    <article className="landing__feature-card">
+                      <span className="landing__feature-icon">{feature.icon}</span>
+                      <div>
+                        <p className="landing__feature-eyebrow">{feature.eyebrow}</p>
+                        <h3>{feature.title}</h3>
+                        <p>{feature.description}</p>
+                      </div>
+                    </article>
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
         </div>
       </section>
 

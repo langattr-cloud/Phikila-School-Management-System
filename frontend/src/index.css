@@ -5277,22 +5277,73 @@ a {
 .insight-chart__bars i:nth-child(6) { height: 77%; }
 .insight-chart__bars i:nth-child(7) { height: 91%; }
 
-/* Capabilities */
+/* Capabilities — the marquee runs full-bleed, so the section spans the viewport
+   while the heading keeps the shared content width. */
 .landing__capabilities {
-  padding-top: 4rem;
+  width: 100%;
+  padding: 4rem 0 5.5rem;
 }
 
-.landing__feature-grid {
-  display: grid;
-  border-top: 1px solid var(--landing-line);
+.landing__capabilities-heading {
+  width: min(100% - 2rem, 72rem);
+  margin: 0 auto;
+}
+
+/* ---- Capabilities marquee (infinite right-to-left ticker) ---- */
+.landing__marquee {
+  --marquee-gap: 1rem;
+  --marquee-duration: 46s;
+  position: relative;
+  overflow: hidden;
+  padding: 0.5rem 0 1.5rem;
+  /* Cards dissolve into the page at both edges instead of being cut off. */
+  mask-image: linear-gradient(90deg, transparent, #000 5rem, #000 calc(100% - 5rem), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5rem, #000 calc(100% - 5rem), transparent);
+}
+
+.landing__marquee-track {
+  display: flex;
+  width: max-content;
+  gap: var(--marquee-gap);
+  animation: landing-marquee var(--marquee-duration) linear infinite;
+}
+
+/* Give people a chance to read a card that catches their eye. */
+.landing__marquee:hover .landing__marquee-track,
+.landing__marquee:focus-within .landing__marquee-track {
+  animation-play-state: paused;
+}
+
+.landing__marquee-group {
+  display: flex;
+  gap: var(--marquee-gap);
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing__marquee-group > li {
+  display: flex;
+  width: 19rem;
+  flex: 0 0 19rem;
+}
+
+/* Two identical groups, so shifting by one group plus one gap lands the copy
+   exactly where the original started — an invisible seam. */
+@keyframes landing-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(calc(-50% - (var(--marquee-gap) / 2)), 0, 0); }
 }
 
 .landing__feature-card {
   display: grid;
+  width: 100%;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 1rem;
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--landing-line);
+  align-content: start;
+  padding: 1.5rem;
+  border: 1px solid var(--landing-line);
 }
 
 .landing__feature-icon {
@@ -5655,16 +5706,9 @@ a {
 
   .landing__bento-card { padding: 2rem; }
 
-  .landing__feature-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .landing__feature-card {
     padding: 1.65rem;
-    border-right: 1px solid var(--landing-line);
   }
-
-  .landing__feature-card:nth-child(even) { border-right: 0; }
 
   .landing__steps {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5698,12 +5742,10 @@ a {
 @media (min-width: 880px) {
   .landing__nav-links { display: flex; }
 
-  .landing__feature-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .landing__marquee-group > li {
+    width: 21.5rem;
+    flex-basis: 21.5rem;
   }
-
-  .landing__feature-card:nth-child(even) { border-right: 1px solid var(--landing-line); }
-  .landing__feature-card:nth-child(3n) { border-right: 0; }
 
   .landing__trust-inner {
     grid-template-columns: auto minmax(0, 1fr) minmax(15rem, 0.45fr);
@@ -5770,5 +5812,23 @@ a {
   .landing *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Stop the ticker and let the cards be scrolled by hand instead. */
+  .landing__marquee-track {
+    animation: none !important;
+  }
+
+  .landing__marquee {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .landing__marquee-group[aria-hidden='true'] {
+    display: none;
+  }
+
+  .landing__marquee-group > li {
+    scroll-snap-align: start;
   }
 }
