@@ -18,7 +18,7 @@ def upgrade() -> None:
     if "status" not in columns:
         op.add_column("payments", sa.Column("status", sa.String(20), nullable=False, server_default="POSTED"))
     if "journal_id" not in columns:
-        op.add_column("payments", sa.Column("journal_id", sa.Integer(), sa.ForeignKey("finance_journals.id")))
+        op.add_column("payments", sa.Column("journal_id", sa.BigInteger(), sa.ForeignKey("finance_journals.id")))
     if "reversed_at" not in columns:
         op.add_column("payments", sa.Column("reversed_at", sa.DateTime(timezone=True)))
     if "reversal_reason" not in columns:
