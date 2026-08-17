@@ -38,14 +38,20 @@ jobs:
             exit 1
           }
 
+      - name: Validate migration graph
+        run: |
+          alembic heads
+          test "$(alembic heads | wc -l)" -eq 1
+
       - name: Show migration plan
         run: |
           alembic current
           alembic heads
-          echo "Production migration target: b7d2e9a41c08"
 
-      - name: Apply migrations
-        run: alembic upgrade b7d2e9a41c08
+      - name: Apply all production migrations
+        run: alembic upgrade head
 
       - name: Verify migration state
-        run: alembic current
+        run: |
+          alembic current
+          test "$(alembic current | grep -c '(head)')" -ge 1
