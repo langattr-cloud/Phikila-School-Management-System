@@ -1,10 +1,9 @@
 """Database-backed solver job execution.
 
 Long optimisation runs must not block an HTTP request, so ``enqueue`` persists
-a job row and a background thread executes it, writing progress back to the
-database. The API only ever reads job rows, which means the execution backend
-can be swapped for Redis/Celery or a dedicated worker container later without
-changing a single endpoint.
+a job row and executes it during the active serverless invocation. The API only
+ever reads job rows, which means the execution backend can later be swapped for
+a durable worker without changing the endpoint contract.
 """
 
 from __future__ import annotations
@@ -22,7 +21,6 @@ from .solver import ORTOOLS_AVAILABLE, preflight, solve
 
 logger = logging.getLogger(__name__)
 
-# Checklist surfaced live in the generation UI.
 CHECKS = [
     {"key": "teacher_conflicts", "label": "Teacher conflicts", "group": "hard"},
     {"key": "class_conflicts", "label": "Class conflicts", "group": "hard"},
@@ -31,6 +29,20 @@ CHECKS = [
     {"key": "workload", "label": "Workload balance", "group": "soft"},
     {"key": "distribution", "label": "Subject distribution", "group": "soft"},
     {"key": "preferences", "label": "Time preferences", "group": "soft"},
+]
+
+DEFAULT_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+DEFAULT_PERIODS = [
+    (0, "P1", "08:00", "08:45", True),
+    (1, "P2", "08:45", "09:30", True),
+    (2, "P3", "09:30", "10:15", True),
+    (3, "Break", "10:15", "10:45", False),
+    (4, "P4", "10:45", "11:30", True),
+    (5, "P5", "11:30", "12:15", True),
+    (6, "P6", "12:15", "13:00", True),
+    (7, "Lunch", "13:00", "14:00", False),
+    (8, "P7", "14:00", "14:45", True),
+    (9, "P8", "14:45", "15:30", True),
 ]
 
 
@@ -65,6 +77,44 @@ def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0) -> None:
     _run_job(job_id, school_id, max_seconds)
 
 
+def _ensure_calendar(db: Session, school_id: int) -> None:
+    """Provision a default working week when a school has no calendar rows.
+
+    School bootstrap creates the scheduling tables but may not create rows for
+    days and periods. The solver cannot place lessons without those rows, so
+    generation must repair that empty state instead of silently producing an
+    unusable timetable.
+    """
+    existing_days = db.query(m.TtDay).filter(m.TtDay.school_id == school_id).count()
+    existing_periods = db.query(m.TtPeriod).filter(m.TtPeriod.school_id == school_id).count()
+
+    if existing_days == 0:
+        db.add_all(
+            [
+                m.TtDay(school_id=school_id, index=index, name=name, is_active=True)
+                for index, name in enumerate(DEFAULT_DAYS)
+            ]
+        )
+
+    if existing_periods == 0:
+        db.add_all(
+            [
+                m.TtPeriod(
+                    school_id=school_id,
+                    index=index,
+                    name=name,
+                    start_time=start,
+                    end_time=end,
+                    is_teaching=is_teaching,
+                )
+                for index, name, start, end, is_teaching in DEFAULT_PERIODS
+            ]
+        )
+
+    if existing_days == 0 or existing_periods == 0:
+        db.commit()
+
+
 def _set_checks(checks: list[dict], keys: list[str], state: str) -> list[dict]:
     return [
         {**check, "state": state} if check["key"] in keys else check for check in checks
@@ -72,7 +122,6 @@ def _set_checks(checks: list[dict], keys: list[str], state: str) -> list[dict]:
 
 
 def _run_job(job_id: int, school_id: int, max_seconds: float) -> None:
-    """Execute one solver job with its own database session."""
     db = SessionLocal()
     try:
         job = db.query(m.TtSolverJob).filter(m.TtSolverJob.id == job_id).first()
@@ -89,6 +138,7 @@ def _run_job(job_id: int, school_id: int, max_seconds: float) -> None:
             _fail(db, job, "The scheduling engine is not available on this server.")
             return
 
+        _ensure_calendar(db, school_id)
         data = build_input(db, school_id, max_seconds=max_seconds)
 
         problems = preflight(data)
@@ -110,11 +160,7 @@ def _run_job(job_id: int, school_id: int, max_seconds: float) -> None:
             row.stage = stage
             checks = row.checks or initial_checks()
             if pct >= 26:
-                checks = _set_checks(
-                    checks,
-                    ["teacher_conflicts", "class_conflicts", "room_conflicts", "availability"],
-                    "passed",
-                )
+                checks = _set_checks(checks, ["teacher_conflicts", "class_conflicts", "room_conflicts", "availability"], "passed")
                 row.status = "running"
             if pct >= 40:
                 row.status = "optimizing"
@@ -147,16 +193,11 @@ def _run_job(job_id: int, school_id: int, max_seconds: float) -> None:
             return
 
         version = _persist(db, school_id, result, job.created_by)
-
         breakdown = result.quality.get("breakdown", {})
         checks = job.checks or initial_checks()
         checks = _set_checks(checks, ["teacher_conflicts", "class_conflicts", "room_conflicts", "availability"], "passed")
         checks = _set_checks(checks, ["workload", "distribution"], "passed")
-        checks = _set_checks(
-            checks,
-            ["preferences"],
-            "passed" if breakdown.get("morning_preference", 100) >= 90 else "warning",
-        )
+        checks = _set_checks(checks, ["preferences"], "passed" if breakdown.get("morning_preference", 100) >= 90 else "warning")
 
         job.checks = checks
         job.status = "completed"
@@ -174,19 +215,15 @@ def _run_job(job_id: int, school_id: int, max_seconds: float) -> None:
                 action="generate",
                 entity="version",
                 entity_id=version.id,
-                summary=f"Generated timetable v{version.number} "
-                f"({result.stats.get('placed', 0)} lessons, quality "
-                f"{result.quality.get('overall', 0)}/100)",
+                summary=f"Generated timetable v{version.number} ({result.stats.get('placed', 0)} lessons, quality {result.quality.get('overall', 0)}/100)",
             )
         )
         db.commit()
-
-    except Exception as error:  # pragma: no cover - defensive
+    except Exception:
         logger.exception("Solver job %s failed", job_id)
         try:
             job = db.query(m.TtSolverJob).filter(m.TtSolverJob.id == job_id).first()
             if job:
-                # Never leak an internal traceback to the browser.
                 _fail(db, job, "The scheduling engine hit an unexpected problem.")
         except Exception:
             pass
@@ -203,13 +240,7 @@ def _fail(db: Session, job: m.TtSolverJob, message: str) -> None:
 
 
 def _persist(db: Session, school_id: int, result, actor: str | None) -> m.TtVersion:
-    """Save the solver output as a new draft version."""
-    last = (
-        db.query(m.TtVersion)
-        .filter(m.TtVersion.school_id == school_id)
-        .order_by(m.TtVersion.number.desc())
-        .first()
-    )
+    last = db.query(m.TtVersion).filter(m.TtVersion.school_id == school_id).order_by(m.TtVersion.number.desc()).first()
     version = m.TtVersion(
         school_id=school_id,
         number=(last.number + 1) if last else 1,
@@ -221,7 +252,6 @@ def _persist(db: Session, school_id: int, result, actor: str | None) -> m.TtVers
     )
     db.add(version)
     db.flush()
-
     for placement in result.placements:
         db.add(
             m.TtLesson(
@@ -238,13 +268,7 @@ def _persist(db: Session, school_id: int, result, actor: str | None) -> m.TtVers
             )
         )
     db.commit()
-
-    # The CP-SAT model treats rooms as fixed-per-requirement; a deterministic
-    # post-pass houses every lesson that still needs a room, respecting room
-    # type, capacity, availability and double-booking.
     from .engine import assign_rooms_to_lessons
-
     assign_rooms_to_lessons(db, school_id, version.id)
-
     db.refresh(version)
     return version
