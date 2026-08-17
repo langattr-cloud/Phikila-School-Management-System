@@ -1,7 +1,7 @@
 """Add production student management tables.
 
 Revision ID: c6f1a9d2e4b7
-Revises: ab4d9e7c2f10
+Revises: ab4d9e7c2f10, b7d2e9a41c08
 Create Date: 2026-08-17
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "c6f1a9d2e4b7"
-down_revision = "ab4d9e7c2f10"
+down_revision = ("ab4d9e7c2f10", "b7d2e9a41c08")
 branch_labels = None
 depends_on = None
 
