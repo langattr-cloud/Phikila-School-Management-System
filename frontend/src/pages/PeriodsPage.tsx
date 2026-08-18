@@ -81,16 +81,7 @@ export function PeriodsPage() {
       const start = last ? last.end_time : '08:00'
       const length = teaching ? 40 : 20
       const count = current.filter((period) => period.is_teaching).length
-      return [
-        ...current,
-        {
-          index: current.length,
-          name: teaching ? `P${count + 1}` : 'Break',
-          start_time: start,
-          end_time: addMinutes(start, length),
-          is_teaching: teaching,
-        },
-      ]
+      return [...current, { index: current.length, name: teaching ? `P${count + 1}` : 'Break', start_time: start, end_time: addMinutes(start, length), is_teaching: teaching }]
     })
   }
 
@@ -101,9 +92,7 @@ export function PeriodsPage() {
   }
 
   function removePeriod(index: number) {
-    setPeriods((current) => current
-      .filter((period) => period.index !== index)
-      .map((period, i) => ({ ...period, index: i })))
+    setPeriods((current) => current.filter((period) => period.index !== index).map((period, i) => ({ ...period, index: i })))
   }
 
   function applyPreset() {
@@ -114,13 +103,7 @@ export function PeriodsPage() {
       const br = i === 4
       const length = br ? 20 : 40
       if (!br) teaching += 1
-      rows.push({
-        index: i,
-        name: br ? 'Break' : `P${teaching}`,
-        start_time: clock,
-        end_time: addMinutes(clock, length),
-        is_teaching: !br,
-      })
+      rows.push({ index: i, name: br ? 'Break' : `P${teaching}`, start_time: clock, end_time: addMinutes(clock, length), is_teaching: !br })
       clock = addMinutes(clock, length)
     }
     setPeriods(rows)
@@ -137,11 +120,8 @@ export function PeriodsPage() {
       await load()
     } catch (e) {
       const message = friendlyApiError(e, 'save the school week')
-      if (String((e as { message?: string }).message ?? '').includes('Existing timetable lessons')) {
-        setLocked(true)
-      } else {
-        notify(message, 'error')
-      }
+      if (String((e as { message?: string }).message ?? '').includes('Existing timetable lessons')) setLocked(true)
+      else notify(message, 'error')
     } finally {
       setSaving(false)
     }
@@ -157,145 +137,24 @@ export function PeriodsPage() {
         description="Configure standard weekdays or custom day labels, including dates, while keeping the underlying day indexes stable."
         breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Setup' }, { label: 'Periods' }]}
       />
-
       {error ? (
         <ErrorState title="School week could not load" message={error} onRetry={load} />
       ) : loading ? (
-        <div className="card section">
-          <LoadingBlock label="Loading the school week" rows={5} />
-        </div>
+        <div className="card section"><LoadingBlock label="Loading the school week" rows={5} /></div>
       ) : (
         <>
-          {locked && (
-            <Alert tone="error" title="Timetable structure is locked">
-              Existing timetable lessons keep their day and period indexes. You can still rename day or period labels without changing the schedule.
-            </Alert>
-          )}
-
+          {locked && <Alert tone="error" title="Timetable structure is locked">Existing timetable lessons keep their day and period indexes. You can still rename day or period labels without changing the schedule.</Alert>}
           <section className="card section">
-            <div className="panel__head">
-              <h2 className="section__title">Working days</h2>
-              <Badge>{activeDays} active</Badge>
-            </div>
-            <p className="form__note">
-              Use Monday–Sunday for standard mode, or rename any day to a custom label such as Day 1, Week A, Morning Session, or 23/04/2026. The day index remains stable.
-            </p>
-            <ul className="period-list">
-              {days.map((day) => (
-                <li className="period-row" key={day.index}>
-                  <div className="field field--inline">
-                    <label className="visually-hidden" htmlFor={`day-name-${day.index}`}>
-                      Day {day.index + 1} label
-                    </label>
-                    <input
-                      id={`day-name-${day.index}`}
-                      className="input period-row__name"
-                      value={day.name}
-                      onChange={(e) => setDays((current) => current.map((item) =>
-                        item.index === day.index ? { ...item, name: e.target.value } : item,
-                      ))}
-                    />
-                  </div>
-                  <label className="checkbox">
-                    <input type="checkbox" checked={day.is_active} onChange={() => toggleDay(day.index)} />
-                    Active
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <div className="panel__head"><h2 className="section__title">Working days</h2><Badge>{activeDays} active</Badge></div>
+            <p className="form__note">Use Monday–Sunday for standard mode, or rename any day to a custom label such as Day 1, Week A, Morning Session, or 23/04/2026. The day index remains stable.</p>
+            <ul className="period-list">{days.map((day) => <li className="period-row" key={day.index}><div className="field field--inline"><label className="visually-hidden" htmlFor={`day-name-${day.index}`}>Day {day.index + 1} label</label><input id={`day-name-${day.index}`} className="input period-row__name" value={day.name} onChange={(e) => setDays((current) => current.map((item) => item.index === day.index ? { ...item, name: e.target.value } : item))} /></div><label className="checkbox"><input type="checkbox" checked={day.is_active} onChange={() => toggleDay(day.index)} />Active</label></li>)}</ul>
           </section>
-
           <section className="card section">
-            <div className="panel__head">
-              <h2 className="section__title">Daily periods</h2>
-              <Badge>{teachingCount} teaching periods</Badge>
-            </div>
-
-            {periods.length === 0 ? (
-              <>
-                <p className="form__note">No periods defined yet.</p>
-                <button type="button" className="button button--primary button--sm" onClick={applyPreset}>
-                  Use a standard 8-period day
-                </button>
-              </>
-            ) : (
-              <ul className="period-list">
-                {periods.map((period) => (
-                  <li
-                    className={`period-row ${period.is_teaching ? '' : 'period-row--break'}`}
-                    key={period.index}
-                  >
-                    <div className="field field--inline">
-                      <label className="visually-hidden" htmlFor={`name-${period.index}`}>
-                        Period {period.index + 1} name
-                      </label>
-                      <input
-                        id={`name-${period.index}`}
-                        className="input period-row__name"
-                        value={period.name}
-                        onChange={(e) => updatePeriod(period.index, { name: e.target.value })}
-                      />
-                    </div>
-                    <div className="field field--inline">
-                      <input
-                        aria-label="Start time"
-                        className="input period-row__time"
-                        type="time"
-                        value={period.start_time}
-                        onChange={(e) => updatePeriod(period.index, { start_time: e.target.value })}
-                      />
-                    </div>
-                    <div className="field field--inline">
-                      <input
-                        aria-label="End time"
-                        className="input period-row__time"
-                        type="time"
-                        value={period.end_time}
-                        onChange={(e) => updatePeriod(period.index, { end_time: e.target.value })}
-                      />
-                    </div>
-                    <label className="checkbox">
-                      <input
-                        type="checkbox"
-                        checked={period.is_teaching}
-                        onChange={(e) => updatePeriod(period.index, { is_teaching: e.target.checked })}
-                      />
-                      Teaching
-                    </label>
-                    <button
-                      type="button"
-                      className="icon-button icon-button--subtle"
-                      onClick={() => removePeriod(period.index)}
-                      aria-label={`Remove ${period.name}`}
-                    >
-                      <CloseIcon width={16} height={16} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="form__row">
-              <button type="button" className="button button--secondary button--sm" onClick={() => addPeriod(true)}>
-                Add teaching period
-              </button>
-              <button type="button" className="button button--secondary button--sm" onClick={() => addPeriod(false)}>
-                Add break
-              </button>
-            </div>
+            <div className="panel__head"><h2 className="section__title">Daily periods</h2><Badge>{teachingCount} teaching periods</Badge></div>
+            {periods.length === 0 ? <><p className="form__note">No periods defined yet.</p><button type="button" className="button button--primary button--sm" onClick={applyPreset}>Use a standard 8-period day</button></> : <ul className="period-list">{periods.map((period) => <li className={`period-row ${period.is_teaching ? '' : 'period-row--break'}`} key={period.index}><div className="field field--inline"><label className="visually-hidden" htmlFor={`name-${period.index}`}>Period {period.index + 1} name</label><input id={`name-${period.index}`} className="input period-row__name" value={period.name} onChange={(e) => updatePeriod(period.index, { name: e.target.value })} /></div><div className="field field--inline"><input aria-label="Start time" className="input period-row__time" type="time" value={period.start_time} onChange={(e) => updatePeriod(period.index, { start_time: e.target.value })} /></div><div className="field field--inline"><input aria-label="End time" className="input period-row__time" type="time" value={period.end_time} onChange={(e) => updatePeriod(period.index, { end_time: e.target.value })} /></div><label className="checkbox"><input type="checkbox" checked={period.is_teaching} onChange={(e) => updatePeriod(period.index, { is_teaching: e.target.checked })} />Teaching</label><button type="button" className="icon-button icon-button--subtle" onClick={() => removePeriod(period.index)} aria-label={`Remove ${period.name}`}><CloseIcon width={16} height={16} /></button></li>)}</ul>}
+            <div className="form__row"><button type="button" className="button button--secondary button--sm" onClick={() => addPeriod(true)}>Add teaching period</button><button type="button" className="button button--secondary button--sm" onClick={() => addPeriod(false)}>Add break</button></div>
           </section>
-
-          <div className="form__row">
-            <button
-              type="button"
-              className="button button--primary"
-              onClick={save}
-              disabled={saving || periods.length === 0 || activeDays === 0}
-            >
-              {saving ? 'Saving…' : 'Save school week'}
-            </button>
-          </div>
-
+          <div className="form__row"><button type="button" className="button button--primary" onClick={save} disabled={saving || periods.length === 0 || activeDays === 0}>{saving ? 'Saving…' : 'Save school week'}</button></div>
           <TimetableEventsEditor />
         </>
       )}
