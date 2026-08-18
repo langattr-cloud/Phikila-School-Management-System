@@ -12,6 +12,7 @@ from . import models as m
 from . import schemas as s
 from .accounting_service import post_journal
 from .payment_decoder import decode_payment_message
+from .payment_matching import find_student_by_admission_number
 from .payment_posting import post_fee_payment
 
 router = APIRouter()
@@ -29,8 +30,7 @@ def list_fee_structures(db: Session = Depends(get_db), principal: Principal = De
 
 @router.post("/finance/fee-structures", response_model=s.FeeStructureResponse, status_code=201)
 def create_fee_structure(payload: s.FeeStructureCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
-    fs = m.FeeStructure(school_id=principal.school_id, **payload.model_dump()); db.add(fs)
-    _audit(db, principal, "create", "fee_structure", 0, f"Created fee structure '{payload.name}' — {payload.amount}"); db.commit(); db.refresh(fs); return fs
+    fs = m.FeeStructure(school_id=principal.school_id, **payload.model_dump()); db.add(fs); _audit(db, principal, "create", "fee_structure", 0, f"Created fee structure '{payload.name}' — {payload.amount}"); db.commit(); db.refresh(fs); return fs
 
 @router.get("/finance/invoices", response_model=list[s.InvoiceResponse])
 def list_invoices(student_id: int | None = Query(default=None), status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
@@ -57,8 +57,7 @@ def record_payment(payload: s.PaymentCreate, db: Session = Depends(get_db), prin
     invoice = _invoice(db, principal, payload.invoice_id)
     if not invoice: raise HTTPException(404, "Invoice not found.")
     payment, _ = post_fee_payment(db, school_id=principal.school_id, invoice=invoice, student_id=payload.student_id, amount=payload.amount, payment_method=payload.payment_method, reference_number=payload.reference_number, notes=payload.notes, actor=principal.user_id)
-    _audit(db, principal, "post", "payment", payment.id, f"Posted fee payment of {payload.amount} with GL journal and receipt")
-    db.commit(); db.refresh(payment); return payment
+    _audit(db, principal, "post", "payment", payment.id, f"Posted fee payment of {payload.amount} with GL journal and receipt"); db.commit(); db.refresh(payment); return payment
 
 @router.get("/finance/receipts", response_model=list[s.ReceiptResponse])
 def list_receipts(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
@@ -84,8 +83,7 @@ def reverse_payment(payment_id: int, payload: s.PaymentReversalRequest, db: Sess
     payment.status = "REVERSED"; payment.reversed_at = datetime.now(timezone.utc); payment.reversal_reason = payload.reason
     receipt = db.query(m.FinanceReceipt).filter(m.FinanceReceipt.payment_id == payment.id, m.FinanceReceipt.school_id == principal.school_id).first()
     if receipt: receipt.status = "REVERSED"
-    _audit(db, principal, "reverse", "payment", payment.id, f"Reversed payment #{payment.id}; reversal journal #{reversal.id}; reason={payload.reason}")
-    db.commit(); db.refresh(payment); return payment
+    _audit(db, principal, "reverse", "payment", payment.id, f"Reversed payment #{payment.id}; reversal journal #{reversal.id}; reason={payload.reason}"); db.commit(); db.refresh(payment); return payment
 
 @router.post("/finance/payments/decode", response_model=s.PaymentDecodeResponse)
 def decode_payment(payload: s.PaymentDecodeRequest, principal: Principal = Depends(require_role("viewer", "admin"))):
@@ -99,11 +97,12 @@ def list_payment_inbox(status_filter: str | None = Query(default=None, alias="st
 
 @router.post("/finance/payment-inbox", response_model=s.PaymentInboxResponse, status_code=201)
 def ingest_payment(payload: s.PaymentInboxCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
-    decoded = decode_payment_message(payload.raw_message); amount = payload.amount or decoded["amount"]; external_reference = payload.external_reference or decoded["external_reference"]; student_identifier = payload.student_identifier or decoded["student_identifier"]; received_at = payload.received_at or decoded["received_at"] or datetime.now(timezone.utc)
+    decoded = decode_payment_message(payload.raw_message)
+    amount = payload.amount or decoded["amount"]; external_reference = payload.external_reference or decoded["external_reference"]; student_identifier = payload.student_identifier or decoded["student_identifier"]; received_at = payload.received_at or decoded["received_at"] or datetime.now(timezone.utc)
     if not amount or not external_reference: raise HTTPException(400, "Payment amount and external reference could not be determined.")
     duplicate = db.query(m.PaymentInbox).filter(m.PaymentInbox.school_id == principal.school_id, m.PaymentInbox.source == payload.source, m.PaymentInbox.external_reference == external_reference).first()
     if duplicate: raise HTTPException(409, f"Duplicate payment reference; already received as inbox item #{duplicate.id}.")
-    matched_student = db.query(Student).filter(Student.school_id == principal.school_id, Student.admission_number == student_identifier).first() if student_identifier else None
+    matched_student = find_student_by_admission_number(db, school_id=principal.school_id, admission_number=student_identifier)
     inbox_status = "MATCHED" if matched_student else "UNMATCHED"
     item = m.PaymentInbox(school_id=principal.school_id, source=payload.source, source_account=payload.source_account, account_name=payload.account_name or decoded["account_name"], raw_message=payload.raw_message, amount=amount, external_reference=external_reference, student_identifier=student_identifier, received_at=received_at, payment_channel=payload.payment_channel or decoded["payment_channel"], matched_student_id=matched_student.id if matched_student else None, match_method="admission_number" if matched_student else None, match_confidence=Decimal("100.00") if matched_student else None, status=inbox_status)
     db.add(item); _audit(db, principal, "create", "payment_inbox", 0, f"Ingested external payment {external_reference} — {amount}; status={inbox_status}"); db.commit(); db.refresh(item); return item
@@ -117,7 +116,7 @@ def post_payment_inbox(inbox_id: int, payload: s.PaymentInboxPostRequest | None 
     if item.status != "MATCHED" or not item.matched_student_id: raise HTTPException(409, "Only a uniquely matched payment can be posted.")
     if db.query(m.Payment).filter(m.Payment.school_id == principal.school_id, m.Payment.reference_number == item.external_reference, m.Payment.status != "REVERSED").first():
         item.status = "DUPLICATE"; item.reviewed_by = principal.user_id; item.reviewed_at = datetime.now(timezone.utc); _audit(db, principal, "duplicate", "payment_inbox", item.id, f"Duplicate payment reference {item.external_reference}"); db.commit(); db.refresh(item); return item
-    if payload.invoice_id: invoice = _invoice(db, principal, payload.invoice_id); 
+    if payload.invoice_id: invoice = _invoice(db, principal, payload.invoice_id)
     else:
         open_invoices = db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.student_id == item.matched_student_id, m.StudentInvoice.balance > 0).order_by(m.StudentInvoice.created_at.asc()).all()
         if len(open_invoices) != 1: raise HTTPException(409, "The matched student has multiple open invoices; select an invoice explicitly before posting.")
