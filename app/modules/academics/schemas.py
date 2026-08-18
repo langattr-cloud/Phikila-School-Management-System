@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field
 from datetime import date, datetime
 from typing import Optional, Literal
+from pydantic import BaseModel, Field
 
 StreamStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
 
 class AcademicYearCreate(BaseModel):
-    name: str = Field(..., description="Academic year name, e.g., 2026")
+    name: str = Field(..., min_length=4, max_length=20)
     start_date: date
     end_date: date
     is_current: Optional[bool] = False
@@ -21,10 +21,29 @@ class TermResponse(BaseModel):
     class Config: from_attributes = True
 
 class LevelBase(BaseModel):
-    name: str; code: str; display_order: int; status: Optional[bool] = True
+    name: str = Field(min_length=1, max_length=100)
+    code: str = Field(min_length=1, max_length=30)
+    display_order: int = Field(ge=1)
+    status: Optional[bool] = True
 class LevelCreate(LevelBase): pass
 class LevelResponse(LevelBase):
     id: int; school_id: int; created_at: datetime; updated_at: Optional[datetime] = None
+    class Config: from_attributes = True
+
+class GradeBase(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    code: str = Field(min_length=1, max_length=30)
+    display_order: int = Field(ge=1)
+    status: Optional[bool] = True
+class GradeCreate(GradeBase):
+    level_id: int
+class GradeUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    code: Optional[str] = Field(default=None, min_length=1, max_length=30)
+    display_order: Optional[int] = Field(default=None, ge=1)
+    status: Optional[bool] = None
+class GradeResponse(GradeBase):
+    id: int; school_id: int; level_id: int; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
 
 class StreamBase(BaseModel):
@@ -32,14 +51,18 @@ class StreamBase(BaseModel):
     code: Optional[str] = Field(default=None, max_length=30)
     capacity: Optional[int] = Field(default=None, ge=1)
     status: StreamStatus = "ACTIVE"
-class StreamCreate(StreamBase): level_id: int
+class StreamCreate(StreamBase):
+    academic_year_id: int
+    level_id: int
+    grade_id: int
 class StreamUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     code: Optional[str] = Field(default=None, max_length=30)
     capacity: Optional[int] = Field(default=None, ge=1)
     status: Optional[StreamStatus] = None
+    class_teacher_id: Optional[int] = None
 class StreamResponse(StreamBase):
-    id: int; school_id: int; level_id: int; created_at: datetime; updated_at: Optional[datetime] = None
+    id: int; school_id: int; academic_year_id: Optional[int] = None; level_id: int; grade_id: Optional[int] = None; class_teacher_id: Optional[int] = None; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
 
 class StreamStudentResponse(BaseModel):
