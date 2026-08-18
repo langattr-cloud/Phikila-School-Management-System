@@ -101,7 +101,7 @@ export function RequirementsPage() {
     <>
       <PageHeader title="Teaching allocations" description="Assign subjects to teachers for each class and set the required lessons per week." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Scheduling' }, { label: 'Teaching Allocations' }]} />
       {error ? <ErrorState title="Teaching allocations could not load" message={error} onRetry={load} /> : <>
-        {!ready && !loading && <Alert tone="info" title="Add classes and subjects first">Teaching allocations link a class to a subject and teacher, so you need at least one class and subject.</Alert>}
+        {!ready && !loading && <Alert tone="neutral" title="Add classes and subjects first">Teaching allocations link a class to a subject and teacher, so you need at least one class and subject.</Alert>}
         {ready && data && <>
           <section className="card section">
             <div className="toolbar"><div><h2 className="section__title">Allocate by</h2><p className="section__description">Choose a grade/class to build its timetable requirements, or choose a teacher to review their workload.</p></div><div className="form__row">
