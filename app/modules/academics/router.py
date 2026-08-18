@@ -55,8 +55,36 @@ def assign_student_to_stream(stream_id: int, data: schemas.StreamAssignment, pri
     student = db.query(student_models.Student).filter(student_models.Student.id == data.student_id, student_models.Student.school_id == principal.school_id).first()
     if not student: raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found")
     if stream.status != "ACTIVE": raise HTTPException(status.HTTP_409_CONFLICT, "Cannot assign a student to an inactive stream")
-    student.level_id = stream.level_id; student.grade_id = stream.grade_id; student.stream_id = stream.id
-    enrollment = db.query(student_models.StudentEnrollment).filter(student_models.StudentEnrollment.school_id == principal.school_id, student_models.StudentEnrollment.student_id == student.id, student_models.StudentEnrollment.academic_year_id == stream.academic_year_id).first()
+
+    # Canonical current placement.
+    student.level_id = stream.level_id
+    student.grade_id = stream.grade_id
+    student.stream_id = stream.id
+
+    # Historical enrollment is the source of truth for academic placement.
+    enrollment = db.query(student_models.StudentEnrollment).filter(
+        student_models.StudentEnrollment.school_id == principal.school_id,
+        student_models.StudentEnrollment.student_id == student.id,
+        student_models.StudentEnrollment.academic_year_id == stream.academic_year_id,
+    ).first()
     if enrollment:
-        enrollment.level_id = stream.level_id; enrollment.grade_id = stream.grade_id; enrollment.stream_id = stream.id
-    db.commit(); db.refresh(student); return student
+        if enrollment.status == "active" and enrollment.stream_id not in (None, stream.id):
+            raise HTTPException(status.HTTP_409_CONFLICT, "Student already has an active enrollment in this academic year.")
+        enrollment.level_id = stream.level_id
+        enrollment.grade_id = stream.grade_id
+        enrollment.stream_id = stream.id
+        enrollment.status = "active"
+    else:
+        enrollment = student_models.StudentEnrollment(
+            school_id=principal.school_id,
+            student_id=student.id,
+            academic_year_id=stream.academic_year_id,
+            level_id=stream.level_id,
+            grade_id=stream.grade_id,
+            stream_id=stream.id,
+            status="active",
+        )
+        db.add(enrollment)
+    db.commit()
+    db.refresh(student)
+    return student
