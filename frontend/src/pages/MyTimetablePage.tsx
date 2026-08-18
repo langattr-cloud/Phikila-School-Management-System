@@ -2,79 +2,18 @@ import { useEffect, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { EmptyState, ErrorState, LoadingBlock } from '../components/States'
-import { PublishedTimetableGrid } from '../components/PublishedTimetableGrid'
+import { PublishedTimetableGridWithEvents } from '../components/PublishedTimetableGridWithEvents'
 import { CalendarIcon } from '../components/icons'
 import { friendlyApiError } from '../lib/api'
 import { cachedFetch, formatSavedAt } from '../lib/offline'
-import { scheduling, type SchoolClass, type Teacher, type TimetableView } from '../lib/scheduling'
-
-type Scope = 'class' | 'teacher'
-
-export function MyTimetablePage() {
-  const [scope, setScope] = useState<Scope>('class')
-  const [targetId, setTargetId] = useState<number | null>(null)
-  const [options, setOptions] = useState<{ classes: SchoolClass[]; teachers: Teacher[] } | null>(null)
-  const [view, setView] = useState<TimetableView | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [stale, setStale] = useState<number | null>(null)
-  const [isTeacher, setIsTeacher] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    cachedFetch('mytt:options', async () => {
-      const [classes, teachers, me] = await Promise.all([scheduling.classes(), scheduling.teachers(), scheduling.me()])
-      return { classes, teachers, me }
-    }).then((result) => {
-      if (!active) return
-      const { classes, teachers, me } = result.data
-      setOptions({ classes, teachers })
-      if (me.teacher_id) {
-        setIsTeacher(true)
-        setScope('teacher')
-        setTargetId(me.teacher_id)
-      } else if (me.class_id) {
-        setScope('class')
-        setTargetId(me.class_id)
-      } else {
-        setTargetId(classes[0]?.id ?? null)
-      }
-    }).catch(() => { if (active) setError('Could not load your school data.') }).finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [])
-
-  useEffect(() => {
-    if (!targetId) return
-    let active = true
-    setLoading(true)
-    setError(null)
-    cachedFetch(`mytt:${scope}:${targetId}`, () => scheduling.view(scope, targetId)).then((result) => {
-      if (!active) return
-      setView(result.data)
-      setStale(result.stale ? result.savedAt : null)
-    }).catch((err) => { if (active) setError(friendlyApiError(err, 'load the timetable')) }).finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [scope, targetId])
-
-  const targets = scope === 'class' ? (options?.classes ?? []) : (options?.teachers ?? [])
-
-  if (loading && !view) return <><PageHeader title="My timetable" description="Your personal school timetable." /><div className="card section"><LoadingBlock label="Loading your timetable" rows={6} /></div></>
-  if (error && !view) return <><PageHeader title="My timetable" /><ErrorState title="Timetable could not load" message={error} /></>
-
-  return <>
-    <PageHeader title={scope === 'teacher' ? `Teacher ${view?.target_name ?? ''}` : 'My timetable'} description="Your synchronized weekly timetable." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My timetable' }]} />
-    {stale && <Alert tone="info" title="Offline copy">Saved on this device {formatSavedAt(stale)}. It will refresh when you reconnect.</Alert>}
-    <section className="card section">
-      <div className="toolbar">
-        <div className="field field--inline">
-          <label className="field__label" htmlFor="my-scope">Show</label>
-          <select id="my-scope" className="input input--select" value={scope} disabled={isTeacher} onChange={(event) => { const next = event.target.value as Scope; setScope(next); setTargetId(next === 'class' ? (options?.classes[0]?.id ?? null) : (options?.teachers[0]?.id ?? null)) }}>
-            <option value="teacher">My teacher timetable</option><option value="class">A class timetable</option>
-          </select>
-        </div>
-        {!isTeacher && <div className="field field--inline"><label className="field__label" htmlFor="my-target">{scope === 'class' ? 'Class' : 'Teacher'}</label><select id="my-target" className="input input--select" value={targetId ?? ''} onChange={(event) => setTargetId(Number(event.target.value))}>{targets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>}
-      </div>
-    </section>
-    {view?.version ? <section className="card section"><PublishedTimetableGrid view={view} mode={scope} /></section> : <section className="card section"><EmptyState title="No published timetable" description="Your timetable will appear here once the school publishes one." icon={<CalendarIcon width={22} height={22} />} /></section>}
-  </>
+import { scheduling, type Event, type SchoolClass, type Teacher, type TimetableView } from '../lib/scheduling'
+type Scope='class'|'teacher'
+export function MyTimetablePage(){
+ const [scope,setScope]=useState<Scope>('class');const [targetId,setTargetId]=useState<number|null>(null);const [options,setOptions]=useState<{classes:SchoolClass[];teachers:Teacher[]}|null>(null);const [view,setView]=useState<TimetableView|null>(null);const [events,setEvents]=useState<Event[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState<string|null>(null);const [stale,setStale]=useState<number|null>(null);const [isTeacher,setIsTeacher]=useState(false)
+ useEffect(()=>{let active=true;cachedFetch('mytt:options',async()=>{const [classes,teachers,me]=await Promise.all([scheduling.classes(),scheduling.teachers(),scheduling.me()]);return{classes,teachers,me}}).then((result)=>{if(!active)return;const{classes,teachers,me}=result.data;setOptions({classes,teachers});if(me.teacher_id){setIsTeacher(true);setScope('teacher');setTargetId(me.teacher_id)}else if(me.class_id){setScope('class');setTargetId(me.class_id)}else setTargetId(classes[0]?.id??null)}).catch(()=>{if(active)setError('Could not load your school data.')}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[])
+ useEffect(()=>{if(!targetId)return;let active=true;setLoading(true);setError(null);Promise.all([cachedFetch(`mytt:${scope}:${targetId}`,()=>scheduling.view(scope,targetId)),scheduling.events()]).then(([result,eventRows])=>{if(!active)return;setView(result.data);setEvents(eventRows);setStale(result.stale?result.savedAt:null)}).catch((err)=>{if(active)setError(friendlyApiError(err,'load the timetable'))}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[scope,targetId])
+ const targets=scope==='class'?(options?.classes??[]):(options?.teachers??[])
+ if(loading&&!view)return <><PageHeader title="My timetable" description="Your personal school timetable."/><div className="card section"><LoadingBlock label="Loading your timetable" rows={6}/></div></>
+ if(error&&!view)return <><PageHeader title="My timetable"/><ErrorState title="Timetable could not load" message={error}/></>
+ return <><PageHeader title={scope==='teacher'?`Teacher ${view?.target_name??''}`:'My timetable'} description="Your synchronized weekly timetable." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'My timetable'}]}/>{stale&&<Alert tone="info" title="Offline copy">Saved on this device {formatSavedAt(stale)}. It will refresh when you reconnect.</Alert>}<section className="card section"><div className="toolbar"><div className="field field--inline"><label className="field__label" htmlFor="my-scope">Show</label><select id="my-scope" className="input input--select" value={scope} disabled={isTeacher} onChange={(event)=>{const next=event.target.value as Scope;setScope(next);setTargetId(next==='class'?(options?.classes[0]?.id??null):(options?.teachers[0]?.id??null))}}><option value="teacher">My teacher timetable</option><option value="class">A class timetable</option></select></div>{!isTeacher&&<div className="field field--inline"><label className="field__label" htmlFor="my-target">{scope==='class'?'Class':'Teacher'}</label><select id="my-target" className="input input--select" value={targetId??''} onChange={(event)=>setTargetId(Number(event.target.value))}>{targets.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></div>}</div></section>{view?.version?<section className="card section"><PublishedTimetableGridWithEvents view={view} mode={scope} events={events}/></section>:<section className="card section"><EmptyState title="No published timetable" description="Your timetable will appear here once the school publishes one." icon={<CalendarIcon width={22} height={22}/>} /></section>}</>
 }
