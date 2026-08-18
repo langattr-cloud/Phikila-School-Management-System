@@ -1,25 +1,49 @@
-"""Database-backed solver job execution."""
+"""Database-backed solver job execution and worker dispatch."""
 from __future__ import annotations
+
 import logging
+import os
 from datetime import datetime
+
+import requests
 from sqlalchemy.orm import Session
+
 from app.core.database import SessionLocal
 from . import models as m
 from .engine import build_input
 from .solver import ORTOOLS_AVAILABLE, preflight, solve
-logger=logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 CHECKS=[{"key":"teacher_conflicts","label":"Teacher conflicts","group":"hard"},{"key":"class_conflicts","label":"Class conflicts","group":"hard"},{"key":"room_conflicts","label":"Room conflicts","group":"hard"},{"key":"availability","label":"Availability","group":"hard"},{"key":"workload","label":"Workload balance","group":"soft"},{"key":"distribution","label":"Subject distribution","group":"soft"},{"key":"preferences","label":"Time preferences","group":"soft"}]
 DEFAULT_DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday"]
 DEFAULT_PERIODS=[(0,"P1","08:00","08:45",True),(1,"P2","08:45","09:30",True),(2,"P3","09:30","10:15",True),(3,"Break","10:15","10:45",False),(4,"P4","10:45","11:30",True),(5,"P5","11:30","12:15",True),(6,"P6","12:15","13:00",True),(7,"Lunch","13:00","14:00",False),(8,"P7","14:00","14:45",True),(9,"P8","14:45","15:30",True)]
+
 def initial_checks(): return [{**c,"state":"pending"} for c in CHECKS]
 def create_job(db:Session,school_id:int,actor:str|None):
     job=m.TtSolverJob(school_id=school_id,status="queued",stage="Queued",progress=0,checks=initial_checks(),created_by=actor);db.add(job);db.commit();db.refresh(job);return job
-def enqueue(job_id:int,school_id:int,max_seconds:float=30.0): _run_job(job_id,school_id,max_seconds)
+
+def enqueue(job_id:int,school_id:int,max_seconds:float=30.0):
+    worker_url=os.getenv("SOLVER_WORKER_URL","").rstrip("/")
+    if not worker_url:
+        _run_job(job_id,school_id,max_seconds)
+        return
+    token=os.getenv("SOLVER_WORKER_TOKEN","")
+    try:
+        response=requests.post(f"{worker_url}/run",json={"job_id":job_id,"school_id":school_id,"max_seconds":max_seconds},headers={"Authorization":f"Bearer {token}"} if token else {},timeout=10)
+        response.raise_for_status()
+    except Exception:
+        logger.exception("Could not dispatch solver job %s to worker",job_id)
+        db=SessionLocal()
+        try:
+            job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
+            if job:_fail(db,job,"The timetable optimisation worker could not be reached.")
+        finally:db.close()
+
 def _ensure_calendar(db:Session,school_id:int):
-    if db.query(m.TtDay).filter(m.TtDay.school_id==school_id).count()==0: db.add_all([m.TtDay(school_id=school_id,index=i,name=n,is_active=True) for i,n in enumerate(DEFAULT_DAYS)])
-    if db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).count()==0: db.add_all([m.TtPeriod(school_id=school_id,index=i,name=n,start_time=s,end_time=e,is_teaching=t) for i,n,s,e,t in DEFAULT_PERIODS])
+    if db.query(m.TtDay).filter(m.TtDay.school_id==school_id).count()==0:db.add_all([m.TtDay(school_id=school_id,index=i,name=n,is_active=True) for i,n in enumerate(DEFAULT_DAYS)])
+    if db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).count()==0:db.add_all([m.TtPeriod(school_id=school_id,index=i,name=n,start_time=s,end_time=e,is_teaching=t) for i,n,s,e,t in DEFAULT_PERIODS])
     db.commit()
-def _set_checks(checks,keys,state): return [{**c,"state":state} if c["key"] in keys else c for c in checks]
+def _set_checks(checks,keys,state):return [{**c,"state":state} if c["key"] in keys else c for c in checks]
 def _run_job(job_id,school_id,max_seconds):
     db=SessionLocal()
     try:
