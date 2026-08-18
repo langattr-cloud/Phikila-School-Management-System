@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from .jobs import _run_job
@@ -24,11 +24,15 @@ def health():
 
 
 @app.post("/run", status_code=202)
-def run(job: SolverJob, authorization: str | None = Header(default=None)):
+def run(
+    job: SolverJob,
+    background_tasks: BackgroundTasks,
+    authorization: str | None = Header(default=None),
+):
     expected = os.getenv("SOLVER_WORKER_TOKEN", "")
     if expected and authorization != f"Bearer {expected}":
         raise HTTPException(401, "Invalid worker token")
     if not ORTOOLS_AVAILABLE:
         raise HTTPException(503, "OR-Tools is not installed on the worker")
-    _run_job(job.job_id, job.school_id, job.max_seconds)
+    background_tasks.add_task(_run_job, job.job_id, job.school_id, job.max_seconds)
     return {"accepted": True, "job_id": job.job_id}
