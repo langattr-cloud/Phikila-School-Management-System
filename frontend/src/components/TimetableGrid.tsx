@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type PointerEvent } from 'react'
 import type { Day, Lesson, Period, SchoolClass, Subject, Teacher, Room } from '../lib/scheduling'
 import { LockIcon } from './icons'
+import './timetable-time-grid.css'
 
 export type LessonMeta = {
   subjects: Map<number, Subject>
@@ -27,7 +28,6 @@ type Props = {
   onResize?: (lesson: Lesson, duration: number) => void
   onDropUnassigned?: (requirementId: number, day: number, period: number) => void
   secondary?: (lesson: Lesson) => string | null
-  /** When true, show teacher initials instead of the full teacher name. */
   teacherInitials?: boolean
 }
 
@@ -42,24 +42,7 @@ function initials(name: string | null | undefined) {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('')
 }
 
-export function TimetableGrid({
-  days,
-  periods,
-  lessons,
-  meta,
-  conflicted,
-  selectedId,
-  readOnly = false,
-  zoom = 1,
-  dense = false,
-  currentSlot,
-  onSelect,
-  onMove,
-  onResize,
-  onDropUnassigned,
-  secondary,
-  teacherInitials = false,
-}: Props) {
+export function TimetableGrid({ days, periods, lessons, meta, conflicted, selectedId, readOnly = false, zoom = 1, dense = false, currentSlot, onSelect, onMove, onResize, onDropUnassigned, secondary, teacherInitials = false }: Props) {
   const [dragging, setDragging] = useState<Lesson | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
   const [externalDrag, setExternalDrag] = useState(false)
@@ -67,10 +50,7 @@ export function TimetableGrid({
   const [carrying, setCarrying] = useState<Lesson | null>(null)
   const liveRef = useRef<HTMLParagraphElement>(null)
 
-  const orderedPeriods = useMemo(
-    () => [...periods].sort((a, b) => minutes(a.start_time) - minutes(b.start_time) || a.index - b.index),
-    [periods],
-  )
+  const orderedPeriods = useMemo(() => [...periods].sort((a, b) => minutes(a.start_time) - minutes(b.start_time) || a.index - b.index), [periods])
   const byslot = useMemo(() => {
     const map = new Map<string, Lesson[]>()
     for (const lesson of lessons) {
@@ -81,172 +61,65 @@ export function TimetableGrid({
     }
     return map
   }, [lessons])
-
-  const announce = (message: string) => {
-    if (liveRef.current) liveRef.current.textContent = message
+  const breakLetter = (period: Period, dayIndex: number) => {
+    const letters = period.name.trim().split(/\s+/).at(-1)?.replace(/[^A-Za-z]/g, '') || period.name.replace(/[^A-Za-z]/g, '')
+    return letters[days.findIndex((day) => day.index === dayIndex)]?.toUpperCase() ?? letters[0]?.toUpperCase() ?? '•'
   }
-
+  const announce = (message: string) => { if (liveRef.current) liveRef.current.textContent = message }
   const describe = (lesson: Lesson) => {
     const subject = meta.subjects.get(lesson.subject_id)?.name ?? 'Lesson'
     const extra = secondary?.(lesson)
     return extra ? `${subject}, ${extra}` : subject
   }
-
   function place(lesson: Lesson, day: number, period: number) {
-    onMove?.(lesson, day, period)
-    setCarrying(null)
-    setDragging(null)
-    setHovered(null)
-    setExternalDrag(false)
+    onMove?.(lesson, day, period); setCarrying(null); setDragging(null); setHovered(null); setExternalDrag(false)
   }
-
   function onCellKeyDown(event: KeyboardEvent, day: number, period: number, cellLessons: Lesson[]) {
     if (event.key !== 'Enter' && event.key !== ' ') return
     if (readOnly) return
     event.preventDefault()
-    if (carrying) {
-      place(carrying, day, period)
-      announce(`Moved ${describe(carrying)} to ${days.find((d) => d.index === day)?.name}, ${periods.find((p) => p.index === period)?.name}.`)
-      return
-    }
+    if (carrying) { place(carrying, day, period); announce(`Moved ${describe(carrying)} to ${days.find((d) => d.index === day)?.name}, ${periods.find((p) => p.index === period)?.name}.`); return }
     const first = cellLessons[0]
-    if (first) {
-      setCarrying(first)
-      onSelect?.(first)
-      announce(`${describe(first)} picked up. Move to another cell and press Enter to place it.`)
-    }
+    if (first) { setCarrying(first); onSelect?.(first); announce(`${describe(first)} picked up. Move to another cell and press Enter to place it.`) }
   }
-
   function handleResizeStart(event: PointerEvent, lesson: Lesson) {
     if (readOnly || !onResize) return
-    event.preventDefault()
-    event.stopPropagation()
-    const startY = event.clientY
-    const startDuration = lesson.duration ?? 1
-    const handle = event.currentTarget as HTMLElement
+    event.preventDefault(); event.stopPropagation()
+    const startY = event.clientY; const startDuration = lesson.duration ?? 1; const handle = event.currentTarget as HTMLElement
     handle.setPointerCapture(event.pointerId)
-    const move = (ev: globalThis.PointerEvent) => {
-      const next = Math.min(10, Math.max(1, startDuration + Math.round((ev.clientY - startY) / 30)))
-      setResizing({ lessonId: lesson.id, duration: next })
-    }
+    const move = (ev: globalThis.PointerEvent) => setResizing({ lessonId: lesson.id, duration: Math.min(10, Math.max(1, startDuration + Math.round((ev.clientY - startY) / 30))) })
     const up = (ev: globalThis.PointerEvent) => {
       const next = Math.min(10, Math.max(1, startDuration + Math.round((ev.clientY - startY) / 30)))
-      handle.removeEventListener('pointermove', move)
-      handle.removeEventListener('pointerup', up)
-      handle.removeEventListener('pointercancel', up)
-      setResizing(null)
+      handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); setResizing(null)
       if (next !== startDuration) onResize(lesson, next)
     }
-    handle.addEventListener('pointermove', move)
-    handle.addEventListener('pointerup', up)
-    handle.addEventListener('pointercancel', up)
+    handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up)
   }
-
   function renderCard(lesson: Lesson, compact = false) {
-    const subject = meta.subjects.get(lesson.subject_id)
-    const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : null
-    const room = lesson.room_id ? meta.rooms.get(lesson.room_id) : null
-    const extra = secondary?.(lesson)
-    const bad = conflicted?.has(lesson.id)
-    const shownDuration = resizing?.lessonId === lesson.id ? resizing.duration : (lesson.duration ?? 1)
-    const teacherLabel = teacherInitials ? initials(teacher?.name) : teacher?.name
-    return (
-      <div
-        key={lesson.id}
-        className={['lesson-card', bad ? 'lesson-card--conflict' : '', selectedId === lesson.id ? 'lesson-card--selected' : '', carrying?.id === lesson.id ? 'lesson-card--carrying' : '', compact ? 'lesson-card--compact' : ''].filter(Boolean).join(' ')}
-        style={{ '--subject-colour': subject?.colour ?? '#0F2A47' } as React.CSSProperties}
-        draggable={!readOnly}
-        onDragStart={(event) => { setDragging(lesson); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(lesson.id)) }}
-        onDragEnd={() => setDragging(null)}
-        onClick={() => onSelect?.(lesson)}
-        role="button"
-        tabIndex={-1}
-        title={teacher?.name && teacherInitials ? `${initials(teacher.name)} — ${teacher.name}` : undefined}
-        aria-label={`${describe(lesson)}${teacher?.name ? `, ${teacher.name}` : ''}${bad ? '. Has a conflict' : ''}`}
-      >
-        <span className="lesson-card__subject">{subject?.name ?? 'Lesson'}</span>
-        {extra && <span className="lesson-card__line">{extra}</span>}
-        {teacherLabel && <span className="lesson-card__line">{teacherLabel}</span>}
-        {room && <span className="lesson-card__line lesson-card__room">{room.name}</span>}
-        {!room && <span className="lesson-card__line lesson-card__room">No room</span>}
-        {shownDuration > 1 && <span className="lesson-card__badge">{shownDuration} periods</span>}
-        {bad && <span className="lesson-card__flag">Conflict</span>}
-        {lesson.is_locked && <span className="lesson-card__lock" title="Locked"><LockIcon width={12} height={12} /></span>}
-        {!readOnly && onResize && <span className="lesson-card__resize" title="Drag to change the lesson duration" onPointerDown={(event) => handleResizeStart(event, lesson)} onDragStart={(event) => event.preventDefault()} aria-hidden="true" />}
-      </div>
-    )
-  }
-
-  const templateColumns = orderedPeriods.map((period) => {
-    const duration = Math.max(1, minutes(period.end_time) - minutes(period.start_time))
-    return `${duration}fr`
-  }).join(' ')
-
-  return (
-    <div className={['timetable', `timetable--zoom-${zoom === 0.75 ? '75' : zoom === 1.25 ? '125' : '100'}`, dense ? 'timetable--dense' : ''].filter(Boolean).join(' ')}>
-      <p className="visually-hidden" aria-live="polite" ref={liveRef} />
-      {carrying && <div className="timetable__carrying" role="status">Moving <strong>{describe(carrying)}</strong>. Choose a cell and press Enter, or <button type="button" className="link" onClick={() => setCarrying(null)}>cancel</button>.</div>}
-
-      <div className="timetable__time-grid" style={{ '--tt-columns': templateColumns } as React.CSSProperties}>
-        <div className="timetable__corner">Day</div>
-        {orderedPeriods.map((period) => {
-          const isBreak = !period.is_teaching
-          return (
-            <div key={period.index} className={`timetable__period-head ${isBreak ? 'timetable__period-head--break' : ''}`}>
-              <span className="timetable__period">{period.name}</span>
-              <span className="timetable__clock">{period.start_time}–{period.end_time}</span>
-            </div>
-          )
-        })}
-
-        {days.map((day) => (
-          <div key={day.index} className="timetable__day-row">
-            <div className="timetable__day-label">{day.name}</div>
-            {orderedPeriods.map((period) => {
-              const key = `${day.index}:${period.index}`
-              const cell = byslot.get(key) ?? []
-              const isNow = currentSlot?.day === day.index && currentSlot.period === period.index
-              const isTarget = hovered === key && (dragging !== null || externalDrag)
-              const isBreak = !period.is_teaching
-              return (
-                <div
-                  key={period.index}
-                  className={['timetable__cell', isBreak ? 'timetable__cell--break' : '', isNow ? 'timetable__cell--now' : '', isTarget ? 'timetable__cell--target' : '', cell.length === 0 ? 'timetable__cell--empty' : ''].filter(Boolean).join(' ')}
-                  tabIndex={readOnly ? -1 : 0}
-                  aria-label={`${day.name} ${period.name}${cell.length ? `: ${cell.map(describe).join('; ')}` : isBreak ? `: ${period.name}` : ': free'}`}
-                  onKeyDown={(event) => onCellKeyDown(event, day.index, period.index, cell)}
-                  onDragOver={(event) => {
-                    if (readOnly || isBreak || (!dragging && !event.dataTransfer.types.includes(UNASSIGNED_DRAG_TYPE))) return
-                    event.preventDefault()
-                    event.dataTransfer.dropEffect = dragging ? 'move' : 'copy'
-                    setExternalDrag(event.dataTransfer.types.includes(UNASSIGNED_DRAG_TYPE))
-                    setHovered(key)
-                  }}
-                  onDragLeave={() => setHovered((current) => current === key ? null : current)}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    if (isBreak) return
-                    if (dragging) { place(dragging, day.index, period.index); return }
-                    const raw = event.dataTransfer.getData(UNASSIGNED_DRAG_TYPE)
-                    if (raw) { setHovered(null); setExternalDrag(false); onDropUnassigned?.(Number(raw), day.index, period.index) }
-                  }}
-                >
-                  {isBreak ? (
-                    <span className="timetable__break-vertical" aria-label={period.name}>{period.name.split('').slice(0, Math.max(1, days.length)).map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}</span>
-                  ) : cell.map((lesson) => renderCard(lesson))}
-                </div>
-              )
-            })}
-          </div>
-        ))}
-      </div>
-
-      <div className="timetable__agenda">
-        {days.map((day) => {
-          const dayLessons = orderedPeriods.filter((p) => p.is_teaching).map((period) => ({ period, items: byslot.get(`${day.index}:${period.index}`) ?? [] })).filter((row) => row.items.length > 0)
-          return <section key={day.index} className="agenda-day" aria-labelledby={`agenda-${day.index}`}><h3 className="agenda-day__title" id={`agenda-${day.index}`}>{day.name}{currentSlot?.day === day.index && <span className="agenda-day__today">Today</span>}</h3>{dayLessons.length === 0 ? <p className="agenda-day__empty">No lessons scheduled.</p> : <ul className="agenda-list">{dayLessons.map(({ period, items }) => <li className="agenda-row" key={period.index}><div className="agenda-row__time"><span className="agenda-row__clock">{period.start_time}</span><span className="agenda-row__period">{period.name}</span></div><div className="agenda-row__body">{items.map((lesson) => renderCard(lesson, true))}</div></li>)}</ul>}</section>
-        })}
-      </div>
+    const subject = meta.subjects.get(lesson.subject_id); const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : null; const room = lesson.room_id ? meta.rooms.get(lesson.room_id) : null
+    const extra = secondary?.(lesson); const bad = conflicted?.has(lesson.id); const shownDuration = resizing?.lessonId === lesson.id ? resizing.duration : (lesson.duration ?? 1); const teacherLabel = teacherInitials ? initials(teacher?.name) : teacher?.name
+    return <div key={lesson.id} className={['lesson-card', bad ? 'lesson-card--conflict' : '', selectedId === lesson.id ? 'lesson-card--selected' : '', carrying?.id === lesson.id ? 'lesson-card--carrying' : '', compact ? 'lesson-card--compact' : ''].filter(Boolean).join(' ')} style={{ '--subject-colour': subject?.colour ?? '#0F2A47' } as React.CSSProperties} draggable={!readOnly} onDragStart={(event) => { setDragging(lesson); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(lesson.id)) }} onDragEnd={() => setDragging(null)} onClick={() => onSelect?.(lesson)} role="button" tabIndex={-1} title={teacher?.name && teacherInitials ? `${initials(teacher.name)} — ${teacher.name}` : undefined} aria-label={`${describe(lesson)}${teacher?.name ? `, ${teacher.name}` : ''}${bad ? '. Has a conflict' : ''}`}>
+      <span className="lesson-card__subject">{subject?.name ?? 'Lesson'}</span>{extra && <span className="lesson-card__line">{extra}</span>}{teacherLabel && <span className="lesson-card__line">{teacherLabel}</span>}{room && <span className="lesson-card__line lesson-card__room">{room.name}</span>}{!room && <span className="lesson-card__line lesson-card__room">No room</span>}{shownDuration > 1 && <span className="lesson-card__badge">{shownDuration} periods</span>}{bad && <span className="lesson-card__flag">Conflict</span>}{lesson.is_locked && <span className="lesson-card__lock" title="Locked"><LockIcon width={12} height={12} /></span>}{!readOnly && onResize && <span className="lesson-card__resize" title="Drag to change the lesson duration" onPointerDown={(event) => handleResizeStart(event, lesson)} onDragStart={(event) => event.preventDefault()} aria-hidden="true" />}
     </div>
-  )
+  }
+  const templateColumns = orderedPeriods.map((period) => `${Math.max(1, minutes(period.end_time) - minutes(period.start_time))}fr`).join(' ')
+
+  return <div className={['timetable', `timetable--zoom-${zoom === 0.75 ? '75' : zoom === 1.25 ? '125' : '100'}`, dense ? 'timetable--dense' : ''].filter(Boolean).join(' ')}>
+    <p className="visually-hidden" aria-live="polite" ref={liveRef} />
+    {carrying && <div className="timetable__carrying" role="status">Moving <strong>{describe(carrying)}</strong>. Choose a cell and press Enter, or <button type="button" className="link" onClick={() => setCarrying(null)}>cancel</button>.</div>}
+    <div className="timetable__time-grid" style={{ '--tt-columns': templateColumns } as React.CSSProperties}>
+      <div className="timetable__corner">Day</div>
+      {orderedPeriods.map((period) => <div key={period.index} className={`timetable__period-head ${!period.is_teaching ? 'timetable__period-head--break' : ''}`}><span className="timetable__period">{period.name}</span><span className="timetable__clock">{period.start_time}–{period.end_time}</span></div>)}
+      {days.map((day) => <div key={day.index} className="timetable__day-row">
+        <div className="timetable__day-label">{day.name}</div>
+        {orderedPeriods.map((period) => {
+          const key = `${day.index}:${period.index}`; const cell = byslot.get(key) ?? []; const isNow = currentSlot?.day === day.index && currentSlot.period === period.index; const isTarget = hovered === key && (dragging !== null || externalDrag); const isBreak = !period.is_teaching
+          return <div key={period.index} className={['timetable__cell', isBreak ? 'timetable__cell--break' : '', isNow ? 'timetable__cell--now' : '', isTarget ? 'timetable__cell--target' : '', cell.length === 0 ? 'timetable__cell--empty' : ''].filter(Boolean).join(' ')} tabIndex={readOnly ? -1 : 0} aria-label={`${day.name} ${period.name}${cell.length ? `: ${cell.map(describe).join('; ')}` : isBreak ? `: ${period.name}` : ': free'}`} onKeyDown={(event) => onCellKeyDown(event, day.index, period.index, cell)} onDragOver={(event) => { if (readOnly || isBreak || (!dragging && !event.dataTransfer.types.includes(UNASSIGNED_DRAG_TYPE))) return; event.preventDefault(); event.dataTransfer.dropEffect = dragging ? 'move' : 'copy'; setExternalDrag(event.dataTransfer.types.includes(UNASSIGNED_DRAG_TYPE)); setHovered(key) }} onDragLeave={() => setHovered((current) => current === key ? null : current)} onDrop={(event) => { event.preventDefault(); if (isBreak) return; if (dragging) { place(dragging, day.index, period.index); return }; const raw = event.dataTransfer.getData(UNASSIGNED_DRAG_TYPE); if (raw) { setHovered(null); setExternalDrag(false); onDropUnassigned?.(Number(raw), day.index, period.index) } }}>
+            {isBreak ? <span className="timetable__break-vertical" aria-label={period.name}>{breakLetter(period, day.index)}</span> : cell.map((lesson) => renderCard(lesson))}
+          </div>
+        })}
+      </div>)}
+    </div>
+    <div className="timetable__agenda">{days.map((day) => { const dayLessons = orderedPeriods.filter((p) => p.is_teaching).map((period) => ({ period, items: byslot.get(`${day.index}:${period.index}`) ?? [] })).filter((row) => row.items.length > 0); return <section key={day.index} className="agenda-day" aria-labelledby={`agenda-${day.index}`}><h3 className="agenda-day__title" id={`agenda-${day.index}`}>{day.name}{currentSlot?.day === day.index && <span className="agenda-day__today">Today</span>}</h3>{dayLessons.length === 0 ? <p className="agenda-day__empty">No lessons scheduled.</p> : <ul className="agenda-list">{dayLessons.map(({ period, items }) => <li className="agenda-row" key={period.index}><div className="agenda-row__time"><span className="agenda-row__clock">{period.start_time}</span><span className="agenda-row__period">{period.name}</span></div><div className="agenda-row__body">{items.map((lesson) => renderCard(lesson, true))}</div></li>)}</ul>}</section> })}</div>
+  </div>
 }
