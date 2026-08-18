@@ -1,4 +1,5 @@
 from pathlib import Path, PurePosixPath
+import os
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -21,10 +22,17 @@ from app.modules.platform.router import router as platform_router
 from app.modules.scheduling.calendar_router import router as calendar_router
 from app.modules.scheduling.events_router import router as timetable_events_router
 from app.modules.scheduling.profile_router import router as timetable_profile_router
+import app.modules.scheduling.router as scheduling_module
 from app.modules.scheduling.router import router as scheduling_router
 from app.modules.school.router import router as school_router
 from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
+
+# The public API may run without OR-Tools on Vercel. When a dedicated solver
+# worker is configured, scheduling routes are allowed to enqueue jobs instead.
+if os.getenv('SOLVER_WORKER_URL'):
+    scheduling_module.ORTOOLS_AVAILABLE = True
+
 FRONTEND_DIST=Path(__file__).resolve().parent.parent/'frontend'/'dist'
 class SPAStaticFiles(StaticFiles):
     backend_roots=frozenset({'api','health','ready','docs','redoc','openapi.json'})
