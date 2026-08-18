@@ -14,7 +14,6 @@ class AcademicYearResponse(AcademicYearCreate):
     school_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-
     class Config:
         from_attributes = True
 
@@ -33,9 +32,8 @@ class TermResponse(BaseModel):
     is_current: bool
     academic_year_id: int
     school_id: int
-
     class Config:
-        from_attributes = True 
+        from_attributes = True
 
 class LevelBase(BaseModel):
     name: str
@@ -51,23 +49,45 @@ class LevelResponse(LevelBase):
     school_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-
     class Config:
         from_attributes = True
 
 class StreamBase(BaseModel):
-    name: str
-    capacity: Optional[int] = None
-    status: Optional[bool] = True
+    name: str = Field(min_length=1, max_length=100)
+    code: Optional[str] = Field(default=None, max_length=30)
+    capacity: Optional[int] = Field(default=None, ge=1)
+    status: bool = True
 
 class StreamCreate(StreamBase):
     level_id: int
 
+class StreamUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    code: Optional[str] = Field(default=None, max_length=30)
+    capacity: Optional[int] = Field(default=None, ge=1)
+    status: Optional[bool] = None
+
 class StreamResponse(StreamBase):
     id: int
+    school_id: int
     level_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-
     class Config:
         from_attributes = True
+
+class StreamStudentResponse(BaseModel):
+    id: int
+    admission_number: str
+    first_name: str
+    middle_name: Optional[str] = None
+    last_name: str
+    current_class_id: Optional[int] = None
+    level_id: Optional[int] = None
+    stream_id: Optional[int] = None
+    status: str
+    class Config:
+        from_attributes = True
+
+class StreamAssignment(BaseModel):
+    student_id: int
