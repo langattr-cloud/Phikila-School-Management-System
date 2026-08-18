@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from app.modules.academics import models, schemas
 from app.modules.academics.repository import AcademicYearRepository, LevelRepository, StreamRepository, TermRepository
-from app.modules.academics import schemas
 
 
 class AcademicYearService:
@@ -40,9 +40,13 @@ class LevelService:
 class StreamService:
     def __init__(self, db: Session): self.repository = StreamRepository(db)
 
+    def _get_grade(self, school_id: int, level_id: int):
+        grade = self.repository.db.query(models.Level).filter(models.Level.id == level_id, models.Level.school_id == school_id).first()
+        if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade not found")
+        return grade
+
     def get_streams(self, school_id: int, level_id: int):
-        if not self.repository.db.query(self.repository.db.query.__self__ if False else __import__('app.modules.academics.models', fromlist=['Level']).Level).filter_by(id=level_id, school_id=school_id).first():
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade not found")
+        self._get_grade(school_id, level_id)
         return self.repository.get_streams(school_id, level_id)
 
     def get_stream_by_id(self, school_id: int, stream_id: int):
@@ -51,15 +55,15 @@ class StreamService:
         return stream
 
     def create_stream(self, school_id: int, data: schemas.StreamCreate):
-        level = self.repository.db.query(__import__('app.modules.academics.models', fromlist=['Level']).Level).filter(__import__('app.modules.academics.models', fromlist=['Level']).Level.id == data.level_id, __import__('app.modules.academics.models', fromlist=['Level']).Level.school_id == school_id).first()
-        if not level: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade not found")
+        self._get_grade(school_id, data.level_id)
         if self.repository.get_stream_by_name_and_level(school_id, data.level_id, data.name.strip()):
             raise HTTPException(status.HTTP_409_CONFLICT, "A stream with this name already exists in this grade.")
         return self.repository.create_stream(school_id, data)
 
     def update_stream(self, school_id: int, stream_id: int, data: schemas.StreamUpdate):
         stream = self.get_stream_by_id(school_id, stream_id)
-        if data.name and self.repository.get_stream_by_name_and_level(school_id, stream.level_id, data.name.strip()):
+        if data.name:
             duplicate = self.repository.get_stream_by_name_and_level(school_id, stream.level_id, data.name.strip())
-            if duplicate.id != stream.id: raise HTTPException(status.HTTP_409_CONFLICT, "A stream with this name already exists in this grade.")
+            if duplicate and duplicate.id != stream.id:
+                raise HTTPException(status.HTTP_409_CONFLICT, "A stream with this name already exists in this grade.")
         return self.repository.update_stream(stream, data)
