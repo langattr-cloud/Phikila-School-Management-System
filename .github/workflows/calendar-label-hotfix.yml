@@ -1,0 +1,141 @@
+name: Hotfix calendar labels
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, '[calendar-label-hotfix]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply calendar label/id fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          router = Path('app/modules/scheduling/router.py')
+          text = router.read_text()
+          old = '''def set_calendar(
+    payload: s.CalendarIn,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    """Replace the working week. Rejected once lessons exist to avoid orphans."""
+    existing = (
+        db.query(m.TtLesson).filter(m.TtLesson.school_id == principal.school_id).count()
+    )
+    if existing:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Delete existing timetable versions before changing the working week.",
+        )
+
+    db.query(m.TtDay).filter(m.TtDay.school_id == principal.school_id).delete()
+    db.query(m.TtPeriod).filter(m.TtPeriod.school_id == principal.school_id).delete()
+    for day in payload.days:
+        db.add(m.TtDay(school_id=principal.school_id, **day.model_dump()))
+    for period in payload.periods:
+        db.add(m.TtPeriod(school_id=principal.school_id, **period.model_dump()))
+    _audit(db, principal, "update", "calendar", None, "Updated working days and periods")
+    db.commit()
+    return get_calendar(db, principal)
+'''
+          new = '''def set_calendar(
+    payload: s.CalendarIn,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    """Update the calendar while preserving stable day/period identities.
+
+    Display names are presentation data and may change after lessons exist.
+    Structural changes that would invalidate existing lesson indexes remain
+    blocked once timetable lessons have been created.
+    """
+    existing_lessons = db.query(m.TtLesson).filter(
+        m.TtLesson.school_id == principal.school_id
+    ).count()
+
+    existing_days = {
+        row.index: row
+        for row in db.query(m.TtDay).filter(m.TtDay.school_id == principal.school_id).all()
+    }
+    existing_periods = {
+        row.index: row
+        for row in db.query(m.TtPeriod).filter(m.TtPeriod.school_id == principal.school_id).all()
+    }
+    incoming_days = {day.index: day for day in payload.days}
+    incoming_periods = {period.index: period for period in payload.periods}
+
+    if existing_lessons:
+        if set(existing_days) != set(incoming_days) or set(existing_periods) != set(incoming_periods):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Existing timetable lessons require the same day and period indexes. Rename labels instead.",
+            )
+        for index, day in incoming_days.items():
+            current = existing_days[index]
+            if current.is_active != day.is_active:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Existing timetable lessons require the current active days. Rename labels instead.",
+                )
+        for index, period in incoming_periods.items():
+            current = existing_periods[index]
+            if (
+                current.start_time != period.start_time
+                or current.end_time != period.end_time
+                or current.is_teaching != period.is_teaching
+            ):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Existing timetable lessons require the current period structure. Rename labels instead.",
+                )
+
+    for index, day in incoming_days.items():
+        current = existing_days.get(index)
+        if current is None:
+            db.add(m.TtDay(school_id=principal.school_id, **day.model_dump()))
+        else:
+            current.name = day.name
+            current.is_active = day.is_active
+
+    for index, period in incoming_periods.items():
+        current = existing_periods.get(index)
+        if current is None:
+            db.add(m.TtPeriod(school_id=principal.school_id, **period.model_dump()))
+        else:
+            current.name = period.name
+            current.start_time = period.start_time
+            current.end_time = period.end_time
+            current.is_teaching = period.is_teaching
+
+    _audit(db, principal, "update", "calendar", None, "Updated working days and periods")
+    db.commit()
+    return get_calendar(db, principal)
+'''
+          if old not in text:
+              raise SystemExit('calendar router block did not match; no changes made')
+          router.write_text(text.replace(old, new))
+
+          page = Path('frontend/src/pages/PeriodsPage.tsx')
+          text = page.read_text()
+          text = text.replace("WEEKDAYS.slice(0,5).map((name,index)=>({index,name,is_active:true}))", "WEEKDAYS.map((name,index)=>({index,name,is_active:index<5}))")
+          old_days = "<section className=\"card section\"><h2 className=\"section__title\">Working days</h2><p className=\"form__note\">{activeDays} teaching days selected.</p><div className=\"chip-toggles\">{days.map(day=><label key={day.index} className={`chip-toggle ${day.is_active?'chip-toggle--on':''}`}><input type=\"checkbox\" checked={day.is_active} onChange={()=>toggleDay(day.index)}/>{day.name}</label>)}</div></section>"
+          new_days = "<section className=\"card section\"><div className=\"panel__head\"><h2 className=\"section__title\">Working days</h2><Badge>{activeDays} active</Badge></div><p className=\"form__note\">Use standard weekday names or enter any custom label, including dates such as 23/04/2026. The day index remains stable so schedules stay attached to the same day.</p><ul className=\"period-list\">{days.map(day=><li className=\"period-row\" key={day.index}><div className=\"field field--inline\"><label className=\"visually-hidden\" htmlFor={`day-name-${day.index}`}>Day {day.index+1} label</label><input id={`day-name-${day.index}`} className=\"input period-row__name\" value={day.name} onChange={e=>setDays(c=>c.map(d=>d.index===day.index?{...d,name:e.target.value}:d))}/></div><label className=\"checkbox\"><input type=\"checkbox\" checked={day.is_active} onChange={()=>toggleDay(day.index)}/>Active</label></li>)}</ul></section>"
+          if old_days not in text:
+              raise SystemExit('day UI block did not match; no changes made')
+          page.write_text(text.replace(old_days, new_days))
+          PY
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/modules/scheduling/router.py frontend/src/pages/PeriodsPage.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: support configurable calendar day labels"
+          git push
