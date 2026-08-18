@@ -4,6 +4,9 @@ The existing ``levels`` table remains the canonical grade resource. This
 migration only makes the existing ``streams`` table tenant-aware, adds an
 optional code, and protects it with tenant RLS. Existing streams are mapped to
 their level's school; no synthetic school ID is introduced.
+
+The production database can predate the RLS helper functions, so this
+migration creates those helpers idempotently before installing policies.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -13,12 +16,57 @@ down_revision = "20260817tt04"
 branch_labels = None
 depends_on = None
 
+
 def _inspector(): return sa.inspect(op.get_bind())
 def _columns(table: str): return {column["name"] for column in _inspector().get_columns(table)}
 def _indexes(table: str): return {index["name"] for index in _inspector().get_indexes(table)}
 
+
+def _ensure_rls_helpers(bind) -> None:
+    bind.execute(sa.text("""
+        CREATE OR REPLACE FUNCTION public.tt_user_schools()
+        RETURNS SETOF integer
+        LANGUAGE sql
+        STABLE
+        SECURITY DEFINER
+        SET search_path = public
+        AS $$
+          SELECT school_id
+          FROM public.tt_memberships
+          WHERE user_id = COALESCE(auth.jwt() ->> 'sub', '')
+            AND is_active
+        $$;
+
+        CREATE OR REPLACE FUNCTION public.tt_user_role(target_school integer)
+        RETURNS text
+        LANGUAGE sql
+        STABLE
+        SECURITY DEFINER
+        SET search_path = public
+        AS $$
+          SELECT role
+          FROM public.tt_memberships
+          WHERE user_id = COALESCE(auth.jwt() ->> 'sub', '')
+            AND school_id = target_school
+            AND is_active
+          LIMIT 1
+        $$;
+
+        CREATE OR REPLACE FUNCTION public.tt_can_write(target_school integer)
+        RETURNS boolean
+        LANGUAGE sql
+        STABLE
+        AS $$
+          SELECT public.tt_user_role(target_school) IN ('scheduler', 'admin', 'super_admin')
+        $$;
+    """))
+
+
 def upgrade() -> None:
-    bind = op.get_bind(); columns = _columns("streams")
+    bind = op.get_bind()
+    _ensure_rls_helpers(bind)
+
+    columns = _columns("streams")
     if "school_id" not in columns: op.add_column("streams", sa.Column("school_id", sa.BigInteger(), nullable=True))
     if "code" not in columns: op.add_column("streams", sa.Column("code", sa.String(30), nullable=True))
     unresolved = bind.execute(sa.text("SELECT COUNT(*) FROM streams s LEFT JOIN levels l ON l.id=s.level_id WHERE s.school_id IS NULL AND l.school_id IS NULL")).scalar_one()
@@ -52,6 +100,7 @@ def upgrade() -> None:
           USING (school_id IN (SELECT public.tt_user_schools()) AND public.tt_can_write(school_id))
           WITH CHECK (school_id IN (SELECT public.tt_user_schools()) AND public.tt_can_write(school_id));
     """))
+
 
 def downgrade() -> None:
     bind = op.get_bind()
