@@ -67,14 +67,12 @@ begin
   foreach t in array tenant_tables loop
     execute format('alter table public.%I enable row level security', t);
     execute format('alter table public.%I force row level security', t);
-
     execute format('drop policy if exists %I on public.%I', t || '_read', t);
     execute format($f$
       create policy %I on public.%I
         for select
         using (school_id in (select public.tt_user_schools()))
     $f$, t || '_read', t);
-
     execute format('drop policy if exists %I on public.%I', t || '_write', t);
     execute format($f$
       create policy %I on public.%I
@@ -93,11 +91,9 @@ $$;
 -- ---------------------------------------------------------------------------
 alter table public.tt_schools enable row level security;
 alter table public.tt_schools force row level security;
-
 drop policy if exists tt_schools_read on public.tt_schools;
 create policy tt_schools_read on public.tt_schools
   for select using (id in (select public.tt_user_schools()));
-
 drop policy if exists tt_schools_write on public.tt_schools;
 create policy tt_schools_write on public.tt_schools
   for all
@@ -106,19 +102,25 @@ create policy tt_schools_write on public.tt_schools
 
 alter table public.tt_memberships enable row level security;
 alter table public.tt_memberships force row level security;
-
--- A user may always see their own membership row.
 drop policy if exists tt_memberships_self on public.tt_memberships;
 create policy tt_memberships_self on public.tt_memberships
   for select using (user_id = coalesce(auth.jwt() ->> 'sub', ''));
-
--- Admins manage membership for their own school. This is the only path to a
--- privileged role: a public sign-up can never grant itself one.
 drop policy if exists tt_memberships_admin on public.tt_memberships;
 create policy tt_memberships_admin on public.tt_memberships
   for all
   using (public.tt_user_role(school_id) in ('admin', 'super_admin'))
   with check (public.tt_user_role(school_id) in ('admin', 'super_admin'));
+
+-- Academic Streams: tenant isolated using the same membership helpers.
+alter table public.streams enable row level security;
+drop policy if exists streams_read on public.streams;
+create policy streams_read on public.streams
+  for select using (school_id in (select public.tt_user_schools()));
+drop policy if exists streams_write on public.streams;
+create policy streams_write on public.streams
+  for all
+  using (school_id in (select public.tt_user_schools()) and public.tt_can_write(school_id))
+  with check (school_id in (select public.tt_user_schools()) and public.tt_can_write(school_id));
 
 -- ---------------------------------------------------------------------------
 -- Useful indexes for the policy predicates and hot queries.
@@ -128,3 +130,4 @@ create index if not exists ix_tt_lessons_version on public.tt_lessons (version_i
 create index if not exists ix_tt_lessons_teacher on public.tt_lessons (school_id, teacher_id);
 create index if not exists ix_tt_lessons_class on public.tt_lessons (school_id, class_id);
 create index if not exists ix_tt_audit_recent on public.tt_audit (school_id, at desc);
+create index if not exists ix_streams_school_level on public.streams (school_id, level_id);

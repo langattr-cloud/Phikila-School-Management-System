@@ -18,6 +18,7 @@ export function friendlyApiError(error: unknown, action: string): string {
     if (error.status === 401) return 'Your sign-in could not be verified. Please sign in again.'
     if (error.status === 403) return `You do not have permission to ${action}.`
     if (error.status === 404) return 'That information has not been set up yet.'
+    if (error.status === 409) return 'That change conflicts with existing school data.'
     if (error.status === 422 || error.status === 400) return 'Some details were not accepted. Check the form and try again.'
     if (error.status >= 500) return `The server had a problem and could not ${action}.`
     return `We could not ${action}. Please try again.`
@@ -29,7 +30,6 @@ async function refreshSessionToken(): Promise<string | null> {
   if (!supabase) return null
   const { data: refreshed, error } = await supabase.auth.refreshSession()
   if (!error && refreshed.session?.access_token) return refreshed.session.access_token
-
   const { data: session } = await supabase.auth.getSession()
   return session?.session?.access_token ?? null
 }
@@ -81,55 +81,19 @@ export type Identity = {
   app_metadata?: Record<string, unknown>
   user_metadata?: Record<string, unknown>
 }
-
 export type SchoolProfile = {
-  id: number
-  name: string
-  code?: string | null
-  county?: string | null
-  sub_county?: string | null
-  email?: string | null
-  phone?: string | null
-  motto?: string | null
-  principal_name?: string | null
-  established_year?: number | null
-  is_active?: boolean | null
+  id: number; name: string; code?: string | null; county?: string | null; sub_county?: string | null
+  email?: string | null; phone?: string | null; motto?: string | null; principal_name?: string | null
+  established_year?: number | null; is_active?: boolean | null
 }
-
-export type AcademicYear = {
-  id: number
-  name: string
-  start_date: string
-  end_date: string
-  is_current?: boolean | null
-  status?: string | null
-  school_id: number
-}
-
-export type Term = {
-  id: number
-  name: string
-  start_date?: string | null
-  end_date?: string | null
-  is_current: boolean
-  academic_year_id: number
-  school_id: number
-}
-
-/**
- * Grade is the user-facing term for the existing academic level resource.
- * The API endpoint remains /levels for backward compatibility.
- */
-export type Grade = {
-  id: number
-  name: string
-  code: string
-  display_order: number
-  status?: boolean | null
-  school_id: number
-}
-
+export type AcademicYear = { id: number; name: string; start_date: string; end_date: string; is_current?: boolean | null; status?: string | null; school_id: number }
+export type Term = { id: number; name: string; start_date?: string | null; end_date?: string | null; is_current: boolean; academic_year_id: number; school_id: number }
+/** Grade is the user-facing term for the existing academic level resource. The API endpoint remains /levels for backward compatibility. */
+export type Grade = { id: number; name: string; code: string; display_order: number; status?: boolean | null; school_id: number }
 export type Level = Grade
+export type StreamStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
+export type Stream = { id: number; school_id: number; level_id: number; name: string; code?: string | null; capacity?: number | null; status: StreamStatus; created_at?: string; updated_at?: string | null }
+export type StreamStudent = { id: number; admission_number: string; first_name: string; middle_name?: string | null; last_name: string; current_class_id?: number | null; level_id?: number | null; stream_id?: number | null; status: string }
 
 export const api = {
   health: () => apiFetch<{ status: string; environment: string }>('/health', {}, false),
@@ -139,4 +103,10 @@ export const api = {
   terms: () => apiFetch<Term[]>('/api/v1/academics/terms'),
   grades: () => apiFetch<Grade[]>('/api/v1/academics/levels'),
   levels: () => apiFetch<Grade[]>('/api/v1/academics/levels'),
+  streams: (gradeId: number) => apiFetch<Stream[]>(`/api/v1/academics/levels/${gradeId}/streams`),
+  createStream: (payload: { level_id: number; name: string; code?: string | null; capacity?: number | null; status?: StreamStatus }) => apiFetch<Stream>('/api/v1/academics/streams', { method: 'POST', body: JSON.stringify(payload) }),
+  updateStream: (streamId: number, payload: Partial<Pick<Stream, 'name' | 'code' | 'capacity' | 'status'>>) => apiFetch<Stream>(`/api/v1/academics/streams/${streamId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  streamStudents: (streamId: number) => apiFetch<StreamStudent[]>(`/api/v1/academics/streams/${streamId}/students`),
+  assignStudentToStream: (streamId: number, studentId: number) => apiFetch<StreamStudent>(`/api/v1/academics/streams/${streamId}/students`, { method: 'POST', body: JSON.stringify({ student_id: studentId }) }),
+  students: () => apiFetch<{ items: StreamStudent[]; total: number; page: number; page_size: number; pages: number }>('/api/v1/students'),
 }
