@@ -5,13 +5,16 @@ import { usePlatformSession } from '../lib/session'
 import { useToast } from './Toast'
 import { Logo, LogoMark } from './Logo'
 import { PrintFooter } from './PrintFooter'
-import { CalendarIcon, CheckIcon, CloseIcon, DashboardIcon, GridIcon, InboxIcon, LayersIcon, LogOutIcon, MenuIcon, MoonIcon, SchoolIcon, SparkIcon, SunIcon, UserIcon } from './icons'
+import {
+  CalendarIcon, CheckIcon, CloseIcon, DashboardIcon, GridIcon, InboxIcon, LayersIcon,
+  LogOutIcon, MenuIcon, MoonIcon, SchoolIcon, SparkIcon, SunIcon, UserIcon,
+} from './icons'
 
 type NavItem = { to: string; label: string; icon?: ReactNode }
 type NavGroup = { label: string; items: NavItem[] }
-
-const PLATFORM_NAV: NavGroup = { label: 'Platform', items: [{ to: '/platform', label: 'Platform dashboard', icon: <DashboardIcon /> }, { to: '/platform/schools', label: 'Schools', icon: <SchoolIcon /> }, { to: '/platform/requests', label: 'Access requests', icon: <InboxIcon /> }, { to: '/platform/admins', label: 'Administrators', icon: <UserIcon /> }, { to: '/platform/audit', label: 'Audit trail', icon: <LayersIcon /> }, { to: '/platform/email', label: 'Email & templates', icon: <InboxIcon /> }, { to: '/settings/ai-providers', label: 'AI providers', icon: <SparkIcon /> }] }
-
+const PLATFORM_NAV: NavGroup = { label: 'Platform', items: [
+  { to: '/platform', label: 'Platform dashboard', icon: <DashboardIcon /> }, { to: '/platform/schools', label: 'Schools', icon: <SchoolIcon /> }, { to: '/platform/requests', label: 'Access requests', icon: <InboxIcon /> }, { to: '/platform/admins', label: 'Administrators', icon: <UserIcon /> }, { to: '/platform/audit', label: 'Audit trail', icon: <LayersIcon /> }, { to: '/platform/email', label: 'Email & templates', icon: <InboxIcon /> }, { to: '/settings/ai-providers', label: 'AI providers', icon: <SparkIcon /> },
+] }
 const NAV: NavGroup[] = [
   { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }, { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> }, { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> }] },
   { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> }] },
@@ -21,17 +24,12 @@ const NAV: NavGroup[] = [
   { label: 'Tools', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }] },
   { label: 'Insights', items: [{ to: '/analytics', label: 'Analytics', icon: <LayersIcon /> }, { to: '/versions', label: 'Versions', icon: <SchoolIcon /> }] },
 ]
-
 const BOTTOM_NAV: NavItem[] = [{ to: '/', label: 'Home', icon: <DashboardIcon /> }, { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> }, { to: '/scheduling/generate', label: 'Generate', icon: <SparkIcon /> }, { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> }, { to: '/my-timetable', label: 'Mine', icon: <UserIcon /> }]
-
 function isActive(pathname: string, to: string) { const current = normalisePath(pathname); if (to === '/') return current === '/'; return current === to || current.startsWith(`${to}/`) }
-
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useRouter(); const navigate = useNavigate(); const { user, signOut } = useAuth(); const { notify } = useToast(); const isSuperAdmin = usePlatformSession().session?.is_super_admin ?? false; const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV; const accountName = displayName(user); const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'
   const [drawerOpen, setDrawerOpen] = useState(false); const [signingOut, setSigningOut] = useState(false); const [offline, setOffline] = useState(typeof navigator !== 'undefined' ? navigator.onLine === false : false); const [theme, setTheme] = useState<'light' | 'dark'>(() => typeof window !== 'undefined' && window.localStorage.getItem('phikila.theme') === 'dark' ? 'dark' : 'light'); const drawerRef = useRef<HTMLElement | null>(null); const menuButtonRef = useRef<HTMLButtonElement | null>(null)
-  useEffect(() => { document.documentElement.dataset.theme = theme; window.localStorage.setItem('phikila.theme', theme) }, [theme])
-  useEffect(() => { setDrawerOpen(false) }, [pathname])
-  useEffect(() => { const goOnline = () => setOffline(false); const goOffline = () => setOffline(true); window.addEventListener('online', goOnline); window.addEventListener('offline', goOffline); return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline) } }, [])
+  useEffect(() => { document.documentElement.dataset.theme = theme; window.localStorage.setItem('phikila.theme', theme) }, [theme]); useEffect(() => { setDrawerOpen(false) }, [pathname]); useEffect(() => { const goOnline = () => setOffline(false); const goOffline = () => setOffline(true); window.addEventListener('online', goOnline); window.addEventListener('offline', goOffline); return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline) } }, [])
   useEffect(() => { if (!drawerOpen) return; document.body.classList.add('body--locked'); const firstLink = drawerRef.current?.querySelector<HTMLElement>('a, button'); firstLink?.focus(); function onKeyDown(event: KeyboardEvent) { if (event.key === 'Escape') { setDrawerOpen(false); menuButtonRef.current?.focus(); return } if (event.key !== 'Tab' || !drawerRef.current) return; const focusable = Array.from(drawerRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')); if (focusable.length === 0) return; const first = focusable[0]; const last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() } } document.addEventListener('keydown', onKeyDown); return () => { document.body.classList.remove('body--locked'); document.removeEventListener('keydown', onKeyDown) } }, [drawerOpen])
   async function handleSignOut() { if (signingOut) return; setSigningOut(true); const result = await signOut(); setSigningOut(false); if (!result.ok) { notify(result.message, 'error'); return } notify('You have been signed out.', 'success'); navigate('/login?notice=signed-out', { replace: true }) }
   const navigation = <nav className="sidebar__nav" aria-label="Main">{groups.map((group) => <div className="sidebar__group" key={group.label}><p className="sidebar__group-label">{group.label}</p><ul className="sidebar__list">{group.items.map((item) => { const active = isActive(pathname, item.to); return <li key={item.to}><Link to={item.to} className={`sidebar__link ${active ? 'sidebar__link--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}>{item.icon && <span className="sidebar__icon" aria-hidden="true">{item.icon}</span>}{item.label}</Link></li> })}</ul></div>)}</nav>
