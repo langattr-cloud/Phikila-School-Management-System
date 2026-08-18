@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { EmptyState, ErrorState, LoadingBlock } from '../components/States'
-import { PublishedTimetableGrid } from '../components/PublishedTimetableGrid'
+import { PublishedTimetableGridWithEvents } from '../components/PublishedTimetableGridWithEvents'
 import { CalendarIcon } from '../components/icons'
 import { friendlyApiError } from '../lib/api'
 import { cachedFetch, formatSavedAt } from '../lib/offline'
-import { scheduling, type SchoolClass, type Teacher, type TimetableView } from '../lib/scheduling'
+import { scheduling, type Event, type SchoolClass, type Teacher, type TimetableView } from '../lib/scheduling'
 
 type Scope = 'class' | 'teacher'
 
@@ -15,6 +15,7 @@ export function MyTimetablePage() {
   const [targetId, setTargetId] = useState<number | null>(null)
   const [options, setOptions] = useState<{ classes: SchoolClass[]; teachers: Teacher[] } | null>(null)
   const [view, setView] = useState<TimetableView | null>(null)
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [stale, setStale] = useState<number | null>(null)
@@ -48,9 +49,13 @@ export function MyTimetablePage() {
     let active = true
     setLoading(true)
     setError(null)
-    cachedFetch(`mytt:${scope}:${targetId}`, () => scheduling.view(scope, targetId)).then((result) => {
+    Promise.all([
+      cachedFetch(`mytt:${scope}:${targetId}`, () => scheduling.view(scope, targetId)),
+      scheduling.events(),
+    ]).then(([result, eventRows]) => {
       if (!active) return
       setView(result.data)
+      setEvents(eventRows)
       setStale(result.stale ? result.savedAt : null)
     }).catch((err) => { if (active) setError(friendlyApiError(err, 'load the timetable')) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
@@ -75,6 +80,6 @@ export function MyTimetablePage() {
         {!isTeacher && <div className="field field--inline"><label className="field__label" htmlFor="my-target">{scope === 'class' ? 'Class' : 'Teacher'}</label><select id="my-target" className="input input--select" value={targetId ?? ''} onChange={(event) => setTargetId(Number(event.target.value))}>{targets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>}
       </div>
     </section>
-    {view?.version ? <section className="card section"><PublishedTimetableGrid view={view} mode={scope} /></section> : <section className="card section"><EmptyState title="No published timetable" description="Your timetable will appear here once the school publishes one." icon={<CalendarIcon width={22} height={22} />} /></section>}
+    {view?.version ? <section className="card section"><PublishedTimetableGridWithEvents view={view} mode={scope} events={events} /></section> : <section className="card section"><EmptyState title="No published timetable" description="Your timetable will appear here once the school publishes one." icon={<CalendarIcon width={22} height={22} />} /></section>}
   </>
 }

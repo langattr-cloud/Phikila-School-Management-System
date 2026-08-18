@@ -37,6 +37,13 @@ class LessonCreate(BaseModel): requirement_id:int;day_index:int=Field(ge=0,le=6)
 class UnassignedOut(BaseModel): requirement_id:int;subject_id:int;subject_name:str;subject_colour:str;class_id:int;class_name:str;teacher_id:int|None;teacher_name:str|None;room_id:int|None;room_name:str|None;periods_per_week:int;placed:int;remaining:int;requires_double:bool
 class VersionOut(ORMModel): id:int;number:int;label:str|None;status:str;quality:dict[str,Any]=Field(default_factory=dict);stats:dict[str,Any]=Field(default_factory=dict);created_by:str|None;created_at:Any=None;published_at:Any=None;day_indexes:list[int]=Field(default_factory=list);day_names:list[str]=Field(default_factory=list)
 class ConflictOut(BaseModel): severity:str;kind:str;message:str;lesson_ids:list[int];day:int|None=None;period:int|None=None
+class EventIn(BaseModel): name:str=Field(min_length=1,max_length=80);start_time:str=Field(pattern=r'^\d{2}:\d{2}$');end_time:str=Field(pattern=r'^\d{2}:\d{2}$');day_indexes:list[int]=Field(min_length=1,max_length=7);event_type:str=Field(default='break',min_length=1,max_length=40);note:str|None=None
+    @field_validator('day_indexes')
+    @classmethod
+    def validate_event_days(cls,value):
+        if len(set(value))!=len(value) or any(day<0 or day>6 for day in value):raise ValueError('Select unique days from Monday to Sunday')
+        return sorted(value)
+class EventOut(ORMModel,EventIn): id:int
 class ExplainIn(BaseModel): day_index:int=Field(ge=0,le=6);period_index:int=Field(ge=0,le=30)
 class CopilotIn(BaseModel):
     text:str=Field(min_length=1,max_length=400)

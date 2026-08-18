@@ -27,6 +27,15 @@ export type Period = {
   is_teaching: boolean
 }
 export type Calendar = { days: Day[]; periods: Period[] }
+export type Event = {
+  id: number
+  name: string
+  start_time: string
+  end_time: string
+  day_indexes: number[]
+  event_type: string
+  note: string | null
+}
 
 export type Teacher = {
   id: number
@@ -282,6 +291,10 @@ export const scheduling = {
   calendar: () => get<Calendar>('/calendar'),
   saveCalendar: (payload: { days: Omit<Day, 'id'>[]; periods: Omit<Period, 'id'>[] }) =>
     send<Calendar>('/calendar', 'PUT', payload),
+  events: () => get<Event[]>('/events'),
+  createEvent: (payload: Omit<Event, 'id'>) => send<Event>('/events', 'POST', payload),
+  updateEvent: (id: number, payload: Omit<Event, 'id'>) => send<Event>(`/events/${id}`, 'PUT', payload),
+  deleteEvent: (id: number) => send<void>(`/events/${id}`, 'DELETE'),
 
   teachers: () => get<Teacher[]>('/teachers'),
   createTeacher: (payload: Partial<Teacher>) => send<Teacher>('/teachers', 'POST', payload),
