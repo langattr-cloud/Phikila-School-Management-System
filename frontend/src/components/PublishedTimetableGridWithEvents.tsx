@@ -1,0 +1,14 @@
+import type { Event, TimetableView } from '../lib/scheduling'
+import './timetable-time-grid.css'
+function minutes(value:string){const [h,m]=value.split(':').map(Number);return h*60+m}
+function initials(name:string|null){return name?name.trim().split(/\s+/).filter(Boolean).slice(0,2).map((p)=>p[0]?.toUpperCase()??'').join(''):''}
+function eventLetter(event:Event,dayIndex:number){const word=(event.name.trim().split(/\s+/).at(-1)??event.name).replace(/[^A-Za-z]/g,'');const position=(event.day_indexes??[]).indexOf(dayIndex);return word[position>=0?position:0]?.toUpperCase()??'•'}
+type Props={view:TimetableView;mode:'teacher'|'class';events:Event[]}
+export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
+ const periods=[...view.periods].sort((a,b)=>minutes(a.start_time)-minutes(b.start_time)||a.index-b.index)
+ const columns=periods.map((p)=>`${Math.max(1,minutes(p.end_time)-minutes(p.start_time))}fr`).join(' ')
+ return <div className="timetable timetable--published"><div className="timetable__time-grid" style={{'--tt-columns':columns} as React.CSSProperties}>
+  <div className="timetable__corner">Day</div>{periods.map((p)=><div className={`timetable__period-head ${!p.is_teaching?'timetable__period-head--break':''}`} key={p.index}><span className="timetable__period">{p.name}</span><span className="timetable__clock">{p.start_time}–{p.end_time}</span></div>)}
+  {view.days.map((day)=><div className="timetable__day-row" key={day.index}><div className="timetable__day-label">{day.name}</div>{periods.map((period)=>{const lesson=view.lessons.find((item)=>item.day===day.index&&item.period===period.index);const event=events.find((item)=>item.day_indexes.includes(day.index)&&item.start_time===period.start_time&&item.end_time===period.end_time);const isBreak=!period.is_teaching||Boolean(event);return <div className={`timetable__cell ${isBreak?'timetable__cell--break':''}`} key={period.index}>{event?<span className="timetable__break-vertical" aria-label={`${event.name} ${event.start_time}–${event.end_time}`}>{eventLetter(event,day.index)}</span>:!period.is_teaching?<span className="timetable__break-vertical" aria-label={period.name}>{eventLetter({id:0,name:period.name,start_time:period.start_time,end_time:period.end_time,day_indexes:view.days.map((d)=>d.index),event_type:'break',note:null},day.index)}</span>:lesson?<div className="lesson-card" title={mode==='class'&&lesson.teacher?`${initials(lesson.teacher)} — ${lesson.teacher}`:undefined}><span className="lesson-card__subject">{lesson.subject}</span><span className="lesson-card__line">{mode==='teacher'?lesson.class:initials(lesson.teacher)}</span></div>:null}</div>})}</div>)}
+ </div></div>
+}
