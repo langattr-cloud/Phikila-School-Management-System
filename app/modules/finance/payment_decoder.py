@@ -7,6 +7,7 @@ from decimal import Decimal
 
 _AMOUNT = re.compile(r"(?:KSh|KES)\s*([0-9][0-9,]*(?:\.\d{1,2})?)", re.I)
 _REF = re.compile(r"(?:M-PESA\s+Ref|MPESA\s+Ref|Reference)\s*[:#-]?\s*([A-Z0-9]+)", re.I)
+# In a payment message like "8112631#3448", #3448 is the student's admission number.
 _STUDENT = re.compile(r"#\s*([A-Za-z0-9-]+)")
 _DATE_TIME = re.compile(r"(\d{1,2}/\d{1,2}/\d{4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)", re.I)
 _ACCOUNT = re.compile(r"(?:account|a/c)\s+(.+?)(?:\s+has\s+been\s+received|\s+received|\s+on\s+\d)", re.I)
