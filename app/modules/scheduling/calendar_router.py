@@ -18,6 +18,25 @@ class CalendarIn(BaseModel):
     days: list[CalendarDayIn]
     periods: list[s.PeriodIn]
 
+
+def _minutes(value: str) -> int:
+    hour, minute = (int(part) for part in value.split(':', 1))
+    return hour * 60 + minute
+
+
+def _validate_times(periods: dict[int, s.PeriodIn]) -> None:
+    ordered = sorted(periods.values(), key=lambda period: (_minutes(period.start_time), _minutes(period.end_time), period.index))
+    previous_end: int | None = None
+    for period in ordered:
+        start = _minutes(period.start_time)
+        end = _minutes(period.end_time)
+        if end <= start:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'{period.name}: end time must be after start time.')
+        if previous_end is not None and start < previous_end:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'{period.name}: time overlaps another configured period/event.')
+        previous_end = end
+
+
 @router.put('/calendar')
 def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin', 'scheduler'))):
     existing_lessons = db.query(m.TtLesson).filter(m.TtLesson.school_id == principal.school_id).count()
@@ -27,16 +46,15 @@ def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: 
     incoming_periods = {period.index: period for period in payload.periods}
     if len(incoming_days) != len(payload.days) or len(incoming_periods) != len(payload.periods):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'Day and period indexes must be unique.')
+    _validate_times(incoming_periods)
+
     if existing_lessons:
         if set(existing_days) != set(incoming_days) or set(existing_periods) != set(incoming_periods):
             raise HTTPException(status.HTTP_409_CONFLICT, 'Existing timetable lessons require the same day and period indexes. Rename labels instead.')
         for index, day in incoming_days.items():
             if existing_days[index].is_active != day.is_active:
                 raise HTTPException(status.HTTP_409_CONFLICT, 'Existing timetable lessons require the current active days. Rename labels instead.')
-        for index, period in incoming_periods.items():
-            current = existing_periods[index]
-            if current.start_time != period.start_time or current.end_time != period.end_time or current.is_teaching != period.is_teaching:
-                raise HTTPException(status.HTTP_409_CONFLICT, 'Existing timetable lessons require the current period structure. Rename labels instead.')
+
     for index, day in incoming_days.items():
         current = existing_days.get(index)
         if current is None:
@@ -44,6 +62,7 @@ def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: 
         else:
             current.name = day.name
             current.is_active = day.is_active
+
     for index, period in incoming_periods.items():
         current = existing_periods.get(index)
         if current is None:
