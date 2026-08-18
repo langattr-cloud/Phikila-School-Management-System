@@ -59,6 +59,32 @@ def _ensure_rls_helpers(bind) -> None:
         AS $$
           SELECT public.tt_user_role(target_school) IN ('scheduler', 'admin', 'super_admin')
         $$;
+
+        -- streams.school_id is BIGINT in the existing production schema.
+        -- Keep the integer helpers above for the canonical timetable tables,
+        -- and provide bigint overloads for stream RLS policy resolution.
+        CREATE OR REPLACE FUNCTION public.tt_user_role(target_school bigint)
+        RETURNS text
+        LANGUAGE sql
+        STABLE
+        SECURITY DEFINER
+        SET search_path = public
+        AS $$
+          SELECT role
+          FROM public.tt_memberships
+          WHERE user_id = COALESCE(auth.jwt() ->> 'sub', '')
+            AND school_id = target_school
+            AND is_active
+          LIMIT 1
+        $$;
+
+        CREATE OR REPLACE FUNCTION public.tt_can_write(target_school bigint)
+        RETURNS boolean
+        LANGUAGE sql
+        STABLE
+        AS $$
+          SELECT public.tt_user_role(target_school) IN ('scheduler', 'admin', 'super_admin')
+        $$;
     """))
 
 
