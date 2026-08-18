@@ -19,6 +19,7 @@ from app.modules.llm.router import router as llm_router
 from app.modules.ocr.router import router as ocr_router
 from app.modules.platform.router import router as platform_router
 from app.modules.scheduling.calendar_router import router as calendar_router
+from app.modules.scheduling.events_router import router as timetable_events_router
 from app.modules.scheduling.profile_router import router as timetable_profile_router
 from app.modules.scheduling.router import router as scheduling_router
 from app.modules.school.router import router as school_router
@@ -56,6 +57,7 @@ def create_app()->FastAPI:
     scheduling_router.routes[:] = [route for route in scheduling_router.routes if not (getattr(route,'path',None)=='/calendar' and 'PUT' in getattr(route,'methods',set()))]
     app.include_router(calendar_router,prefix='/api/v1/scheduling',tags=['Scheduling'])
     app.include_router(scheduling_router,prefix='/api/v1/scheduling',tags=['Scheduling'])
+    app.include_router(timetable_events_router,prefix='/api/v1/scheduling',tags=['Scheduling Events'])
     app.include_router(timetable_profile_router,prefix='/api/v1/scheduling',tags=['Timetable Profiles'])
     app.include_router(students_router,prefix='/api/v1',tags=['Students'])
     app.include_router(attendance_router,prefix='/api/v1',tags=['Attendance'])
