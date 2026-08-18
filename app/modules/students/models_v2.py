@@ -27,7 +27,7 @@ class StudentEnrollment(Base):
     __tablename__ = "student_enrollments"
     __table_args__ = (UniqueConstraint("school_id", "student_id", "academic_year_id", name="uq_enrollment_year"), {"extend_existing": True})
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); student_id = Column(Integer, ForeignKey("students_v2.id", ondelete="CASCADE"), nullable=False, index=True); academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False); term_id = Column(Integer, ForeignKey("terms.id"));
-    # class_id is legacy compatibility only. Canonical placement is year + level + grade + stream.
+    # Legacy class linkage is optional. Canonical placement is academic year + level + grade + stream.
     class_id = Column(Integer, ForeignKey("school_classes.id"), nullable=True); level_id = Column(Integer, ForeignKey("levels.id")); grade_id = Column(Integer, ForeignKey("grades.id")); stream_id = Column(Integer, ForeignKey("streams.id")); status = Column(String(20), default="active"); enrollment_date = Column(Date); created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class StudentDocument(Base):
