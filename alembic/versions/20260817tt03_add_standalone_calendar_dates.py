@@ -10,21 +10,37 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "tt_calendar_dates",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("school_id", sa.Integer(), nullable=False),
-        sa.Column("date", sa.Date(), nullable=False),
-        sa.Column("label", sa.String(length=120), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.UniqueConstraint("school_id", "date", name="uq_tt_calendar_date"),
-    )
-    op.create_index("ix_tt_calendar_dates_school_id", "tt_calendar_dates", ["school_id"])
-    op.create_index("ix_tt_calendar_dates_date", "tt_calendar_dates", ["date"])
+    bind = op.get_bind()
+    table_exists = bind.execute(
+        sa.text("SELECT to_regclass('public.tt_calendar_dates')")
+    ).scalar_one_or_none() is not None
+
+    if not table_exists:
+        op.create_table(
+            "tt_calendar_dates",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("school_id", sa.Integer(), nullable=False),
+            sa.Column("date", sa.Date(), nullable=False),
+            sa.Column("label", sa.String(length=120), nullable=True),
+            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.UniqueConstraint("school_id", "date", name="uq_tt_calendar_date"),
+        )
+
+    # The table may already exist from a production/manual schema repair.
+    # Keep the migration idempotent by creating missing indexes only.
+    bind.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_tt_calendar_dates_school_id "
+        "ON public.tt_calendar_dates (school_id)"
+    ))
+    bind.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_tt_calendar_dates_date "
+        "ON public.tt_calendar_dates (date)"
+    ))
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tt_calendar_dates_date", table_name="tt_calendar_dates")
-    op.drop_index("ix_tt_calendar_dates_school_id", table_name="tt_calendar_dates")
-    op.drop_table("tt_calendar_dates")
+    bind = op.get_bind()
+    bind.execute(sa.text("DROP INDEX IF EXISTS public.ix_tt_calendar_dates_date"))
+    bind.execute(sa.text("DROP INDEX IF EXISTS public.ix_tt_calendar_dates_school_id"))
+    bind.execute(sa.text("DROP TABLE IF EXISTS public.tt_calendar_dates"))
