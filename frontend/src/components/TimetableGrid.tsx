@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type PointerEvent } from 'react'
+import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import type { Day, Lesson, Period, SchoolClass, Subject, Teacher, Room } from '../lib/scheduling'
 import { LockIcon } from './icons'
 import './timetable-time-grid.css'
