@@ -14,22 +14,9 @@ requests>=2.31.0,<3
 resend>=2.0.0,<3
 uvicorn[standard]>=0.30,<1
 
-# Timetable optimisation — Vercel now supports Python function bundles up to
-# 500 MB on the standard path, and up to 5 GB with Large Functions/Fluid
-# Compute. OR-Tools is therefore installed in the production API so timetable
-# generation can run without a separate worker host.
-ortools>=9.10,<10
-
-# ---------------------------------------------------------------------------
-# OCR backends (install at least one)
-# ---------------------------------------------------------------------------
-# Lighter option — requires system tesseract-ocr package:
-#   apt install tesseract-ocr   (Linux)
-#   brew install tesseract       (macOS)
+# OCR backend. Keep the Vercel API bundle lean; timetable optimisation runs
+# in the dedicated solver worker.
 pytesseract>=0.3.10,<1
 
-# SOTA option — heavier but more accurate:
-#   pip install paddlepaddle paddleocr
-# Uncomment if your deployment has 500MB+ available:
-# paddlepaddle>=3.0
-# paddleocr>=2.9
+# OR-Tools is intentionally excluded from the Vercel function bundle.
+# The solver worker installs requirements.txt + requirements-solver.txt.
