@@ -5,9 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 from .grading import EDUCATION_LEVELS
 
 class SeriesCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    academic_year_id: int | None = None
-    term_id: int | None = None
+    name: str = Field(min_length=1, max_length=100); academic_year_id: int | None = None; term_id: int | None = None
 class SeriesResponse(BaseModel):
     id: int; school_id: int; name: str; academic_year_id: int | None = None; term_id: int | None = None; status: str; created_at: datetime | None = None
     model_config = {"from_attributes": True}
@@ -17,14 +15,13 @@ class ExaminationResponse(BaseModel):
     id: int; school_id: int; series_id: int; name: str; description: str | None = None; exam_date: date | None = None; total_marks: int; passing_marks: int; status: str; created_at: datetime | None = None
     model_config = {"from_attributes": True}
 class ExamSubjectCreate(BaseModel):
-    subject_id: int; level_id: int; grade_id: int; stream_id: int; total_marks: int = Field(default=100, ge=0); exam_date: date | None = None
+    subject_id: int; academic_year_id: int; level_id: int; grade_id: int; stream_id: int; total_marks: int = Field(default=100, ge=0); exam_date: date | None = None
 class ExamSubjectResponse(BaseModel):
-    id: int; exam_id: int; subject_id: int; level_id: int; grade_id: int; stream_id: int; total_marks: int
+    id: int; exam_id: int; subject_id: int; academic_year_id: int; level_id: int; grade_id: int; stream_id: int; total_marks: int
     model_config = {"from_attributes": True}
 class ScoreEntry(BaseModel):
     student_id: int; subject_id: int; score: float = Field(ge=0); grade: str | None = None; position: int | None = None; remarks: str | None = None
-class BulkScoreEntry(BaseModel):
-    entries: list[ScoreEntry]
+class BulkScoreEntry(BaseModel): entries: list[ScoreEntry]
 class ExamEntryResponse(BaseModel):
     id: int; exam_id: int; student_id: int; subject_id: int; score: float | None = None; grade: str | None = None; position: int | None = None; remarks: str | None = None; percentage: float | None = None
     model_config = {"from_attributes": True}
