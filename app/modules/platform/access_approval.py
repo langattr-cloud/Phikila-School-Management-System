@@ -17,7 +17,6 @@ from .authz import Identity, audit, require_super_admin
 from .models import TtAccessRequest
 
 router = APIRouter()
-
 GRANTABLE_ROLES = {"viewer", "student", "teacher", "scheduler", "admin"}
 
 
@@ -51,7 +50,7 @@ def decide_access_request(
     if not payload.approve:
         try:
             row.status = "rejected"
-            row.decided_by = identity.email or identity.user_id
+            row.decided_by = identity.user_id
             row.decided_at = datetime.utcnow()
             row.decision_note = payload.note
             audit(db, identity, "access_request_rejected", f"Rejected access request from {row.email}", entity="access_request", entity_id=row.id)
@@ -75,14 +74,22 @@ def decide_access_request(
     if granted not in GRANTABLE_ROLES:
         granted = "viewer"
 
+    # tt_memberships.user_id is varchar in the live database; access requests use UUID.
+    membership_user_id = str(row.user_id)
     try:
         membership = (
             db.query(TtMembership)
-            .filter(TtMembership.user_id == row.user_id, TtMembership.school_id == school_id)
+            .filter(TtMembership.user_id == membership_user_id, TtMembership.school_id == school_id)
             .first()
         )
         if membership is None:
-            membership = TtMembership(user_id=row.user_id, school_id=school_id, role=granted, email=row.email, is_active=True)
+            membership = TtMembership(
+                user_id=membership_user_id,
+                school_id=school_id,
+                role=granted,
+                email=row.email,
+                is_active=True,
+            )
             db.add(membership)
         else:
             membership.role = granted
@@ -92,7 +99,7 @@ def decide_access_request(
         row.status = "approved"
         row.granted_role = granted
         row.granted_school_id = school_id
-        row.decided_by = identity.email or identity.user_id
+        row.decided_by = identity.user_id
         row.decided_at = datetime.utcnow()
         row.decision_note = payload.note
         audit(db, identity, "access_request_approved", f"Approved {row.email} as {granted} at {school.name}", entity="access_request", entity_id=row.id, school_id=school_id)
