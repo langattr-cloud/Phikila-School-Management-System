@@ -4,7 +4,7 @@ import { Alert } from '../components/Alert'
 import { Badge, EmptyState, LoadingBlock } from '../components/States'
 import { FinancePaymentMatcher } from '../components/FinancePaymentMatcher'
 import { friendlyApiError } from '../lib/api'
-import { finance, type FeeStructure, type Invoice, type Payment, type FinanceOverview } from '../lib/finance'
+import { finance, type BalanceSheet, type FeeStructure, type Invoice, type Payment, type FinanceOverview, type TrialBalanceRow } from '../lib/finance'
 import './Finance.css'
 
 export default function FinancePage() {
@@ -14,7 +14,7 @@ export default function FinancePage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'trial-balance' | 'balance-sheet'>('overview')
   const [showNewFee, setShowNewFee] = useState(false)
   const [showNewInvoice, setShowNewInvoice] = useState(false)
   const [showNewPayment, setShowNewPayment] = useState(false)
@@ -34,14 +34,16 @@ export default function FinancePage() {
   useEffect(() => { load() }, [load])
 
   return <div className="finance-page">
-    <PageHeader title="Finance" description="Fee structures, invoices, payments, and M-PESA fee matching." />
+    <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, and M-PESA fee matching." />
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
-      {(['overview', 'matcher', 'fees', 'invoices', 'payments'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
+      {(['overview', 'matcher', 'fees', 'invoices', 'payments', 'trial-balance', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'balance-sheet' ? 'Balance Sheet' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
     </div>
 
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
       {activeTab === 'matcher' && <FinancePaymentMatcher onPosted={load} />}
+      {activeTab === 'trial-balance' && <TrialBalanceView />}
+      {activeTab === 'balance-sheet' && <BalanceSheetView />}
       {activeTab === 'overview' && overview && <div className="summary-grid finance-summary">{[
         { label: 'Total Invoiced', value: `KES ${Number(overview.total_invoiced).toLocaleString()}` },
         { label: 'Total Collected', value: `KES ${Number(overview.total_collected).toLocaleString()}` },
@@ -65,6 +67,63 @@ export default function FinancePage() {
       </section>}
     </>}
   </div>
+}
+
+function TrialBalanceView() {
+  const [rows, setRows] = useState<TrialBalanceRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+    finance.trialBalance()
+      .then((data) => { if (active) setRows(data) })
+      .catch((err) => { if (active) setError(friendlyApiError(err, 'load trial balance')) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  const debitTotal = rows.reduce((sum, row) => sum + Number(row.debit), 0)
+  const creditTotal = rows.reduce((sum, row) => sum + Number(row.credit), 0)
+  const difference = debitTotal - creditTotal
+
+  return <section className="section card">
+    <div className="finance-section-heading"><div><h2 className="section__title">Trial Balance</h2><p className="muted-text">Posted journal entries by chart-of-account balance.</p></div><Badge tone={Math.abs(difference) < 0.005 ? 'success' : 'danger'}>{Math.abs(difference) < 0.005 ? 'Balanced' : 'Out of balance'}</Badge></div>
+    {error && <Alert tone="error">{error}</Alert>}
+    {loading ? <LoadingBlock label="Loading trial balance" rows={6} /> : !rows.length ? <EmptyState title="No accounting balances" description="Post journal entries to populate the trial balance." /> : <div className="table-scroll"><table><thead><tr><th>Code</th><th>Account</th><th>Type</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody>{rows.map((row) => <tr key={row.account_id}><td>{row.code}</td><td>{row.name}</td><td>{row.account_type}</td><td className="number-cell">KES {Number(row.debit).toLocaleString()}</td><td className="number-cell">KES {Number(row.credit).toLocaleString()}</td><td className="number-cell"><strong>KES {Number(row.balance).toLocaleString()}</strong></td></tr>)}</tbody><tfoot><tr><th colSpan={3}>Totals</th><th className="number-cell">KES {debitTotal.toLocaleString()}</th><th className="number-cell">KES {creditTotal.toLocaleString()}</th><th className="number-cell">KES {difference.toLocaleString()}</th></tr></tfoot></table></div>}
+  </section>
+}
+
+function BalanceSheetView() {
+  const [report, setReport] = useState<BalanceSheet | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+    finance.balanceSheet()
+      .then((data) => { if (active) setReport(data) })
+      .catch((err) => { if (active) setError(friendlyApiError(err, 'load balance sheet')) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  const section = (title: string, rows: TrialBalanceRow[]) => <div className="finance-list"><h3>{title}</h3>{!rows.length ? <p className="muted-text">No accounts.</p> : rows.map((row) => <div key={row.account_id} className="finance-list__row"><div className="finance-list__main"><strong>{row.code} — {row.name}</strong><span className="muted-text">{row.account_type}</span></div><div className="finance-list__value"><strong>KES {Number(row.balance).toLocaleString()}</strong></div></div>)}</div>
+
+  return <section className="section card">
+    <div className="finance-section-heading"><div><h2 className="section__title">Balance Sheet</h2><p className="muted-text">Statement of financial position from posted ledger balances.</p></div>{report && <Badge tone={Math.abs(Number(report.totals.balance_check)) < 0.005 ? 'success' : 'danger'}>{Math.abs(Number(report.totals.balance_check)) < 0.005 ? 'Balanced' : 'Out of balance'}</Badge>}</div>
+    {error && <Alert tone="error">{error}</Alert>}
+    {loading ? <LoadingBlock label="Loading balance sheet" rows={6} /> : !report ? <EmptyState title="Balance sheet unavailable" description="No balance sheet response was returned." /> : <>
+      {section('Assets', report.assets)}
+      {section('Liabilities', report.liabilities)}
+      {section('Equity / Net Assets', report.equity)}
+      <div className="finance-list"><div className="finance-list__row"><div className="finance-list__main"><strong>Current Surplus / (Deficit)</strong></div><div className="finance-list__value"><strong>KES {Number(report.current_surplus_deficit).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Total Assets</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.assets).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Liabilities + Net Assets</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.liabilities_and_net_assets).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Balance Check</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.balance_check).toLocaleString()}</strong></div></div></div>
+    </>}
+  </section>
 }
 
 function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
