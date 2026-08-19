@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.modules.academics.router import router as academics_router
 from app.modules.attendance.router import router as attendance_router
@@ -90,6 +93,13 @@ def create_app() -> FastAPI:
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
     app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
+
+    # Serve the Vite SPA from the same production deployment. API routes above
+    # remain authoritative; unmatched browser routes fall back to index.html.
+    frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
+    if frontend_dist.is_dir():
+        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+
     return app
 
 
