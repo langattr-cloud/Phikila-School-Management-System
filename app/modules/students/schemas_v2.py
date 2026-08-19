@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
 from pydantic import BaseModel, Field
 
-
-# ---- Guardian ----
 
 class GuardianCreate(BaseModel):
     full_name: str = Field(min_length=1, max_length=200)
@@ -19,7 +16,6 @@ class GuardianCreate(BaseModel):
     occupation: str | None = None
     is_emergency_contact: bool = False
 
-
 class GuardianUpdate(BaseModel):
     full_name: str | None = None
     relationship: str | None = None
@@ -29,7 +25,6 @@ class GuardianUpdate(BaseModel):
     address: str | None = None
     occupation: str | None = None
     is_emergency_contact: bool | None = None
-
 
 class GuardianResponse(BaseModel):
     id: int
@@ -43,11 +38,7 @@ class GuardianResponse(BaseModel):
     occupation: str | None = None
     is_emergency_contact: bool
     created_at: datetime | None = None
-
     model_config = {"from_attributes": True}
-
-
-# ---- Student ----
 
 class StudentCreate(BaseModel):
     admission_number: str = Field(min_length=1, max_length=50)
@@ -64,12 +55,11 @@ class StudentCreate(BaseModel):
     national_id: str | None = None
     photo_url: str | None = None
     admission_date: date | None = None
-    current_class_id: int | None = None
     level_id: int | None = None
+    grade_id: int | None = None
     stream_id: int | None = None
     status: str = "active"
     guardians: list[GuardianCreate] = []
-
 
 class StudentUpdate(BaseModel):
     first_name: str | None = None
@@ -84,12 +74,11 @@ class StudentUpdate(BaseModel):
     nationality: str | None = None
     national_id: str | None = None
     photo_url: str | None = None
-    current_class_id: int | None = None
     level_id: int | None = None
+    grade_id: int | None = None
     stream_id: int | None = None
     status: str | None = None
     status_reason: str | None = None
-
 
 class StudentResponse(BaseModel):
     id: int
@@ -108,8 +97,8 @@ class StudentResponse(BaseModel):
     national_id: str | None = None
     photo_url: str | None = None
     admission_date: date | None = None
-    current_class_id: int | None = None
     level_id: int | None = None
+    grade_id: int | None = None
     stream_id: int | None = None
     status: str
     status_reason: str | None = None
@@ -117,9 +106,7 @@ class StudentResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     guardians: list[GuardianResponse] = []
-
     model_config = {"from_attributes": True}
-
 
 class StudentListResponse(BaseModel):
     items: list[StudentResponse]
@@ -128,26 +115,19 @@ class StudentListResponse(BaseModel):
     page_size: int
     pages: int
 
-
-# ---- Enrollment ----
-
 class EnrollmentResponse(BaseModel):
     id: int
     school_id: int
     student_id: int
     academic_year_id: int
     term_id: int | None = None
-    class_id: int
-    level_id: int | None = None
-    stream_id: int | None = None
+    level_id: int
+    grade_id: int
+    stream_id: int
     status: str
     enrollment_date: date | None = None
     created_at: datetime | None = None
-
     model_config = {"from_attributes": True}
-
-
-# ---- Document ----
 
 class DocumentCreate(BaseModel):
     document_type: str = Field(min_length=1, max_length=50)
@@ -157,7 +137,6 @@ class DocumentCreate(BaseModel):
     file_size: int | None = None
     mime_type: str | None = None
     ocr_scan_id: int | None = None
-
 
 class DocumentResponse(BaseModel):
     id: int
@@ -172,5 +151,4 @@ class DocumentResponse(BaseModel):
     ocr_scan_id: int | None = None
     uploaded_by: str | None = None
     created_at: datetime | None = None
-
     model_config = {"from_attributes": True}
