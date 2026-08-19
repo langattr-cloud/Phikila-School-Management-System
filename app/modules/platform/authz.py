@@ -5,10 +5,10 @@ Design rules enforced here:
 * Nothing about identity or authority is ever read from the request body,
   query string or headers other than the verified Supabase bearer token.
 * Super-admin status is the presence of an active ``tt_platform_admins`` row.
-  It cannot be represented in a JWT claim, a school membership, or any field a
-  client can influence.
-* School access is derived from ``tt_memberships``. A ``school_id`` supplied by
-  the browser is only ever *checked against* that membership, never trusted.
+* School access is always scoped by an active ``tt_memberships`` row. Being a
+  platform admin does not, by itself, grant access to every school.
+* Within a school where the caller has an active membership, a super admin
+  bypasses the normal school-role minimum and has full school-module access.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ class Identity:
     user_id: str
     email: str | None
     is_super_admin: bool
-    # school_id -> role, from membership rows.
+    # school_id -> role, from active membership rows.
     memberships: dict[int, str] = field(default_factory=dict)
 
     @property
@@ -49,11 +49,13 @@ class Identity:
         return self.memberships.get(school_id)
 
     def can_access_school(self, school_id: int) -> bool:
-        """Super admins reach every school; everyone else only their own."""
-        return self.is_super_admin or school_id in self.memberships
+        """Access is tenant-scoped; Super Admin does not bypass membership."""
+        return school_id in self.memberships
 
     def has_school_role(self, school_id: int, minimum: str) -> bool:
-        if self.is_super_admin:
+        # Super Admin has full authority, but only after can_access_school()
+        # has established an active membership in this specific school.
+        if self.is_super_admin and school_id in self.memberships:
             return True
         role = self.memberships.get(school_id)
         if role is None:
@@ -99,10 +101,8 @@ def resolve_identity(
 
 
 def require_super_admin(identity: Identity = Depends(resolve_identity)) -> Identity:
-    """Gate for every platform-wide endpoint."""
+    """Gate for platform-level endpoints."""
     if not identity.is_super_admin:
-        # 404-style vagueness is unhelpful here; the caller is authenticated and
-        # simply lacks authority. Say so without revealing platform structure.
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             "This action requires platform administrator access.",
@@ -111,13 +111,8 @@ def require_super_admin(identity: Identity = Depends(resolve_identity)) -> Ident
 
 
 def require_active_access(identity: Identity = Depends(resolve_identity)) -> Identity:
-    """Any user who has actually been granted access to something.
-
-    A freshly signed-up account has no membership and is not a platform admin,
-    so it lands here with a clear "awaiting approval" message rather than an
-    opaque error.
-    """
-    if identity.is_super_admin or identity.memberships:
+    """Any user who has actually been granted access to something."""
+    if identity.memberships:
         return identity
     raise HTTPException(
         status.HTTP_403_FORBIDDEN,
@@ -128,13 +123,8 @@ def require_active_access(identity: Identity = Depends(resolve_identity)) -> Ide
 def require_school_access(minimum: str = "viewer") -> Callable[..., Callable[[int], int]]:
     """Factory returning a dependency that validates a path ``school_id``.
 
-    Usage::
-
-        @router.get("/schools/{school_id}/users")
-        def read(school_id: int, _=Depends(require_school_access("admin"))):
-
-    The returned dependency raises before the handler body runs, so a handler
-    can never accidentally serve another tenant's rows.
+    School membership is mandatory even for Super Admins. A Super Admin gets
+    the maximum school-module authority only inside schools they belong to.
     """
 
     def dependency(
@@ -142,7 +132,6 @@ def require_school_access(minimum: str = "viewer") -> Callable[..., Callable[[in
         identity: Identity = Depends(resolve_identity),
     ) -> Identity:
         if not identity.can_access_school(school_id):
-            # Do not disclose whether the school exists.
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 "You do not have access to this school.",
