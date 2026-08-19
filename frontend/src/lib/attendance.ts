@@ -5,10 +5,13 @@ const BASE = '/api/v1'
 export interface AttendanceSession {
   id: number
   school_id: number
-  class_id: number
+  academic_year_id: number
+  level_id: number
+  grade_id: number
+  stream_id: number
   date: string
-  period_index?: number
-  opened_by?: string
+  period_index?: number | null
+  opened_by?: string | null
   status: string
   records: AttendanceRecord[]
   created_at?: string
@@ -19,8 +22,8 @@ export interface AttendanceRecord {
   session_id: number
   student_id: number
   status: string
-  reason?: string
-  marked_by?: string
+  reason?: string | null
+  marked_by?: string | null
   created_at?: string
 }
 
@@ -35,17 +38,31 @@ export interface AttendanceSummary {
   attendance_rate: number
 }
 
+export interface AttendanceContext {
+  academic_year_id: number
+  level_id: number
+  grade_id: number
+  stream_id: number
+}
+
 const get = <T,>(path: string) => apiFetch<T>(path)
 const send = <T,>(path: string, method: string, body?: unknown) =>
   apiFetch<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) })
 
 export const attendance = {
-  openSession: (classId: number, date: string, periodIndex?: number) =>
-    send<AttendanceSession>(`${BASE}/attendance/sessions`, 'POST', { class_id: classId, date, period_index: periodIndex }),
+  openSession: (context: AttendanceContext, date: string, periodIndex?: number) =>
+    send<AttendanceSession>(`${BASE}/attendance/sessions`, 'POST', {
+      ...context,
+      date,
+      period_index: periodIndex,
+    }),
 
-  listSessions: (params?: { class_id?: number; date_from?: string; date_to?: string }) => {
+  listSessions: (params?: Partial<AttendanceContext> & { date_from?: string; date_to?: string }) => {
     const qs = new URLSearchParams()
-    if (params?.class_id) qs.set('class_id', String(params.class_id))
+    if (params?.academic_year_id) qs.set('academic_year_id', String(params.academic_year_id))
+    if (params?.level_id) qs.set('level_id', String(params.level_id))
+    if (params?.grade_id) qs.set('grade_id', String(params.grade_id))
+    if (params?.stream_id) qs.set('stream_id', String(params.stream_id))
     if (params?.date_from) qs.set('date_from', params.date_from)
     if (params?.date_to) qs.set('date_to', params.date_to)
     const q = qs.toString()
