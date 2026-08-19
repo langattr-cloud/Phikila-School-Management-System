@@ -18,6 +18,7 @@ from app.modules.finance.completion_router import router as finance_completion_r
 from app.modules.llm.router import router as llm_router
 from app.modules.ocr.router import router as ocr_router
 from app.modules.platform.router import router as platform_router
+from app.modules.platform.access_approval import router as access_approval_router
 from app.modules.scheduling.calendar_router import router as calendar_router
 from app.modules.scheduling.events_router import router as timetable_events_router
 from app.modules.scheduling.profile_router import router as timetable_profile_router
@@ -89,13 +90,12 @@ def create_app() -> FastAPI:
     app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
     app.include_router(finance_reports_router, prefix="/api/v1", tags=["Finance Reports"])
     app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["Document OCR"])
+    app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
     app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
     app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
 
-    # Serve the Vite SPA from the same production deployment. API routes above
-    # remain authoritative; unmatched browser routes fall back to index.html.
     frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
     if frontend_dist.is_dir():
         app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
