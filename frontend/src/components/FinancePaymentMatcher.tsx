@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert } from './Alert'
 import { Badge, LoadingBlock } from './States'
 import { apiFetch, friendlyApiError } from '../lib/api'
-import { finance, type Invoice } from '../lib/finance'
+import { finance, type Invoice, type PaymentInboxItem } from '../lib/finance'
 
 type Student = { id:number; admission_number:string; first_name:string; middle_name?:string; last_name:string; status:string }
 type StudentList = { items:Student[]; total:number; page:number; page_size:number; pages:number }
 type Decoded = { amount?:number; external_reference?:string; student_identifier?:string; received_at?:string; account_name?:string; bank?:string; payment_channel?:string; raw_message:string }
-
 type Props = { onPosted?: () => void }
 
 export function FinancePaymentMatcher({ onPosted }: Props) {
@@ -16,10 +15,21 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
   const [student, setStudent] = useState<Student | null>(null)
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [invoiceId, setInvoiceId] = useState('')
+  const [inbox, setInbox] = useState<PaymentInboxItem[]>([])
   const [busy, setBusy] = useState(false)
   const [loadingStudent, setLoadingStudent] = useState(false)
+  const [loadingInbox, setLoadingInbox] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const loadInbox = useCallback(async () => {
+    setLoadingInbox(true)
+    try { setInbox(await finance.listPaymentInbox()) }
+    catch (err) { setError(friendlyApiError(err, 'load payment inbox')) }
+    finally { setLoadingInbox(false) }
+  }, [])
+
+  useEffect(() => { loadInbox() }, [loadInbox])
 
   const admission = useMemo(() => {
     const trimmed = input.trim()
@@ -65,16 +75,18 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
     if (!student || !decoded?.amount || !decoded.external_reference || !invoiceId) return
     setBusy(true); setError(null); setMessage(null)
     try {
-      const inbox = await apiFetch<{ id:number }>(`/api/v1/finance/payment-inbox`, {
+      const inboxItem = await apiFetch<{ id:number }>(`/api/v1/finance/payment-inbox`, {
         method:'POST',
         body: JSON.stringify({ source:'M-PESA', raw_message:input, student_identifier:student.admission_number, amount:decoded.amount, external_reference:decoded.external_reference, received_at:decoded.received_at, payment_channel:decoded.payment_channel || 'M-PESA → Bank', account_name:decoded.account_name }),
       })
-      await finance.postPaymentInbox(inbox.id, { invoice_id: Number(invoiceId), reason:'Posted from M-PESA payment matcher' })
+      await finance.postPaymentInbox(inboxItem.id, { invoice_id: Number(invoiceId), reason:'Posted from M-PESA payment matcher' })
       setMessage(`KES ${Number(decoded.amount).toLocaleString()} posted to ${student.first_name} ${student.last_name} (${student.admission_number}).`)
-      setInput(''); setDecoded(null); setStudent(null); setInvoices([]); setInvoiceId(''); onPosted?.()
+      setInput(''); setDecoded(null); setStudent(null); setInvoices([]); setInvoiceId(''); await loadInbox(); onPosted?.()
     } catch (err) { setError(friendlyApiError(err, 'post the payment')) }
     finally { setBusy(false) }
   }
+
+  const statusTone = (status:string) => status === 'POSTED' || status === 'MATCHED' ? 'success' : status === 'UNMATCHED' ? 'warning' : 'danger'
 
   return <section className="section card">
     <div className="finance-section-heading">
@@ -105,5 +117,10 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
       <div className="finance-form__actions" style={{ marginTop: 12 }}><button className="button button--primary" disabled={!decoded?.amount || !decoded.external_reference || !student || !invoiceId || busy} onClick={postPayment}>{busy ? 'Posting…' : 'Post fee payment'}</button></div>
       {!invoices.length && <p className="muted-text">No open invoice was found for this student. Create the fee invoice first.</p>}
     </div>}
+
+    <div className="section" style={{ marginTop: 24 }}>
+      <div className="finance-section-heading"><div><h3 className="section__title">Payment Inbox</h3><p className="muted-text">Recent external payments and their posting state. Nothing is removed when posting fails.</p></div><button className="button button--secondary button--sm" onClick={loadInbox} disabled={loadingInbox}>{loadingInbox ? 'Refreshing…' : 'Refresh'}</button></div>
+      {loadingInbox ? <LoadingBlock label="Loading payment inbox" rows={4} /> : !inbox.length ? <p className="muted-text">No payment inbox records yet.</p> : <div className="table-scroll"><table><thead><tr><th>Received</th><th>Reference</th><th>Student</th><th>Amount</th><th>Match</th><th>Status</th><th>Posted</th></tr></thead><tbody>{inbox.map((item) => <tr key={item.id}><td>{item.received_at ? new Date(item.received_at).toLocaleString() : '—'}</td><td><strong>{item.external_reference}</strong><div className="muted-text">{item.source}</div></td><td>{item.student_identifier || 'Unmatched'}</td><td className="number-cell">KES {Number(item.amount).toLocaleString()}</td><td>{item.match_method ? `${item.match_method} (${Number(item.match_confidence || 0).toLocaleString()}%)` : 'Manual review'}</td><td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td><td>{item.posted_payment_id ? `Payment #${item.posted_payment_id}` : '—'}</td></tr>)}</tbody></table></div>}
+    </div>
   </section>
 }
