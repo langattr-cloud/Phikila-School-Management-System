@@ -1,17 +1,228 @@
 import { getLocalSession } from './localAuth'
 import { supabase } from './supabase'
-const apiUrl=(import.meta.env.VITE_API_URL||'').replace(/\/$/,'')
-export class ApiError extends Error{constructor(message:string,public readonly status:number,public readonly detail?:unknown){super(message)}}
-export function friendlyApiError(error:unknown,action:string):string{if(error instanceof ApiError){if(error.status===401)return'Your sign-in could not be verified. Please sign in again.';if(error.status===403)return`You do not have permission to ${action}.`;if(error.status===404)return'That information has not been set up yet.';if(error.status===409)return error.message||`We could not ${action} because it conflicts with existing data.`;if(error.status===422||error.status===400)return error.message||`Some details were not accepted. Check the form and try again.`;if(error.status>=500)return error.message?`The server could not ${action}: ${error.message}`:`The server had a problem and could not ${action}.`;return error.message||`We could not ${action}. Please try again.`}return error instanceof Error&&error.message?`We could not ${action}: ${error.message}`:`We could not ${action}. Check your connection and try again.`}
-async function refreshSessionToken():Promise<string|null>{if(!supabase)return null;const{data:refreshed,error}=await supabase.auth.refreshSession();if(!error&&refreshed.session?.access_token)return refreshed.session.access_token;const{data:session}=await supabase.auth.getSession();return session?.session?.access_token??null}
-export async function apiFetch<T>(path:string,init:RequestInit={},authenticated=true):Promise<T>{const headers=new Headers(init.headers);headers.set('Accept','application/json');if(init.body&&!headers.has('Content-Type')&&!(init.body instanceof FormData))headers.set('Content-Type','application/json');if(authenticated){if(supabase){const{data,error}=await supabase.auth.getSession();if(error||!data.session)throw new ApiError('Please sign in again.',401);headers.set('Authorization',`Bearer ${data.session.access_token}`)}else{const session=getLocalSession();if(!session)throw new ApiError('Please sign in again.',401);headers.set('Authorization',`Bearer ${session.access_token}`)}}const doFetch=async(h:Headers)=>{const response=await fetch(`${apiUrl}${path}`,{...init,headers:h});if(!response.ok){const payload=await response.json().catch(()=>null);const raw=payload?.detail;const message=typeof raw==='string'?raw:typeof raw?.message==='string'?raw.message:`Request failed (${response.status})`;throw new ApiError(message,response.status,typeof raw==='object'?raw:undefined)}if(response.status===204)return undefined as T;return response.json() as Promise<T>};try{return await doFetch(headers)}catch(error){if(authenticated&&error instanceof ApiError&&error.status===401&&supabase){const newToken=await refreshSessionToken();if(newToken&&newToken!==headers.get('Authorization')?.replace(/^Bearer /,'')){const retryHeaders=new Headers(headers);retryHeaders.set('Authorization',`Bearer ${newToken}`);return await doFetch(retryHeaders)}}throw error}}
-export type Identity={id:string;email:string|null;role:string|null;app_metadata?:Record<string,unknown>;user_metadata?:Record<string,unknown>}
-export type SchoolProfile={id:number;name:string;code?:string|null;county?:string|null;sub_county?:string|null;email?:string|null;phone?:string|null;motto?:string|null;principal_name?:string|null;established_year?:number|null;is_active?:boolean|null}
-export type AcademicYear={id:number;name:string;start_date:string;end_date:string;is_current?:boolean|null;status?:string|null;school_id:number}
-export type Term={id:number;name:string;start_date?:string|null;end_date?:string|null;is_current:boolean;academic_year_id:number;school_id:number}
-export type Level={id:number;name:string;code:string;display_order:number;status?:boolean|null;school_id:number}
-export type Grade={id:number;name:string;code:string;display_order:number;status?:boolean|null;school_id:number;level_id:number}
-export type StreamStatus='ACTIVE'|'INACTIVE'|'ARCHIVED'
-export type Stream={id:number;school_id:number;academic_year_id?:number|null;level_id:number;grade_id?:number|null;name:string;code?:string|null;capacity?:number|null;class_teacher_id?:number|null;status:StreamStatus;created_at?:string;updated_at?:string|null}
-export type StreamStudent={id:number;admission_number:string;first_name:string;middle_name?:string|null;last_name:string;current_class_id?:number|null;level_id?:number|null;stream_id?:number|null;status:string}
-export const api={health:()=>apiFetch<{status:string;environment:string}>('/health',{},false),me:()=>apiFetch<Identity>('/api/v1/auth/me'),school:()=>apiFetch<SchoolProfile>('/api/v1/school/'),academicYears:()=>apiFetch<AcademicYear[]>('/api/v1/academics/years'),terms:()=>apiFetch<Term[]>('/api/v1/academics/terms'),levels:()=>apiFetch<Level[]>('/api/v1/academics/levels'),grades:(levelId?:number)=>apiFetch<Grade[]>(`/api/v1/academics/grades${levelId?`?level_id=${levelId}`:''}`),createGrade:(payload:{level_id:number;name:string;code:string;display_order:number;status?:boolean})=>apiFetch<Grade>('/api/v1/academics/grades',{method:'POST',body:JSON.stringify(payload)}),streams:(academicYearId:number,gradeId:number)=>apiFetch<Stream[]>(`/api/v1/academics/years/${academicYearId}/grades/${gradeId}/streams`),createStream:(payload:{academic_year_id:number;level_id:number;grade_id:number;name:string;code?:string|null;capacity?:number|null;status?:StreamStatus})=>apiFetch<Stream>('/api/v1/academics/streams',{method:'POST',body:JSON.stringify(payload)}),updateStream:(streamId:number,payload:Partial<Pick<Stream,'name'|'code'|'capacity'|'status'|'class_teacher_id'>>)=>apiFetch<Stream>(`/api/v1/academics/streams/${streamId}`,{method:'PATCH',body:JSON.stringify(payload)}),streamStudents:(streamId:number)=>apiFetch<StreamStudent[]>(`/api/v1/academics/streams/${streamId}/students`),assignStudentToStream:(streamId:number,studentId:number)=>apiFetch<StreamStudent>(`/api/v1/academics/streams/${streamId}/students`,{method:'POST',body:JSON.stringify({student_id:studentId})}),students:()=>apiFetch<{items:StreamStudent[];total:number;page:number;page_size:number;pages:number}>('/api/v1/students')}
+
+const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number, public readonly detail?: unknown) {
+    super(message)
+  }
+}
+
+export function friendlyApiError(error: unknown, action: string): string {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return 'Your sign-in could not be verified. Please sign in again.'
+    if (error.status === 403) return `You do not have permission to ${action}.`
+    if (error.status === 404) return 'That information has not been set up yet.'
+    if (error.status === 409) return error.message || `We could not ${action} because it conflicts with existing data.`
+    if (error.status === 422 || error.status === 400) return error.message || 'Some details were not accepted. Check the form and try again.'
+    if (error.status >= 500) return error.message ? `The server could not ${action}: ${error.message}` : `The server had a problem and could not ${action}.`
+    return error.message || `We could not ${action}. Please try again.`
+  }
+  return error instanceof Error && error.message
+    ? `We could not ${action}: ${error.message}`
+    : `We could not ${action}. Check your connection and try again.`
+}
+
+async function refreshSessionToken(): Promise<string | null> {
+  if (!supabase) return null
+  const { data: refreshed, error } = await supabase.auth.refreshSession()
+  if (!error && refreshed.session?.access_token) return refreshed.session.access_token
+  const { data: session } = await supabase.auth.getSession()
+  return session?.session?.access_token ?? null
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
+  const headers = new Headers(init.headers)
+  headers.set('Accept', 'application/json')
+  if (init.body && !headers.has('Content-Type') && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
+  if (authenticated) {
+    if (supabase) {
+      const { data, error } = await supabase.auth.getSession()
+      if (error || !data.session) throw new ApiError('Please sign in again.', 401)
+      headers.set('Authorization', `Bearer ${data.session.access_token}`)
+    } else {
+      const session = getLocalSession()
+      if (!session) throw new ApiError('Please sign in again.', 401)
+      headers.set('Authorization', `Bearer ${session.access_token}`)
+    }
+  }
+
+  const doFetch = async (h: Headers) => {
+    const response = await fetch(`${apiUrl}${path}`, { ...init, headers: h })
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null)
+      const raw = payload?.detail
+      const message = typeof raw === 'string'
+        ? raw
+        : typeof raw?.message === 'string'
+          ? raw.message
+          : `Request failed (${response.status})`
+      throw new ApiError(message, response.status, typeof raw === 'object' ? raw : undefined)
+    }
+    if (response.status === 204) return undefined as T
+    return response.json() as Promise<T>
+  }
+
+  try {
+    return await doFetch(headers)
+  } catch (error) {
+    if (authenticated && error instanceof ApiError && error.status === 401 && supabase) {
+      const newToken = await refreshSessionToken()
+      if (newToken && newToken !== headers.get('Authorization')?.replace(/^Bearer /, '')) {
+        const retryHeaders = new Headers(headers)
+        retryHeaders.set('Authorization', `Bearer ${newToken}`)
+        return await doFetch(retryHeaders)
+      }
+    }
+    throw error
+  }
+}
+
+export type Identity = {
+  id: string
+  email: string | null
+  role: string | null
+  app_metadata?: Record<string, unknown>
+  user_metadata?: Record<string, unknown>
+}
+
+export type SchoolProfile = {
+  id: number
+  name: string
+  code?: string | null
+  county?: string | null
+  sub_county?: string | null
+  email?: string | null
+  phone?: string | null
+  motto?: string | null
+  principal_name?: string | null
+  established_year?: number | null
+  is_active?: boolean | null
+}
+
+export type AcademicYear = {
+  id: number
+  name: string
+  start_date: string
+  end_date: string
+  is_current?: boolean | null
+  status?: string | null
+  school_id: number
+}
+
+export type Term = {
+  id: number
+  name: string
+  start_date?: string | null
+  end_date?: string | null
+  is_current: boolean
+  academic_year_id: number
+  school_id: number
+}
+
+export type Level = {
+  id: number
+  name: string
+  code: string
+  display_order: number
+  status?: boolean | null
+  school_id: number
+}
+
+export type Grade = {
+  id: number
+  name: string
+  code: string
+  display_order: number
+  status?: boolean | null
+  school_id: number
+  level_id: number
+}
+
+export type StreamStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
+
+export type Stream = {
+  id: number
+  school_id: number
+  academic_year_id?: number | null
+  level_id: number
+  grade_id?: number | null
+  name: string
+  code?: string | null
+  capacity?: number | null
+  class_teacher_id?: number | null
+  status: StreamStatus
+  created_at?: string
+  updated_at?: string | null
+}
+
+export type StudentListItem = {
+  id: number
+  admission_number: string
+  first_name: string
+  middle_name?: string | null
+  last_name: string
+  preferred_name?: string | null
+  date_of_birth?: string | null
+  gender?: string | null
+  email?: string | null
+  phone?: string | null
+  address?: string | null
+  nationality?: string | null
+  national_id?: string | null
+  photo_url?: string | null
+  admission_date?: string | null
+  status: string
+  status_reason?: string | null
+  status_date?: string | null
+  school_id?: number
+  created_at?: string | null
+  updated_at?: string | null
+  guardians?: unknown[]
+}
+
+export type StudentListResponse = {
+  items: StudentListItem[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export type StreamStudent = {
+  id: number
+  admission_number: string
+  first_name: string
+  middle_name?: string | null
+  last_name: string
+  current_class_id?: number | null
+  level_id?: number | null
+  stream_id?: number | null
+  status: string
+}
+
+export const api = {
+  health: () => apiFetch<{ status: string; environment: string }>('/health', {}, false),
+  me: () => apiFetch<Identity>('/api/v1/auth/me'),
+  school: () => apiFetch<SchoolProfile>('/api/v1/school/'),
+  academicYears: () => apiFetch<AcademicYear[]>('/api/v1/academics/years'),
+  terms: () => apiFetch<Term[]>('/api/v1/academics/terms'),
+  levels: () => apiFetch<Level[]>('/api/v1/academics/levels'),
+  grades: (levelId?: number) => apiFetch<Grade[]>(`/api/v1/academics/grades${levelId != null ? `?level_id=${levelId}` : ''}`),
+  createGrade: (payload: { level_id: number; name: string; code: string; display_order: number; status?: boolean }) =>
+    apiFetch<Grade>('/api/v1/academics/grades', { method: 'POST', body: JSON.stringify(payload) }),
+  streams: (academicYearId: number, gradeId: number) =>
+    apiFetch<Stream[]>(`/api/v1/academics/years/${academicYearId}/grades/${gradeId}/streams`),
+  createStream: (payload: { academic_year_id: number; level_id: number; grade_id: number; name: string; code?: string | null; capacity?: number | null; status?: StreamStatus }) =>
+    apiFetch<Stream>('/api/v1/academics/streams', { method: 'POST', body: JSON.stringify(payload) }),
+  updateStream: (streamId: number, payload: Partial<Pick<Stream, 'name' | 'code' | 'capacity' | 'status' | 'class_teacher_id'>>) =>
+    apiFetch<Stream>(`/api/v1/academics/streams/${streamId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  streamStudents: (streamId: number) =>
+    apiFetch<StreamStudent[]>(`/api/v1/academics/streams/${streamId}/students`),
+  assignStudentToStream: (streamId: number, studentId: number) =>
+    apiFetch<StreamStudent>(`/api/v1/academics/streams/${streamId}/students`, { method: 'POST', body: JSON.stringify({ student_id: studentId }) }),
+  students: () => apiFetch<StudentListResponse>('/api/v1/students'),
+}
