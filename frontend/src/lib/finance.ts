@@ -10,6 +10,7 @@ export interface StudentBalance { student_id:number; student_name:string; total_
 export interface FinanceOverview { total_invoiced:number; total_collected:number; total_outstanding:number; invoices_count:number; paid_count:number; pending_count:number }
 export interface CashBook { id:number; school_id:number; name:string; book_type:string; bank_account_id?:number; opening_balance:number; status:string }
 export interface BankAccount { id:number; school_id:number; bank_name:string; branch_name?:string; account_name:string; account_identifier:string; currency:string; opening_balance:number; status:string }
+export interface BankTransaction { id:number; school_id:number; bank_account_id:number; transaction_date:string; value_date?:string; amount:number; transaction_type:string; external_reference?:string; description?:string; status:string; source?:string; raw_data?:string; matched_entity?:string; matched_id?:number; created_at?:string }
 export interface BankReconciliation { id:number; school_id:number; bank_account_id:number; statement_date:string; statement_balance:number; book_balance:number; difference:number; status:string; reconciled_by?:string; reconciled_at?:string; notes?:string }
 export interface TrialBalanceRow { account_id:number; code:string; name:string; account_type:string; debit:number; credit:number; balance:number }
 export interface GeneralLedgerRow { journal_id:number; journal_number:string; date:string; reference?:string|null; account_id:number; account_code:string; account_name:string; debit:number; credit:number; description?:string|null }
@@ -34,6 +35,7 @@ export const finance = {
   generalLedger:(accountId?:number)=>get<GeneralLedgerRow[]>(`${BASE}/finance/reports/general-ledger${accountId!=null?`?account_id=${accountId}`:''}`),
   balanceSheet:()=>get<BalanceSheet>(`${BASE}/finance/reports/balance-sheet`),
   listBankAccounts:()=>get<BankAccount[]>(`${BASE}/finance/bank-accounts`),
+  listBankTransactions:(bankAccountId?:number)=>get<BankTransaction[]>(`${BASE}/finance/bank-transactions${bankAccountId!=null?`?bank_account_id=${bankAccountId}`:''}`),
   listCashBooks:()=>get<CashBook[]>(`${BASE}/finance/cash-books`),
   listReconciliations:()=>get<BankReconciliation[]>(`${BASE}/finance/bank-reconciliations`),
   createReconciliation:(payload:Partial<BankReconciliation>)=>send<BankReconciliation>(`${BASE}/finance/bank-reconciliations`,'POST',payload),
