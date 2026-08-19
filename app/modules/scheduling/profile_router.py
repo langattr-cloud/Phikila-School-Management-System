@@ -15,6 +15,8 @@ def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),prin
     if not rows: raise HTTPException(status.HTTP_400_BAD_REQUEST,'Configure the school working days first.')
     by_index={d.index:d for d in rows}
     if any(i not in by_index for i in payload.day_indexes): raise HTTPException(status.HTTP_400_BAD_REQUEST,'One or more selected days are not configured.')
+    requirement_count=db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==principal.school_id).count()
+    if requirement_count==0: raise HTTPException(status.HTTP_400_BAD_REQUEST,'Add at least one teaching allocation before generating a timetable.')
     if db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==principal.school_id,m.TtSolverJob.status.in_(['queued','running','optimizing','validating'])).first(): raise HTTPException(status.HTTP_409_CONFLICT,'A timetable is already being generated.')
     original={d.index:d.is_active for d in rows}
     try:
