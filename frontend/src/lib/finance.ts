@@ -4,7 +4,7 @@ const BASE = '/api/v1'
 export interface FeeStructure { id:number; school_id:number; name:string; description?:string; academic_year_id?:number; term_id?:number; level_id?:number; amount:number; currency:string; status:string; created_at?:string }
 export interface Invoice { id:number; school_id:number; student_id:number; fee_structure_id:number; amount:number; balance:number; status:string; due_date?:string; created_at?:string }
 export interface Payment { id:number; school_id:number; invoice_id:number; student_id:number; amount:number; payment_method?:string; reference_number?:string; notes?:string; received_by?:string; status:string; journal_id?:number; reversed_at?:string; reversal_reason?:string; created_at?:string }
-export interface Receipt { id:number; school_id:number; receipt_number:string; payment_id:number; student_id:number; amount:number; status:string; issued_by?:string; issued_at?:string }
+export interface Receipt { id:number; school_id:number; receipt_number:string; payment_id:number; student_id:number; amount:number; status:string; issued_by?:string; issued_at?:string; created_at?:string }
 export interface PaymentInboxItem { id:number; school_id:number; source:string; source_account?:string; account_name?:string; raw_message:string; amount:number; external_reference:string; student_identifier?:string; received_at:string; payment_channel?:string; matched_student_id?:number; match_method?:string; match_confidence?:number; status:string; duplicate_of?:number; posted_payment_id?:number; posted_at?:string; reviewed_by?:string; reviewed_at?:string; notes?:string; created_at?:string }
 export interface StudentBalance { student_id:number; student_name:string; total_invoiced:number; total_paid:number; balance:number }
 export interface FinanceOverview { total_invoiced:number; total_collected:number; total_outstanding:number; invoices_count:number; paid_count:number; pending_count:number }
@@ -26,6 +26,7 @@ export const finance = {
   recordPayment:(payload:Partial<Payment>)=>send<Payment>(`${BASE}/finance/payments`,'POST',payload),
   reversePayment:(id:number,reason:string)=>send<Payment>(`${BASE}/finance/payments/${id}/reverse`,'POST',{reason}),
   listReceipts:()=>get<Receipt[]>(`${BASE}/finance/receipts`),
+  getReceipt:(id:number)=>get<Receipt>(`${BASE}/finance/receipts/${id}`),
   listPaymentInbox:(status?:string)=>get<PaymentInboxItem[]>(`${BASE}/finance/payment-inbox${status?`?status=${encodeURIComponent(status)}`:''}`),
   postPaymentInbox:(id:number,payload?:{invoice_id?:number;reason?:string})=>send<PaymentInboxItem>(`${BASE}/finance/payment-inbox/${id}/post`,'POST',payload||{}),
   decodePayment:(message:string)=>send<unknown>(`${BASE}/finance/payments/decode`,'POST',{message}),
