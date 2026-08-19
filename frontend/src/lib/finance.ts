@@ -11,6 +11,8 @@ export interface FinanceOverview { total_invoiced:number; total_collected:number
 export interface CashBook { id:number; school_id:number; name:string; book_type:string; bank_account_id?:number; opening_balance:number; status:string }
 export interface BankAccount { id:number; school_id:number; bank_name:string; branch_name?:string; account_name:string; account_identifier:string; currency:string; opening_balance:number; status:string }
 export interface BankReconciliation { id:number; school_id:number; bank_account_id:number; statement_date:string; statement_balance:number; book_balance:number; difference:number; status:string; reconciled_by?:string; reconciled_at?:string; notes?:string }
+export interface TrialBalanceRow { account_id:number; code:string; name:string; account_type:string; debit:number; credit:number; balance:number }
+export interface BalanceSheet { assets:TrialBalanceRow[]; liabilities:TrialBalanceRow[]; equity:TrialBalanceRow[]; current_surplus_deficit:number; totals:{assets:number; liabilities:number; equity:number; net_assets:number; liabilities_and_net_assets:number; balance_check:number} }
 const get = <T,>(path:string) => apiFetch<T>(path)
 const send = <T,>(path:string, method:string, body?:unknown) => apiFetch<T>(path,{method,body:body===undefined?undefined:JSON.stringify(body)})
 export const finance = {
@@ -27,6 +29,8 @@ export const finance = {
   decodePayment:(message:string)=>send<unknown>(`${BASE}/finance/payments/decode`,'POST',{message}),
   studentBalance:(studentId:number)=>get<StudentBalance>(`${BASE}/finance/students/${studentId}/balance`),
   overview:()=>get<FinanceOverview>(`${BASE}/finance/overview`),
+  trialBalance:()=>get<TrialBalanceRow[]>(`${BASE}/finance/reports/trial-balance`),
+  balanceSheet:()=>get<BalanceSheet>(`${BASE}/finance/reports/balance-sheet`),
   listBankAccounts:()=>get<BankAccount[]>(`${BASE}/finance/bank-accounts`),
   listCashBooks:()=>get<CashBook[]>(`${BASE}/finance/cash-books`),
   listReconciliations:()=>get<BankReconciliation[]>(`${BASE}/finance/bank-reconciliations`),
