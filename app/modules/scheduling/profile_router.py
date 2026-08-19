@@ -5,14 +5,15 @@ from app.core.database import get_db
 from . import jobs as job_queue
 from . import models as m
 from . import schemas as s
+from .jobs import _ensure_calendar
 from .solver import ORTOOLS_AVAILABLE
 from .tenancy import Principal, require_role
 router=APIRouter()
 @router.post('/solver/generate-profile',response_model=s.JobOut,status_code=202)
 def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
     if not ORTOOLS_AVAILABLE: raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,'The scheduling engine is not available on this server.')
+    _ensure_calendar(db,principal.school_id)
     rows=db.query(m.TtDay).filter(m.TtDay.school_id==principal.school_id).order_by(m.TtDay.index).all()
-    if not rows: raise HTTPException(status.HTTP_400_BAD_REQUEST,'Configure the school working days first.')
     by_index={d.index:d for d in rows}
     if any(i not in by_index for i in payload.day_indexes): raise HTTPException(status.HTTP_400_BAD_REQUEST,'One or more selected days are not configured.')
     requirement_count=db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==principal.school_id).count()
