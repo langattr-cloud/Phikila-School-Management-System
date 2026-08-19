@@ -1,4 +1,4 @@
-"""Examination models — school-scoped, production-ready."""
+"""Examination models — canonical academic context."""
 from __future__ import annotations
 from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -19,18 +19,17 @@ class ExaminationV2(Base):
     series = relationship("ExaminationSeries", back_populates="examinations"); subjects = relationship("ExamSubject", back_populates="examination", cascade="all, delete-orphan"); entries = relationship("ExamEntry", back_populates="examination", cascade="all, delete-orphan")
 
 class ExamSubject(Base):
-    """Exam subject assignment. class_id remains a legacy compatibility field."""
     __tablename__ = "exam_subjects"
-    __table_args__ = (UniqueConstraint("exam_id", "subject_id", "class_id", name="uq_exam_subject_class"), {"extend_existing": True})
+    __table_args__ = (UniqueConstraint("exam_id", "subject_id", "academic_year_id", "grade_id", "stream_id", name="uq_exam_subject_academic_context"), {"extend_existing": True})
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); exam_id = Column(Integer, ForeignKey("examinations_v2.id", ondelete="CASCADE"), nullable=False, index=True); subject_id = Column(Integer, nullable=False)
-    class_id = Column(Integer, ForeignKey("school_classes.id"), nullable=True); level_id = Column(Integer, ForeignKey("levels.id")); grade_id = Column(Integer, ForeignKey("grades.id"), index=True); stream_id = Column(Integer, ForeignKey("streams.id"), index=True)
+    academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False, index=True); level_id = Column(Integer, ForeignKey("levels.id"), nullable=False); grade_id = Column(Integer, ForeignKey("grades.id"), nullable=False, index=True); stream_id = Column(Integer, ForeignKey("streams.id"), nullable=False, index=True)
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True, index=True); total_marks = Column(Integer, default=100); exam_date = Column(Date)
     examination = relationship("ExaminationV2", back_populates="subjects")
 
 class ExamEntry(Base):
     __tablename__ = "exam_entries"; __table_args__ = (UniqueConstraint("exam_id", "student_id", "subject_id", name="uq_exam_entry"), {"extend_existing": True})
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); exam_id = Column(Integer, ForeignKey("examinations_v2.id", ondelete="CASCADE"), nullable=False, index=True); student_id = Column(Integer, ForeignKey("students_v2.id"), nullable=False, index=True); subject_id = Column(Integer, nullable=False)
-    score = Column(Float); grade = Column(String(5)); position = Column(Integer); remarks = Column(Text); entered_by = Column(String(64)); created_at = Column(DateTime(timezone=True), server_default=func.now()); updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    score = Column(Float); grade = Column(String(5)); position = Column(Integer); remarks = Column(Text); entered_by = Column(String(64)); created_at = Column(DateTime(timezone=True), server_default=func.now()); updated_at = Column(DateTime(timezone=True, onupdate=func.now()))
     examination = relationship("ExaminationV2", back_populates="entries")
 
 class GradeScale(Base):
