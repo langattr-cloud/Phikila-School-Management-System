@@ -4,7 +4,7 @@ import { Alert } from '../components/Alert'
 import { Badge, EmptyState, LoadingBlock } from '../components/States'
 import { FinancePaymentMatcher } from '../components/FinancePaymentMatcher'
 import { friendlyApiError } from '../lib/api'
-import { finance, type BalanceSheet, type FeeStructure, type Invoice, type Payment, type FinanceOverview, type TrialBalanceRow } from '../lib/finance'
+import { finance, type BalanceSheet, type FeeStructure, type GeneralLedgerRow, type Invoice, type Payment, type FinanceOverview, type TrialBalanceRow } from '../lib/finance'
 import './Finance.css'
 
 export default function FinancePage() {
@@ -14,7 +14,7 @@ export default function FinancePage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'trial-balance' | 'balance-sheet'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'trial-balance' | 'general-ledger' | 'balance-sheet'>('overview')
   const [showNewFee, setShowNewFee] = useState(false)
   const [showNewInvoice, setShowNewInvoice] = useState(false)
   const [showNewPayment, setShowNewPayment] = useState(false)
@@ -37,12 +37,13 @@ export default function FinancePage() {
     <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, and M-PESA fee matching." />
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
-      {(['overview', 'matcher', 'fees', 'invoices', 'payments', 'trial-balance', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'balance-sheet' ? 'Balance Sheet' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
+      {(['overview', 'matcher', 'fees', 'invoices', 'payments', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
     </div>
 
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
       {activeTab === 'matcher' && <FinancePaymentMatcher onPosted={load} />}
       {activeTab === 'trial-balance' && <TrialBalanceView />}
+      {activeTab === 'general-ledger' && <GeneralLedgerView />}
       {activeTab === 'balance-sheet' && <BalanceSheetView />}
       {activeTab === 'overview' && overview && <div className="summary-grid finance-summary">{[
         { label: 'Total Invoiced', value: `KES ${Number(overview.total_invoiced).toLocaleString()}` },
@@ -93,6 +94,44 @@ function TrialBalanceView() {
     <div className="finance-section-heading"><div><h2 className="section__title">Trial Balance</h2><p className="muted-text">Posted journal entries by chart-of-account balance.</p></div><Badge tone={Math.abs(difference) < 0.005 ? 'success' : 'danger'}>{Math.abs(difference) < 0.005 ? 'Balanced' : 'Out of balance'}</Badge></div>
     {error && <Alert tone="error">{error}</Alert>}
     {loading ? <LoadingBlock label="Loading trial balance" rows={6} /> : !rows.length ? <EmptyState title="No accounting balances" description="Post journal entries to populate the trial balance." /> : <div className="table-scroll"><table><thead><tr><th>Code</th><th>Account</th><th>Type</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody>{rows.map((row) => <tr key={row.account_id}><td>{row.code}</td><td>{row.name}</td><td>{row.account_type}</td><td className="number-cell">KES {Number(row.debit).toLocaleString()}</td><td className="number-cell">KES {Number(row.credit).toLocaleString()}</td><td className="number-cell"><strong>KES {Number(row.balance).toLocaleString()}</strong></td></tr>)}</tbody><tfoot><tr><th colSpan={3}>Totals</th><th className="number-cell">KES {debitTotal.toLocaleString()}</th><th className="number-cell">KES {creditTotal.toLocaleString()}</th><th className="number-cell">KES {difference.toLocaleString()}</th></tr></tfoot></table></div>}
+  </section>
+}
+
+function GeneralLedgerView() {
+  const [rows, setRows] = useState<GeneralLedgerRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [accountId, setAccountId] = useState('')
+
+  const load = useCallback(async (selectedAccountId?: number) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await finance.generalLedger(selectedAccountId)
+      setRows(data)
+    } catch (err) {
+      setError(friendlyApiError(err, 'load general ledger'))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const debitTotal = rows.reduce((sum, row) => sum + Number(row.debit), 0)
+  const creditTotal = rows.reduce((sum, row) => sum + Number(row.credit), 0)
+  const net = debitTotal - creditTotal
+
+  const applyFilter = () => {
+    const value = accountId.trim()
+    load(value ? Number(value) : undefined)
+  }
+
+  return <section className="section card">
+    <div className="finance-section-heading"><div><h2 className="section__title">General Ledger</h2><p className="muted-text">Posted journal lines in transaction order. Use an account ID to narrow the ledger.</p></div><Badge tone="success">Posted entries</Badge></div>
+    <div className="finance-form"><div className="finance-form__grid"><div className="field"><label className="field__label">Account ID (optional)</label><input className="input" type="number" min="1" value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="e.g. 101" /></div><div className="finance-form__actions"><button className="button button--primary" onClick={applyFilter} disabled={loading}>{loading ? 'Loading…' : 'Apply Filter'}</button><button className="button button--secondary" onClick={() => { setAccountId(''); load() }} disabled={loading}>All Accounts</button></div></div></div>
+    {error && <Alert tone="error">{error}</Alert>}
+    {loading ? <LoadingBlock label="Loading general ledger" rows={8} /> : !rows.length ? <EmptyState title="No posted ledger entries" description="Post journal entries to populate the general ledger." /> : <div className="table-scroll"><table><thead><tr><th>Date</th><th>Journal</th><th>Account</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th></tr></thead><tbody>{rows.map((row) => <tr key={`${row.journal_id}-${row.account_id}-${row.date}-${row.debit}-${row.credit}`}><td>{row.date ? new Date(row.date).toLocaleDateString() : '—'}</td><td>{row.journal_number}</td><td><strong>{row.account_code}</strong><div className="muted-text">{row.account_name}</div></td><td>{row.reference || '—'}</td><td>{row.description || '—'}</td><td className="number-cell">KES {Number(row.debit).toLocaleString()}</td><td className="number-cell">KES {Number(row.credit).toLocaleString()}</td></tr>)}</tbody><tfoot><tr><th colSpan={5}>Totals</th><th className="number-cell">KES {debitTotal.toLocaleString()}</th><th className="number-cell">KES {creditTotal.toLocaleString()}</th></tr><tr><th colSpan={5}>Net movement</th><th colSpan={2} className="number-cell">KES {net.toLocaleString()}</th></tr></tfoot></table></div>}
   </section>
 }
 
