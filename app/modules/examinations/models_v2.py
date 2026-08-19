@@ -29,7 +29,7 @@ class ExamSubject(Base):
 class ExamEntry(Base):
     __tablename__ = "exam_entries"; __table_args__ = (UniqueConstraint("exam_id", "student_id", "subject_id", name="uq_exam_entry"), {"extend_existing": True})
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); exam_id = Column(Integer, ForeignKey("examinations_v2.id", ondelete="CASCADE"), nullable=False, index=True); student_id = Column(Integer, ForeignKey("students_v2.id"), nullable=False, index=True); subject_id = Column(Integer, nullable=False)
-    score = Column(Float); grade = Column(String(5)); position = Column(Integer); remarks = Column(Text); entered_by = Column(String(64)); created_at = Column(DateTime(timezone=True), server_default=func.now()); updated_at = Column(DateTime(timezone=True, onupdate=func.now()))
+    score = Column(Float); grade = Column(String(5)); position = Column(Integer); remarks = Column(Text); entered_by = Column(String(64)); created_at = Column(DateTime(timezone=True), server_default=func.now()); updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     examination = relationship("ExaminationV2", back_populates="entries")
 
 class GradeScale(Base):
