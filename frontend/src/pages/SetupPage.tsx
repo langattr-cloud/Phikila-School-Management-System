@@ -7,11 +7,23 @@ import { Field } from '../components/Field'
 import { LayersIcon, SearchIcon, UserIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { friendlyApiError } from '../lib/api'
-import { scheduling, type Room, type SchoolClass, type Subject, type Teacher } from '../lib/scheduling'
+import {
+  scheduling,
+  type Room,
+  type RoomInput,
+  type SchoolClass,
+  type SchoolClassInput,
+  type Subject,
+  type SubjectInput,
+  type Teacher,
+  type TeacherInput,
+} from '../lib/scheduling'
 import { AvailabilityEditor } from '../components/AvailabilityEditor'
 
 type Kind = 'teachers' | 'subjects' | 'classes' | 'rooms'
 type Row = Teacher | Subject | SchoolClass | Room
+
+type ResourceInput = TeacherInput | SubjectInput | SchoolClassInput | RoomInput
 
 const TITLES: Record<Kind, { title: string; description: string; singular: string }> = {
   teachers: { title: 'Teachers', description: 'Staff, their limits and when they are unavailable.', singular: 'teacher' },
@@ -64,7 +76,7 @@ export function SetupPage({ kind }: { kind: Kind }) {
 function ResourceForm({ kind, initial, onCancel, onSaved }: { kind: Kind; initial: Row | null; onCancel: () => void; onSaved: () => void }) {
   const { notify } = useToast(); const [values, setValues] = useState<Record<string, unknown>>(() => defaults(kind, initial)); const [errors, setErrors] = useState<Record<string, string>>({}); const [saving, setSaving] = useState(false); const [formError, setFormError] = useState<string | null>(null)
   const set = (key: string, value: unknown) => setValues(current => ({ ...current, [key]: value }))
-  async function submit(event: FormEvent) { event.preventDefault(); if (saving) return; const next: Record<string, string> = {}; if (!String(values.name ?? '').trim()) next.name = 'Enter a name.'; if (!String(values.code ?? '').trim()) next.code = 'Enter a short code.'; setErrors(next); setFormError(null); if (Object.keys(next).length) return; setSaving(true); try { const id = initial?.id; const save = { teachers: id ? () => scheduling.updateTeacher(id, values) : () => scheduling.createTeacher(values), subjects: id ? () => scheduling.updateSubject(id, values) : () => scheduling.createSubject(values), classes: id ? () => scheduling.updateClass(id, values) : () => scheduling.createClass(values), rooms: id ? () => scheduling.updateRoom(id, values) : () => scheduling.createRoom(values) }[kind]; await save(); notify(initial ? 'Changes saved.' : 'Added.', 'success'); onSaved() } catch (err) { setFormError(friendlyApiError(err, 'save those details')) } finally { setSaving(false) } }
+  async function submit(event: FormEvent) { event.preventDefault(); if (saving) return; const next: Record<string, string> = {}; if (!String(values.name ?? '').trim()) next.name = 'Enter a name.'; if (!String(values.code ?? '').trim()) next.code = 'Enter a short code.'; setErrors(next); setFormError(null); if (Object.keys(next).length) return; setSaving(true); try { const id = initial?.id; const save = { teachers: id ? () => scheduling.updateTeacher(id, values as TeacherInput) : () => scheduling.createTeacher(values as TeacherInput), subjects: id ? () => scheduling.updateSubject(id, values as SubjectInput) : () => scheduling.createSubject(values as SubjectInput), classes: id ? () => scheduling.updateClass(id, values as SchoolClassInput) : () => scheduling.createClass(values as SchoolClassInput), rooms: id ? () => scheduling.updateRoom(id, values as RoomInput) : () => scheduling.createRoom(values as RoomInput) }[kind] as () => Promise<unknown>; await save(); notify(initial ? 'Changes saved.' : 'Added.', 'success'); onSaved() } catch (err) { setFormError(friendlyApiError(err, 'save those details')) } finally { setSaving(false) } }
   return <section className="card section"><h2 className="section__title">{initial ? `Edit ${TITLES[kind].singular}` : `New ${TITLES[kind].singular}`}</h2>{formError && <Alert tone="error">{formError}</Alert>}<form className="form form--grid" onSubmit={submit} noValidate>
     <Field label="Name" required value={String(values.name ?? '')} onChange={event => set('name', event.target.value)} error={errors.name} />
     <Field label="Code" required hint="A short unique identifier, e.g. MATH or T01." value={String(values.code ?? '')} onChange={event => set('code', event.target.value)} error={errors.code} />
