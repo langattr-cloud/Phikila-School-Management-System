@@ -1,4 +1,4 @@
-"""Examination models — school-scoped, production-ready."""
+"""Examination models — school-scoped, canonical academic context."""
 from __future__ import annotations
 from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -19,11 +19,10 @@ class ExaminationV2(Base):
     series = relationship("ExaminationSeries", back_populates="examinations"); subjects = relationship("ExamSubject", back_populates="examination", cascade="all, delete-orphan"); entries = relationship("ExamEntry", back_populates="examination", cascade="all, delete-orphan")
 
 class ExamSubject(Base):
-    """Exam subject assignment. class_id remains a legacy compatibility field."""
     __tablename__ = "exam_subjects"
-    __table_args__ = (UniqueConstraint("exam_id", "subject_id", "class_id", name="uq_exam_subject_class"), {"extend_existing": True})
+    __table_args__ = (UniqueConstraint("exam_id", "subject_id", "stream_id", name="uq_exam_subject_stream"), {"extend_existing": True})
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); exam_id = Column(Integer, ForeignKey("examinations_v2.id", ondelete="CASCADE"), nullable=False, index=True); subject_id = Column(Integer, nullable=False)
-    class_id = Column(Integer, ForeignKey("school_classes.id"), nullable=True); level_id = Column(Integer, ForeignKey("levels.id")); grade_id = Column(Integer, ForeignKey("grades.id"), index=True); stream_id = Column(Integer, ForeignKey("streams.id"), index=True)
+    level_id = Column(Integer, ForeignKey("levels.id"), nullable=False); grade_id = Column(Integer, ForeignKey("grades.id"), nullable=False, index=True); stream_id = Column(Integer, ForeignKey("streams.id"), nullable=False, index=True)
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True, index=True); total_marks = Column(Integer, default=100); exam_date = Column(Date)
     examination = relationship("ExaminationV2", back_populates="subjects")
 
