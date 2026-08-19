@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert } from './Alert'
 import { Badge, LoadingBlock } from './States'
 import { apiFetch, friendlyApiError } from '../lib/api'
-import { finance, type Invoice, type PaymentInboxItem } from '../lib/finance'
+import { finance, type Invoice, type PaymentInboxItem, type Receipt } from '../lib/finance'
 
 type Student = { id:number; admission_number:string; first_name:string; middle_name?:string; last_name:string; status:string }
 type StudentList = { items:Student[]; total:number; page:number; page_size:number; pages:number }
@@ -16,20 +16,24 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [invoiceId, setInvoiceId] = useState('')
   const [inbox, setInbox] = useState<PaymentInboxItem[]>([])
+  const [receipts, setReceipts] = useState<Receipt[]>([])
   const [busy, setBusy] = useState(false)
   const [loadingStudent, setLoadingStudent] = useState(false)
   const [loadingInbox, setLoadingInbox] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const loadInbox = useCallback(async () => {
+  const loadAudit = useCallback(async () => {
     setLoadingInbox(true)
-    try { setInbox(await finance.listPaymentInbox()) }
-    catch (err) { setError(friendlyApiError(err, 'load payment inbox')) }
+    try {
+      const [inboxItems, receiptItems] = await Promise.all([finance.listPaymentInbox(), finance.listReceipts()])
+      setInbox(inboxItems)
+      setReceipts(receiptItems)
+    } catch (err) { setError(friendlyApiError(err, 'load payment audit history')) }
     finally { setLoadingInbox(false) }
   }, [])
 
-  useEffect(() => { loadInbox() }, [loadInbox])
+  useEffect(() => { loadAudit() }, [loadAudit])
 
   const admission = useMemo(() => {
     const trimmed = input.trim()
@@ -81,11 +85,12 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
       })
       await finance.postPaymentInbox(inboxItem.id, { invoice_id: Number(invoiceId), reason:'Posted from M-PESA payment matcher' })
       setMessage(`KES ${Number(decoded.amount).toLocaleString()} posted to ${student.first_name} ${student.last_name} (${student.admission_number}).`)
-      setInput(''); setDecoded(null); setStudent(null); setInvoices([]); setInvoiceId(''); await loadInbox(); onPosted?.()
+      setInput(''); setDecoded(null); setStudent(null); setInvoices([]); setInvoiceId(''); await loadAudit(); onPosted?.()
     } catch (err) { setError(friendlyApiError(err, 'post the payment')) }
     finally { setBusy(false) }
   }
 
+  const receiptByPaymentId = useMemo(() => new Map(receipts.map((receipt) => [receipt.payment_id, receipt])), [receipts])
   const statusTone = (status:string) => status === 'POSTED' || status === 'MATCHED' ? 'success' : status === 'UNMATCHED' ? 'warning' : 'danger'
 
   return <section className="section card">
@@ -119,8 +124,8 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
     </div>}
 
     <div className="section" style={{ marginTop: 24 }}>
-      <div className="finance-section-heading"><div><h3 className="section__title">Payment Inbox</h3><p className="muted-text">Recent external payments and their posting state. Nothing is removed when posting fails.</p></div><button className="button button--secondary button--sm" onClick={loadInbox} disabled={loadingInbox}>{loadingInbox ? 'Refreshing…' : 'Refresh'}</button></div>
-      {loadingInbox ? <LoadingBlock label="Loading payment inbox" rows={4} /> : !inbox.length ? <p className="muted-text">No payment inbox records yet.</p> : <div className="table-scroll"><table><thead><tr><th>Received</th><th>Reference</th><th>Student</th><th>Amount</th><th>Match</th><th>Status</th><th>Posted</th></tr></thead><tbody>{inbox.map((item) => <tr key={item.id}><td>{item.received_at ? new Date(item.received_at).toLocaleString() : '—'}</td><td><strong>{item.external_reference}</strong><div className="muted-text">{item.source}</div></td><td>{item.student_identifier || 'Unmatched'}</td><td className="number-cell">KES {Number(item.amount).toLocaleString()}</td><td>{item.match_method ? `${item.match_method} (${Number(item.match_confidence || 0).toLocaleString()}%)` : 'Manual review'}</td><td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td><td>{item.posted_payment_id ? `Payment #${item.posted_payment_id}` : '—'}</td></tr>)}</tbody></table></div>}
+      <div className="finance-section-heading"><div><h3 className="section__title">Payment Inbox</h3><p className="muted-text">Recent external payments and their posting state. Nothing is removed when posting fails.</p></div><button className="button button--secondary button--sm" onClick={loadAudit} disabled={loadingInbox}>{loadingInbox ? 'Refreshing…' : 'Refresh'}</button></div>
+      {loadingInbox ? <LoadingBlock label="Loading payment audit history" rows={4} /> : !inbox.length ? <p className="muted-text">No payment inbox records yet.</p> : <div className="table-scroll"><table><thead><tr><th>Received</th><th>Reference</th><th>Student</th><th>Amount</th><th>Match</th><th>Status</th><th>Posted / Receipt</th></tr></thead><tbody>{inbox.map((item) => { const receipt = item.posted_payment_id ? receiptByPaymentId.get(item.posted_payment_id) : undefined; return <tr key={item.id}><td>{item.received_at ? new Date(item.received_at).toLocaleString() : '—'}</td><td><strong>{item.external_reference}</strong><div className="muted-text">{item.source}</div></td><td>{item.student_identifier || 'Unmatched'}</td><td className="number-cell">KES {Number(item.amount).toLocaleString()}</td><td>{item.match_method ? `${item.match_method} (${Number(item.match_confidence || 0).toLocaleString()}%)` : 'Manual review'}</td><td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td><td>{item.posted_payment_id ? <><div>Payment #{item.posted_payment_id}</div>{receipt ? <div className="muted-text">Receipt {receipt.receipt_number} · {receipt.status}</div> : <div className="muted-text">Receipt pending/not returned</div>}</> : '—'}</td></tr> })}</tbody></table></div>}
     </div>
   </section>
 }
