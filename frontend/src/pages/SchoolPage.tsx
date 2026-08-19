@@ -199,3 +199,5 @@ export function SchoolPage() {
     </>
   )
 }
+
+// Production deployment trigger: school profile actions are intentionally enabled above.
