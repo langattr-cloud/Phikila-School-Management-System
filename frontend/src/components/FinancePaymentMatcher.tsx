@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert } from './Alert'
 import { Badge, LoadingBlock } from './States'
-import { apiFetch } from '../lib/api'
+import { apiFetch, friendlyApiError } from '../lib/api'
 import { finance, type Invoice } from '../lib/finance'
 
 type Student = { id:number; admission_number:string; first_name:string; middle_name?:string; last_name:string; status:string }
@@ -45,7 +45,7 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
         setInvoices(all)
         setInvoiceId(all.length === 1 ? String(all[0].id) : '')
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to find the student.')
+        if (!cancelled) setError(friendlyApiError(err, 'find the student and open invoices'))
       } finally { if (!cancelled) setLoadingStudent(false) }
     }, 250)
     return () => { cancelled = true; window.clearTimeout(timer) }
@@ -57,22 +57,22 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
       const result = await finance.decodePayment(input) as Decoded
       setDecoded(result)
       if (result.student_identifier && result.student_identifier !== admission) setInput(`#${result.student_identifier}`)
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to decode the payment message.') }
+    } catch (err) { setError(friendlyApiError(err, 'interpret the payment message')) }
     finally { setBusy(false) }
   }
 
   async function postPayment() {
-    if (!student || !decoded?.amount || !decoded.external_reference) return
+    if (!student || !decoded?.amount || !decoded.external_reference || !invoiceId) return
     setBusy(true); setError(null); setMessage(null)
     try {
       const inbox = await apiFetch<{ id:number }>(`/api/v1/finance/payment-inbox`, {
         method:'POST',
         body: JSON.stringify({ source:'M-PESA', raw_message:input, student_identifier:student.admission_number, amount:decoded.amount, external_reference:decoded.external_reference, received_at:decoded.received_at, payment_channel:decoded.payment_channel || 'M-PESA → Bank', account_name:decoded.account_name }),
       })
-      await finance.postPaymentInbox(inbox.id, { invoice_id: invoiceId ? Number(invoiceId) : undefined, reason:'Posted from M-PESA payment matcher' })
+      await finance.postPaymentInbox(inbox.id, { invoice_id: Number(invoiceId), reason:'Posted from M-PESA payment matcher' })
       setMessage(`KES ${Number(decoded.amount).toLocaleString()} posted to ${student.first_name} ${student.last_name} (${student.admission_number}).`)
       setInput(''); setDecoded(null); setStudent(null); setInvoices([]); setInvoiceId(''); onPosted?.()
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to post the payment.') }
+    } catch (err) { setError(friendlyApiError(err, 'post the payment')) }
     finally { setBusy(false) }
   }
 
@@ -88,7 +88,7 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
         <textarea className="input" rows={4} value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ksh 24000.00 sent to KCB account CHEPSEON COMPLEX PRIMARY SCHOOL 8112631#3448..." />
       </div>
       <div className="finance-form__actions">
-        <button className="button button--secondary" disabled={!input.trim() || busy} onClick={decode}>Interpret message</button>
+        <button className="button button--secondary" disabled={!input.trim() || busy} onClick={decode}>{busy ? 'Processing…' : 'Interpret message'}</button>
       </div>
     </div>
 
@@ -102,7 +102,7 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
           <option value="">Select invoice</option>{invoices.map((inv) => <option key={inv.id} value={inv.id}>Invoice #{inv.id} — balance KES {Number(inv.balance).toLocaleString()}</option>)}
         </select></div>
       </div>
-      <div className="finance-form__actions" style={{ marginTop: 12 }}><button className="button button--primary" disabled={!decoded?.amount || !decoded.external_reference || !student || !invoiceId || busy} onClick={postPayment}>Post fee payment</button></div>
+      <div className="finance-form__actions" style={{ marginTop: 12 }}><button className="button button--primary" disabled={!decoded?.amount || !decoded.external_reference || !student || !invoiceId || busy} onClick={postPayment}>{busy ? 'Posting…' : 'Post fee payment'}</button></div>
       {!invoices.length && <p className="muted-text">No open invoice was found for this student. Create the fee invoice first.</p>}
     </div>}
   </section>
