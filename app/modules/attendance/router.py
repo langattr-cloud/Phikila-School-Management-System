@@ -1,55 +1,35 @@
 """Attendance management API — school-scoped and academic-context aware."""
 
 from __future__ import annotations
-
 from datetime import date
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-
 from app.core.database import get_db
 from app.modules.scheduling.tenancy import Principal, require_role
-
+from app.modules.students.models_v2 import Student
 from . import models as m
 from . import schemas as s
 
 router = APIRouter()
 
-
 def _audit(db, principal, action, entity, entity_id, summary):
     from app.modules.scheduling.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=principal.school_id, actor=principal.email or principal.user_id, action=action, entity=entity, entity_id=entity_id, summary=summary))
 
-
 @router.post("/attendance/sessions", response_model=s.AttendanceSessionResponse, status_code=201)
 def open_attendance_session(payload: s.AttendanceSessionCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler", "teacher"))):
-    """Open an attendance register for a Stream on a date. Legacy class_id remains supported."""
     if payload.stream_id:
         existing = db.query(m.AttendanceSession).filter(m.AttendanceSession.school_id == principal.school_id, m.AttendanceSession.stream_id == payload.stream_id, m.AttendanceSession.date == payload.date).first()
     else:
         existing = db.query(m.AttendanceSession).filter(m.AttendanceSession.school_id == principal.school_id, m.AttendanceSession.class_id == payload.class_id, m.AttendanceSession.date == payload.date).first()
-    if existing:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Attendance session already exists for this stream/date.")
-
+    if existing: raise HTTPException(status.HTTP_409_CONFLICT, "Attendance session already exists for this stream/date.")
     session = m.AttendanceSession(school_id=principal.school_id, opened_by=principal.user_id, **payload.model_dump())
     db.add(session)
     _audit(db, principal, "create", "attendance_session", 0, f"Opened attendance for stream #{payload.stream_id} on {payload.date}" if payload.stream_id else f"Opened legacy attendance for class #{payload.class_id} on {payload.date}")
-    db.commit(); db.refresh(session)
-    return session
-
+    db.commit(); db.refresh(session); return session
 
 @router.get("/attendance/sessions", response_model=list[s.AttendanceSessionResponse])
-def list_attendance_sessions(
-    stream_id: int | None = Query(default=None),
-    grade_id: int | None = Query(default=None),
-    level_id: int | None = Query(default=None),
-    academic_year_id: int | None = Query(default=None),
-    class_id: int | None = Query(default=None),
-    date_from: date | None = Query(default=None),
-    date_to: date | None = Query(default=None),
-    db: Session = Depends(get_db),
-    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
-):
+def list_attendance_sessions(stream_id: int | None = Query(default=None), grade_id: int | None = Query(default=None), level_id: int | None = Query(default=None), academic_year_id: int | None = Query(default=None), class_id: int | None = Query(default=None), date_from: date | None = Query(default=None), date_to: date | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     query = db.query(m.AttendanceSession).filter(m.AttendanceSession.school_id == principal.school_id)
     if stream_id: query = query.filter(m.AttendanceSession.stream_id == stream_id)
     if grade_id: query = query.filter(m.AttendanceSession.grade_id == grade_id)
@@ -60,7 +40,6 @@ def list_attendance_sessions(
     if date_to: query = query.filter(m.AttendanceSession.date <= date_to)
     return query.order_by(m.AttendanceSession.date.desc()).limit(100).all()
 
-
 @router.post("/attendance/sessions/{session_id}/records", response_model=s.AttendanceRecordResponse, status_code=201)
 def mark_attendance(session_id: int, payload: s.AttendanceRecordCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler", "teacher"))):
     session = db.query(m.AttendanceSession).filter(m.AttendanceSession.id == session_id, m.AttendanceSession.school_id == principal.school_id).first()
@@ -68,11 +47,9 @@ def mark_attendance(session_id: int, payload: s.AttendanceRecordCreate, db: Sess
     if session.status == "closed": raise HTTPException(status.HTTP_409_CONFLICT, "This attendance session is closed.")
     existing = db.query(m.AttendanceRecord).filter(m.AttendanceRecord.session_id == session_id, m.AttendanceRecord.student_id == payload.student_id).first()
     if existing:
-        existing.status = payload.status; existing.reason = payload.reason; existing.marked_by = principal.user_id
-        db.commit(); db.refresh(existing); return existing
+        existing.status = payload.status; existing.reason = payload.reason; existing.marked_by = principal.user_id; db.commit(); db.refresh(existing); return existing
     record = m.AttendanceRecord(school_id=principal.school_id, session_id=session_id, marked_by=principal.user_id, **payload.model_dump())
     db.add(record); db.commit(); db.refresh(record); return record
-
 
 @router.post("/attendance/sessions/{session_id}/bulk", response_model=dict)
 def bulk_mark(session_id: int, payload: s.BulkMarkRequest, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler", "teacher"))):
@@ -86,10 +63,23 @@ def bulk_mark(session_id: int, payload: s.BulkMarkRequest, db: Session = Depends
         count += 1
     db.commit(); return {"marked": count, "status": payload.status}
 
-
 @router.patch("/attendance/records/{record_id}", response_model=s.AttendanceRecordResponse)
 def update_record(record_id: int, payload: s.AttendanceRecordUpdate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler", "teacher"))):
     record = db.query(m.AttendanceRecord).filter(m.AttendanceRecord.id == record_id, m.AttendanceRecord.school_id == principal.school_id).first()
     if not record: raise HTTPException(status.HTTP_404_NOT_FOUND, "Record not found.")
     for k, v in payload.model_dump(exclude_unset=True).items(): setattr(record, k, v)
     record.marked_by = principal.user_id; db.commit(); db.refresh(record); return record
+
+@router.get("/attendance/students/{student_id}/summary", response_model=s.AttendanceSummary)
+def student_attendance_summary(student_id: int, academic_year_id: int | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+    student = db.query(Student).filter(Student.id == student_id, Student.school_id == principal.school_id).first()
+    if not student: raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found.")
+    session_q = db.query(m.AttendanceSession).filter(m.AttendanceSession.school_id == principal.school_id)
+    if academic_year_id: session_q = session_q.filter(m.AttendanceSession.academic_year_id == academic_year_id)
+    session_ids = [x.id for x in session_q.all()]
+    if not session_ids:
+        return s.AttendanceSummary(student_id=student_id, student_name=f"{student.first_name} {student.last_name}", total_days=0, present=0, absent=0, late=0, excused=0, attendance_rate=0)
+    records = db.query(m.AttendanceRecord).filter(m.AttendanceRecord.student_id == student_id, m.AttendanceRecord.session_id.in_(session_ids)).all()
+    total = len(records); present = sum(1 for r in records if r.status == "present"); absent = sum(1 for r in records if r.status == "absent"); late = sum(1 for r in records if r.status == "late"); excused = sum(1 for r in records if r.status == "excused")
+    rate = (present + late) / total * 100 if total else 0
+    return s.AttendanceSummary(student_id=student_id, student_name=f"{student.first_name} {student.last_name}", total_days=total, present=present, absent=absent, late=late, excused=excused, attendance_rate=round(rate, 1))
