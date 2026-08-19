@@ -1,187 +1,50 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, EmptyState, LoadingBlock } from '../components/States'
-import { friendlyApiError } from '../lib/api'
+import { friendlyApiError, api, type AcademicYear, type Grade, type Level, type Stream } from '../lib/api'
 import { attendance, type AttendanceSession } from '../lib/attendance'
 import { students, type Student } from '../lib/students'
 
 export default function AttendancePage() {
-  const [sessions, setSessions] = useState<AttendanceSession[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null)
-  const [classStudents, setClassStudents] = useState<Student[]>([])
-  const [showNewSession, setShowNewSession] = useState(false)
+  const [sessions, setSessions] = useState<AttendanceSession[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null); const [classStudents, setClassStudents] = useState<Student[]>([]); const [showNewSession, setShowNewSession] = useState(false)
+  const [years, setYears] = useState<AcademicYear[]>([]); const [levels, setLevels] = useState<Level[]>([]); const [grades, setGrades] = useState<Grade[]>([]); const [streams, setStreams] = useState<Stream[]>([])
+  const [yearId, setYearId] = useState<number | ''>(''); const [levelId, setLevelId] = useState<number | ''>(''); const [gradeId, setGradeId] = useState<number | ''>(''); const [streamId, setStreamId] = useState<number | ''>('')
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await attendance.listSessions()
-      setSessions(result)
-    } catch (err) {
-      setError(friendlyApiError(err, 'load attendance'))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  useEffect(() => { Promise.all([api.academicYears(), api.levels()]).then(([ys, ls]) => { setYears(ys || []); setLevels((ls || []).filter(l => l.status !== false)); const current = (ys || []).find(y => y.is_current) || (ys || [])[0]; if (current) setYearId(current.id) }).catch(e => setError(friendlyApiError(e, 'load academic structure'))) }, [])
+  useEffect(() => { setGrades([]); setGradeId(''); setStreams([]); setStreamId(''); if (levelId !== '') api.grades(levelId).then(setGrades).catch(e => setError(friendlyApiError(e, 'load grades'))) }, [levelId])
+  useEffect(() => { setStreams([]); setStreamId(''); if (yearId !== '' && gradeId !== '') api.streams(yearId, gradeId).then(setStreams).catch(e => setError(friendlyApiError(e, 'load streams'))) }, [yearId, gradeId])
 
-  useEffect(() => { load() }, [load])
+  const load = useCallback(async () => { setLoading(true); setError(null); try { setSessions(await attendance.listSessions({ academic_year_id: yearId === '' ? undefined : yearId, level_id: levelId === '' ? undefined : levelId, grade_id: gradeId === '' ? undefined : gradeId, stream_id: streamId === '' ? undefined : streamId })) } catch (e) { setError(friendlyApiError(e, 'load attendance')) } finally { setLoading(false) } }, [yearId, levelId, gradeId, streamId])
+  useEffect(() => { void load() }, [load])
 
-  async function openSession(classId: number, date: string) {
-    try {
-      const session = await attendance.openSession(classId, date)
-      setSessions([session, ...sessions])
-      setShowNewSession(false)
-    } catch (err) {
-      setError(friendlyApiError(err, 'open attendance session'))
-    }
-  }
+  async function openSession(payload: { academic_year_id: number; level_id: number; grade_id: number; stream_id: number; date: string }) { try { const session = await attendance.openSession(payload); setSessions([session, ...sessions]); setShowNewSession(false) } catch (e) { setError(friendlyApiError(e, 'open attendance session')) } }
+  async function markStudent(studentId: number, status: string) { if (!selectedSession) return; try { await attendance.mark(selectedSession.id, studentId, status); const updated = await attendance.listSessions({ stream_id: selectedSession.stream_id || undefined }); const s = updated.find(x => x.id === selectedSession.id); if (s) setSelectedSession(s) } catch (e) { setError(friendlyApiError(e, 'mark attendance')) } }
+  async function bulkPresent() { if (!selectedSession || !classStudents.length) return; try { await attendance.bulkMark(selectedSession.id, classStudents.map(s => s.id), 'present'); await load(); setSelectedSession(null) } catch (e) { setError(friendlyApiError(e, 'bulk mark')) } }
 
-  async function markStudent(studentId: number, status: string) {
-    if (!selectedSession) return
-    try {
-      await attendance.mark(selectedSession.id, studentId, status)
-      // Reload session
-      const updated = await attendance.listSessions({ class_id: selectedSession.class_id })
-      const s = updated.find((x) => x.id === selectedSession.id)
-      if (s) setSelectedSession(s)
-    } catch (err) {
-      setError(friendlyApiError(err, 'mark attendance'))
-    }
-  }
+  const yearName = useMemo(() => years.find(y => y.id === yearId)?.name, [years, yearId]); const levelName = useMemo(() => levels.find(l => l.id === levelId)?.name, [levels, levelId]); const gradeName = useMemo(() => grades.find(g => g.id === gradeId)?.name, [grades, gradeId])
 
-  async function bulkPresent() {
-    if (!selectedSession || !classStudents.length) return
-    const ids = classStudents.map((s) => s.id)
-    try {
-      await attendance.bulkMark(selectedSession.id, ids, 'present')
-      load()
-      setSelectedSession(null)
-    } catch (err) {
-      setError(friendlyApiError(err, 'bulk mark'))
-    }
-  }
-
-  return (
-    <div>
-      <PageHeader
-        title="Attendance"
-        description="Track student attendance by class and date."
-        actions={
-          <button className="button button--primary button--sm" onClick={() => setShowNewSession(!showNewSession)}>
-            {showNewSession ? '✕ Close' : '+ Open Register'}
-          </button>
-        }
-      />
-
-      {error && <Alert tone="error">{error}</Alert>}
-
-      {showNewSession && (
-        <NewSessionForm onSubmit={openSession} onCancel={() => setShowNewSession(false)} />
-      )}
-
-      {selectedSession && (
-        <MarkingPanel
-          session={selectedSession}
-          students={classStudents}
-          onMark={markStudent}
-          onBulkPresent={bulkPresent}
-          onClose={() => setSelectedSession(null)}
-        />
-      )}
-
-      {loading ? (
-        <LoadingBlock label="Loading attendance" rows={4} />
-      ) : !sessions.length ? (
-        <EmptyState title="No attendance sessions" description="Open a register for a class to start tracking attendance." />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {sessions.map((s) => (
-            <div key={s.id} className="card" style={{ padding: 'var(--space-3)', cursor: 'pointer' }}
-              onClick={async () => {
-                setSelectedSession(s)
-                try {
-                  const result = await students.list({ class_id: s.class_id, page_size: 100 })
-                  setClassStudents(result.items)
-                } catch { /* ignore */ }
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <strong>Class #{s.class_id}</strong> — {s.date}
-                  <span style={{ color: 'var(--color-ink-muted)', fontSize: '0.85rem', marginLeft: 'var(--space-2)' }}>
-                    {s.records?.length || 0} records
-                  </span>
-                </div>
-                <Badge tone={s.status === 'open' ? 'success' : 'warning'}>{s.status}</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+  return <div><PageHeader title="Attendance" description="Track attendance by Academic Year → Level → Grade → Stream." actions={<button className="button button--primary button--sm" onClick={() => setShowNewSession(!showNewSession)}>{showNewSession ? 'Close' : '+ Open Register'}</button>} />
+    {error && <Alert tone="error">{error}</Alert>}
+    <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Academic context</h2><div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+      <select className="input" value={yearId} onChange={e => { setYearId(e.target.value ? Number(e.target.value) : ''); setLevelId(''); setPageReset() }}><option value="">All academic years</option>{years.map(y => <option key={y.id} value={y.id}>{y.name}{y.is_current ? ' (Current)' : ''}</option>)}</select>
+      <select className="input" value={levelId} onChange={e => { setLevelId(e.target.value ? Number(e.target.value) : ''); setPageReset() }}><option value="">All levels</option>{levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
+      <select className="input" value={gradeId} disabled={levelId === ''} onChange={e => { setGradeId(e.target.value ? Number(e.target.value) : ''); setPageReset() }}><option value="">All grades</option>{grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+      <select className="input" value={streamId} disabled={gradeId === ''} onChange={e => setStreamId(e.target.value ? Number(e.target.value) : '')}><option value="">All streams</option>{streams.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+    </div></section>
+    {showNewSession && <NewSessionForm years={years} levels={levels} grades={grades} streams={streams} selectedYearId={yearId} selectedLevelId={levelId} selectedGradeId={gradeId} selectedStreamId={streamId} onSubmit={openSession} onCancel={() => setShowNewSession(false)} />}
+    {selectedSession && <MarkingPanel session={selectedSession} students={classStudents} onMark={markStudent} onBulkPresent={bulkPresent} onClose={() => setSelectedSession(null)} />}
+    {loading ? <LoadingBlock label="Loading attendance" rows={4} /> : !sessions.length ? <EmptyState title="No attendance sessions" description={yearName || levelName || gradeName ? 'No registers exist for the selected academic context.' : 'Select an academic context and open a register.'} /> : <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>{sessions.map(s => <div key={s.id} className="card" style={{ padding: 'var(--space-3)', cursor: 'pointer' }} onClick={async () => { setSelectedSession(s); try { const result = await students.list({ stream_id: s.stream_id || undefined, academic_year_id: s.academic_year_id || undefined, page_size: 100 }); setClassStudents(result.items) } catch { /* ignore */ } }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><strong>{yearName || s.academic_year_id ? `${yearName || `Year ${s.academic_year_id}`} → ${levelName || `Level ${s.level_id}`} → ${gradeName || `Grade ${s.grade_id}`} → Stream ${s.stream_id || '—'}` : 'Academic register'}</strong> — {s.date}<span style={{ color: 'var(--color-ink-muted)', fontSize: '0.85rem', marginLeft: 'var(--space-2)' }}>{s.records?.length || 0} records</span></div><Badge tone={s.status === 'open' ? 'success' : 'warning'}>{s.status}</Badge></div></div>)}</div>}
+  </div>
 }
 
-function NewSessionForm({ onSubmit, onCancel }: { onSubmit: (classId: number, date: string) => void; onCancel: () => void }) {
-  const [classId, setClassId] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  return (
-    <div className="card section" style={{ marginBottom: 'var(--space-4)' }}>
-      <h2 className="section__title">Open Attendance Register</h2>
-      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="field">
-          <label className="field__label">Class ID</label>
-          <input className="input" type="number" value={classId} onChange={(e) => setClassId(e.target.value)} placeholder="e.g. 1" />
-        </div>
-        <div className="field">
-          <label className="field__label">Date</label>
-          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        <button className="button button--primary" disabled={!classId || !date} onClick={() => onSubmit(Number(classId), date)}>Open</button>
-        <button className="button button--secondary" onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
-  )
+function setPageReset() { /* filter state is local to this page; changing a parent selector resets child selectors above */ }
+
+function NewSessionForm({ years, levels, grades, streams, selectedYearId, selectedLevelId, selectedGradeId, selectedStreamId, onSubmit, onCancel }: { years: AcademicYear[]; levels: Level[]; grades: Grade[]; streams: Stream[]; selectedYearId: number | ''; selectedLevelId: number | ''; selectedGradeId: number | ''; selectedStreamId: number | ''; onSubmit: (p: { academic_year_id: number; level_id: number; grade_id: number; stream_id: number; date: string }) => void; onCancel: () => void }) {
+  const [year, setYear] = useState<number | ''>(selectedYearId); const [level, setLevel] = useState<number | ''>(selectedLevelId); const [grade, setGrade] = useState<number | ''>(selectedGradeId); const [stream, setStream] = useState<number | ''>(selectedStreamId); const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  return <div className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Open Attendance Register</h2><div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end' }}><div className="field"><label className="field__label">Academic Year</label><select className="input" value={year} onChange={e => setYear(Number(e.target.value))}>{years.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}</select></div><div className="field"><label className="field__label">Level</label><select className="input" value={level} onChange={e => { setLevel(Number(e.target.value)); setGrade(''); setStream('') }}>{levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div><div className="field"><label className="field__label">Grade</label><select className="input" value={grade} onChange={e => { setGrade(Number(e.target.value)); setStream('') }} disabled={!level}>{grades.filter(g => g.level_id === level).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></div><div className="field"><label className="field__label">Stream</label><select className="input" value={stream} onChange={e => setStream(Number(e.target.value))} disabled={!grade}>{streams.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div><div className="field"><label className="field__label">Date</label><input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} /></div><button className="button button--primary" disabled={!year || !level || !grade || !stream || !date} onClick={() => onSubmit({ academic_year_id: Number(year), level_id: Number(level), grade_id: Number(grade), stream_id: Number(stream), date })}>Open</button><button className="button button--secondary" onClick={onCancel}>Cancel</button></div></div>
 }
 
-function MarkingPanel({ session, students: studs, onMark, onBulkPresent, onClose }: {
-  session: AttendanceSession; students: Student[];
-  onMark: (studentId: number, status: string) => void; onBulkPresent: () => void; onClose: () => void
-}) {
-  return (
-    <div className="card section" style={{ marginBottom: 'var(--space-4)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-        <h2 className="section__title" style={{ marginBottom: 0 }}>Mark Attendance — {session.date}</h2>
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <button className="button button--primary button--sm" onClick={onBulkPresent}>✓ All Present</button>
-          <button className="button button--ghost button--sm" onClick={onClose}>✕</button>
-        </div>
-      </div>
-      {studs.length === 0 ? (
-        <p style={{ color: 'var(--color-ink-muted)' }}>No students in this class.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-          {studs.map((s: Student) => {
-            const record = session.records?.find((r) => r.student_id === s.id)
-            return (
-              <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2)', border: '1px solid var(--color-line)', borderRadius: 'var(--radius-md)' }}>
-                <span>{s.first_name} {s.last_name} <span style={{ color: 'var(--color-ink-muted)', fontSize: '0.8rem' }}>({s.admission_number})</span></span>
-                <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
-                  {['present', 'absent', 'late', 'excused'].map((st) => (
-                    <button key={st} className={`button button--sm ${record?.status === st ? 'button--primary' : 'button--ghost'}`}
-                      onClick={() => onMark(s.id, st)}>
-                      {st.charAt(0).toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
+function MarkingPanel({ session, students: studs, onMark, onBulkPresent, onClose }: { session: AttendanceSession; students: Student[]; onMark: (studentId: number, status: string) => void; onBulkPresent: () => void; onClose: () => void }) {
+  return <div className="card section" style={{ marginBottom: 'var(--space-4)' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}><h2 className="section__title" style={{ marginBottom: 0 }}>Mark Attendance — {session.date}</h2><div style={{ display: 'flex', gap: 'var(--space-2)' }}><button className="button button--primary button--sm" onClick={onBulkPresent}>All Present</button><button className="button button--ghost button--sm" onClick={onClose}>Close</button></div></div>{studs.length === 0 ? <p style={{ color: 'var(--color-ink-muted)' }}>No students in this stream.</p> : <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>{studs.map(s => { const record = session.records?.find(r => r.student_id === s.id); return <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2)', border: '1px solid var(--color-line)', borderRadius: 'var(--radius-md)' }}><span>{s.first_name} {s.last_name} <span style={{ color: 'var(--color-ink-muted)', fontSize: '0.8rem' }}>({s.admission_number})</span></span><div style={{ display: 'flex', gap: 'var(--space-1)' }}>{['present', 'absent', 'late', 'excused'].map(st => <button key={st} className={`button button--sm ${record?.status === st ? 'button--primary' : 'button--ghost'}`} onClick={() => onMark(s.id, st)}>{st.charAt(0).toUpperCase()}</button>)}</div></div> })}</div>}</div>
 }
