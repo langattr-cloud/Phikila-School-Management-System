@@ -66,10 +66,42 @@ export default function FinancePage() {
 
       {activeTab === 'payments' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Payments</h2><button className="button button--primary button--sm" onClick={() => setShowNewPayment(!showNewPayment)}>+ Record Payment</button></div>
         {showNewPayment && <NewPaymentForm onCreated={() => { setShowNewPayment(false); load() }} onCancel={() => setShowNewPayment(false)} />}
-        {!payments.length ? <EmptyState title="No payments" description="Record payments against invoices." /> : <div className="table-scroll"><table><thead><tr><th>Date</th><th>Student</th><th>Method</th><th>Amount</th><th>Reference</th></tr></thead><tbody>{payments.map((p) => <tr key={p.id}><td>{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td><td>Student #{p.student_id}</td><td>{p.payment_method || '—'}</td><td className="number-cell"><strong>KES {Number(p.amount).toLocaleString()}</strong></td><td>{p.reference_number || '—'}</td></tr>)}</tbody></table></div>}
+        <PaymentHistory payments={payments} onChanged={load} />
       </section>}
     </>}
   </div>
+}
+
+function PaymentHistory({ payments, onChanged }: { payments: Payment[]; onChanged: () => Promise<void> }) {
+  const [reversingId, setReversingId] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const reverse = async (payment: Payment) => {
+    const confirmed = window.confirm(`Reverse payment #${payment.id} for KES ${Number(payment.amount).toLocaleString()}? This will create a reversal journal and restore the invoice balance.`)
+    if (!confirmed) return
+    const reason = window.prompt('Reason for reversal (required):', payment.reversal_reason || '')?.trim() || ''
+    if (!reason) return
+    setReversingId(payment.id)
+    setError(null)
+    try {
+      await finance.reversePayment(payment.id, reason)
+      await onChanged()
+    } catch (err) {
+      setError(friendlyApiError(err, 'reverse the payment'))
+    } finally {
+      setReversingId(null)
+    }
+  }
+
+  if (!payments.length) return <EmptyState title="No payments" description="Record payments against invoices." />
+
+  return <>
+    {error && <Alert tone="error">{error}</Alert>}
+    <div className="table-scroll"><table><thead><tr><th>Date</th><th>Student</th><th>Method</th><th>Amount</th><th>Reference</th><th>Status</th><th>Reversal</th><th>Action</th></tr></thead><tbody>{payments.map((p) => {
+      const reversed = p.status === 'REVERSED' || Boolean(p.reversed_at)
+      return <tr key={p.id}><td>{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td><td>Student #{p.student_id}</td><td>{p.payment_method || '—'}</td><td className="number-cell"><strong>KES {Number(p.amount).toLocaleString()}</strong></td><td>{p.reference_number || '—'}</td><td><Badge tone={reversed ? 'danger' : p.status === 'POSTED' ? 'success' : 'warning'}>{p.status}</Badge></td><td>{p.reversed_at ? <span title={p.reversal_reason || undefined}>{new Date(p.reversed_at).toLocaleDateString()}{p.reversal_reason ? ` — ${p.reversal_reason}` : ''}</span> : '—'}</td><td>{reversed ? <span className="muted-text">Reversed</span> : <button className="button button--secondary button--sm" onClick={() => reverse(p)} disabled={reversingId !== null}>{reversingId === p.id ? 'Reversing…' : 'Reverse'}</button>}</td></tr>
+    })}</tbody></table></div>
+  </>
 }
 
 function TrialBalanceView() {
