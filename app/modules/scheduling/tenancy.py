@@ -92,24 +92,10 @@ def resolve_principal(
     )
 
     if membership is None:
-        # First authenticated user of a fresh deployment bootstraps the school.
-        # Everyone after that must be invited by an administrator, so a public
-        # sign-up can never silently escalate to admin.
-        has_any = db.query(TtMembership.id).first() is not None
-        if has_any:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "Your account is not linked to a school yet. Ask an administrator for access.",
-            )
-        school = TtSchool(name="My School", slug="my-school")
-        db.add(school)
-        db.flush()
-        membership = TtMembership(
-            user_id=user_id, school_id=school.id, role="admin", email=email
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Your account is not linked to a school yet. Ask an administrator for access.",
         )
-        db.add(membership)
-        db.commit()
-        db.refresh(membership)
 
     return Principal(
         user_id=user_id,
