@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
+from app.core.rate_limit import rate_limit_platform_mutation, rate_limit_scheduling_mutation
 from app.modules.academics.router import router as academics_router
 from app.modules.attendance.router import router as attendance_router
 from app.modules.authentication.router import router as auth_router
@@ -78,7 +79,12 @@ def create_app() -> FastAPI:
         if not (getattr(route, "path", None) == "/calendar" and "PUT" in getattr(route, "methods", set()))
     ]
     app.include_router(calendar_router, prefix="/api/v1/scheduling", tags=["Scheduling"])
-    app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"])
+    app.include_router(
+        scheduling_router,
+        prefix="/api/v1/scheduling",
+        tags=["Scheduling"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
     app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"])
     app.include_router(timetable_profile_router, prefix="/api/v1/scheduling", tags=["Timetable Profiles"])
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
@@ -90,8 +96,18 @@ def create_app() -> FastAPI:
     app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
     app.include_router(finance_reports_router, prefix="/api/v1", tags=["Finance Reports"])
     app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["Document OCR"])
-    app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
-    app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
+    app.include_router(
+        access_approval_router,
+        prefix="/api/v1/platform",
+        tags=["Platform Access Approval"],
+        dependencies=[Depends(rate_limit_platform_mutation)],
+    )
+    app.include_router(
+        platform_router,
+        prefix="/api/v1/platform",
+        tags=["Platform"],
+        dependencies=[Depends(rate_limit_platform_mutation)],
+    )
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
     app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
