@@ -78,7 +78,7 @@ def _enforce(policy: RateLimitPolicy, identifier: str) -> None:
         )
 
     if not result.allowed:
-        retry_after = max(1, int((result.reset - 1000 * time.time()) / 1000))
+        retry_after = max(1, int(result.reset - time.time()))
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             "Too many requests. Please try again later.",
