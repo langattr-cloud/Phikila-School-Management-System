@@ -33,8 +33,9 @@ def create_app() -> FastAPI:
         title="Phikila School System API",
         description="Backend API for Phikila School System - Phased Modular Architecture",
         version="1.0.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url="/docs" if not settings.is_production else None,
+        redoc_url="/redoc" if not settings.is_production else None,
+        openapi_url="/openapi.json" if not settings.is_production else None,
     )
     if settings.cors_origins or settings.cors_origin_regex:
         app.add_middleware(
