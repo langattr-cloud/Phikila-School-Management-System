@@ -10,7 +10,8 @@
  *  - Everything else (writes, solver jobs): never cached.
  */
 
-const VERSION = 'v1'
+// Bump this whenever the API/client contract changes so browsers discard stale shell/assets.
+const VERSION = 'v2'
 const SHELL_CACHE = `phikila-shell-${VERSION}`
 const ASSET_CACHE = `phikila-assets-${VERSION}`
 const DATA_CACHE = `phikila-data-${VERSION}`

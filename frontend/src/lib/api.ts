@@ -1,7 +1,11 @@
 import { getLocalSession } from './localAuth'
 import { supabase } from './supabase'
 
-const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+// The Vercel deployment serves the frontend and FastAPI backend from the same origin.
+// A separately deployed backend may still be supplied explicitly through VITE_API_URL.
+const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '')
+const sameOriginApiUrl = typeof window !== 'undefined' ? window.location.origin : ''
+const apiUrl = configuredApiUrl || sameOriginApiUrl
 
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number, public readonly detail?: unknown) { super(message) }
@@ -9,6 +13,7 @@ export class ApiError extends Error {
 
 export function friendlyApiError(error: unknown, action: string): string {
   if (error instanceof ApiError) {
+    if (error.status === 0) return `We could not ${action} because the API could not be reached. Please refresh and try again.`
     if (error.status === 401) return 'Your sign-in could not be verified. Please sign in again.'
     if (error.status === 403) return `You do not have permission to ${action}.`
     if (error.status === 404) return 'That information has not been set up yet.'
@@ -32,6 +37,23 @@ async function refreshSessionToken(): Promise<string | null> {
   return !error && data.session?.access_token ? data.session.access_token : currentAccessToken()
 }
 
+function requestUrl(baseUrl: string, path: string): string {
+  if (/^https?:\/\//i.test(path)) return path
+  return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+async function fetchWithFallback(url: string, fallbackUrl: string | null, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init)
+  } catch (error) {
+    // If a stale VITE_API_URL was configured, recover automatically by retrying
+    // against the same-origin FastAPI deployment. This prevents every module from
+    // failing with a browser-level NetworkError after a backend URL changes.
+    if (fallbackUrl && fallbackUrl !== url) return fetch(fallbackUrl, init)
+    throw error
+  }
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
   const baseHeaders = new Headers(init.headers)
   baseHeaders.set('Accept', 'application/json')
@@ -40,7 +62,20 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, authenti
   const request = async (token: string | null) => {
     const headers = new Headers(baseHeaders)
     if (authenticated && token) headers.set('Authorization', `Bearer ${token}`)
-    const response = await fetch(`${apiUrl}${path}`, { ...init, headers })
+
+    const primaryUrl = requestUrl(apiUrl, path)
+    const fallbackUrl = configuredApiUrl && sameOriginApiUrl
+      ? requestUrl(sameOriginApiUrl, path)
+      : null
+
+    let response: Response
+    try {
+      response = await fetchWithFallback(primaryUrl, fallbackUrl, { ...init, headers })
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Network request failed'
+      throw new ApiError(`API could not be reached: ${detail}`, 0)
+    }
+
     if (!response.ok) {
       const payload = await response.json().catch(() => null)
       const raw = payload?.detail
