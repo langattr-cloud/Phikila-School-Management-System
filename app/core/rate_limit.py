@@ -30,6 +30,7 @@ AUTH_LOGIN = RateLimitPolicy("auth-login", 10, 60)
 TIMETABLE_SOLVER = RateLimitPolicy("timetable-solver", 5, 60)
 SCHEDULING_MUTATION = RateLimitPolicy("scheduling-mutation", 60, 60)
 PLATFORM_MUTATION = RateLimitPolicy("platform-mutation", 30, 60)
+OCR_PROCESSING = RateLimitPolicy("ocr-processing", 20, 60)
 API_MUTATION = RateLimitPolicy("api-mutation", 120, 60)
 
 
@@ -126,6 +127,19 @@ def rate_limit_platform_mutation(
             f"tenant:{school_scope}:user:{identity.user_id}",
         )
     return identity
+
+
+def rate_limit_ocr(
+    request: Request,
+    principal: Principal = Depends(resolve_principal),
+) -> Principal:
+    """Limit expensive OCR processing per authenticated tenant and user."""
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        _enforce(
+            OCR_PROCESSING,
+            f"school:{principal.school_id}:user:{principal.user_id}",
+        )
+    return principal
 
 
 def rate_limit_api_mutation(
