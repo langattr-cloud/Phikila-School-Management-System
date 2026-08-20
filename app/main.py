@@ -131,6 +131,7 @@ def create_app() -> FastAPI:
     )
     _rate_limit_mutations(access_approval_router)
     _rate_limit_mutations(platform_router)
+    _rate_limit_mutations(llm_router)
     app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
     app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
