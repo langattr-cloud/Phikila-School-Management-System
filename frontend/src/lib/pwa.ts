@@ -10,9 +10,23 @@ export function registerServiceWorker(): void {
   if (!window.isSecureContext) return
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // A failed registration must never break the app; it just means no
-      // offline support on this device.
+    let reloading = false
+
+    // If an older worker was controlling the page, activating the new worker
+    // must also refresh the document. Otherwise the old HTML can keep
+    // referencing a hashed JS bundle that no longer exists after a deploy.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloading) return
+      reloading = true
+      window.location.reload()
     })
+
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => registration.update())
+      .catch(() => {
+        // A failed registration must never break the app; it just means no
+        // offline support on this device.
+      })
   })
 }
