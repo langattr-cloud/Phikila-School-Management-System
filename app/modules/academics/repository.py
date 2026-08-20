@@ -9,6 +9,9 @@ class AcademicYearRepository:
     def create(self, school_id: int, data: schemas.AcademicYearCreate):
         if data.is_current: self.db.query(models.AcademicYear).filter(models.AcademicYear.school_id == school_id).update({models.AcademicYear.is_current: False})
         db_year = models.AcademicYear(**data.model_dump(), school_id=school_id); self.db.add(db_year); self.db.commit(); self.db.refresh(db_year); return db_year
+    def update(self, year: models.AcademicYear, data: schemas.AcademicYearUpdate):
+        for key, value in data.model_dump(exclude_unset=True).items(): setattr(year, key, value.strip() if isinstance(value, str) else value)
+        self.db.commit(); self.db.refresh(year); return year
 
 
 class TermRepository:
@@ -26,6 +29,9 @@ class LevelRepository:
     def get_level_by_code(self, school_id: int, code: str): return self.db.query(models.Level).filter(models.Level.school_id == school_id, models.Level.code == code).first()
     def create_level(self, school_id: int, data: schemas.LevelCreate):
         db_level = models.Level(name=data.name.strip(), code=data.code.strip(), display_order=data.display_order, status=data.status, school_id=school_id); self.db.add(db_level); self.db.commit(); self.db.refresh(db_level); return db_level
+    def update_level(self, level: models.Level, data: schemas.LevelUpdate):
+        for key, value in data.model_dump(exclude_unset=True).items(): setattr(level, key, value.strip() if isinstance(value, str) else value)
+        self.db.commit(); self.db.refresh(level); return level
 
 
 class GradeRepository:
@@ -38,6 +44,9 @@ class GradeRepository:
     def get_by_code(self, school_id: int, level_id: int, code: str): return self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.level_id == level_id, models.Grade.code == code).first()
     def create(self, school_id: int, data: schemas.GradeCreate):
         db_grade = models.Grade(**data.model_dump(), school_id=school_id); self.db.add(db_grade); self.db.commit(); self.db.refresh(db_grade); return db_grade
+    def update(self, grade: models.Grade, data: schemas.GradeUpdate):
+        for key, value in data.model_dump(exclude_unset=True).items(): setattr(grade, key, value.strip() if isinstance(value, str) else value)
+        self.db.commit(); self.db.refresh(grade); return grade
 
 
 class StreamRepository:
