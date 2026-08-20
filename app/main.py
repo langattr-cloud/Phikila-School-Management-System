@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.requests import Request
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.core.rate_limit import rate_limit_ocr, rate_limit_platform_mutation, rate_limit_scheduling_mutation
@@ -27,6 +28,22 @@ from app.modules.scheduling.router import router as scheduling_router
 from app.modules.school.router import router as school_router
 from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serve index.html for browser history routes while preserving asset 404s."""
+
+    async def get_response(self, path: str, scope: dict):
+        response = await super().get_response(path, scope)
+        if response.status_code != 404:
+            return response
+
+        request = Request(scope)
+        accept = request.headers.get("accept", "")
+        if "text/html" not in accept:
+            return response
+
+        return await super().get_response("index.html", scope)
 
 
 def _rate_limit_mutations(router) -> None:
@@ -140,7 +157,7 @@ def create_app() -> FastAPI:
 
     frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
     if frontend_dist.is_dir():
-        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+        app.mount("/", SPAStaticFiles(directory=frontend_dist, html=True), name="frontend")
 
     return app
 
