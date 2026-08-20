@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from dataclasses import dataclass
 from ipaddress import ip_address
 
@@ -43,8 +44,8 @@ def _limiter(policy: RateLimitPolicy) -> Ratelimit | None:
 
 
 def _client_ip(request: Request) -> str:
-    # Render terminates TLS/proxy traffic. Trust only the final address supplied
-    # by the ASGI server; do not use a client-controlled X-Forwarded-For header.
+    # Render terminates TLS/proxy traffic. Trust only the address supplied by
+    # the ASGI server; do not use a client-controlled X-Forwarded-For header.
     host = request.client.host if request.client else "unknown"
     try:
         return str(ip_address(host))
@@ -77,7 +78,7 @@ def _enforce(policy: RateLimitPolicy, identifier: str) -> None:
         )
 
     if not result.allowed:
-        retry_after = max(1, int((result.reset - 1000 * __import__("time").time()) / 1000))
+        retry_after = max(1, int((result.reset - 1000 * time.time()) / 1000))
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             "Too many requests. Please try again later.",
@@ -90,23 +91,21 @@ def rate_limit_auth(request: Request) -> None:
     _enforce(AUTH_LOGIN, f"ip:{_client_ip(request)}")
 
 
-def rate_limit_solver(principal: Principal = Depends(resolve_principal)) -> Principal:
-    """Limit expensive timetable generation per authenticated school and user."""
-    _enforce(
-        TIMETABLE_SOLVER,
-        f"school:{principal.school_id}:user:{principal.user_id}",
-    )
-    return principal
-
-
 def rate_limit_scheduling_mutation(
+    request: Request,
     principal: Principal = Depends(resolve_principal),
 ) -> Principal:
-    """Limit timetable mutations using the server-derived tenant identity."""
-    _enforce(
-        SCHEDULING_MUTATION,
-        f"school:{principal.school_id}:user:{principal.user_id}",
-    )
+    """Limit scheduling writes by the server-derived tenant and user."""
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        policy = (
+            TIMETABLE_SOLVER
+            if request.url.path.endswith("/solver/generate")
+            else SCHEDULING_MUTATION
+        )
+        _enforce(
+            policy,
+            f"school:{principal.school_id}:user:{principal.user_id}",
+        )
     return principal
 
 
