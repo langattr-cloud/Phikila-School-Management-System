@@ -3,9 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.authentication.security import get_password_hash
+from app.modules.scheduling.tenancy import require_role
 from . import models, schemas
 
-router = APIRouter(tags=["Users"])
+router = APIRouter(
+  tags=["Users"],
+  dependencies=[Depends(require_role("admin"))],
+)
 
 
 @router.post(
