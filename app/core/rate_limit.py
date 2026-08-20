@@ -12,7 +12,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from upstash_ratelimit import FixedWindow, Ratelimit
 
-from app.core.redis import get_redis
+from app.core.redis import RedisConfigurationError, get_redis
 from app.modules.platform.authz import Identity, resolve_identity
 from app.modules.scheduling.tenancy import Principal, resolve_principal
 
@@ -56,7 +56,8 @@ def _client_ip(request: Request) -> str:
 
 
 def _fail_open() -> bool:
-    return os.getenv("REDIS_RATE_LIMIT_FAIL_OPEN", "true").strip().lower() in {
+    # Production should fail closed unless explicitly configured otherwise.
+    return os.getenv("REDIS_RATE_LIMIT_FAIL_OPEN", "false").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -64,20 +65,37 @@ def _fail_open() -> bool:
     }
 
 
-def _enforce(policy: RateLimitPolicy, identifier: str) -> None:
-    limiter = _limiter(policy)
-    if limiter is None:
+def _redis_unavailable(policy: RateLimitPolicy, reason: str) -> None:
+    logger.error("Redis rate limiter unavailable for policy %s: %s", policy.name, reason)
+    if _fail_open():
         return
+    raise HTTPException(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "Rate limiting service is temporarily unavailable.",
+    )
+
+
+def _enforce(policy: RateLimitPolicy, identifier: str) -> None:
+    try:
+        limiter = _limiter(policy)
+    except RedisConfigurationError as exc:
+        _redis_unavailable(policy, "invalid backend Redis configuration")
+        return
+    except Exception:
+        logger.exception("Failed to initialize Upstash rate limiter for policy %s", policy.name)
+        _redis_unavailable(policy, "client initialization failed")
+        return
+
+    if limiter is None:
+        _redis_unavailable(policy, "Redis credentials are not configured")
+        return
+
     try:
         result = limiter.limit(identifier)
     except Exception:
-        logger.exception("Upstash rate limiter unavailable for policy %s", policy.name)
-        if _fail_open():
-            return
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Rate limiting service is temporarily unavailable.",
-        )
+        logger.exception("Upstash rate limiter request failed for policy %s", policy.name)
+        _redis_unavailable(policy, "Redis request failed")
+        return
 
     if not result.allowed:
         retry_after = max(1, int(result.reset - time.time()))
