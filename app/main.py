@@ -91,15 +91,30 @@ def create_app() -> FastAPI:
         route for route in scheduling_router.routes
         if not (getattr(route, "path", None) == "/calendar" and "PUT" in getattr(route, "methods", set()))
     ]
-    app.include_router(calendar_router, prefix="/api/v1/scheduling", tags=["Scheduling"])
+    app.include_router(
+        calendar_router,
+        prefix="/api/v1/scheduling",
+        tags=["Scheduling"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
     app.include_router(
         scheduling_router,
         prefix="/api/v1/scheduling",
         tags=["Scheduling"],
         dependencies=[Depends(rate_limit_scheduling_mutation)],
     )
-    app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"])
-    app.include_router(timetable_profile_router, prefix="/api/v1/scheduling", tags=["Timetable Profiles"])
+    app.include_router(
+        timetable_events_router,
+        prefix="/api/v1/scheduling",
+        tags=["Scheduling Events"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
+    app.include_router(
+        timetable_profile_router,
+        prefix="/api/v1/scheduling",
+        tags=["Timetable Profiles"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
     app.include_router(attendance_router, prefix="/api/v1", tags=["Attendance"])
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
