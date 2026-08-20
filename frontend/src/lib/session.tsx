@@ -18,6 +18,7 @@ type SessionState = {
 }
 
 const SessionContext = createContext<SessionState | null>(null)
+const ACCESS_CHECK_TIMEOUT_MS = 8000
 
 /**
  * Loads the caller's platform authority from the backend.
@@ -35,25 +36,36 @@ export function PlatformSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authSession) {
       setSession(null)
+      setError(null)
       setLoading(false)
       return
     }
+
     let active = true
     setLoading(true)
-    platform
-      .session()
+    setError(null)
+
+    const timeout = new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error('Access check timed out.')), ACCESS_CHECK_TIMEOUT_MS)
+    })
+
+    Promise.race([platform.session(), timeout])
       .then((data) => {
-        if (active) {
-          setSession(data)
-          setError(null)
-        }
+        if (active) setSession(data)
       })
       .catch(() => {
-        if (active) setError('We could not confirm your account access.')
+        // AccessGate deliberately fails open here. API endpoints still enforce
+        // authorization server-side, so a temporary access-check failure must
+        // never trap the entire application on a blank/loading screen.
+        if (active) {
+          setSession(null)
+          setError('We could not confirm your account access.')
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
       })
+
     return () => {
       active = false
     }
