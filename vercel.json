@@ -2,6 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "fastapi",
   "buildCommand": "npm --prefix frontend ci --include=dev && npm --prefix frontend run build && test -f frontend/dist/index.html",
+  "rewrites": [
+    {
+      "source": "/((?!api(?:/|$)|docs(?:/|$)|redoc(?:/|$)|openapi.json$|health$|ready$|assets(?:/|$)|brand(?:/|$)|favicon\\.(?:svg|ico)$|site\\.webmanifest$|sw\\.js$).*)",
+      "destination": "/"
+    }
+  ],
   "functions": {
     "api/index.py": {
       "maxDuration": 180
