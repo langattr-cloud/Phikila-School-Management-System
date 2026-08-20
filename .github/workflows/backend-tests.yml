@@ -25,4 +25,4 @@ jobs:
       - name: Install backend dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
       - name: Run complete backend unittest suite
-        run: python -m unittest discover -s app -p 'test*.py' -v
+        run: python -m unittest discover -s app -t . -p 'test*.py' -v

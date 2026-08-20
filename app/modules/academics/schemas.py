@@ -10,6 +10,12 @@ class AcademicYearCreate(BaseModel):
     end_date: date
     is_current: Optional[bool] = False
     status: Optional[str] = "ACTIVE"
+class AcademicYearUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=4, max_length=20)
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_current: Optional[bool] = None
+    status: Optional[str] = None
 class AcademicYearResponse(AcademicYearCreate):
     id: int; school_id: int; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
@@ -26,6 +32,11 @@ class LevelBase(BaseModel):
     display_order: int = Field(ge=1)
     status: Optional[bool] = True
 class LevelCreate(LevelBase): pass
+class LevelUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    code: Optional[str] = Field(default=None, min_length=1, max_length=30)
+    display_order: Optional[int] = Field(default=None, ge=1)
+    status: Optional[bool] = None
 class LevelResponse(LevelBase):
     id: int; school_id: int; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
