@@ -16,8 +16,11 @@ class Settings:
         )
         self.database_url = self._database_url(os.getenv("DATABASE_URL"))
 
+        # Keep production browser requests working when the frontend and API are
+        # deployed as separate origins. An explicit CORS_ORIGINS value still
+        # overrides this default so deployments can restrict it further.
         default_cors_origins = (
-            ""
+            "https://www.phikila.com,https://phikila.com"
             if self.is_production
             else "http://localhost:5173,http://127.0.0.1:5173"
         )
