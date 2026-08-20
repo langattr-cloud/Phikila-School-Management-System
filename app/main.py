@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
+from app.core.rate_limit import rate_limit_ocr, rate_limit_platform_mutation, rate_limit_scheduling_mutation
 from app.modules.academics.router import router as academics_router
 from app.modules.attendance.router import router as attendance_router
 from app.modules.authentication.router import router as auth_router
@@ -26,6 +27,19 @@ from app.modules.scheduling.router import router as scheduling_router
 from app.modules.school.router import router as school_router
 from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
+
+
+def _rate_limit_mutations(router) -> None:
+    """Attach the admin rate limiter only to state-changing routes once."""
+    for route in router.routes:
+        if not getattr(route, "methods", set()) & {"POST", "PUT", "PATCH", "DELETE"}:
+            continue
+        if any(
+            getattr(dep, "dependency", None) is rate_limit_platform_mutation
+            for dep in getattr(route, "dependencies", [])
+        ):
+            continue
+        route.dependencies.append(Depends(rate_limit_platform_mutation))
 
 
 def create_app() -> FastAPI:
@@ -77,10 +91,30 @@ def create_app() -> FastAPI:
         route for route in scheduling_router.routes
         if not (getattr(route, "path", None) == "/calendar" and "PUT" in getattr(route, "methods", set()))
     ]
-    app.include_router(calendar_router, prefix="/api/v1/scheduling", tags=["Scheduling"])
-    app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"])
-    app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"])
-    app.include_router(timetable_profile_router, prefix="/api/v1/scheduling", tags=["Timetable Profiles"])
+    app.include_router(
+        calendar_router,
+        prefix="/api/v1/scheduling",
+        tags=["Scheduling"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
+    app.include_router(
+        scheduling_router,
+        prefix="/api/v1/scheduling",
+        tags=["Scheduling"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
+    app.include_router(
+        timetable_events_router,
+        prefix="/api/v1/scheduling",
+        tags=["Scheduling Events"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
+    app.include_router(
+        timetable_profile_router,
+        prefix="/api/v1/scheduling",
+        tags=["Timetable Profiles"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
     app.include_router(attendance_router, prefix="/api/v1", tags=["Attendance"])
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
@@ -89,7 +123,15 @@ def create_app() -> FastAPI:
     app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Treasury"])
     app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
     app.include_router(finance_reports_router, prefix="/api/v1", tags=["Finance Reports"])
-    app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["Document OCR"])
+    app.include_router(
+        ocr_router,
+        prefix="/api/v1/ocr",
+        tags=["Document OCR"],
+        dependencies=[Depends(rate_limit_ocr)],
+    )
+    _rate_limit_mutations(access_approval_router)
+    _rate_limit_mutations(platform_router)
+    _rate_limit_mutations(llm_router)
     app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
     app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
