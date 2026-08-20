@@ -30,10 +30,16 @@ from app.modules.users.router import router as users_router
 
 
 def _rate_limit_mutations(router) -> None:
-    """Attach the admin rate limiter only to state-changing routes."""
+    """Attach the admin rate limiter only to state-changing routes once."""
     for route in router.routes:
-        if getattr(route, "methods", set()) & {"POST", "PUT", "PATCH", "DELETE"}:
-            route.dependencies.append(Depends(rate_limit_platform_mutation))
+        if not getattr(route, "methods", set()) & {"POST", "PUT", "PATCH", "DELETE"}:
+            continue
+        if any(
+            getattr(dep, "dependency", None) is rate_limit_platform_mutation
+            for dep in getattr(route, "dependencies", [])
+        ):
+            continue
+        route.dependencies.append(Depends(rate_limit_platform_mutation))
 
 
 def create_app() -> FastAPI:
