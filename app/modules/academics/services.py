@@ -12,6 +12,15 @@ class AcademicYearService:
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
         return year
     def create_academic_year(self, school_id, data): return self.repository.create(school_id, data)
+    def update_academic_year(self, school_id, year_id, data):
+        year = self.get_academic_year_by_id(school_id, year_id)
+        values = data.model_dump(exclude_unset=True)
+        start = values.get("start_date", year.start_date)
+        end = values.get("end_date", year.end_date)
+        if start > end: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Academic year start date must be before its end date.")
+        if values.get("is_current") is True:
+            self.repository.db.query(models.AcademicYear).filter(models.AcademicYear.school_id == school_id, models.AcademicYear.id != year_id).update({models.AcademicYear.is_current: False})
+        return self.repository.update(year, data)
 
 class TermService:
     def __init__(self, db): self.repository = TermRepository(db)
@@ -30,11 +39,18 @@ class LevelService:
         if not level: raise HTTPException(status.HTTP_404_NOT_FOUND, "Level not found")
         return level
     def create_level(self, school_id, data):
-        if self.repository.get_level_by_code(school_id, data.code): raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
+        code = data.code.strip()
+        if self.repository.get_level_by_code(school_id, code): raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
         return self.repository.create_level(school_id, data)
+    def update_level(self, school_id, level_id, data):
+        level = self.get_level_by_id(school_id, level_id)
+        if data.code:
+            duplicate = self.repository.get_level_by_code(school_id, data.code.strip())
+            if duplicate and duplicate.id != level.id: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
+        return self.repository.update_level(level, data)
 
 class GradeService:
-    def __init__(self, db): self.repository = GradeRepository(db); self.db = db
+    def __init__(self, db: Session): self.repository = GradeRepository(db); self.db = db
     def list(self, school_id, level_id=None): return self.repository.get_all(school_id, level_id)
     def get(self, school_id, grade_id):
         grade = self.repository.get_by_id(school_id, grade_id)
@@ -43,8 +59,14 @@ class GradeService:
     def create(self, school_id, data):
         level = self.db.query(models.Level).filter(models.Level.id == data.level_id, models.Level.school_id == school_id).first()
         if not level: raise HTTPException(status.HTTP_404_NOT_FOUND, "Level not found")
-        if self.repository.get_by_code(school_id, data.level_id, data.code): raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in this level.")
+        if self.repository.get_by_code(school_id, data.level_id, data.code.strip()): raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in this level.")
         return self.repository.create(school_id, data)
+    def update(self, school_id, grade_id, data):
+        grade = self.get(school_id, grade_id)
+        if data.code:
+            duplicate = self.repository.get_by_code(school_id, grade.level_id, data.code.strip())
+            if duplicate and duplicate.id != grade.id: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in this level.")
+        return self.repository.update(grade, data)
 
 class StreamService:
     def __init__(self, db): self.repository = StreamRepository(db); self.db = db
@@ -65,7 +87,7 @@ class StreamService:
         return self.repository.create_stream(school_id, data)
     def update_stream(self, school_id, stream_id, data):
         stream = self.get_stream_by_id(school_id, stream_id)
-        if data.name and self.repository.get_stream_by_name_context(school_id, stream.academic_year_id, stream.grade_id, data.name.strip()):
+        if data.name:
             duplicate = self.repository.get_stream_by_name_context(school_id, stream.academic_year_id, stream.grade_id, data.name.strip())
-            if duplicate.id != stream.id: raise HTTPException(status.HTTP_409_CONFLICT, "A stream with this name already exists for this grade in this academic year.")
+            if duplicate and duplicate.id != stream.id: raise HTTPException(status.HTTP_409_CONFLICT, "A stream with this name already exists for this grade in this academic year.")
         return self.repository.update_stream(stream, data)
