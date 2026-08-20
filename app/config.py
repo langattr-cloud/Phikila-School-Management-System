@@ -16,11 +16,14 @@ class Settings:
         )
         self.database_url = self._database_url(os.getenv("DATABASE_URL"))
 
-        # Keep production browser requests working when the frontend and API are
-        # deployed as separate origins. An explicit CORS_ORIGINS value still
-        # overrides this default so deployments can restrict it further.
+        # Production is commonly served from phikila.com/www.phikila.com while
+        # preview deployments and alternate Vercel domains may also call the API.
+        # Explicit CORS_ORIGINS remains authoritative when supplied.
         default_cors_origins = (
-            "https://www.phikila.com,https://phikila.com"
+            "https://www.phikila.com,https://phikila.com,"
+            "https://phikila-school-management-system.vercel.app,"
+            "https://phikila-school-management-system-philemon2.vercel.app,"
+            "https://phikila-school-management-system-git-main-philemon2.vercel.app"
             if self.is_production
             else "http://localhost:5173,http://127.0.0.1:5173"
         )
@@ -33,17 +36,10 @@ class Settings:
             )
         self.cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX") or None
 
-        # VITE_SUPABASE_URL is already required by the browser build. Accept it
-        # as a compatibility fallback so a Vercel deployment cannot accidentally
-        # enter local-auth mode simply because the server-side alias is missing.
         self.supabase_url = (
             os.getenv("SUPABASE_URL")
             or os.getenv("VITE_SUPABASE_URL", "")
         ).rstrip("/")
-        # The anon/public key is safe to use for Auth's /auth/v1/user endpoint.
-        # Keep the server-side name canonical, with the Vite name as a deployment
-        # compatibility fallback because the same public key is already required
-        # by the browser build.
         self.supabase_anon_key = os.getenv("SUPABASE_ANON_KEY") or os.getenv(
             "VITE_SUPABASE_ANON_KEY", ""
         )
@@ -52,9 +48,6 @@ class Settings:
         )
         self.supabase_jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
         self.app_jwt_secret = os.getenv("APP_JWT_SECRET", "")
-
-        # Secrets must be supplied through the deployment environment. Never ship
-        # a provider API key in source control or provide a hard-coded fallback.
         self.resend_api_key = os.getenv("RESEND_API_KEY", "")
         self.resend_from_email = os.getenv(
             "RESEND_FROM_EMAIL", "Phikila School System <onboarding@resend.dev>"
