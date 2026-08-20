@@ -27,14 +27,10 @@ def _jwks_client() -> PyJWKClient:
         raise RuntimeError("JWKS client unavailable (retry backoff)")
     if not settings.supabase_url:
         raise RuntimeError("SUPABASE_URL is not configured")
-    try:
-        client = PyJWKClient(settings.supabase_jwks_url, cache_jwk_set=True, lifespan=3600)
-        _jwks_cache["client"] = client
-        _jwks_cache["failed_at"] = 0.0
-        return client
-    except Exception:
-        _jwks_cache["failed_at"] = time.time()
-        raise
+    client = PyJWKClient(settings.supabase_jwks_url, cache_jwk_set=True, lifespan=3600)
+    _jwks_cache["client"] = client
+    _jwks_cache["failed_at"] = 0.0
+    return client
 
 
 def _verify_local_token(token: str) -> dict[str, Any] | None:
@@ -50,28 +46,25 @@ def _verify_local_token(token: str) -> dict[str, Any] | None:
             algorithms=["HS256"],
             options={"verify_iss": False, "verify_aud": False, "require": ["exp", "sub"]},
         )
-        sub = claims.get("sub")
-        if isinstance(sub, str) and "@" in sub and not claims.get("email"):
-            claims["email"] = sub
+        if isinstance(claims.get("sub"), str) and "@" in claims["sub"] and not claims.get("email"):
+            claims["email"] = claims["sub"]
         return claims
     except jwt.PyJWTError:
         return None
 
 
 def _verify_with_supabase_auth_api(token: str) -> dict[str, Any] | None:
-    """Ask Supabase Auth to validate a token when local JWT verification fails."""
+    """Use Supabase Auth as the authoritative validator when JWT verification fails."""
     if not settings.supabase_url or not settings.supabase_anon_key:
         return None
     try:
         response = requests.get(
             f"{settings.supabase_url}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": settings.supabase_anon_key,
-            },
+            headers={"Authorization": f"Bearer {token}", "apikey": settings.supabase_anon_key},
             timeout=5,
         )
         if response.status_code != 200:
+            logger.warning("Supabase Auth rejected access token: status=%s", response.status_code)
             return None
         user = response.json()
         user_id = user.get("id")
@@ -97,17 +90,25 @@ def get_supabase_claims(
         detail="A valid access token is required",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise unauthorized
-
     token = credentials.credentials
+
     if not settings.supabase_url:
         local = _verify_local_token(token)
         if local is None:
             raise unauthorized
         return local
 
+    # Supabase has changed signing algorithms over time. Prefer the provider's
+    # own validation endpoint first so a stale JWT secret/JWKS configuration
+    # cannot reject a valid browser session.
+    claims = _verify_with_supabase_auth_api(token)
+    if claims is not None:
+        return claims
+
+    # Keep local verification as a resilience path if Auth is temporarily
+    # unreachable. It still enforces issuer, audience, expiry and signature.
     try:
         algorithm = jwt.get_unverified_header(token).get("alg")
         if algorithm == "HS256":
@@ -118,7 +119,6 @@ def get_supabase_claims(
             key = _jwks_client().get_signing_key_from_jwt(token).key
         else:
             raise jwt.InvalidAlgorithmError("Unsupported signing algorithm")
-
         return jwt.decode(
             token,
             key,
@@ -127,11 +127,5 @@ def get_supabase_claims(
             issuer=settings.supabase_issuer,
             options={"require": ["exp", "sub"]},
         )
-    except (jwt.PyJWKClientError, jwt.PyJWTError, RuntimeError) as exc:
-        # Supabase Auth is authoritative. A stale/missing JWKS or legacy JWT
-        # configuration must not invalidate an otherwise valid browser session.
-        logger.warning("Local Supabase JWT verification failed; using Auth API fallback: %s", exc)
-        claims = _verify_with_supabase_auth_api(token)
-        if claims is not None:
-            return claims
+    except (jwt.PyJWKClientError, jwt.PyJWTError, RuntimeError, requests.RequestException):
         raise unauthorized from None
