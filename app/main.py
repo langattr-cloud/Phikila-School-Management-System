@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
-from app.core.rate_limit import rate_limit_platform_mutation, rate_limit_scheduling_mutation
+from app.core.rate_limit import rate_limit_ocr, rate_limit_platform_mutation, rate_limit_scheduling_mutation
 from app.modules.academics.router import router as academics_router
 from app.modules.attendance.router import router as attendance_router
 from app.modules.authentication.router import router as auth_router
@@ -123,7 +123,12 @@ def create_app() -> FastAPI:
     app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Treasury"])
     app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
     app.include_router(finance_reports_router, prefix="/api/v1", tags=["Finance Reports"])
-    app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["Document OCR"])
+    app.include_router(
+        ocr_router,
+        prefix="/api/v1/ocr",
+        tags=["Document OCR"],
+        dependencies=[Depends(rate_limit_ocr)],
+    )
     _rate_limit_mutations(access_approval_router)
     _rate_limit_mutations(platform_router)
     app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
