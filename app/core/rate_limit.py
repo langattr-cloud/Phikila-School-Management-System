@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from ipaddress import ip_address
 
 from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
 from upstash_ratelimit import FixedWindow, Ratelimit
 
 from app.core.redis import get_redis
@@ -86,9 +87,13 @@ def _enforce(policy: RateLimitPolicy, identifier: str) -> None:
         )
 
 
-def rate_limit_auth(request: Request) -> None:
-    """Limit credential attempts by server-observed client IP."""
-    _enforce(AUTH_LOGIN, f"ip:{_client_ip(request)}")
+def rate_limit_auth(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+) -> None:
+    """Limit credential attempts by server-observed IP plus login identifier."""
+    username = form_data.username.strip().lower()
+    _enforce(AUTH_LOGIN, f"ip:{_client_ip(request)}:login:{username}")
 
 
 def rate_limit_scheduling_mutation(
