@@ -29,6 +29,13 @@ from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
 
 
+def _rate_limit_mutations(router) -> None:
+    """Attach the admin rate limiter only to state-changing routes."""
+    for route in router.routes:
+        if getattr(route, "methods", set()) & {"POST", "PUT", "PATCH", "DELETE"}:
+            route.dependencies.append(Depends(rate_limit_platform_mutation))
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Phikila School System API",
@@ -96,18 +103,10 @@ def create_app() -> FastAPI:
     app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
     app.include_router(finance_reports_router, prefix="/api/v1", tags=["Finance Reports"])
     app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["Document OCR"])
-    app.include_router(
-        access_approval_router,
-        prefix="/api/v1/platform",
-        tags=["Platform Access Approval"],
-        dependencies=[Depends(rate_limit_platform_mutation)],
-    )
-    app.include_router(
-        platform_router,
-        prefix="/api/v1/platform",
-        tags=["Platform"],
-        dependencies=[Depends(rate_limit_platform_mutation)],
-    )
+    _rate_limit_mutations(access_approval_router)
+    _rate_limit_mutations(platform_router)
+    app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
+    app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
     app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
