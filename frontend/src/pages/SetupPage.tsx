@@ -34,7 +34,7 @@ export function SetupPage({ kind }: { kind: Kind }) {
     finally { setLoading(false) }
   }, [kind])
   useEffect(() => { setQuery(''); setEditing(null); void load() }, [load])
-  const filtered = useMemo(() => { const term = query.trim().toLowerCase(); if (!term) return rows; return rows.filter(row => row.name.toLowerCase().includes(term) || row.code.toLowerCase().includes(term)) }, [rows, query])
+  const filtered = useMemo(() => { const term = query.trim().toLowerCase(); if (!term) return rows; return rows.filter(row => row.name.toLowerCase().includes(term) || (row.code ?? '').toLowerCase().includes(term)) }, [rows, query])
   async function remove(row: Row) {
     try { await (kind === 'teachers' ? scheduling.deleteTeacher(row.id) : kind === 'subjects' ? scheduling.deleteSubject(row.id) : kind === 'classes' ? scheduling.deleteClass(row.id) : scheduling.deleteRoom(row.id)); notify(`${TITLES[kind].singular} removed.`, 'success'); await load() }
     catch (err) { notify(friendlyApiError(err, `remove the ${TITLES[kind].singular}`), 'error') }
