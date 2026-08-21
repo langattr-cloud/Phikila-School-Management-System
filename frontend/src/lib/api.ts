@@ -63,5 +63,7 @@ export const api = {
   streams: (academicYearId: number, gradeId: number) => apiFetch<Stream[]>(`/api/v1/academics/years/${academicYearId}/grades/${gradeId}/streams`),
   createStream: (payload: { academic_year_id: number; level_id: number; grade_id: number; name: string; code?: string | null; capacity?: number | null; status?: StreamStatus }) => apiFetch<Stream>('/api/v1/academics/streams', { method: 'POST', body: JSON.stringify(payload) }),
   updateStream: (streamId: number, payload: Partial<Pick<Stream, 'name' | 'code' | 'capacity' | 'status' | 'class_teacher_id'>>) => apiFetch<Stream>(`/api/v1/academics/streams/${streamId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  streamStudents: (streamId: number) => apiFetch<StreamStudent[]>(`/api/v1/academics/streams/${streamId}/students`), students: () => apiFetch<StudentListResponse>('/api/v1/students'),
+  streamStudents: (streamId: number) => apiFetch<StreamStudent[]>(`/api/v1/academics/streams/${streamId}/students`),
+  assignStudentToStream: (streamId: number, studentId: number) => apiFetch<StreamStudent>(`/api/v1/academics/streams/${streamId}/students`, { method: 'POST', body: JSON.stringify({ student_id: studentId }) }),
+  students: () => apiFetch<StudentListResponse>('/api/v1/students'),
 }
