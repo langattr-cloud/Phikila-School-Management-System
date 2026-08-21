@@ -62,10 +62,11 @@ def _rate_limit_mutations(router) -> None:
 
 
 def _ensure_default_school() -> None:
-    """Bootstrap the single-school tenant expected by existing admin claims.
+    """Ensure the tenant referenced by existing admin claims exists.
 
-    Only an empty school_info table is bootstrapped; existing school records
-    are never modified.
+    The application currently uses school_id=1 for the primary tenant. This
+    only creates that row when it is missing; existing school records are not
+    changed.
     """
     try:
         with engine.begin() as conn:
@@ -75,10 +76,10 @@ def _ensure_default_school() -> None:
             if not exists:
                 return
 
-            school_count = conn.execute(
-                text("SELECT COUNT(*) FROM public.school_info")
-            ).scalar_one()
-            if school_count != 0:
+            school_exists = conn.execute(
+                text("SELECT 1 FROM public.school_info WHERE id = 1")
+            ).scalar()
+            if school_exists:
                 return
 
             conn.execute(
