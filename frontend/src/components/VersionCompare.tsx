@@ -3,73 +3,24 @@ import { Alert } from './Alert'
 import { Badge } from './States'
 import { useToast } from './Toast'
 import { friendlyApiError } from '../lib/api'
-import { scheduling, type Lesson, type Subject, type SchoolClass, type Teacher, type Room, type Version } from '../lib/scheduling'
+import { scheduling, type Lesson, type Subject, type SchoolClass, type Version } from '../lib/scheduling'
 
 type Props = { versions: Version[]; initialLeft?: Version | null; initialRight?: Version | null }
-type Bundle = { lessons: Lesson[]; subjects: Subject[]; classes: SchoolClass[]; teachers: Teacher[]; rooms: Room[] }
+type Bundle = { lessons: Lesson[]; subjects: Subject[]; classes: SchoolClass[] }
 type Change = { kind: 'added' | 'removed' | 'moved'; lesson: Lesson; before?: Lesson }
 
 export function VersionCompare({ versions, initialLeft, initialRight }: Props) {
   const { notify } = useToast()
-  const drafts = versions.filter((v) => v.status !== 'archived')
-  const [leftId, setLeftId] = useState(initialLeft?.id ?? drafts.at(1)?.id ?? versions[1]?.id ?? null)
-  const [rightId, setRightId] = useState(initialRight?.id ?? drafts[0]?.id ?? versions[0]?.id ?? null)
+  const [leftId, setLeftId] = useState(initialLeft?.id ?? versions[1]?.id ?? null)
+  const [rightId, setRightId] = useState(initialRight?.id ?? versions[0]?.id ?? null)
   const [left, setLeft] = useState<Bundle | null>(null)
   const [right, setRight] = useState<Bundle | null>(null)
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!leftId || !rightId || leftId === rightId) { setLeft(null); setRight(null); return }
-    let cancelled = false
-    setLoading(true)
-    Promise.all([loadBundle(leftId), loadBundle(rightId)])
-      .then(([a, b]) => { if (!cancelled) { setLeft(a); setRight(b) } })
-      .catch((err) => notify(friendlyApiError(err, 'compare timetables'), 'error'))
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [leftId, rightId, notify])
-
+  useEffect(() => { if (!leftId || !rightId || leftId === rightId) { setLeft(null); setRight(null); return }; let cancelled = false; setLoading(true); Promise.all([loadBundle(leftId), loadBundle(rightId)]).then(([a, b]) => { if (!cancelled) { setLeft(a); setRight(b) } }).catch((err) => notify(friendlyApiError(err, 'compare timetables'), 'error')).finally(() => { if (!cancelled) setLoading(false) }); return () => { cancelled = true } }, [leftId, rightId, notify])
   const changes = useMemo(() => compare(left?.lessons ?? [], right?.lessons ?? []), [left, right])
-  const added = changes.filter((c) => c.kind === 'added').length
-  const removed = changes.filter((c) => c.kind === 'removed').length
-  const moved = changes.filter((c) => c.kind === 'moved').length
-
-  return <section className="card section version-compare">
-    <div className="panel__head"><div><h2 className="section__title">Compare timetables</h2><p className="form__note">See what changed between two saved timetable versions before publishing or restoring one.</p></div><div className="version-compare__summary"><Badge>{added} added</Badge><Badge>{removed} removed</Badge><Badge>{moved} moved</Badge></div></div>
-    <div className="version-compare__selectors">
-      <label className="field"><span className="field__label">Compare from</span><select className="input input--select" value={leftId ?? ''} onChange={(e) => setLeftId(e.target.value ? Number(e.target.value) : null)}><option value="">Choose version…</option>{versions.map((v) => <option key={v.id} value={v.id}>v{v.number} · {v.label || v.status}</option>)}</select></label>
-      <span className="version-compare__arrow" aria-hidden="true">→</span>
-      <label className="field"><span className="field__label">Compare to</span><select className="input input--select" value={rightId ?? ''} onChange={(e) => setRightId(e.target.value ? Number(e.target.value) : null)}><option value="">Choose version…</option>{versions.map((v) => <option key={v.id} value={v.id}>v{v.number} · {v.label || v.status}</option>)}</select></label>
-    </div>
-    {leftId === rightId && leftId !== null && <Alert tone="info">Choose two different versions to see changes.</Alert>}
-    {loading && <p className="form__note">Loading both timetables…</p>}
-    {!loading && left && right && <div className="version-compare__changes">{changes.length === 0 ? <p className="form__note">No lesson changes detected.</p> : changes.slice(0, 50).map((change, index) => <ChangeRow key={`${change.kind}-${change.lesson.id}-${index}`} change={change} left={left} right={right} />)}{changes.length > 50 && <p className="form__note">Showing 50 of {changes.length} changes.</p>}</div>}
-  </section>
+  const added = changes.filter((c) => c.kind === 'added').length; const removed = changes.filter((c) => c.kind === 'removed').length; const moved = changes.filter((c) => c.kind === 'moved').length
+  return <section className="card section version-compare"><div className="panel__head"><div><h2 className="section__title">Compare timetables</h2><p className="form__note">See what changed between two saved timetable versions before publishing or restoring one.</p></div><div className="version-compare__summary"><Badge>{added} added</Badge><Badge>{removed} removed</Badge><Badge>{moved} moved</Badge></div></div><div className="version-compare__selectors"><label className="field"><span className="field__label">Compare from</span><select className="input input--select" value={leftId ?? ''} onChange={(e) => setLeftId(e.target.value ? Number(e.target.value) : null)}><option value="">Choose version…</option>{versions.map((v) => <option key={v.id} value={v.id}>v{v.number} · {v.label || v.status}</option>)}</select></label><span className="version-compare__arrow" aria-hidden="true">→</span><label className="field"><span className="field__label">Compare to</span><select className="input input--select" value={rightId ?? ''} onChange={(e) => setRightId(e.target.value ? Number(e.target.value) : null)}><option value="">Choose version…</option>{versions.map((v) => <option key={v.id} value={v.id}>v{v.number} · {v.label || v.status}</option>)}</select></label></div>{leftId === rightId && leftId !== null && <Alert tone="info">Choose two different versions to see changes.</Alert>}{loading && <p className="form__note">Loading both timetables…</p>}{!loading && left && right && <div className="version-compare__changes">{changes.length === 0 ? <p className="form__note">No lesson changes detected.</p> : changes.slice(0, 50).map((change, index) => <ChangeRow key={`${change.kind}-${change.lesson.id}-${index}`} change={change} left={left} right={right} />)}{changes.length > 50 && <p className="form__note">Showing 50 of {changes.length} changes.</p>}</div>}</section>
 }
-
-async function loadBundle(versionId: number): Promise<Bundle> {
-  const [lessons, subjects, classes, teachers, rooms] = await Promise.all([scheduling.lessons(versionId), scheduling.subjects(), scheduling.classes(), scheduling.teachers(), scheduling.rooms()])
-  return { lessons, subjects, classes, teachers, rooms }
-}
-
-function compare(before: Lesson[], after: Lesson[]): Change[] {
-  const beforeByKey = new Map(before.map((lesson) => [lesson.id, lesson]))
-  const afterByKey = new Map(after.map((lesson) => [lesson.id, lesson]))
-  const changes: Change[] = []
-  for (const lesson of after) {
-    const previous = beforeByKey.get(lesson.id)
-    if (!previous) changes.push({ kind: 'added', lesson })
-    else if (previous.day_index !== lesson.day_index || previous.period_index !== lesson.period_index || previous.duration !== lesson.duration || previous.teacher_id !== lesson.teacher_id || previous.room_id !== lesson.room_id || previous.is_locked !== lesson.is_locked) changes.push({ kind: 'moved', lesson, before: previous })
-  }
-  for (const lesson of before) if (!afterByKey.has(lesson.id)) changes.push({ kind: 'removed', lesson })
-  return changes
-}
-
-function ChangeRow({ change, left, right }: { change: Change; left: Bundle; right: Bundle }) {
-  const subject = (id: number) => right.subjects.find((s) => s.id === id) ?? left.subjects.find((s) => s.id === id)
-  const schoolClass = (id: number) => right.classes.find((c) => c.id === id) ?? left.classes.find((c) => c.id === id)
-  const label = (lesson: Lesson) => `${subject(lesson.subject_id)?.name ?? 'Lesson'} · ${schoolClass(lesson.class_id)?.name ?? 'Class'}`
-  const slot = (lesson: Lesson) => `Day ${lesson.day_index + 1}, period ${lesson.period_index}`
-  const tone = change.kind === 'added' ? 'success' : change.kind === 'removed' ? 'danger' : 'warning'
-  return <div className="version-compare__row"><Badge tone={tone}>{change.kind}</Badge><strong>{label(change.lesson)}</strong>{change.kind === 'moved' && change.before ? <span>{slot(change.before)} → {slot(change.lesson)}</span> : <span>{slot(change.lesson)}</span>}{change.lesson.is_locked && <span>Locked</span>}</div>
-}
+async function loadBundle(versionId: number): Promise<Bundle> { const [lessons, subjects, classes] = await Promise.all([scheduling.lessons(versionId), scheduling.subjects(), scheduling.classes()]); return { lessons, subjects, classes } }
+function compare(before: Lesson[], after: Lesson[]): Change[] { const beforeByKey = new Map(before.map((lesson) => [lesson.id, lesson])); const afterByKey = new Map(after.map((lesson) => [lesson.id, lesson])); const changes: Change[] = []; for (const lesson of after) { const previous = beforeByKey.get(lesson.id); if (!previous) changes.push({ kind: 'added', lesson }); else if (previous.day_index !== lesson.day_index || previous.period_index !== lesson.period_index || previous.duration !== lesson.duration || previous.teacher_id !== lesson.teacher_id || previous.room_id !== lesson.room_id || previous.is_locked !== lesson.is_locked) changes.push({ kind: 'moved', lesson, before: previous }) }; for (const lesson of before) if (!afterByKey.has(lesson.id)) changes.push({ kind: 'removed', lesson }); return changes }
+function ChangeRow({ change, left, right }: { change: Change; left: Bundle; right: Bundle }) { const subject = (id: number) => right.subjects.find((s: Subject) => s.id === id) ?? left.subjects.find((s: Subject) => s.id === id); const schoolClass = (id: number) => right.classes.find((c: SchoolClass) => c.id === id) ?? left.classes.find((c: SchoolClass) => c.id === id); const label = (lesson: Lesson) => `${subject(lesson.subject_id)?.name ?? 'Lesson'} · ${schoolClass(lesson.class_id)?.name ?? 'Class'}`; const slot = (lesson: Lesson) => `Day ${lesson.day_index + 1}, period ${lesson.period_index}`; const tone = change.kind === 'added' ? 'success' : change.kind === 'removed' ? 'danger' : 'warning'; return <div className="version-compare__row"><Badge tone={tone}>{change.kind}</Badge><strong>{label(change.lesson)}</strong>{change.kind === 'moved' && change.before ? <span>{slot(change.before)} → {slot(change.lesson)}</span> : <span>{slot(change.lesson)}</span>}{change.lesson.is_locked && <span>Locked</span>}</div> }
