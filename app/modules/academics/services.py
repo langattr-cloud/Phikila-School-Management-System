@@ -23,16 +23,29 @@ class AcademicYearService:
         return self.repository.update(year, data)
 
 class TermService:
-    def __init__(self, db): self.repository = TermRepository(db)
+    def __init__(self, db): self.repository = TermRepository(db); self.db = db
     def get_terms(self, school_id): return self.repository.get_terms(school_id)
     def get_term_by_id(self, school_id, term_id):
         term = self.repository.get_term_by_id(school_id, term_id)
         if not term: raise HTTPException(status.HTTP_404_NOT_FOUND, "Term not found")
         return term
     def create_term(self, school_id, data): return self.repository.create_term(school_id, data)
+    def update_term(self, school_id, term_id, data):
+        term = self.get_term_by_id(school_id, term_id)
+        values = data.model_dump(exclude_unset=True)
+        start = values.get("start_date", term.start_date)
+        end = values.get("end_date", term.end_date)
+        if start is not None and end is not None and start > end:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Term start date must be before its end date.")
+        if "academic_year_id" in values:
+            year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == values["academic_year_id"], models.AcademicYear.school_id == school_id).first()
+            if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
+        if values.get("is_current") is True:
+            self.db.query(models.Term).filter(models.Term.school_id == school_id, models.Term.id != term_id).update({models.Term.is_current: False})
+        return self.repository.update_term(term, data)
 
 class LevelService:
-    def __init__(self, db): self.repository = LevelRepository(db)
+    def __init__(self, db: Session): self.repository = LevelRepository(db)
     def get_levels(self, school_id): return self.repository.get_levels(school_id)
     def get_level_by_id(self, school_id, level_id):
         level = self.repository.get_level_by_id(school_id, level_id)
