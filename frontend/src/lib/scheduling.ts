@@ -1,8 +1,10 @@
 import { apiFetch } from './api'
 
-const get = <T>(path: string) => apiFetch<T>(path)
+const SCHEDULING_API_PREFIX = '/api/v1/scheduling'
+const schedulingPath = (path: string) => `${SCHEDULING_API_PREFIX}${path.startsWith('/') ? path : `/${path}`}`
+const get = <T>(path: string) => apiFetch<T>(schedulingPath(path))
 const send = <T>(path: string, method: string = 'POST', payload?: unknown) =>
-  apiFetch<T>(path, { method, ...(payload === undefined ? {} : { body: JSON.stringify(payload) }) })
+  apiFetch<T>(schedulingPath(path), { method, ...(payload === undefined ? {} : { body: JSON.stringify(payload) }) })
 
 type Loose = Record<string, any>
 export type Slots = Record<string, number[]>
@@ -74,8 +76,8 @@ export const scheduling = {
   updateSubject: (id: number, payload: SubjectInput) => send<Subject>(`/subjects/${id}`, 'PUT', payload), deleteSubject: (id: number) => send<void>(`/subjects/${id}`, 'DELETE'),
   rooms: () => get<Room[]>('/rooms'), createRoom: (payload: RoomInput) => send<Room>('/rooms', 'POST', payload),
   updateRoom: (id: number, payload: RoomInput) => send<Room>(`/rooms/${id}`, 'PUT', payload), deleteRoom: (id: number) => send<void>(`/rooms/${id}`, 'DELETE'),
-  classes: () => get<SchoolClass[]>('/classes'), createClass: (payload: SchoolClassInput) => send<SchoolClass>('/classes', 'POST', payload),
-  updateClass: (id: number, payload: SchoolClassInput) => send<SchoolClass>(`/classes/${id}`, 'PUT', payload), deleteClass: (id: number) => send<void>(`/classes/${id}`, 'DELETE'),
+  classes: () => get<SchoolClass[]>('/classes'), createClass: (payload: ClassInput) => send<SchoolClass>('/classes', 'POST', payload),
+  updateClass: (id: number, payload: ClassInput) => send<SchoolClass>(`/classes/${id}`, 'PUT', payload), deleteClass: (id: number) => send<void>(`/classes/${id}`, 'DELETE'),
   requirements: () => get<Requirement[]>('/requirements'), createRequirement: (payload: RequirementInput) => send<Requirement>('/requirements', 'POST', payload), deleteRequirement: (id: number) => send<void>(`/requirements/${id}`, 'DELETE'),
   constraints: () => get<Constraint[]>('/constraints'), createConstraint: (payload: ConstraintInput) => send<Constraint>('/constraints', 'POST', payload), deleteConstraint: (id: number) => send<void>(`/constraints/${id}`, 'DELETE'),
   generate: (maxSeconds = 30) => send<Job>('/solver/generate', 'POST', { max_seconds: maxSeconds }), generateProfile: (payload: GenerateProfileInput) => send<Job>('/solver/generate-profile', 'POST', payload),
