@@ -85,11 +85,12 @@ export function TimeOffPage() {
       } else {
         const existing = constraints.filter((item) => item.kind === 'avoid_lessons' && item.scope === 'subject' && item.target_id === selected.id)
         for (const row of existing) await scheduling.deleteConstraint(row.id)
+        const withoutExisting = (current: Constraint[]) => current.filter((item) => !existing.some((old) => old.id === item.id))
         if (blockedCount > 0) {
           const created = await scheduling.createConstraint({ kind: 'avoid_lessons', scope: 'subject', target_id: selected.id, is_hard: true, weight: 100, params: { slots: draft }, enabled: true, note: `${selected.name} time off` })
-          setConstraints((current) => [...current.filter((item) => !existing.some((old) => old.id === item.id)), created])
+          setConstraints((current) => [...withoutExisting(current), created])
         } else {
-          setConstraints((current) => current.filter((item) => !existing.some((old) => old.id === item.id)))
+          setConstraints(withoutExisting)
         }
       }
       setSaved(draft); notify(`${selected.name} time off saved.`, 'success')
