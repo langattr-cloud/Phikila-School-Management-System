@@ -24,7 +24,7 @@
 .streams-modal {
   width: min(100%, 440px);
   max-height: calc(100dvh - 3rem);
-  overflow-y: auto;
+  overflow: hidden;
   padding: 1rem 1.1rem;
   box-sizing: border-box;
   box-shadow: 0 20px 60px rgb(20 35 29 / 20%);
@@ -33,6 +33,9 @@
 .streams-modal form {
   display: grid;
   gap: .35rem;
+  max-height: calc(100dvh - 8rem);
+  overflow-y: auto;
+  padding-right: .15rem;
 }
 
 .streams-modal .label:not(:first-child) {
@@ -51,9 +54,8 @@
   justify-content: flex-end;
   gap: .65rem;
   margin-top: .65rem;
-  padding-top: .4rem;
-  position: sticky;
-  bottom: 0;
+  padding-top: .65rem;
+  border-top: 1px solid rgb(20 35 29 / 10%);
   background: inherit;
 }
 
@@ -86,6 +88,10 @@
     width: 100%;
     max-height: calc(100dvh - 1rem);
     padding: .9rem;
+  }
+
+  .streams-modal form {
+    max-height: calc(100dvh - 6rem);
   }
 
   .streams-modal__actions {
