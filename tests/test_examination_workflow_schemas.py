@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.modules.examinations.schemas_v2 import ExaminationCreate, ExaminationUpdate, GradeScaleCreate, StatusChange
+from app.modules.examinations.schemas_v2 import ExaminationCreate, ExaminationUpdate, GradeScaleCreate, SeriesUpdate, StatusChange
 
 
 def test_examination_rejects_invalid_passing_marks():
@@ -12,6 +12,16 @@ def test_examination_rejects_invalid_passing_marks():
 def test_examination_update_rejects_invalid_passing_marks():
     with pytest.raises(ValidationError):
         ExaminationUpdate(total_marks=40, passing_marks=50)
+
+
+def test_examination_update_rejects_status_field():
+    with pytest.raises(ValidationError):
+        ExaminationUpdate(status="published")
+
+
+def test_series_update_rejects_status_field():
+    with pytest.raises(ValidationError):
+        SeriesUpdate(status="published")
 
 
 def test_grade_scale_rejects_reversed_range():
