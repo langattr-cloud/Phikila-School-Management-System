@@ -1,12 +1,12 @@
-"""Merge all remaining Alembic heads into one canonical upgrade target.
+"""Merge the actual remaining Alembic heads into one canonical target.
 
-The platform/runtime reconciliation and academic/timetable reconciliation
-branches are joined here with the independent finance posting branch so Render
-can safely run ``alembic upgrade head`` during startup.
+The runtime/finance and academic/timetable reconciliation work already joins
+through these revisions. Pointing this merge at the actual leaf revisions
+prevents Alembic from retaining older ancestor revisions as parallel heads.
 """
 
 revision = "20260821mergeall"
-down_revision = ("d9f4c7b1e2a3", "20260821lvlstatus", "ab4d9e7c2f10")
+down_revision = ("c6f1a9d2e4b7", "f8a1c2d3e4b5", "20260821lvlstatus")
 branch_labels = None
 depends_on = None
 
