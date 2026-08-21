@@ -2,14 +2,16 @@ import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type
 import type { Day, Lesson, Period, SchoolClass, Subject, Teacher, Room } from '../lib/scheduling'
 import { LockIcon } from './icons'
 import './timetable-time-grid.css'
+import './timetable-subject-colours.css'
 
-export type LessonMeta = {
+type LessonMeta = {
   subjects: Map<number, Subject>
   teachers: Map<number, Teacher>
   rooms: Map<number, Room>
   classes: Map<number, SchoolClass>
 }
 
+export type { LessonMeta }
 export const UNASSIGNED_DRAG_TYPE = 'application/x-phikila-unassigned'
 
 type Props = {
