@@ -27,8 +27,12 @@ def upgrade() -> None:
     if "ix_streams_academic_year_id" not in indexes: op.create_index("ix_streams_academic_year_id", "streams", ["academic_year_id"])
     for table in ("students_v2", "student_enrollments"):
         if table in tables and "grade_id" not in _columns(bind, table): op.add_column(table, sa.Column("grade_id", sa.Integer(), nullable=True))
-    if "students_v2" in tables: bind.execute(sa.text("UPDATE students_v2 s SET grade_id=st.grade_id FROM streams st WHERE s.grade_id IS NULL AND s.stream_id=st.id"))
-    if "student_enrollments" in tables: bind.execute(sa.text("UPDATE student_enrollments e SET grade_id=st.grade_id FROM streams st WHERE e.grade_id IS NULL AND e.stream_id=st.id"))
+    students_v2_cols = _columns(bind, "students_v2") if "students_v2" in tables else set()
+    if "students_v2" in tables and "stream_id" in students_v2_cols:
+        bind.execute(sa.text("UPDATE students_v2 s SET grade_id=st.grade_id FROM streams st WHERE s.grade_id IS NULL AND s.stream_id=st.id"))
+    enroll_cols = _columns(bind, "student_enrollments") if "student_enrollments" in tables else set()
+    if "student_enrollments" in tables and "stream_id" in enroll_cols:
+        bind.execute(sa.text("UPDATE student_enrollments e SET grade_id=st.grade_id FROM streams st WHERE e.grade_id IS NULL AND e.stream_id=st.id"))
 
 def downgrade() -> None:
     pass
