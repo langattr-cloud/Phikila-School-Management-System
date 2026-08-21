@@ -14,30 +14,39 @@ const send = <T>(path: string, method: string = 'POST', payload?: unknown) =>
 type Loose = Record<string, any>
 
 export interface Principal extends Loose { id?: number | string; school_id?: number; role?: string }
-export interface Day extends Loose { id?: number; index?: number; name?: string; is_active?: boolean }
+export interface Day extends Loose { id: number; index: number; name: string; is_active: boolean }
 export interface DayInput extends Loose {}
-export interface Period extends Loose { id?: number; index?: number; name?: string; start_time?: string; end_time?: string; is_teaching?: boolean }
+export interface Period extends Loose { id: number; index: number; name: string; start_time: string; end_time: string; is_teaching: boolean }
 export interface PeriodInput extends Loose {}
-export interface Calendar extends Loose { days?: Day[]; periods?: Period[] }
-export interface Event extends Loose { id?: number; day_index?: number; period_index?: number }
+export interface Calendar extends Loose { days: Day[]; periods: Period[] }
+export interface Event extends Loose { id: number; day_index: number; period_index: number }
 export interface EventInput extends Loose {}
-export interface Teacher extends Loose { id?: number; name?: string }
+export interface Teacher extends Loose { id: number; name: string }
 export interface TeacherInput extends Loose {}
-export interface Subject extends Loose { id?: number; name?: string }
+export interface Subject extends Loose { id: number; name: string }
 export interface SubjectInput extends Loose {}
-export interface Room extends Loose { id?: number; name?: string }
+export interface Room extends Loose { id: number; name: string }
 export interface RoomInput extends Loose {}
-export interface SchoolClass extends Loose { id?: number; name?: string }
+export interface SchoolClass extends Loose { id: number; name: string }
 export interface SchoolClassInput extends Loose {}
-export interface Requirement extends Loose { id?: number }
+export interface Requirement extends Loose { id: number }
 export interface RequirementInput extends Loose {}
-export interface Constraint extends Loose { id?: number; kind?: string; scope?: string; target_id?: number | null; is_hard?: boolean; weight?: number | null; params?: Loose; enabled?: boolean; note?: string | null }
+export interface Constraint extends Loose { id: number; kind?: string; scope?: string; target_id?: number | null; is_hard?: boolean; weight?: number | null; params?: Loose; enabled?: boolean; note?: string | null }
 export interface ConstraintInput extends Loose {}
-export interface Job extends Loose { id?: number; status?: string }
+export interface Job extends Loose { id: number; status?: string }
 export interface GenerateProfileInput extends Loose {}
 export interface SolverCheck extends Loose {}
-export interface Version extends Loose { id?: number; status?: string; name?: string }
-export interface Lesson extends Loose { id?: number; day_index?: number; period_index?: number }
+export interface Version extends Loose { id: number; status: string; name?: string }
+export interface Lesson extends Loose {
+  id: number
+  day_index: number
+  period_index: number
+  subject_id: number
+  teacher_id: number
+  room_id: number | null
+  class_id: number
+  version_id: number
+}
 export interface LessonPatch extends Loose {}
 export interface LessonCreate extends Loose {}
 export interface Unassigned extends Loose {}
@@ -48,6 +57,7 @@ export interface Analytics extends Loose {}
 export interface AuditEntry extends Loose {}
 export interface TimetableView extends Loose {}
 export interface CopilotCommand extends Loose {}
+export interface Conflict extends Loose { severity: string; lesson_ids: number[] }
 
 export const scheduling = {
   me: () => get<Principal>('/me'),
@@ -129,8 +139,6 @@ export const scheduling = {
   applyCommand: (command: CopilotCommand) =>
     send<{ applied: boolean; requires_regeneration: boolean; message?: string }>('/copilot/apply', 'POST', { command }),
 }
-
-export interface Conflict extends Loose {}
 
 export function teachingPeriods(periods: Period[]): Period[] {
   return periods.filter((p) => p.is_teaching)
