@@ -64,8 +64,19 @@ class SchoolIn(BaseModel):
 
 class SchoolPatch(BaseModel):
     name: str | None = Field(default=None, min_length=3, max_length=160)
+    slug: str | None = Field(default=None, min_length=2, max_length=80)
     timezone: str | None = Field(default=None, max_length=60)
     academic_year: str | None = Field(default=None, max_length=40)
+
+    @field_validator("slug")
+    @classmethod
+    def clean_slug(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        code = value.strip()
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*", code):
+            raise ValueError("Use letters, numbers and hyphens only.")
+        return code
 
 
 class AdministratorIn(BaseModel):
@@ -506,7 +517,20 @@ def update_school(
     school = db.query(TtSchool).filter(TtSchool.id == school_id).first()
     if school is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown school.")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    if "slug" in updates and updates["slug"] is not None:
+        normalized_slug = updates["slug"].strip()
+        conflict = (
+            db.query(TtSchool)
+            .filter(TtSchool.slug == normalized_slug, TtSchool.id != school.id)
+            .first()
+        )
+        if conflict:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "A school already uses that code."
+            )
+        updates["slug"] = normalized_slug
+    for key, value in updates.items():
         if value is not None:
             setattr(school, key, value)
     audit(
