@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from . import models as m
 from .engine import build_input
+from .generation_rules import enforce_double_lessons
 from .solver import ORTOOLS_AVAILABLE, preflight, solve
 logger=logging.getLogger(__name__)
-CHECKS=[{"key":"teacher_conflicts","label":"Teacher conflicts","group":"hard"},{"key":"class_conflicts","label":"Class conflicts","group":"hard"},{"key":"room_conflicts","label":"Room conflicts","group":"hard"},{"key":"availability","label":"Availability","group":"hard"},{"key":"workload","label":"Workload balance","group":"soft"},{"key":"distribution","label":"Subject distribution","group":"soft"},{"key":"preferences","label":"Time preferences","group":"soft"}]
+CHECKS=[{"key":"teacher_conflicts","label":"Teacher conflicts","group":"hard"},{"key":"class_conflicts","label":"Class conflicts","group":"hard"},{"key":"room_conflicts","label":"Room conflicts","group":"hard"},{"key":"availability","label":"Availability","group":"hard"},{"key":"double_lessons","label":"Double lessons","group":"hard"},{"key":"workload","label":"Workload balance","group":"soft"},{"key":"distribution","label":"Subject distribution","group":"soft"},{"key":"preferences","label":"Time preferences","group":"soft"}]
 DEFAULT_DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday"]
 DEFAULT_PERIODS=[(0,"P1","08:00","08:45",True),(1,"P2","08:45","09:30",True),(2,"P3","09:30","10:15",True),(3,"Break","10:15","10:45",False),(4,"P4","10:45","11:30",True),(5,"P5","11:30","12:15",True),(6,"P6","12:15","13:00",True),(7,"Lunch","13:00","14:00",False),(8,"P7","14:00","14:45",True),(9,"P8","14:45","15:30",True)]
 def initial_checks(): return [{**c,"state":"pending"} for c in CHECKS]
@@ -49,6 +50,11 @@ def _run_job(job_id,school_id,max_seconds):
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
         if not job:return
         if not result.solved:return _fail(db,job," ".join(result.messages) or "No feasible timetable was found.")
+        double_problems=enforce_double_lessons(data,result.placements)
+        if double_problems:
+            checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"failed");job.checks=checks;db.commit()
+            return _fail(db,job," ".join(double_problems))
+        checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"passed");job.checks=checks;db.commit()
         version=_persist(db,school_id,result,job.created_by)
         breakdown=result.quality.get("breakdown",{});checks=job.checks or initial_checks();checks=_set_checks(checks,["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed");checks=_set_checks(checks,["workload","distribution"],"passed");checks=_set_checks(checks,["preferences"],"passed" if breakdown.get("morning_preference",100)>=90 else "warning")
         job.checks=checks;job.status="completed";job.stage="Completed";job.progress=100;job.result_version_id=version.id;job.quality=result.quality;job.finished_at=datetime.utcnow();db.commit()
