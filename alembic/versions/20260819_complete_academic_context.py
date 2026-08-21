@@ -71,12 +71,12 @@ def upgrade():
     for table in ("students_v2", "student_enrollments"):
         if table in _tables(): _add_column(table, sa.Column("grade_id", sa.Integer()))
 
-    if "student_enrollments" in _tables():
+    if "student_enrollments" in _tables() and "stream_id" in _columns("student_enrollments"):
         bind.execute(sa.text("""
             UPDATE student_enrollments e SET grade_id=s.grade_id FROM streams s
             WHERE e.grade_id IS NULL AND e.stream_id=s.id
         """))
-    if "students_v2" in _tables():
+    if "students_v2" in _tables() and "stream_id" in _columns("students_v2"):
         bind.execute(sa.text("""
             UPDATE students_v2 st SET grade_id=s.grade_id FROM streams s
             WHERE st.grade_id IS NULL AND st.stream_id=s.id
