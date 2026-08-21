@@ -4,8 +4,6 @@ import { supabase } from './supabase'
 const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '')
 const sameOriginApiUrl = typeof window !== 'undefined' ? window.location.origin : ''
 const isProductionHost = typeof window !== 'undefined' && ['www.phikila.com', 'phikila.com'].includes(window.location.hostname)
-// Production is served as a single Vercel application. Keep API calls same-origin so
-// browser requests use Vercel's /api routing instead of depending on the Render hostname.
 const apiUrl = isProductionHost ? sameOriginApiUrl : configuredApiUrl || sameOriginApiUrl
 
 export class ApiError extends Error { constructor(message: string, public readonly status: number, public readonly detail?: unknown) { super(message) } }
@@ -56,6 +54,7 @@ export const api = {
   academicYears: () => apiFetch<AcademicYear[]>('/api/v1/academics/years'),
   updateAcademicYear: (id: number, payload: Partial<Pick<AcademicYear, 'name' | 'start_date' | 'end_date' | 'is_current' | 'status'>>) => apiFetch<AcademicYear>(`/api/v1/academics/years/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   terms: () => apiFetch<Term[]>('/api/v1/academics/terms'),
+  updateTerm: (id: number, payload: Partial<Pick<Term, 'name' | 'start_date' | 'end_date' | 'is_current' | 'academic_year_id'>>) => apiFetch<Term>(`/api/v1/academics/terms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   levels: () => apiFetch<Level[]>('/api/v1/academics/levels'),
   updateLevel: (id: number, payload: Partial<Pick<Level, 'name' | 'code' | 'display_order' | 'status'>>) => apiFetch<Level>(`/api/v1/academics/levels/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   grades: (levelId?: number) => apiFetch<Grade[]>(`/api/v1/academics/grades${levelId != null ? `?level_id=${levelId}` : ''}`),
@@ -64,5 +63,5 @@ export const api = {
   streams: (academicYearId: number, gradeId: number) => apiFetch<Stream[]>(`/api/v1/academics/years/${academicYearId}/grades/${gradeId}/streams`),
   createStream: (payload: { academic_year_id: number; level_id: number; grade_id: number; name: string; code?: string | null; capacity?: number | null; status?: StreamStatus }) => apiFetch<Stream>('/api/v1/academics/streams', { method: 'POST', body: JSON.stringify(payload) }),
   updateStream: (streamId: number, payload: Partial<Pick<Stream, 'name' | 'code' | 'capacity' | 'status' | 'class_teacher_id'>>) => apiFetch<Stream>(`/api/v1/academics/streams/${streamId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  streamStudents: (streamId: number) => apiFetch<StreamStudent[]>(`/api/v1/academics/streams/${streamId}/students`), assignStudentToStream: (streamId: number, studentId: number) => apiFetch<StreamStudent>(`/api/v1/academics/streams/${streamId}/students`, { method: 'POST', body: JSON.stringify({ student_id: studentId }) }), students: () => apiFetch<StudentListResponse>('/api/v1/students'),
+  streamStudents: (streamId: number) => apiFetch<StreamStudent[]>(`/api/v1/academics/streams/${streamId}/students`), students: () => apiFetch<StudentListResponse>('/api/v1/students'),
 }
