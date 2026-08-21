@@ -1,7 +1,10 @@
 from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey, DateTime, UniqueConstraint, BigInteger
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 from app.core.database import Base
+
+StatusEnum = PgEnum("ACTIVE", "INACTIVE", "ARCHIVED", name="statusenum", create_type=False)
 
 
 class AcademicYear(Base):
@@ -42,7 +45,7 @@ class Level(Base):
     name = Column(String, nullable=False)
     code = Column(String, nullable=False, index=True)
     display_order = Column(Integer, nullable=False)
-    status = Column(Boolean, default=True)
+    status = Column(StatusEnum, default="ACTIVE", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     grades = relationship("Grade", back_populates="level", cascade="all, delete-orphan")
@@ -65,7 +68,7 @@ class Grade(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     level = relationship("Level", back_populates="grades")
-    streams = relationship("Stream", back_populates="grade", cascade="all, delete-orphan")
+    streams = relationship("Stream", back_populates="streams") if False else relationship("Stream", back_populates="grade", cascade="all, delete-orphan")
 
 
 class Stream(Base):
