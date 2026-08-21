@@ -1,241 +1,81 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, EmptyState, LoadingBlock } from '../components/States'
-import { friendlyApiError } from '../lib/api'
-import { examinations, type ExamSeries, type Examination, type StudentResult, type ResultsAnalysis } from '../lib/examinations'
+import { api, type AcademicYear, type Grade, type Level, type Stream, type StudentListItem } from '../lib/api'
+import { examinations, type ExamEntry, type ExamSeries, type Examination, type ExamSubject, type ResultsAnalysis, type StudentResult } from '../lib/examinations'
+import { apiFetch, friendlyApiError } from '../lib/api'
+
+type Subject = { id: number; name: string; code: string }
+
+type Tab = 'setup' | 'marks' | 'results'
 
 export default function ExaminationsPage() {
   const [series, setSeries] = useState<ExamSeries[]>([])
   const [exams, setExams] = useState<Examination[]>([])
+  const [selected, setSelected] = useState<Examination | null>(null)
+  const [tab, setTab] = useState<Tab>('setup')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedExam, setSelectedExam] = useState<Examination | null>(null)
-  const [results, setResults] = useState<StudentResult[]>([])
-  const [analysis, setAnalysis] = useState<ResultsAnalysis | null>(null)
-  const [showNewSeries, setShowNewSeries] = useState(false)
-  const [showNewExam, setShowNewExam] = useState(false)
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [s, e] = await Promise.all([examinations.listSeries(), examinations.list()])
-      setSeries(s)
-      setExams(e)
-    } catch (err) {
-      setError(friendlyApiError(err, 'load examinations'))
-    } finally {
-      setLoading(false)
-    }
+    setLoading(true); setError(null)
+    try { const [s, e] = await Promise.all([examinations.listSeries(), examinations.list()]); setSeries(s); setExams(e) }
+    catch (err) { setError(friendlyApiError(err, 'load examinations')) }
+    finally { setLoading(false) }
   }, [])
-
   useEffect(() => { load() }, [load])
 
-  async function loadResults(exam: Examination) {
-    setError(null)
-    try {
-      const [r, a] = await Promise.all([
-        examinations.generateResults(exam.id),
-        examinations.resultsAnalysis(exam.id),
-      ])
-      setSelectedExam(exam)
-      setResults(r)
-      setAnalysis(a)
-    } catch (err) {
-      setError(friendlyApiError(err, 'generate results'))
-    }
-  }
-
-  return (
-    <div>
-      <PageHeader
-        title="Examinations"
-        description="Manage exam series, score entry, and results."
-        actions={
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <button className="button button--secondary button--sm" onClick={() => setShowNewSeries((v) => !v)}>+ Series</button>
-            <button className="button button--primary button--sm" disabled={!series.length} onClick={() => setShowNewExam((v) => !v)}>+ Exam</button>
-          </div>
-        }
-      />
-
-      {error && <Alert tone="error">{error}</Alert>}
-
-      {showNewSeries && <NewSeriesForm onCreated={() => { setShowNewSeries(false); load() }} onCancel={() => setShowNewSeries(false)} />}
-      {showNewExam && <NewExamForm series={series} onCreated={() => { setShowNewExam(false); load() }} onCancel={() => setShowNewExam(false)} />}
-
-      {selectedExam && <ResultsTable exam={selectedExam} results={results} analysis={analysis} onClose={() => { setSelectedExam(null); setResults([]); setAnalysis(null) }} />}
-
-      {loading ? <LoadingBlock label="Loading examinations" rows={4} /> : (
-        <>
-          {series.length > 0 && (
-            <section className="section" style={{ marginBottom: 'var(--space-4)' }}>
-              <h2 className="section__title">Exam Series</h2>
-              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                {series.map((s) => (
-                  <div key={s.id} className="card" style={{ padding: 'var(--space-3)', flex: '1 1 14rem', display: 'flex', justifyContent: 'space-between' }}>
-                    <strong>{s.name}</strong><Badge tone={s.status === 'active' ? 'success' : 'warning'}>{s.status}</Badge>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section className="section">
-            <h2 className="section__title">Examinations</h2>
-            {!exams.length ? <EmptyState title="No examinations" description="Create an exam series and add examinations to get started." /> : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                {exams.map((exam) => (
-                  <div key={exam.id} className="card" style={{ padding: 'var(--space-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                    <div>
-                      <strong>{exam.name}</strong>
-                      <span style={{ color: 'var(--color-ink-muted)', fontSize: '0.85rem', marginLeft: 'var(--space-2)' }}>
-                        {exam.total_marks} marks · Pass: {exam.passing_marks}{exam.exam_date ? ` · ${exam.exam_date}` : ''}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                      <Badge tone={exam.status === 'active' ? 'success' : 'warning'}>{exam.status}</Badge>
-                      <button className="button button--ghost button--sm" onClick={() => loadResults(exam)}>Results</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </>
-      )}
+  return <div>
+    <PageHeader title="Examinations" description="Configure examinations, enter marks, review results, and publish safely." />
+    {error && <Alert tone="error">{error}</Alert>}
+    <div className="card" style={{ padding: 'var(--space-2)', marginBottom: 'var(--space-4)', display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+      {(['setup', 'marks', 'results'] as Tab[]).map((item) => <button key={item} className={`button button--sm ${tab === item ? 'button--primary' : 'button--secondary'}`} onClick={() => setTab(item)}>{item === 'setup' ? 'Examination Setup' : item === 'marks' ? 'Mark Entry' : 'Results & Report Cards'}</button>)}
     </div>
-  )
+    {loading ? <LoadingBlock label="Loading examinations" rows={5} /> : tab === 'setup' ? <SetupTab series={series} exams={exams} onRefresh={load} onSelect={(exam) => { setSelected(exam); setTab('setup') }} /> : !selected ? <EmptyState title="Select an examination" description="Choose an examination from Setup first, then open Mark Entry or Results." /> : tab === 'marks' ? <MarkEntryTab exam={selected} /> : <ResultsTab exam={selected} />}
+  </div>
 }
 
-function NewSeriesForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
-  const [name, setName] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function create() {
-    setSubmitting(true)
-    setError(null)
-    try {
-      await examinations.createSeries({ name: name.trim() })
-      onCreated()
-    } catch (err) {
-      setError(friendlyApiError(err, 'create exam series'))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="card section" style={{ marginBottom: 'var(--space-4)' }}>
-      <h2 className="section__title">New Exam Series</h2>
-      {error && <Alert tone="error">{error}</Alert>}
-      <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
-        <div className="field" style={{ flex: 1 }}>
-          <label className="field__label">Series Name</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 2026 Mid-Term" />
-        </div>
-        <button className="button button--primary" disabled={!name.trim() || submitting} onClick={create}>{submitting ? 'Creating…' : 'Create'}</button>
-        <button className="button button--secondary" disabled={submitting} onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
-  )
+function SetupTab({ series, exams, onRefresh, onSelect }: { series: ExamSeries[]; exams: Examination[]; onRefresh: () => void; onSelect: (e: Examination) => void }) {
+  const [showSeries, setShowSeries] = useState(false); const [showExam, setShowExam] = useState(false); const [message, setMessage] = useState<string | null>(null)
+  async function changeStatus(exam: Examination, status: 'draft' | 'active' | 'published' | 'locked') { try { const updated = await examinations.setStatus(exam.id, status); setMessage(`${updated.name} is now ${updated.status}.`); onRefresh() } catch (err) { setMessage(friendlyApiError(err, 'change examination status')) } }
+  return <>
+    {message && <Alert tone="info">{message}</Alert>}
+    <section className="section"><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2 className="section__title">Exam Series</h2><button className="button button--secondary button--sm" onClick={() => setShowSeries(!showSeries)}>+ Series</button></div>
+      {showSeries && <NewSeriesForm onCreated={() => { setShowSeries(false); onRefresh() }} onCancel={() => setShowSeries(false)} />}
+      {!series.length ? <EmptyState title="No exam series" description="Create a series before adding examinations." /> : <div style={{ display: 'grid', gap: 'var(--space-2)' }}>{series.map(s => <div className="card" key={s.id} style={{ padding: 'var(--space-3)', display: 'flex', justifyContent: 'space-between' }}><strong>{s.name}</strong><Badge tone={s.status === 'active' ? 'success' : 'warning'}>{s.status}</Badge></div>)}</div>}
+    </section>
+    <section className="section"><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2 className="section__title">Examinations</h2><button className="button button--primary button--sm" disabled={!series.length} onClick={() => setShowExam(!showExam)}>+ Examination</button></div>
+      {showExam && <NewExamForm series={series} onCreated={() => { setShowExam(false); onRefresh() }} onCancel={() => setShowExam(false)} />}
+      {!exams.length ? <EmptyState title="No examinations" description="Create an examination to begin configuration." /> : <div style={{ display: 'grid', gap: 'var(--space-2)' }}>{exams.map(exam => <div className="card" key={exam.id} style={{ padding: 'var(--space-3)' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}><div><strong>{exam.name}</strong><div style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{exam.exam_date || 'No date'} · {exam.total_marks} marks · Pass {exam.passing_marks}</div></div><Badge tone={exam.status === 'published' ? 'success' : exam.status === 'locked' ? 'info' : 'warning'}>{exam.status}</Badge></div><div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-3)' }}><button className="button button--secondary button--sm" onClick={() => onSelect(exam)}>Configure</button><button className="button button--secondary button--sm" onClick={() => { onSelect(exam); window.setTimeout(() => {}, 0) }}>Open</button>{exam.status === 'draft' && <button className="button button--secondary button--sm" onClick={() => changeStatus(exam, 'active')}>Open for marks</button>}{exam.status === 'active' && <button className="button button--secondary button--sm" onClick={() => changeStatus(exam, 'published')}>Publish</button>}{exam.status === 'published' && <button className="button button--secondary button--sm" onClick={() => changeStatus(exam, 'locked')}>Lock</button>}</div></div>)}</div>}
+    </section>
+    {exams.map(exam => <ConfigurationPanel key={exam.id} exam={exam} onUpdated={onRefresh} />)}
+  </>
 }
 
-function NewExamForm({ series, onCreated, onCancel }: { series: ExamSeries[]; onCreated: () => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ series_id: series[0]?.id || 0, name: '', total_marks: 100, passing_marks: 50 })
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function create() {
-    if (!form.series_id) {
-      setError('Create an exam series before creating an examination.')
-      return
-    }
-    if (!form.name.trim()) return
-    if (form.passing_marks > form.total_marks) {
-      setError('Passing marks cannot be greater than total marks.')
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    try {
-      await examinations.create({ ...form, name: form.name.trim() })
-      onCreated()
-    } catch (err) {
-      setError(friendlyApiError(err, 'create examination'))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="card section" style={{ marginBottom: 'var(--space-4)' }}>
-      <h2 className="section__title">New Examination</h2>
-      {error && <Alert tone="error">{error}</Alert>}
-      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="field">
-          <label className="field__label">Series</label>
-          <select className="input" value={form.series_id} onChange={(e) => setForm({ ...form, series_id: Number(e.target.value) })}>
-            {series.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-        <div className="field" style={{ flex: 1 }}>
-          <label className="field__label">Exam Name *</label>
-          <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Mathematics Mid-Term" />
-        </div>
-        <div className="field"><label className="field__label">Total</label><input className="input" type="number" min="1" value={form.total_marks} onChange={(e) => setForm({ ...form, total_marks: Number(e.target.value) })} /></div>
-        <div className="field"><label className="field__label">Pass</label><input className="input" type="number" min="0" value={form.passing_marks} onChange={(e) => setForm({ ...form, passing_marks: Number(e.target.value) })} /></div>
-        <button className="button button--primary" disabled={!form.name.trim() || !form.series_id || submitting} onClick={create}>{submitting ? 'Creating…' : 'Create'}</button>
-        <button className="button button--secondary" disabled={submitting} onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
-  )
+function ConfigurationPanel({ exam, onUpdated }: { exam: Examination; onUpdated: () => void }) {
+  const [open, setOpen] = useState(false); const [subjects, setSubjects] = useState<ExamSubject[]>([]); const [years, setYears] = useState<AcademicYear[]>([]); const [levels, setLevels] = useState<Level[]>([]); const [grades, setGrades] = useState<Grade[]>([]); const [streams, setStreams] = useState<Stream[]>([]); const [message, setMessage] = useState<string | null>(null)
+  const [form, setForm] = useState({ subject_id: '', academic_year_id: '', level_id: '', grade_id: '', stream_id: '', teacher_id: '', total_marks: '100' })
+  useEffect(() => { if (!open) return; Promise.all([examinations.listSubjects(exam.id), api.academicYears(), api.levels()]).then(([s, y, l]) => { setSubjects(s); setYears(y); setLevels(l) }).catch(e => setMessage(friendlyApiError(e, 'load examination configuration'))) }, [open, exam.id])
+  useEffect(() => { if (form.level_id) api.grades(Number(form.level_id)).then(setGrades).catch(() => setGrades([])); else setGrades([]) }, [form.level_id])
+  useEffect(() => { if (form.academic_year_id && form.grade_id) api.streams(Number(form.academic_year_id), Number(form.grade_id)).then(setStreams).catch(() => setStreams([])); else setStreams([]) }, [form.academic_year_id, form.grade_id])
+  async function assign() { try { await examinations.assignSubject(exam.id, { subject_id: Number(form.subject_id), academic_year_id: Number(form.academic_year_id), level_id: Number(form.level_id), grade_id: Number(form.grade_id), stream_id: Number(form.stream_id), teacher_id: form.teacher_id ? Number(form.teacher_id) : null, total_marks: Number(form.total_marks) }); setMessage('Subject assigned.'); setSubjects(await examinations.listSubjects(exam.id)); onUpdated() } catch (e) { setMessage(friendlyApiError(e, 'assign subject')) } }
+  return <div className="card section" style={{ marginTop: 'var(--space-3)' }}><button className="button button--ghost button--sm" onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Configure'} {exam.name}</button>{open && <div style={{ marginTop: 'var(--space-3)' }}>{message && <Alert tone="info">{message}</Alert>}<h3>Subject assignments</h3><p style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>The existing subject/teacher catalog is retained. Enter their IDs here while the catalog screens remain separate.</p><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(12rem,1fr))', gap: 'var(--space-2)' }}>{[['Subject ID','subject_id'],['Teacher ID (optional)','teacher_id'],['Maximum marks','total_marks']].map(([label,key]) => <label className="field" key={key}><span className="field__label">{label}</span><input className="input" type="number" min="0" value={(form as any)[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}<Select label="Academic year" value={form.academic_year_id} options={years.map(x => [x.id,x.name])} onChange={v => setForm({...form,academic_year_id:v,grade_id:'',stream_id:''})}/><Select label="Level" value={form.level_id} options={levels.map(x => [x.id,x.name])} onChange={v => setForm({...form,level_id:v,grade_id:'',stream_id:''})}/><Select label="Grade" value={form.grade_id} options={grades.map(x => [x.id,x.name])} onChange={v => setForm({...form,grade_id:v,stream_id:''})}/><Select label="Stream" value={form.stream_id} options={streams.map(x => [x.id,x.name])} onChange={v => setForm({...form,stream_id:v})}/></div><button className="button button--primary button--sm" disabled={!form.subject_id||!form.academic_year_id||!form.level_id||!form.grade_id||!form.stream_id} onClick={assign}>Assign subject</button><div style={{ marginTop: 'var(--space-3)', overflowX: 'auto' }}><table style={{width:'100%'}}><thead><tr><th>Subject ID</th><th>Grade</th><th>Stream</th><th>Teacher</th><th>Marks</th></tr></thead><tbody>{subjects.map(s=><tr key={s.id}><td>{s.subject_id}</td><td>{s.grade_id}</td><td>{s.stream_id}</td><td>{s.teacher_id ?? '—'}</td><td>{s.total_marks}</td></tr>)}</tbody></table></div></div>}</div>
 }
 
-const CBC_BAND_LEGEND = [
-  { code: 'EE', label: 'Exceeding Expectations', range: '80–100%' },
-  { code: 'ME', label: 'Meeting Expectations', range: '50–79%' },
-  { code: 'AE', label: 'Approaching Expectations', range: '40–49%' },
-  { code: 'BE', label: 'Below Expectations', range: '0–39%' },
-]
-
-function ResultsTable({ exam, results, analysis, onClose }: { exam: Examination; results: StudentResult[]; analysis: ResultsAnalysis | null; onClose: () => void }) {
-  const cbcResults = results.filter((r) => r.education_level === 'primary' || r.education_level === 'junior')
-  return (
-    <div className="card section" style={{ marginBottom: 'var(--space-4)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-        <h2 className="section__title" style={{ marginBottom: 0 }}>Results — {exam.name}</h2>
-        <button className="button button--ghost button--sm" onClick={onClose}>Close</button>
-      </div>
-      <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem', marginBottom: 'var(--space-3)' }}>{results.length} students · Total: {exam.total_marks} · Pass: {exam.passing_marks}</p>
-      {analysis && (
-        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-3)' }}>
-          {analysis.cohort_mean !== undefined && <span className="badge badge--info">Cohort mean: {analysis.cohort_mean}%</span>}
-          {Object.entries(analysis.band_distribution).map(([band, count]) => <span key={band} className="badge">{band}: {count}</span>)}
-          {analysis.progress_summary.improved !== undefined && <span className="badge badge--success">Improved: {analysis.progress_summary.improved}</span>}
-          {analysis.progress_summary.declined !== undefined && <span className="badge badge--warning">Declined: {analysis.progress_summary.declined}</span>}
-        </div>
-      )}
-      {cbcResults.length > 0 && (
-        <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--color-ink-muted)', marginBottom: 'var(--space-3)' }}>
-          <strong>CBC / KPSEA / KJSEA bands:</strong>
-          {CBC_BAND_LEGEND.map((b) => <span key={b.code}><Badge tone="success">{b.code}</Badge> {b.label} ({b.range})</span>)}
-        </div>
-      )}
-      {results.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ borderBottom: '2px solid var(--color-line)' }}>
-              <th style={{ padding: 'var(--space-2)', textAlign: 'left' }}>#</th><th style={{ padding: 'var(--space-2)', textAlign: 'left' }}>Name</th><th style={{ padding: 'var(--space-2)', textAlign: 'left' }}>Adm No</th><th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Total</th><th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Average</th><th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Mean %</th><th style={{ padding: 'var(--space-2)', textAlign: 'left' }}>Band</th><th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Deviation</th><th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Progress</th><th style={{ padding: 'var(--space-2)', textAlign: 'right' }}>Position</th>
-            </tr></thead>
-            <tbody>{results.map((r, i) => <tr key={r.student_id} style={{ borderBottom: '1px solid var(--color-line)' }}>
-              <td style={{ padding: 'var(--space-2)' }}>{i + 1}</td><td style={{ padding: 'var(--space-2)', fontWeight: 600 }}>{r.student_name}</td><td style={{ padding: 'var(--space-2)' }}>{r.admission_number}</td><td style={{ padding: 'var(--space-2)', textAlign: 'right', fontWeight: 700 }}>{r.total_score}</td><td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>{r.average}</td><td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>{r.percentage ?? '—'}</td><td style={{ padding: 'var(--space-2)' }}>{r.band ? <Badge tone="success">{r.band}</Badge> : '—'}{r.band_label ? ` ${r.band_label}` : ''}</td><td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>{r.deviation ?? '—'}</td><td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>{r.progress ?? '—'}</td><td style={{ padding: 'var(--space-2)', textAlign: 'right' }}>{r.position ?? '—'}</td>
-            </tr>)}</tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
+function MarkEntryTab({ exam }: { exam: Examination }) {
+  const [subjects, setSubjects] = useState<ExamSubject[]>([]); const [students, setStudents] = useState<StudentListItem[]>([]); const [entries, setEntries] = useState<ExamEntry[]>([]); const [subjectId, setSubjectId] = useState(''); const [scores, setScores] = useState<Record<number,string>>({}); const [remarks, setRemarks] = useState<Record<number,string>>({}); const [message, setMessage] = useState<string | null>(null); const [busy, setBusy] = useState(false)
+  useEffect(() => { Promise.all([examinations.listSubjects(exam.id), api.students()]).then(([s, st]) => { setSubjects(s); setStudents(st.items) }).catch(e => setMessage(friendlyApiError(e,'load mark entry'))) }, [exam.id])
+  useEffect(() => { if (!subjectId) return; examinations.listEntries(exam.id, Number(subjectId)).then(rows => { setEntries(rows); const next: Record<number,string>={}; const rem: Record<number,string>={}; rows.forEach(r=>{if(r.score!=null)next[r.student_id]=String(r.score);if(r.remarks)rem[r.student_id]=r.remarks}); setScores(next);setRemarks(rem) }).catch(e=>setMessage(friendlyApiError(e,'load marks'))) }, [exam.id,subjectId])
+  const subject = subjects.find(s=>s.subject_id===Number(subjectId)); const max = subject?.total_marks ?? exam.total_marks
+  const save = async () => { if (!subjectId) return; setBusy(true); try { const entries = Object.entries(scores).filter(([,v])=>v!=='').map(([id,v])=>({student_id:Number(id),subject_id:Number(subjectId),score:Number(v),remarks:remarks[Number(id)]||null})); const result=await examinations.enterScores(exam.id,entries);setMessage(`Saved ${result.created+result.updated} marks.`) } catch(e){setMessage(friendlyApiError(e,'save marks'))} finally{setBusy(false)} }
+  return <section className="section"><h2 className="section__title">Mark Entry — {exam.name}</h2>{message&&<Alert tone="info">{message}</Alert>}<div style={{display:'flex',gap:'var(--space-2)',alignItems:'end',marginBottom:'var(--space-3')}}><Select label="Subject assignment" value={subjectId} options={subjects.map(s=>[s.subject_id,`Subject ${s.subject_id} · ${s.total_marks} marks`])} onChange={setSubjectId}/><Badge tone={exam.status==='active'?'success':'warning'}>{exam.status}</Badge></div>{!subjectId?<EmptyState title="Select a subject" description="Choose a configured subject to load the active students."/>:<><div style={{overflowX:'auto'}}><table style={{width:'100%'}}><thead><tr><th>Admission</th><th>Student</th><th>Score / {max}</th><th>Remarks</th></tr></thead><tbody>{students.map(st=><tr key={st.id}><td>{st.admission_number}</td><td>{st.first_name} {st.last_name}</td><td><input className="input" style={{maxWidth:'8rem'}} type="number" min="0" max={max} value={scores[st.id]??''} onChange={e=>setScores({...scores,[st.id]:e.target.value})}/></td><td><input className="input" value={remarks[st.id]??''} onChange={e=>setRemarks({...remarks,[st.id]:e.target.value})}/></td></tr>)}</tbody></table></div><button className="button button--primary" disabled={busy||exam.status!=='active'} onClick={save}>{busy?'Saving…':'Save marks'}</button>{exam.status!=='active'&&<p style={{color:'var(--color-ink-muted)'}}>Mark entry is available only while the examination is active.</p>}</>}</section>
 }
+
+function ResultsTab({ exam }: { exam: Examination }) { const [results,setResults]=useState<StudentResult[]>([]);const [analysis,setAnalysis]=useState<ResultsAnalysis|null>(null);const [selected,setSelected]=useState<StudentResult|null>(null);const [message,setMessage]=useState<string|null>(null);useEffect(()=>{Promise.all([examinations.generateResults(exam.id),examinations.resultsAnalysis(exam.id)]).then(([r,a])=>{setResults(r);setAnalysis(a)}).catch(e=>setMessage(friendlyApiError(e,'generate results')))},[exam.id]);return <section className="section">{message&&<Alert tone="error">{message}</Alert>}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap'}}><h2 className="section__title">Results — {exam.name}</h2><button className="button button--secondary button--sm" onClick={()=>window.print()}>Print</button></div>{analysis&&<div style={{display:'flex',gap:'var(--space-2)',flexWrap:'wrap',marginBottom:'var(--space-3')}}><Badge tone="info">Students: {analysis.cohort_size}</Badge><Badge tone="info">Cohort mean: {analysis.cohort_mean ?? '—'}%</Badge>{Object.entries(analysis.band_distribution).map(([k,v])=><Badge key={k}>{k}: {v}</Badge>)}<Badge tone="success">Improved: {analysis.progress_summary.improved??0}</Badge><Badge tone="warning">Declined: {analysis.progress_summary.declined??0}</Badge></div>}<div style={{overflowX:'auto'}}><table style={{width:'100%'}}><thead><tr><th>#</th><th>Admission</th><th>Name</th><th>Total</th><th>Average</th><th>Mean %</th><th>Band</th><th>Progress</th><th></th></tr></thead><tbody>{results.map(r=><tr key={r.student_id}><td>{r.position}</td><td>{r.admission_number}</td><td>{r.student_name}</td><td>{r.total_score}</td><td>{r.average}</td><td>{r.percentage??'—'}</td><td>{r.band??'—'}</td><td>{r.progress??'—'}</td><td><button className="button button--ghost button--sm" onClick={()=>setSelected(r)}>Report card</button></td></tr>)}</tbody></table></div>{selected&&<ReportCard result={selected} exam={exam} onClose={()=>setSelected(null)}/>}</section> }
+
+function ReportCard({result,exam,onClose}:{result:StudentResult;exam:Examination;onClose:()=>void}){return <div className="card section" style={{marginTop:'var(--space-4)'}}><div style={{display:'flex',justifyContent:'space-between'}}><h3>Report Card</h3><button className="button button--ghost button--sm" onClick={onClose}>Close</button></div><p><strong>{result.student_name}</strong> · {result.admission_number}</p><p>{exam.name} · Position {result.position??'—'} · Average {result.average}% · Band {result.band??'—'}</p><table style={{width:'100%'}}><thead><tr><th>Subject</th><th>Score</th><th>%</th><th>Grade/Band</th></tr></thead><tbody>{result.subject_scores.map(s=><tr key={s.subject_id}><td>{s.subject_id}</td><td>{s.score}</td><td>{s.percentage??'—'}</td><td>{s.grade??s.band??'—'}</td></tr>)}</tbody></table><button className="button button--primary button--sm" onClick={()=>window.print()}>Print report card</button></div>}
+
+function Select({label,value,options,onChange}:{label:string;value:string;options:[number,string][];onChange:(v:string)=>void}){return <label className="field" style={{minWidth:'12rem'}}><span className="field__label">{label}</span><select className="input" value={value} onChange={e=>onChange(e.target.value)}><option value="">Select…</option>{options.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>}
+function NewSeriesForm({onCreated,onCancel}:{onCreated:()=>void;onCancel:()=>void}){const[name,setName]=useState('');const[error,setError]=useState('');const save=async()=>{try{await examinations.createSeries({name:name.trim()});onCreated()}catch(e){setError(friendlyApiError(e,'create exam series'))}};return <div className="card" style={{padding:'var(--space-3)',margin:'var(--space-3) 0'}}>{error&&<Alert tone="error">{error}</Alert>}<div style={{display:'flex',gap:'var(--space-2)'}}><input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. 2026 Term 2"/><button className="button button--primary" disabled={!name.trim()} onClick={save}>Create</button><button className="button button--secondary" onClick={onCancel}>Cancel</button></div></div>}
+function NewExamForm({series,onCreated,onCancel}:{series:ExamSeries[];onCreated:()=>void;onCancel:()=>void}){const[form,setForm]=useState({series_id:series[0]?.id||0,name:'',exam_date:'',total_marks:100,passing_marks:50});const[error,setError]=useState('');const save=async()=>{if(form.passing_marks>form.total_marks){setError('Passing marks cannot exceed total marks.');return}try{await examinations.create(form);onCreated()}catch(e){setError(friendlyApiError(e,'create examination'))}};return <div className="card" style={{padding:'var(--space-3)',margin:'var(--space-3) 0'}}>{error&&<Alert tone="error">{error}</Alert>}<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(12rem,1fr))',gap:'var(--space-2)'}}><Select label="Series" value={String(form.series_id)} options={series.map(s=>[s.id,s.name])} onChange={v=>setForm({...form,series_id:Number(v)})}/><label className="field"><span className="field__label">Exam name</span><input className="input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label className="field"><span className="field__label">Date</span><input className="input" type="date" value={form.exam_date} onChange={e=>setForm({...form,exam_date:e.target.value})}/></label><label className="field"><span className="field__label">Total marks</span><input className="input" type="number" min="1" value={form.total_marks} onChange={e=>setForm({...form,total_marks:Number(e.target.value)})}/></label><label className="field"><span className="field__label">Pass marks</span><input className="input" type="number" min="0" value={form.passing_marks} onChange={e=>setForm({...form,passing_marks:Number(e.target.value)})}/></label></div><div style={{marginTop:'var(--space-2)',display:'flex',gap:'var(--space-2)'}}><button className="button button--primary" disabled={!form.name.trim()} onClick={save}>Create</button><button className="button button--secondary" onClick={onCancel}>Cancel</button></div></div>}
