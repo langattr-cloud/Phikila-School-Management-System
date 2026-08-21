@@ -4,6 +4,18 @@
   "buildCommand": "npm --prefix frontend ci --include=dev && npm --prefix frontend run build && test -f frontend/dist/index.html",
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://phikila-school-management-system.onrender.com/api/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://phikila-school-management-system.onrender.com/health"
+    },
+    {
+      "source": "/ready",
+      "destination": "https://phikila-school-management-system.onrender.com/ready"
+    },
+    {
       "source": "/((?!api(?:/|$)|docs(?:/|$)|redoc(?:/|$)|openapi.json$|health$|ready$|assets(?:/|$)|brand(?:/|$)|favicon\\.(?:svg|ico)$|site\\.webmanifest$|sw\\.js$).*)",
       "destination": "/"
     }
