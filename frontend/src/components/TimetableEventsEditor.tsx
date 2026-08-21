@@ -8,7 +8,7 @@ const empty={name:'BREAK',start_time:'10:00',end_time:'10:20',day_indexes:[] as 
 type Draft=Omit<Event,'id'>
 export function TimetableEventsEditor(){
  const {notify}=useToast();const [days,setDays]=useState<Day[]>([]);const [events,setEvents]=useState<Event[]>([]);const [form,setForm]=useState<Draft>({...empty});const [editing,setEditing]=useState<number|null>(null);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [error,setError]=useState<string|null>(null)
- const load=useCallback(async()=>{setLoading(true);try{const [calendar,rows]=await Promise.all([scheduling.calendar(),scheduling.events()]);setDays(calendar.days.filter(d=>d.is_active));setEvents(rows)}catch(e){setError(friendlyApiError(e,'load timetable events'))}finally{setLoading(false)}},[])
+ const load=useCallback(async()=>{setLoading(true);try{const [calendar,rows]=await Promise.all([scheduling.calendar(),scheduling.events()]);setDays(calendar.days.filter((d: Day)=>d.is_active));setEvents(rows)}catch(e){setError(friendlyApiError(e,'load timetable events'))}finally{setLoading(false)}},[])
  useEffect(()=>{void load()},[load])
  function toggleDay(index:number){setForm(f=>({...f,day_indexes:f.day_indexes.includes(index)?f.day_indexes.filter(d=>d!==index):[...f.day_indexes,index].sort((a,b)=>a-b)}))}
  function edit(event:Event){setEditing(event.id);setForm({name:event.name,start_time:event.start_time,end_time:event.end_time,day_indexes:event.day_indexes,event_type:event.event_type,note:event.note})}
