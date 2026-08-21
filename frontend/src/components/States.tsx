@@ -98,10 +98,9 @@ export function Badge({
   tone = 'neutral',
   children,
 }: {
-  tone?: 'neutral' | 'success' | 'warning' | 'danger'
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info'
   children: ReactNode
 }) {
-  // A dot plus text keeps status readable without relying on colour alone.
   return (
     <span className={`badge badge--${tone}`}>
       <span className="badge__dot" aria-hidden="true" />
