@@ -4,14 +4,18 @@
 .timetable-toolbar .field__label { white-space:nowrap; }
 .timetable-toolbar .input--select { min-height:2.35rem; font-weight:700; }
 .timetable-toolbar__status { display:flex; align-items:center; flex-wrap:wrap; gap:.35rem; }
-.timetable-toolbar__view-tabs { display:flex; flex-wrap:wrap; gap:.3rem; }
+.timetable-toolbar__view-tabs { display:flex; flex-wrap:wrap; gap:.2rem; padding:.2rem; border:1px solid var(--color-line); border-radius:var(--radius-sm); background:var(--color-surface-muted, var(--color-background)); }
+.timetable-toolbar__view-tabs .button { min-height:2.25rem; border-color:transparent; border-radius:calc(var(--radius-sm) - 1px); font-size:.78rem; font-weight:800; }
+.timetable-toolbar__view-tabs .button:hover:not(.button--active) { background:var(--color-primary-soft); color:var(--color-primary); }
 .timetable-toolbar__view-tabs .button--active, .timetable-toolbar .button--active { background:var(--color-primary); border-color:var(--color-primary); color:#fff; }
+.timetable-toolbar__view-tabs .button--active { box-shadow:var(--shadow-sm); }
 .day-chips { display:flex; flex-wrap:wrap; gap:.25rem; }
 .day-chip { min-height:2.25rem; padding:.35rem .7rem; border:1px solid var(--color-line); border-radius:999px; background:var(--color-surface); color:var(--color-ink-muted); font-size:.78rem; font-weight:700; }
 .day-chip:hover { background:var(--color-primary-soft); color:var(--color-primary); }
-.day-chip--active { border-color:var(--color-primary); background:var(--color-primary); color:#fff; }
+.day-chip--active { border-color:var(--color-primary); background:var(--color-primary); color:#fff; box-shadow:var(--shadow-sm); }
 .toolbar__group { display:flex; align-items:center; gap:.25rem; }
+.toolbar__group + .toolbar__group { padding-left:.5rem; border-left:1px solid var(--color-line); }
 .toolbar__zoom-label { min-width:3.1rem; text-align:center; font-size:.78rem; font-weight:700; color:var(--color-ink-muted); }
 @media (max-width:900px) { .timetable-toolbar .field--inline { min-width:min(18rem, 100%); flex:1 1 12rem; } .timetable-toolbar__status { width:100%; } .timetable-toolbar--secondary { position:static; } }
-@media (max-width:640px) { .timetable-toolbar { align-items:stretch; } .timetable-toolbar .field--inline { width:100%; } .timetable-toolbar .toolbar__group { flex:1 1 100%; justify-content:flex-start; } .day-chips { width:100%; overflow-x:auto; flex-wrap:nowrap; padding-bottom:.15rem; } .day-chip { flex:0 0 auto; } }
+@media (max-width:640px) { .timetable-toolbar { align-items:stretch; } .timetable-toolbar .field--inline { width:100%; } .timetable-toolbar .toolbar__group { flex:1 1 100%; justify-content:flex-start; padding-left:0; border-left:0; } .day-chips { width:100%; overflow-x:auto; flex-wrap:nowrap; padding-bottom:.15rem; } .day-chip { flex:0 0 auto; } }
 @media print { .timetable-toolbar, .timetable-toolbar--secondary { display:none !important; } }
