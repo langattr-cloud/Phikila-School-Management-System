@@ -13,7 +13,6 @@ class SeriesUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     academic_year_id: int | None = None
     term_id: int | None = None
-    status: str | None = Field(default=None, pattern=r"^(draft|active|published|locked)$")
 
 class SeriesResponse(BaseModel):
     id: int; school_id: int; name: str; academic_year_id: int | None = None; term_id: int | None = None; status: str; created_at: datetime | None = None
@@ -39,7 +38,6 @@ class ExaminationUpdate(BaseModel):
     exam_date: date | None = None
     total_marks: int | None = Field(default=None, ge=1)
     passing_marks: int | None = Field(default=None, ge=0)
-    status: str | None = Field(default=None, pattern=r"^(draft|active|published|locked)$")
 
     @model_validator(mode="after")
     def validate_marks(self):
