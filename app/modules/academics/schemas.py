@@ -22,6 +22,8 @@ class AcademicYearResponse(AcademicYearCreate):
 
 class TermCreate(BaseModel):
     name: str; start_date: Optional[date] = None; end_date: Optional[date] = None; is_current: Optional[bool] = False; academic_year_id: int
+class TermUpdate(BaseModel):
+    name: Optional[str] = None; start_date: Optional[date] = None; end_date: Optional[date] = None; is_current: Optional[bool] = None; academic_year_id: Optional[int] = None
 class TermResponse(BaseModel):
     id: int; name: str; start_date: Optional[date] = None; end_date: Optional[date] = None; is_current: bool; academic_year_id: int; school_id: int
     class Config: from_attributes = True
