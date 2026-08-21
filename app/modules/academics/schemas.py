@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 StreamStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
 LevelStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
 
+# Keep level status aligned with the PostgreSQL statusenum used in production.
 class AcademicYearCreate(BaseModel):
     name: str = Field(..., min_length=4, max_length=20)
     start_date: date
