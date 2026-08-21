@@ -4,10 +4,10 @@ const BASE = '/api/v1'
 
 export interface ExamSeries { id: number; school_id: number; name: string; academic_year_id: number | null; term_id: number | null; status: string; created_at: string | null }
 export interface SeriesCreate { name: string; academic_year_id?: number | null; term_id?: number | null }
-export interface SeriesUpdate { name?: string; academic_year_id?: number | null; term_id?: number | null; status?: string }
+export interface SeriesUpdate { name?: string; academic_year_id?: number | null; term_id?: number | null }
 export interface Examination { id: number; school_id: number; series_id: number; name: string; description: string | null; exam_date: string | null; total_marks: number; passing_marks: number; status: string; created_at: string | null }
 export interface ExaminationCreate { series_id: number; name: string; description?: string | null; exam_date?: string | null; total_marks?: number; passing_marks?: number }
-export interface ExaminationUpdate { name?: string; description?: string | null; exam_date?: string | null; total_marks?: number; passing_marks?: number; status?: string }
+export interface ExaminationUpdate { name?: string; description?: string | null; exam_date?: string | null; total_marks?: number; passing_marks?: number }
 export interface ExamSubject { id: number; exam_id: number; subject_id: number; academic_year_id: number; level_id: number; grade_id: number; stream_id: number; teacher_id: number | null; total_marks: number; exam_date?: string | null }
 export interface ExamSubjectCreate { subject_id: number; academic_year_id: number; level_id: number; grade_id: number; stream_id: number; teacher_id?: number | null; total_marks?: number; exam_date?: string | null }
 export interface ExamEntry { id: number; exam_id: number; student_id: number; subject_id: number; score: number | null; grade: string | null; position: number | null; remarks: string | null; percentage: number | null }
