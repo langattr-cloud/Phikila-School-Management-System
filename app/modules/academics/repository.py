@@ -31,9 +31,12 @@ class LevelRepository:
     def get_level_by_id(self, school_id: int, level_id: int): return self.db.query(models.Level).filter(models.Level.school_id == school_id, models.Level.id == level_id).first()
     def get_level_by_code(self, school_id: int, code: str): return self.db.query(models.Level).filter(models.Level.school_id == school_id, models.Level.code == code).first()
     def create_level(self, school_id: int, data: schemas.LevelCreate):
-        db_level = models.Level(name=data.name.strip(), code=data.code.strip(), display_order=data.display_order, status=data.status, school_id=school_id); self.db.add(db_level); self.db.commit(); self.db.refresh(db_level); return db_level
+        status = "ACTIVE" if data.status is not False else "INACTIVE"
+        db_level = models.Level(name=data.name.strip(), code=data.code.strip(), display_order=data.display_order, status=status, school_id=school_id); self.db.add(db_level); self.db.commit(); self.db.refresh(db_level); return db_level
     def update_level(self, level: models.Level, data: schemas.LevelUpdate):
-        for key, value in data.model_dump(exclude_unset=True).items(): setattr(level, key, value.strip() if isinstance(value, str) else value)
+        values = data.model_dump(exclude_unset=True)
+        if "status" in values: values["status"] = "ACTIVE" if values["status"] is not False else "INACTIVE"
+        for key, value in values.items(): setattr(level, key, value.strip() if isinstance(value, str) else value)
         self.db.commit(); self.db.refresh(level); return level
 
 
