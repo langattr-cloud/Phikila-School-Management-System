@@ -1,9 +1,5 @@
 import { apiFetch } from './api'
 
-/**
- * Scheduling pages share a single API contract. Keep the transport helpers here
- * so the scheduling client does not depend on removed global get/send helpers.
- */
 const get = <T>(path: string) => apiFetch<T>(path)
 const send = <T>(path: string, method: string = 'POST', payload?: unknown) =>
   apiFetch<T>(path, {
@@ -12,6 +8,7 @@ const send = <T>(path: string, method: string = 'POST', payload?: unknown) =>
   })
 
 type Loose = Record<string, any>
+export type Slots = Record<string, number[]>
 
 export interface Principal extends Loose { id?: number | string; school_id?: number; role?: string }
 export interface Day extends Loose { id: number; index: number; name: string; is_active: boolean }
@@ -21,13 +18,13 @@ export interface PeriodInput extends Loose {}
 export interface Calendar extends Loose { days: Day[]; periods: Period[] }
 export interface Event extends Loose { id: number; day_index: number; period_index: number }
 export interface EventInput extends Loose {}
-export interface Teacher extends Loose { id: number; name: string }
+export interface Teacher extends Loose { id: number; name: string; code?: string; unavailable?: Slots }
 export interface TeacherInput extends Loose {}
-export interface Subject extends Loose { id: number; name: string }
+export interface Subject extends Loose { id: number; name: string; code?: string; unavailable?: Slots }
 export interface SubjectInput extends Loose {}
-export interface Room extends Loose { id: number; name: string }
+export interface Room extends Loose { id: number; name: string; code?: string }
 export interface RoomInput extends Loose {}
-export interface SchoolClass extends Loose { id: number; name: string }
+export interface SchoolClass extends Loose { id: number; name: string; code?: string; unavailable?: Slots }
 export interface SchoolClassInput extends Loose {}
 export interface Requirement extends Loose { id: number }
 export interface RequirementInput extends Loose {}
@@ -37,16 +34,7 @@ export interface Job extends Loose { id: number; status?: string }
 export interface GenerateProfileInput extends Loose {}
 export interface SolverCheck extends Loose {}
 export interface Version extends Loose { id: number; status: string; name?: string }
-export interface Lesson extends Loose {
-  id: number
-  day_index: number
-  period_index: number
-  subject_id: number
-  teacher_id: number
-  room_id: number | null
-  class_id: number
-  version_id: number
-}
+export interface Lesson extends Loose { id: number; day_index: number; period_index: number; subject_id: number; teacher_id: number; room_id: number | null; class_id: number; version_id: number }
 export interface LessonPatch extends Loose {}
 export interface LessonCreate extends Loose {}
 export interface Unassigned extends Loose {}
@@ -63,49 +51,39 @@ export const scheduling = {
   me: () => get<Principal>('/me'),
   calendar: () => get<Calendar>('/calendar'),
   saveCalendar: (payload: { days: DayInput[]; periods: PeriodInput[] }) => send<Calendar>('/calendar', 'PUT', payload),
-
   events: () => get<Event[]>('/events'),
   createEvent: (payload: EventInput) => send<Event>('/events', 'POST', payload),
   updateEvent: (id: number, payload: EventInput) => send<Event>(`/events/${id}`, 'PUT', payload),
   deleteEvent: (id: number) => send<void>(`/events/${id}`, 'DELETE'),
-
   teachers: () => get<Teacher[]>('/teachers'),
   createTeacher: (payload: TeacherInput) => send<Teacher>('/teachers', 'POST', payload),
   updateTeacher: (id: number, payload: TeacherInput) => send<Teacher>(`/teachers/${id}`, 'PUT', payload),
   deleteTeacher: (id: number) => send<void>(`/teachers/${id}`, 'DELETE'),
-
   subjects: () => get<Subject[]>('/subjects'),
   createSubject: (payload: SubjectInput) => send<Subject>('/subjects', 'POST', payload),
   updateSubject: (id: number, payload: SubjectInput) => send<Subject>(`/subjects/${id}`, 'PUT', payload),
   deleteSubject: (id: number) => send<void>(`/subjects/${id}`, 'DELETE'),
-
   rooms: () => get<Room[]>('/rooms'),
   createRoom: (payload: RoomInput) => send<Room>('/rooms', 'POST', payload),
   updateRoom: (id: number, payload: RoomInput) => send<Room>(`/rooms/${id}`, 'PUT', payload),
   deleteRoom: (id: number) => send<void>(`/rooms/${id}`, 'DELETE'),
-
   classes: () => get<SchoolClass[]>('/classes'),
   createClass: (payload: SchoolClassInput) => send<SchoolClass>('/classes', 'POST', payload),
   updateClass: (id: number, payload: SchoolClassInput) => send<SchoolClass>(`/classes/${id}`, 'PUT', payload),
   deleteClass: (id: number) => send<void>(`/classes/${id}`, 'DELETE'),
-
   requirements: () => get<Requirement[]>('/requirements'),
   createRequirement: (payload: RequirementInput) => send<Requirement>('/requirements', 'POST', payload),
   deleteRequirement: (id: number) => send<void>(`/requirements/${id}`, 'DELETE'),
   constraints: () => get<Constraint[]>('/constraints'),
   createConstraint: (payload: ConstraintInput) => send<Constraint>('/constraints', 'POST', payload),
   deleteConstraint: (id: number) => send<void>(`/constraints/${id}`, 'DELETE'),
-
   generate: (maxSeconds = 30) => send<Job>('/solver/generate', 'POST', { max_seconds: maxSeconds }),
   generateProfile: (payload: GenerateProfileInput) => send<Job>('/solver/generate-profile', 'POST', payload),
   job: (id: number) => get<Job>(`/solver/jobs/${id}`),
   cancelJob: (id: number) => send<Job>(`/solver/jobs/${id}/cancel`, 'POST'),
-
   versions: () => get<Version[]>('/versions'),
   currentVersion: async () => {
-    const requested = typeof window !== 'undefined'
-      ? Number(new URLSearchParams(window.location.search).get('version'))
-      : NaN
+    const requested = typeof window !== 'undefined' ? Number(new URLSearchParams(window.location.search).get('version')) : NaN
     if (Number.isInteger(requested) && requested > 0) {
       const versions = await get<Version[]>('/versions')
       const match = versions.find((version) => version.id === requested)
@@ -118,36 +96,25 @@ export const scheduling = {
   publish: (versionId: number) => send<Version>(`/versions/${versionId}/publish`, 'POST'),
   restore: (versionId: number) => send<Version>(`/versions/${versionId}/restore`, 'POST'),
   deleteVersion: (versionId: number) => send<void>(`/versions/${versionId}`, 'DELETE'),
-
-  moveLesson: (id: number, payload: { day_index: number; period_index: number; room_id?: number | null }) =>
-    send<Lesson>(`/lessons/${id}`, 'PATCH', payload),
+  moveLesson: (id: number, payload: { day_index: number; period_index: number; room_id?: number | null }) => send<Lesson>(`/lessons/${id}`, 'PATCH', payload),
   patchLesson: (id: number, payload: LessonPatch) => send<Lesson>(`/lessons/${id}`, 'PATCH', payload),
   duplicateLesson: (id: number) => send<Lesson>(`/lessons/${id}/duplicate`, 'POST'),
   deleteLesson: (id: number) => send<void>(`/lessons/${id}`, 'DELETE'),
   createLesson: (versionId: number, payload: LessonCreate) => send<Lesson>(`/versions/${versionId}/lessons`, 'POST', payload),
   unassigned: (versionId: number) => get<Unassigned[]>(`/versions/${versionId}/unassigned`),
   assignRooms: (versionId: number) => send<{ assigned: number }>(`/versions/${versionId}/assign-rooms`, 'POST'),
-  explain: (id: number, day_index: number, period_index: number) =>
-    send<Explanation>(`/lessons/${id}/explain`, 'POST', { day_index, period_index }),
+  explain: (id: number, day_index: number, period_index: number) => send<Explanation>(`/lessons/${id}/explain`, 'POST', { day_index, period_index }),
   suggestions: (id: number) => get<{ alternatives: Alternative[] }>(`/lessons/${id}/suggestions`),
   dashboard: () => get<Dashboard>('/dashboard'),
   analytics: () => get<Analytics>('/analytics'),
   audit: (limit = 50) => get<AuditEntry[]>(`/audit?limit=${limit}`),
-  view: (scope: 'class' | 'teacher' | 'room', targetId: number) =>
-    get<TimetableView>(`/timetable/view?scope=${scope}&target_id=${targetId}`),
+  view: (scope: 'class' | 'teacher' | 'room', targetId: number) => get<TimetableView>(`/timetable/view?scope=${scope}&target_id=${targetId}`),
   interpret: (text: string) => send<{ command: CopilotCommand }>('/copilot/interpret', 'POST', { text }),
-  applyCommand: (command: CopilotCommand) =>
-    send<{ applied: boolean; requires_regeneration: boolean; message?: string }>('/copilot/apply', 'POST', { command }),
+  applyCommand: (command: CopilotCommand) => send<{ applied: boolean; requires_regeneration: boolean; message?: string }>('/copilot/apply', 'POST', { command }),
 }
 
-export function teachingPeriods(periods: Period[]): Period[] {
-  return periods.filter((p) => p.is_teaching)
-}
-
-export function activeDays(days: Day[]): Day[] {
-  return days.filter((d) => d.is_active)
-}
-
+export function teachingPeriods(periods: Period[]): Period[] { return periods.filter((p) => p.is_teaching) }
+export function activeDays(days: Day[]): Day[] { return days.filter((d) => d.is_active) }
 export function indexLessons<T extends { day_index: number; period_index: number }>(lessons: T[]): Map<string, T[]> {
   const map = new Map<string, T[]>()
   for (const lesson of lessons) {
