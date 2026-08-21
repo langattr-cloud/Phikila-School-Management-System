@@ -1,6 +1,8 @@
 name: Apply school code edit
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - fix/super-admin-school-code-edit
 permissions:
   contents: write
 jobs:
