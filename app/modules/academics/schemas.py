@@ -3,6 +3,7 @@ from typing import Optional, Literal
 from pydantic import BaseModel, Field
 
 StreamStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
+LevelStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
 
 class AcademicYearCreate(BaseModel):
     name: str = Field(..., min_length=4, max_length=20)
@@ -32,13 +33,13 @@ class LevelBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     code: str = Field(min_length=1, max_length=30)
     display_order: int = Field(ge=1)
-    status: Optional[bool] = True
+    status: LevelStatus = "ACTIVE"
 class LevelCreate(LevelBase): pass
 class LevelUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     code: Optional[str] = Field(default=None, min_length=1, max_length=30)
     display_order: Optional[int] = Field(default=None, ge=1)
-    status: Optional[bool] = None
+    status: Optional[LevelStatus] = None
 class LevelResponse(LevelBase):
     id: int; school_id: int; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
