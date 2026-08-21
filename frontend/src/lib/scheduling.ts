@@ -39,7 +39,7 @@ export interface LessonPatch extends Loose {}
 export interface LessonCreate extends Loose {}
 export interface Unassigned extends Loose { requirement_id: number; subject_name?: string; class_name?: string }
 export interface ExplanationReason extends Loose { code?: string; message?: string; text?: string }
-export interface Alternative extends Loose { day: number; period: number }
+export interface Alternative { day: number; period: number }
 export interface Explanation extends Loose { allowed: boolean; reasons: ExplanationReason[]; alternatives: Alternative[] }
 export interface DashboardConflict { hard: number; soft: number }
 export interface DashboardLessons { required: number; scheduled: number; unassigned: number }
@@ -79,7 +79,7 @@ export const scheduling = {
   classes: () => get<SchoolClass[]>('/classes'), createClass: (payload: SchoolClassInput) => send<SchoolClass>('/classes', 'POST', payload),
   updateClass: (id: number, payload: SchoolClassInput) => send<SchoolClass>(`/classes/${id}`, 'PUT', payload), deleteClass: (id: number) => send<void>(`/classes/${id}`, 'DELETE'),
   requirements: () => get<Requirement[]>('/requirements'), createRequirement: (payload: RequirementInput) => send<Requirement>('/requirements', 'POST', payload), deleteRequirement: (id: number) => send<void>(`/requirements/${id}`, 'DELETE'),
-  constraints: () => get<Constraint[]>('/constraints'), createConstraint: (payload: ConstraintInput) => send<Constraint[]>('/constraints', 'POST', payload), deleteConstraint: (id: number) => send<void>(`/constraints/${id}`, 'DELETE'),
+  constraints: () => get<Constraint[]>('/constraints'), createConstraint: (payload: ConstraintInput) => send<Constraint>('/constraints', 'POST', payload), deleteConstraint: (id: number) => send<void>(`/constraints/${id}`, 'DELETE'),
   generate: (maxSeconds = 30) => send<Job>('/solver/generate', 'POST', { max_seconds: maxSeconds }), generateProfile: (payload: GenerateProfileInput) => send<Job>('/solver/generate-profile', 'POST', payload),
   job: (id: number) => get<Job>(`/solver/jobs/${id}`), cancelJob: (id: number) => send<Job>(`/solver/jobs/${id}/cancel`, 'POST'),
   versions: () => get<Version[]>('/versions'),
