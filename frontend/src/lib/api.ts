@@ -3,7 +3,10 @@ import { supabase } from './supabase'
 
 const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '')
 const sameOriginApiUrl = typeof window !== 'undefined' ? window.location.origin : ''
-const apiUrl = configuredApiUrl || sameOriginApiUrl
+const isProductionHost = typeof window !== 'undefined' && ['www.phikila.com', 'phikila.com'].includes(window.location.hostname)
+// Production is served as a single Vercel application. Keep API calls same-origin so
+// browser requests use Vercel's /api routing instead of depending on the Render hostname.
+const apiUrl = isProductionHost ? sameOriginApiUrl : configuredApiUrl || sameOriginApiUrl
 
 export class ApiError extends Error { constructor(message: string, public readonly status: number, public readonly detail?: unknown) { super(message) } }
 export function friendlyApiError(error: unknown, action: string): string {
@@ -27,7 +30,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, authenti
   const baseHeaders = new Headers(init.headers); baseHeaders.set('Accept', 'application/json'); if (init.body && !baseHeaders.has('Content-Type') && !(init.body instanceof FormData)) baseHeaders.set('Content-Type', 'application/json')
   const request = async (token: string | null) => {
     const headers = new Headers(baseHeaders); if (authenticated && token) headers.set('Authorization', `Bearer ${token}`)
-    const primaryUrl = requestUrl(apiUrl, path); const fallbackUrl = configuredApiUrl && sameOriginApiUrl ? requestUrl(sameOriginApiUrl, path) : null
+    const primaryUrl = requestUrl(apiUrl, path); const fallbackUrl = configuredApiUrl && sameOriginApiUrl && !isProductionHost ? requestUrl(sameOriginApiUrl, path) : null
     let response: Response; try { response = await fetchWithFallback(primaryUrl, fallbackUrl, { ...init, headers }) } catch (error) { throw new ApiError(`API could not be reached: ${error instanceof Error ? error.message : 'Network request failed'}`, 0) }
     if (!response.ok) { const payload = await response.json().catch(() => null); const raw = payload?.detail; const message = typeof raw === 'string' ? raw : typeof raw?.message === 'string' ? raw.message : `Request failed (${response.status})`; throw new ApiError(message, response.status, typeof raw === 'object' ? raw : undefined) }
     if (response.status === 204) return undefined as T; return response.json() as Promise<T>
