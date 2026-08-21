@@ -83,10 +83,11 @@ def upgrade():
         """))
 
     if "attendance_sessions" in _tables():
+        attendance_columns = _columns("attendance_sessions")
         _add_column("attendance_sessions", sa.Column("level_id", sa.Integer(), sa.ForeignKey("levels.id")))
         _add_column("attendance_sessions", sa.Column("grade_id", sa.Integer(), sa.ForeignKey("grades.id")))
         _add_column("attendance_sessions", sa.Column("stream_id", sa.Integer(), sa.ForeignKey("streams.id")))
-        if "school_classes" in _tables():
+        if "school_classes" in _tables() and "class_id" in attendance_columns and "stream_id" in _columns("school_classes"):
             bind.execute(sa.text("""
                 UPDATE attendance_sessions a SET stream_id=sc.stream_id
                 FROM school_classes sc WHERE a.stream_id IS NULL AND a.class_id=sc.id AND sc.stream_id IS NOT NULL
@@ -97,9 +98,10 @@ def upgrade():
         """))
 
     if "exam_subjects" in _tables():
+        exam_columns = _columns("exam_subjects")
         _add_column("exam_subjects", sa.Column("grade_id", sa.Integer(), sa.ForeignKey("grades.id")))
         _add_column("exam_subjects", sa.Column("stream_id", sa.Integer(), sa.ForeignKey("streams.id")))
-        if "school_classes" in _tables():
+        if "school_classes" in _tables() and "class_id" in exam_columns and "stream_id" in _columns("school_classes"):
             bind.execute(sa.text("""
                 UPDATE exam_subjects e SET stream_id=sc.stream_id
                 FROM school_classes sc WHERE e.stream_id IS NULL AND e.class_id=sc.id AND sc.stream_id IS NOT NULL
