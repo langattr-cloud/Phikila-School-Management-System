@@ -11,36 +11,15 @@ router = APIRouter(tags=["Academics"])
 
 
 def require_academic_role(*roles: str):
-    """Authorize academic actions without changing the global tenant resolver.
-
-    Platform Super Admin authority is evaluated by the platform authorization
-    layer, but school membership remains mandatory. This keeps the academic
-    module's write permissions aligned with platform access without changing
-    authorization behavior for unrelated modules.
-    """
+    """Authorize academic actions without changing the global tenant resolver."""
     minimum = min(roles, key=lambda role: ROLE_ORDER.index(role))
-
-    def dependency(
-        identity: Identity = Depends(resolve_identity),
-    ) -> Principal:
+    def dependency(identity: Identity = Depends(resolve_identity)) -> Principal:
         school_id = identity.primary_school_id
         if school_id is None:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "Your account is not linked to a school yet.",
-            )
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Your account is not linked to a school yet.")
         if not identity.has_school_role(school_id, minimum):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "You do not have permission to make this change.",
-            )
-        return Principal(
-            user_id=identity.user_id,
-            email=identity.email,
-            school_id=school_id,
-            role="super_admin" if identity.is_super_admin else identity.memberships[school_id],
-        )
-
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have permission to make this change.")
+        return Principal(user_id=identity.user_id, email=identity.email, school_id=school_id, role="super_admin" if identity.is_super_admin else identity.memberships[school_id])
     return dependency
 
 
@@ -58,6 +37,8 @@ def get_terms(principal: Principal = Depends(require_academic_role("viewer", "te
 def get_term(term_id: int, principal: Principal = Depends(require_academic_role("viewer", "teacher", "admin")), db: Session = Depends(get_db)): return services.TermService(db).get_term_by_id(principal.school_id, term_id)
 @router.post("/terms", response_model=schemas.TermResponse, status_code=status.HTTP_201_CREATED)
 def create_term(data: schemas.TermCreate, principal: Principal = Depends(require_academic_role("admin")), db: Session = Depends(get_db)): return services.TermService(db).create_term(principal.school_id, data)
+@router.patch("/terms/{term_id}", response_model=schemas.TermResponse)
+def update_term(term_id: int, data: schemas.TermUpdate, principal: Principal = Depends(require_academic_role("admin")), db: Session = Depends(get_db)): return services.TermService(db).update_term(principal.school_id, term_id, data)
 
 @router.get("/levels", response_model=List[schemas.LevelResponse])
 def get_levels(principal: Principal = Depends(require_academic_role("viewer", "teacher", "admin")), db: Session = Depends(get_db)): return services.LevelService(db).get_levels(principal.school_id)
@@ -97,9 +78,7 @@ def assign_student_to_stream(stream_id: int, data: schemas.StreamAssignment, pri
     student = db.query(student_models.Student).filter(student_models.Student.id == data.student_id, student_models.Student.school_id == principal.school_id).first()
     if not student: raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found")
     if stream.status != "ACTIVE": raise HTTPException(status.HTTP_409_CONFLICT, "Cannot assign a student to an inactive stream")
-    student.level_id = stream.level_id
-    student.grade_id = stream.grade_id
-    student.stream_id = stream.id
+    student.level_id = stream.level_id; student.grade_id = stream.grade_id; student.stream_id = stream.id
     enrollment = db.query(student_models.StudentEnrollment).filter(student_models.StudentEnrollment.school_id == principal.school_id, student_models.StudentEnrollment.student_id == student.id, student_models.StudentEnrollment.academic_year_id == stream.academic_year_id).first()
     if enrollment:
         if enrollment.status == "active" and enrollment.stream_id not in (None, stream.id): raise HTTPException(status.HTTP_409_CONFLICT, "Student already has an active enrollment in this academic year.")
