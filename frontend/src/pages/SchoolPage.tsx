@@ -21,6 +21,10 @@ const EDIT_FIELDS: Array<{ key: keyof SchoolProfile; label: string; type?: strin
 
 type SchoolForm = Record<string, string>
 
+function emptyForm(): SchoolForm {
+  return Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, '']))
+}
+
 function toForm(data: SchoolProfile): SchoolForm {
   return Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, data[key] == null ? '' : String(data[key])]))
 }
@@ -36,14 +40,21 @@ export function SchoolPage() {
   )
   const { data, loading, error, reload } = useAsync<SchoolProfile>(api.school, toMessage)
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState<SchoolForm>({})
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState<SchoolForm>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
 
   useEffect(() => {
-    if (data && !editing) setForm(toForm(data))
-  }, [data, editing])
+    if (data && !editing && !creating) setForm(toForm(data))
+  }, [data, editing, creating])
+
+  function startCreating() {
+    setForm(emptyForm())
+    setFormError(null)
+    setCreating(true)
+  }
 
   function startEditing() {
     if (!data) return
@@ -52,14 +63,15 @@ export function SchoolPage() {
     setEditing(true)
   }
 
-  function cancelEditing() {
-    if (data) setForm(toForm(data))
+  function cancelForm() {
     setFormError(null)
     setEditing(false)
+    setCreating(false)
+    if (data) setForm(toForm(data))
   }
 
   async function save() {
-    if (!data || saving) return
+    if (saving) return
     const name = form.name?.trim() ?? ''
     const code = form.code?.trim() ?? ''
     if (name.length < 3 || !code) {
@@ -77,15 +89,25 @@ export function SchoolPage() {
       }
       payload.name = name
       payload.code = code
-      await apiFetch<SchoolProfile>('/api/v1/school/', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      })
-      notify('School profile saved.', 'success')
+
+      if (creating) {
+        await apiFetch<SchoolProfile>('/api/v1/school/', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+        notify('School profile created.', 'success')
+      } else {
+        await apiFetch<SchoolProfile>('/api/v1/school/', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        })
+        notify('School profile saved.', 'success')
+      }
       setEditing(false)
+      setCreating(false)
       await reload()
     } catch (err) {
-      setFormError(friendlyApiError(err, 'save the school profile'))
+      setFormError(friendlyApiError(err, creating ? 'create the school profile' : 'save the school profile'))
     } finally {
       setSaving(false)
     }
@@ -109,6 +131,42 @@ export function SchoolPage() {
     }
   }
 
+  const formView = (
+    <div>
+      <div className="section__header">
+        <div>
+          <span className="eyebrow">{creating ? 'Initial setup' : 'School details'}</span>
+          <h2 className="section__title">{creating ? 'Create school profile' : 'Edit school profile'}</h2>
+          <p className="section__description">Keep the school's registration and contact information current.</p>
+        </div>
+      </div>
+      {formError && <Alert tone="error">{formError}</Alert>}
+      <div className="form form--grid">
+        {EDIT_FIELDS.map(({ key, label, type }) => (
+          <div className="field" key={String(key)}>
+            <label className="field__label" htmlFor={`school-${String(key)}`}>{label}</label>
+            <input
+              id={`school-${String(key)}`}
+              className="input"
+              type={type ?? 'text'}
+              value={form[String(key)] ?? ''}
+              onChange={(event) => setForm((current) => ({ ...current, [String(key)]: event.target.value }))}
+              required={key === 'name' || key === 'code'}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="form__row" style={{ marginTop: '1.25rem' }}>
+        <button type="button" className="button button--primary" disabled={saving} onClick={() => void save()}>
+          {saving ? 'Saving…' : creating ? 'Create school profile' : 'Save changes'}
+        </button>
+        <button type="button" className="button button--secondary" disabled={saving} onClick={cancelForm}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+
   return (
     <>
       <PageHeader
@@ -118,12 +176,8 @@ export function SchoolPage() {
         actions={
           data && !editing ? (
             <div className="form__row">
-              <button type="button" className="button button--primary button--sm" onClick={startEditing}>
-                Edit
-              </button>
-              <button type="button" className="button button--danger button--sm" onClick={() => setConfirmRemove(true)}>
-                Remove
-              </button>
+              <button type="button" className="button button--primary button--sm" onClick={startEditing}>Edit</button>
+              <button type="button" className="button button--danger button--sm" onClick={() => setConfirmRemove(true)}>Remove</button>
             </div>
           ) : undefined
         }
@@ -132,58 +186,29 @@ export function SchoolPage() {
       <section className="card section">
         {loading ? (
           <LoadingBlock label="Loading the school profile" rows={5} />
-        ) : error === 'NOT_FOUND' ? (
+        ) : error === 'NOT_FOUND' && !creating ? (
           <EmptyState
             title="No school profile yet"
-            description="A school profile has not been created for this system."
+            description="Set up the school profile before configuring academic levels, grades, streams, and other school records."
             icon={<SchoolIcon width={22} height={22} />}
+            action={<button type="button" className="button button--primary" onClick={startCreating}>Create school profile</button>}
           />
-        ) : error ? (
+        ) : error && !creating ? (
           <ErrorState title="School profile could not load" message={error} onRetry={reload} />
-        ) : data && editing ? (
-          <div>
-            <h2 className="section__title">Edit school profile</h2>
-            {formError && <Alert tone="error">{formError}</Alert>}
-            <div className="form form--grid">
-              {EDIT_FIELDS.map(({ key, label, type }) => (
-                <div className="field" key={String(key)}>
-                  <label className="field__label" htmlFor={`school-${String(key)}`}>{label}</label>
-                  <input
-                    id={`school-${String(key)}`}
-                    className="input"
-                    type={type ?? 'text'}
-                    value={form[String(key)] ?? ''}
-                    onChange={(event) => setForm((current) => ({ ...current, [String(key)]: event.target.value }))}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="form__row" style={{ marginTop: '1rem' }}>
-              <button type="button" className="button button--primary" disabled={saving} onClick={() => void save()}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-              <button type="button" className="button button--secondary" disabled={saving} onClick={cancelEditing}>
-                Cancel
-              </button>
-            </div>
-          </div>
+        ) : creating || (data && editing) ? (
+          formView
         ) : data ? (
-          <>
-            <dl className="detail-list detail-list--two">
-              <div><dt>Name</dt><dd>{data.name}</dd></div>
-              <div><dt>Code</dt><dd>{data.code || 'Not recorded'}</dd></div>
-              <div><dt>County</dt><dd>{data.county || 'Not recorded'}</dd></div>
-              <div><dt>Sub-county</dt><dd>{data.sub_county || 'Not recorded'}</dd></div>
-              <div><dt>Email</dt><dd>{data.email || 'Not recorded'}</dd></div>
-              <div><dt>Phone</dt><dd>{data.phone || 'Not recorded'}</dd></div>
-              <div><dt>Principal</dt><dd>{data.principal_name || 'Not recorded'}</dd></div>
-              <div>
-                <dt>Status</dt>
-                <dd>{data.is_active === false ? <Badge tone="warning">Inactive</Badge> : <Badge tone="success">Active</Badge>}</dd>
-              </div>
-              {data.motto && <div className="detail-list__full"><dt>Motto</dt><dd>{data.motto}</dd></div>}
-            </dl>
-          </>
+          <dl className="detail-list detail-list--two">
+            <div><dt>Name</dt><dd>{data.name}</dd></div>
+            <div><dt>Code</dt><dd>{data.code || 'Not recorded'}</dd></div>
+            <div><dt>County</dt><dd>{data.county || 'Not recorded'}</dd></div>
+            <div><dt>Sub-county</dt><dd>{data.sub_county || 'Not recorded'}</dd></div>
+            <div><dt>Email</dt><dd>{data.email || 'Not recorded'}</dd></div>
+            <div><dt>Phone</dt><dd>{data.phone || 'Not recorded'}</dd></div>
+            <div><dt>Principal</dt><dd>{data.principal_name || 'Not recorded'}</dd></div>
+            <div><dt>Status</dt><dd>{data.is_active === false ? <Badge tone="warning">Inactive</Badge> : <Badge tone="success">Active</Badge>}</dd></div>
+            {data.motto && <div className="detail-list__full"><dt>Motto</dt><dd>{data.motto}</dd></div>}
+          </dl>
         ) : null}
       </section>
 
@@ -199,5 +224,3 @@ export function SchoolPage() {
     </>
   )
 }
-
-// Production deployment trigger: school profile actions are intentionally enabled above.
