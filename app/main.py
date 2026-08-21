@@ -4,7 +4,9 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from app.config import settings
+from app.core.database import engine
 from app.core.rate_limit import rate_limit_ocr, rate_limit_platform_mutation, rate_limit_scheduling_mutation
 from app.modules.academics.router import router as academics_router
 from app.modules.attendance.router import router as attendance_router
@@ -59,7 +61,41 @@ def _rate_limit_mutations(router) -> None:
         route.dependencies.append(Depends(rate_limit_platform_mutation))
 
 
+def _ensure_default_school() -> None:
+    """Bootstrap the single-school tenant expected by existing admin claims.
+
+    Only an empty school_info table is bootstrapped; existing school records
+    are never modified.
+    """
+    try:
+        with engine.begin() as conn:
+            exists = conn.execute(
+                text("SELECT to_regclass('public.school_info') IS NOT NULL")
+            ).scalar()
+            if not exists:
+                return
+
+            school_count = conn.execute(
+                text("SELECT COUNT(*) FROM public.school_info")
+            ).scalar_one()
+            if school_count != 0:
+                return
+
+            conn.execute(
+                text("""
+                    INSERT INTO public.school_info
+                        (id, name, code, is_active, created_at, updated_at)
+                    VALUES
+                        (1, 'Primary', 'PRI.', TRUE, now(), now())
+                    ON CONFLICT (id) DO NOTHING
+                """)
+            )
+    except Exception:
+        return
+
+
 def create_app() -> FastAPI:
+    _ensure_default_school()
     app = FastAPI(
         title="Phikila School System API",
         description="Backend API for Phikila School System - Phased Modular Architecture",
@@ -92,9 +128,8 @@ def create_app() -> FastAPI:
     @app.get("/ready", tags=["Health"])
     def readiness_check():
         try:
-            from app.core.database import engine
             with engine.connect() as conn:
-                conn.execute(__import__("sqlalchemy").text("SELECT 1"))
+                conn.execute(text("SELECT 1"))
             return {"status": "ready", "database": "connected"}
         except Exception as exc:
             from fastapi.responses import JSONResponse
@@ -108,30 +143,10 @@ def create_app() -> FastAPI:
         route for route in scheduling_router.routes
         if not (getattr(route, "path", None) == "/calendar" and "PUT" in getattr(route, "methods", set()))
     ]
-    app.include_router(
-        calendar_router,
-        prefix="/api/v1/scheduling",
-        tags=["Scheduling"],
-        dependencies=[Depends(rate_limit_scheduling_mutation)],
-    )
-    app.include_router(
-        scheduling_router,
-        prefix="/api/v1/scheduling",
-        tags=["Scheduling"],
-        dependencies=[Depends(rate_limit_scheduling_mutation)],
-    )
-    app.include_router(
-        timetable_events_router,
-        prefix="/api/v1/scheduling",
-        tags=["Scheduling Events"],
-        dependencies=[Depends(rate_limit_scheduling_mutation)],
-    )
-    app.include_router(
-        timetable_profile_router,
-        prefix="/api/v1/scheduling",
-        tags=["Timetable Profiles"],
-        dependencies=[Depends(rate_limit_scheduling_mutation)],
-    )
+    app.include_router(calendar_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
+    app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
+    app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"], dependencies=[Depends(rate_limit_scheduling_mutation)])
+    app.include_router(timetable_profile_router, prefix="/api/v1/scheduling", tags=["Timetable Profiles"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
     app.include_router(attendance_router, prefix="/api/v1", tags=["Attendance"])
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
@@ -140,12 +155,7 @@ def create_app() -> FastAPI:
     app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Treasury"])
     app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
     app.include_router(finance_reports_router, prefix="/api/v1", tags=["Finance Reports"])
-    app.include_router(
-        ocr_router,
-        prefix="/api/v1/ocr",
-        tags=["Document OCR"],
-        dependencies=[Depends(rate_limit_ocr)],
-    )
+    app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["Document OCR"], dependencies=[Depends(rate_limit_ocr)])
     _rate_limit_mutations(access_approval_router)
     _rate_limit_mutations(platform_router)
     _rate_limit_mutations(llm_router)
