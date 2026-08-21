@@ -73,6 +73,15 @@ export async function cacheClear(): Promise<void> {
   await withStore('readwrite', (store) => store.clear())
 }
 
+function scopedKey(key: string): string {
+  // TimetablePage supports ?version=<id>. Keep each version's offline copy
+  // separate so opening an older timetable offline cannot surface another
+  // version's cached lessons.
+  if (key !== 'timetable:workspace' || typeof window === 'undefined') return key
+  const requested = new URLSearchParams(window.location.search).get('version')
+  return requested ? `${key}:version:${requested}` : `${key}:current`
+}
+
 /**
  * Fetch fresh data, falling back to the cached copy when offline.
  *
@@ -83,17 +92,18 @@ export async function cachedFetch<T>(
   key: string,
   loader: () => Promise<T>,
 ): Promise<{ data: T; stale: boolean; savedAt: number | null }> {
+  const cacheKey = scopedKey(key)
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    const cached = await cacheGet<T>(key)
+    const cached = await cacheGet<T>(cacheKey)
     if (cached) return { data: cached.value, stale: true, savedAt: cached.savedAt }
   }
 
   try {
     const data = await loader()
-    void cacheSet(key, data)
+    void cacheSet(cacheKey, data)
     return { data, stale: false, savedAt: Date.now() }
   } catch (error) {
-    const cached = await cacheGet<T>(key)
+    const cached = await cacheGet<T>(cacheKey)
     if (cached) return { data: cached.value, stale: true, savedAt: cached.savedAt }
     throw error
   }
