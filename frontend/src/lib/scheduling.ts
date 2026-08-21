@@ -26,25 +26,40 @@ export interface Requirement extends Loose { id: number }
 export interface RequirementInput extends Loose {}
 export interface Constraint extends Loose { id: number; kind?: string; scope?: string; target_id?: number | null; is_hard?: boolean; weight?: number | null; params?: Loose; enabled?: boolean; note?: string | null }
 export interface ConstraintInput extends Loose {}
-export interface JobCheck { key: string; label: string; state: string }
-export interface Job extends Loose { id: number; status: string; stage?: string; progress: number; message?: string | null; result_version_id?: number | null; checks: JobCheck[] }
+export interface JobCheck { key: string; label: string; state: string; group?: 'hard' | 'soft' | string }
+export interface JobQuality { overall?: number; breakdown?: Record<string, number> }
+export interface Job extends Loose { id: number; status: string; stage?: string; progress: number; message?: string | null; result_version_id?: number | null; checks: JobCheck[]; quality?: JobQuality }
 export interface GenerateProfileInput extends Loose {}
 export interface SolverCheck extends Loose { key: string; label: string; state: string }
-export interface Version extends Loose { id: number; status: string; name?: string }
-export interface Lesson extends Loose { id: number; day_index: number; period_index: number; subject_id: number; teacher_id: number; room_id: number | null; class_id: number; version_id: number }
+export interface Version extends Loose { id: number; number?: number; status: string; name?: string }
+export interface Lesson extends Loose { id: number; day_index: number; period_index: number; subject_id: number; teacher_id: number; room_id: number | null; class_id: number; version_id: number; duration: number; is_locked?: boolean }
 export interface LessonPatch extends Loose {}
 export interface LessonCreate extends Loose {}
-export interface Unassigned extends Loose {}
-export interface Explanation extends Loose {}
-export interface Alternative extends Loose {}
-export interface Dashboard extends Loose {}
+export interface Unassigned extends Loose { requirement_id: number; subject_name?: string; class_name?: string }
+export interface ExplanationReason extends Loose { code?: string; message?: string; text?: string }
+export interface Alternative extends Loose { day: number; period: number }
+export interface Explanation extends Loose { allowed: boolean; reasons: ExplanationReason[]; alternatives: Alternative[] }
+export interface DashboardConflict { hard: number; soft: number }
+export interface DashboardLessons { required: number; scheduled: number; unassigned: number }
+export interface DashboardCounts { teachers: number; classes: number; rooms: number }
+export interface DashboardVersion extends Loose { id?: number; number?: number; status: string }
+export interface DashboardActivity { at?: string; actor?: string; summary: string }
+export interface Dashboard extends Loose {
+  counts: DashboardCounts
+  conflicts: DashboardConflict
+  lessons: DashboardLessons
+  version: DashboardVersion | null
+  solver_available: boolean
+  quality?: JobQuality
+  recent: DashboardActivity[]
+}
 export interface Analytics extends Loose {}
 export interface AuditEntry extends Loose {}
 export interface Conflict extends Loose { severity: string; lesson_ids: number[] }
 export interface TimetableDisplayDay { index: number; name: string }
 export interface TimetableDisplayPeriod { index: number; name: string; start_time: string; end_time: string; is_teaching: boolean }
 export interface TimetableDisplayLesson { day: number; period: number; subject: string; teacher: string | null; class: string }
-export interface TimetableView { days: TimetableDisplayDay[]; periods: TimetableDisplayPeriod[]; lessons: TimetableDisplayLesson[] }
+export interface TimetableView extends Loose { days: TimetableDisplayDay[]; periods: TimetableDisplayPeriod[]; lessons: TimetableDisplayLesson[]; target_name?: string; version?: Version | null }
 export interface CopilotCommand extends Loose {}
 export interface Quality { overall?: number; breakdown?: Record<string, number> }
 
