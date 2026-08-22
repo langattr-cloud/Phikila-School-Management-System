@@ -14,6 +14,7 @@ class PeriodIn(BaseModel):
     start_time: str = Field(pattern=r'^\d{2}:\d{2}$')
     end_time: str = Field(pattern=r'^\d{2}:\d{2}$')
     is_teaching: bool = True
+
 class PeriodOut(ORMModel, PeriodIn): id: int
 class DayIn(BaseModel):
     index: int = Field(ge=0, le=6); name: str = Field(min_length=1, max_length=20); is_active: bool = True
@@ -32,19 +33,15 @@ class RoomIn(BaseModel):
     name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); building: str | None = None
     capacity: int = Field(default=40, ge=1, le=2000); room_type: str = Field(default='classroom', max_length=40); is_accessible: bool = True; unavailable: Slots = Field(default_factory=dict)
 class RoomOut(ORMModel, RoomIn): id: int
-
-# Scheduling requirements are grade-scoped.  The legacy timetable class model
-# remains available for compatibility with already-published timetable data,
-# but new requirements in the academic setup context use grade_id.
+class ClassIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); grade: str | None = None
+    student_count: int = Field(default=40, ge=1, le=500); home_room_id: int | None = None; unavailable: Slots = Field(default_factory=dict)
+class ClassOut(ORMModel, ClassIn): id: int
 class RequirementIn(BaseModel):
-    grade_id: int
-    subject_id: int
-    teacher_id: int | None = None
-    room_id: int | None = None
-    periods_per_week: int = Field(default=1, ge=1, le=40)
-    double_periods: int = Field(default=0, ge=0, le=10)
+    class_id: int; subject_id: int; teacher_id: int | None = None; room_id: int | None = None
+    periods_per_week: int = Field(default=1, ge=1, le=40); double_periods: int = Field(default=0, ge=0, le=10)
 class RequirementOut(ORMModel, RequirementIn):
-    id: int; grade_name: str | None = None; subject_name: str | None = None; teacher_name: str | None = None; room_name: str | None = None
+    id: int; class_name: str | None = None; subject_name: str | None = None; teacher_name: str | None = None; room_name: str | None = None
 class ConstraintIn(BaseModel):
     kind: str = Field(min_length=1, max_length=60); scope: Literal['school', 'teacher', 'class', 'subject', 'room'] = 'school'; target_id: int | None = None; is_hard: bool = False; weight: int = Field(default=10, ge=0, le=100); params: dict[str, Any] = Field(default_factory=dict); enabled: bool = True; note: str | None = None
 class ConstraintOut(ORMModel, ConstraintIn): id: int
