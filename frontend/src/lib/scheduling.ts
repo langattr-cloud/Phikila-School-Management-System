@@ -37,7 +37,7 @@ export interface Lesson extends Loose { id: number; day_index: number; period_in
 export interface LessonPatch extends Loose {}
 export interface LessonCreate extends Loose {}
 export interface Unassigned extends Loose { requirement_id: number; subject_name?: string; class_name?: string }
-export interface ExplanationReason { code?: string; message?: string; text?: string }
+export interface ExplanationReason { code?: string; message?: string; text?: string; factor?: string; detail?: string }
 export interface Alternative { day: number; period: number; day_name?: string; period_name?: string }
 export interface Explanation extends Loose { allowed: boolean; reasons: ExplanationReason[]; alternatives: Alternative[] }
 export interface DashboardConflict { hard: number; soft: number }
