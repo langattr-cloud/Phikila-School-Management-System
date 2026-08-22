@@ -114,6 +114,15 @@ def create_app() -> FastAPI:
         tags=["Scheduling"],
         dependencies=[Depends(rate_limit_scheduling_mutation)],
     )
+    # Register the profile/job routes before the generic /solver/jobs/{job_id}
+    # route. This ensures /solver/jobs/active is matched as the literal active
+    # endpoint instead of being parsed as an integer job_id and returning 422.
+    app.include_router(
+        timetable_profile_router,
+        prefix="/api/v1/scheduling",
+        tags=["Timetable Profiles"],
+        dependencies=[Depends(rate_limit_scheduling_mutation)],
+    )
     app.include_router(
         scheduling_router,
         prefix="/api/v1/scheduling",
@@ -124,12 +133,6 @@ def create_app() -> FastAPI:
         timetable_events_router,
         prefix="/api/v1/scheduling",
         tags=["Scheduling Events"],
-        dependencies=[Depends(rate_limit_scheduling_mutation)],
-    )
-    app.include_router(
-        timetable_profile_router,
-        prefix="/api/v1/scheduling",
-        tags=["Timetable Profiles"],
         dependencies=[Depends(rate_limit_scheduling_mutation)],
     )
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
