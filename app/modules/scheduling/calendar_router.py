@@ -1,3 +1,4 @@
+from datetime import time
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -22,6 +23,11 @@ class CalendarIn(BaseModel):
 def _minutes(value: str) -> int:
     hour, minute = (int(part) for part in value.split(':', 1))
     return hour * 60 + minute
+
+
+def _as_time(value: str) -> time:
+    hour, minute = (int(part) for part in value.split(':', 1))
+    return time(hour=hour, minute=minute)
 
 
 def _validate_times(periods: dict[int, s.PeriodIn]) -> None:
@@ -66,12 +72,21 @@ def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: 
 
     for index, period in incoming_periods.items():
         current = existing_periods.get(index)
+        start_time = _as_time(period.start_time)
+        end_time = _as_time(period.end_time)
         if current is None:
-            db.add(m.TtPeriod(school_id=principal.school_id, **period.model_dump()))
+            db.add(m.TtPeriod(
+                school_id=principal.school_id,
+                index=period.index,
+                name=period.name,
+                start_time=start_time,
+                end_time=end_time,
+                is_teaching=period.is_teaching,
+            ))
         else:
             current.name = period.name
-            current.start_time = period.start_time
-            current.end_time = period.end_time
+            current.start_time = start_time
+            current.end_time = end_time
             current.is_teaching = period.is_teaching
     db.commit()
     return get_calendar(db, principal)
