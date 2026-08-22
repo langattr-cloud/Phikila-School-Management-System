@@ -120,3 +120,5 @@ _solver.solve = _replace_function_source(
         ),
     ],
 )
+
+# Validation retriggered after aligning the compatibility patch with solver.py.
