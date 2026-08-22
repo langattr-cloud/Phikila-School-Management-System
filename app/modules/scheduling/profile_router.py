@@ -1,4 +1,5 @@
 """Independent named timetable generation without changing the saved school calendar."""
+from datetime import datetime, timedelta
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -11,24 +12,32 @@ from .tenancy import Principal, require_role, resolve_principal
 
 router=APIRouter()
 ACTIVE_STATUSES=("queued","running","optimizing","validating")
+STALE_AFTER=timedelta(minutes=5)
 
 
 def _active_job(db:Session, school_id:int):
-    """Return a genuinely active job and repair terminal-looking stale rows."""
+    """Return a genuinely active job; release jobs that can no longer be running."""
     job=db.query(m.TtSolverJob).filter(
         m.TtSolverJob.school_id==school_id,
         func.lower(m.TtSolverJob.status).in_(ACTIVE_STATUSES),
     ).order_by(m.TtSolverJob.id.desc()).first()
     if not job:
         return None
-    if job.finished_at is not None or (job.progress or 0) >= 100:
+
+    now=datetime.utcnow()
+    stale=(job.finished_at is not None or (job.progress or 0) >= 100)
+    if job.stage == "Completed" or (job.progress or 0) >= 99:
+        stale=True
+    elif job.started_at and now - job.started_at > STALE_AFTER:
+        stale=True
+
+    if stale:
         job.status="completed" if job.result_version_id else "failed"
         job.stage="Completed" if job.result_version_id else "Failed"
         if job.finished_at is None:
-            from datetime import datetime
-            job.finished_at=datetime.utcnow()
+            job.finished_at=now
         if not job.message and job.status=="failed":
-            job.message="The previous generation ended before its final status was recorded."
+            job.message="The previous generation ended without recording a final status. It was released automatically."
         db.commit()
         return None
     return job
