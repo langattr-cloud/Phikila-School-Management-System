@@ -3,11 +3,14 @@ import { supabase } from './supabase'
 
 const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '')
 const sameOriginApiUrl = typeof window !== 'undefined' ? window.location.origin : ''
-const isProductionHost = typeof window !== 'undefined' && ['www.phikila.com', 'phikila.com'].includes(window.location.hostname)
-const productionFallbackApiUrl = isProductionHost
+const isHostedProduction = typeof window !== 'undefined' && (
+  ['www.phikila.com', 'phikila.com'].includes(window.location.hostname) ||
+  window.location.hostname.endsWith('.vercel.app')
+)
+const productionFallbackApiUrl = isHostedProduction
   ? 'https://phikila-school-management-system.onrender.com'
   : null
-const apiUrl = isProductionHost ? sameOriginApiUrl : configuredApiUrl || sameOriginApiUrl
+const apiUrl = isHostedProduction ? sameOriginApiUrl : configuredApiUrl || sameOriginApiUrl
 
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number, public readonly detail?: unknown) {
@@ -75,8 +78,8 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, authenti
 
     const primaryUrl = requestUrl(apiUrl, path)
     const fallbackUrls = [
-      configuredApiUrl && !isProductionHost ? requestUrl(configuredApiUrl, path) : null,
-      !isProductionHost && sameOriginApiUrl ? requestUrl(sameOriginApiUrl, path) : null,
+      configuredApiUrl && !isHostedProduction ? requestUrl(configuredApiUrl, path) : null,
+      !isHostedProduction && sameOriginApiUrl ? requestUrl(sameOriginApiUrl, path) : null,
       productionFallbackApiUrl ? requestUrl(productionFallbackApiUrl, path) : null,
     ]
 
@@ -124,8 +127,6 @@ export type Level = { id: number; name: string; code: string; display_order: num
 export type Grade = { id: number; name: string; code: string; display_order: number; status?: boolean | null; school_id: number; level_id: number }
 export type StreamStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
 export type Stream = { id: number; school_id: number; academic_year_id?: number | null; level_id: number; grade_id?: number | null; name: string; code?: string | null; capacity?: number | null; class_teacher_id?: number | null; status: StreamStatus; created_at?: string; updated_at?: string | null }
-export type StudentListItem = { id: number; admission_number: string; first_name: string; middle_name?: string | null; last_name: string; preferred_name?: string | null; date_of_birth?: string | null; gender?: string | null; email?: string | null; phone?: string | null; address?: string | null; nationality?: string | null; national_id?: string | null; photo_url?: string | null; admission_date?: string | null; status: string; status_reason?: string | null; status_date?: string | null; school_id?: number; created_at?: string | null; updated_at?: string | null; guardians?: unknown[] }
-export type StudentListResponse = { items: StudentListItem[]; total: number; page: number; page_size: number; pages: number }
 export type StreamStudent = { id: number; admission_number: string; first_name: string; middle_name?: string | null; last_name: string; current_class_id?: number | null; level_id?: number | null; stream_id?: number | null; status: string }
 
 export const api = {
