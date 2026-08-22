@@ -58,10 +58,11 @@ def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: 
     for index, day in incoming_days.items():
         current = existing_days.get(index)
         if current is None:
-            db.add(m.TtDay(school_id=principal.school_id, **day.model_dump()))
+            db.add(m.TtDay(school_id=principal.school_id, index=day.index, day_of_week=day.index, name=day.name, is_active=day.is_active))
         else:
             current.name = day.name
             current.is_active = day.is_active
+            current.day_of_week = day.index
 
     for index, period in incoming_periods.items():
         current = existing_periods.get(index)
