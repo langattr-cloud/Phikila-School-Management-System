@@ -12,6 +12,10 @@ def _audit(db,p,a,e,i,s):
     from app.modules.scheduling.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=p.school_id,actor=p.email or p.user_id,action=a,entity=e,entity_id=i,summary=s))
 def _money(v): return Decimal(str(v or 0))
+def _required_approvals(amount: Decimal) -> int:
+    if amount <= Decimal("50000"): return 1
+    if amount <= Decimal("250000"): return 2
+    return 3
 @router.get('/finance/bank-accounts')
 def bank_accounts(db:Session=Depends(get_db),principal:Principal=Depends(require_role('viewer','admin'))): return db.query(m.FinanceBankAccount).filter_by(school_id=principal.school_id).all()
 @router.post('/finance/bank-accounts',status_code=201)
@@ -48,13 +52,35 @@ def create_payment_voucher(payload:dict,db:Session=Depends(get_db),principal:Pri
         if not payload.get(k):raise HTTPException(400,f'{k} is required')
     if db.query(m.FinancePaymentVoucher).filter_by(school_id=principal.school_id,voucher_number=payload['voucher_number']).first():raise HTTPException(409,'Voucher number already exists')
     r=m.FinancePaymentVoucher(school_id=principal.school_id,voucher_number=payload['voucher_number'],payee=payload['payee'],amount=_money(payload['amount']),description=payload['description'],invoice_reference=payload.get('invoice_reference'),lpo_reference=payload.get('lpo_reference'),requested_by=principal.user_id);db.add(r);_audit(db,principal,'create','payment_voucher',0,f'Created voucher {r.voucher_number}');db.commit();db.refresh(r);return r
+@router.get('/finance/payment-vouchers/{voucher_id}/approval-status')
+def payment_voucher_approval_status(voucher_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role('viewer','admin'))):
+    r=db.query(m.FinancePaymentVoucher).filter_by(id=voucher_id,school_id=principal.school_id).first()
+    if not r: raise HTTPException(404,'Payment voucher not found')
+    required=_required_approvals(_money(r.amount)); approvals=db.query(m.FinanceApproval).filter_by(school_id=principal.school_id,entity_type='payment_voucher',entity_id=r.id,decision='APPROVE').order_by(m.FinanceApproval.sequence).all()
+    return {'voucher_id':r.id,'voucher_number':r.voucher_number,'amount':_money(r.amount),'required_approvals':required,'approved_count':len(approvals),'next_sequence':len(approvals)+1 if len(approvals)<required else None,'status':r.status,'approvals':[{'sequence':a.sequence,'approver':a.approver,'decided_at':a.decided_at} for a in approvals]}
 @router.post('/finance/payment-vouchers/{voucher_id}/approve')
 def approve_payment_voucher(voucher_id:int,sequence:int=Query(1,ge=1,le=3),decision:str=Query('APPROVE'),db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin'))):
     r=db.query(m.FinancePaymentVoucher).filter_by(id=voucher_id,school_id=principal.school_id).first()
     if not r:raise HTTPException(404,'Payment voucher not found')
     if r.requested_by==principal.user_id:raise HTTPException(403,'Requester cannot approve their own voucher')
     if decision not in {'APPROVE','REJECT'}:raise HTTPException(400,'decision must be APPROVE or REJECT')
-    db.add(m.FinanceApproval(school_id=principal.school_id,entity_type='payment_voucher',entity_id=r.id,sequence=sequence,required_role='admin',approver=principal.user_id,decision=decision,amount_threshold=r.amount,reason='Voucher approval',decided_at=datetime.now(timezone.utc)));r.status='APPROVED' if decision=='APPROVE' else 'REJECTED';_audit(db,principal,'approve','payment_voucher',r.id,f'Voucher {r.voucher_number}: {decision}');db.commit();db.refresh(r);return r
+    if r.status in {'REJECTED','PAID'}:raise HTTPException(409,f'Voucher is already {r.status.lower()}')
+    required=_required_approvals(_money(r.amount)); existing=db.query(m.FinanceApproval).filter_by(school_id=principal.school_id,entity_type='payment_voucher',entity_id=r.id).all()
+    if any(a.sequence==sequence for a in existing): raise HTTPException(409,f'Approval sequence {sequence} has already been decided')
+    approved_count=sum(1 for a in existing if a.decision=='APPROVE')
+    if sequence != approved_count+1: raise HTTPException(409,f'Next required approval sequence is {approved_count+1}')
+    if sequence>required: raise HTTPException(400,f'This voucher requires only {required} approval(s)')
+    db.add(m.FinanceApproval(school_id=principal.school_id,entity_type='payment_voucher',entity_id=r.id,sequence=sequence,required_role='admin',approver=principal.user_id,decision=decision,amount_threshold=r.amount,reason='Voucher approval',decided_at=datetime.now(timezone.utc)))
+    if decision=='REJECT': r.status='REJECTED'
+    elif approved_count+1>=required: r.status='APPROVED'
+    else: r.status='PENDING_APPROVAL'
+    _audit(db,principal,'approve','payment_voucher',r.id,f'Voucher {r.voucher_number}: {decision} sequence {sequence}/{required}');db.commit();db.refresh(r);return r
+@router.post('/finance/payment-vouchers/{voucher_id}/pay')
+def pay_payment_voucher(voucher_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin'))):
+    r=db.query(m.FinancePaymentVoucher).filter_by(id=voucher_id,school_id=principal.school_id).first()
+    if not r:raise HTTPException(404,'Payment voucher not found')
+    if r.status!='APPROVED':raise HTTPException(409,'Voucher must have all required approvals before payment')
+    r.status='PAID';r.paid_at=datetime.now(timezone.utc);_audit(db,principal,'pay','payment_voucher',r.id,f'Paid voucher {r.voucher_number}');db.commit();db.refresh(r);return r
 @router.get('/finance/imprests')
 def imprests(db:Session=Depends(get_db),principal:Principal=Depends(require_role('viewer','admin'))):return db.query(m.FinanceImprest).filter_by(school_id=principal.school_id).order_by(m.FinanceImprest.created_at.desc()).all()
 @router.post('/finance/imprests',status_code=201)
