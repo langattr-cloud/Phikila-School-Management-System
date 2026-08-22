@@ -125,7 +125,7 @@ export const NAV_TO_SLUG: Record<string, string> = {
   Dashboard: 'admin-dashboard',
   Academics: 'academics-dashboard',
   Students: 'student-directory',
-  Timetable: 'timetable-workspace',
+  Timetable: 'timetable-advanced',
   Finance: 'finance-dashboard',
   Settings: 'settings',
   Support: 'principal-settings',
