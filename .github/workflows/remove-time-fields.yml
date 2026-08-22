@@ -1,0 +1,95 @@
+name: Remove time preference fields
+
+on:
+  push:
+    branches: [fix/remove-time-preference-v2]
+    paths-ignore:
+      - .github/workflows/remove-time-fields.yml
+
+permissions:
+  contents: write
+
+jobs:
+  remove:
+    if: github.event.head_commit.message != 'chore: remove prefers_morning and morning_periods'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/remove-time-preference-v2
+          fetch-depth: 0
+      - name: Remove fields and references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          targets = [
+              'app/modules/scheduling/solver.py',
+              'app/modules/scheduling/engine.py',
+              'app/modules/scheduling/jobs.py',
+              'app/modules/scheduling/copilot.py',
+              'app/modules/scheduling/generation_rules.py',
+              'app/modules/scheduling/models.py',
+              'app/modules/scheduling/schemas.py',
+          ]
+
+          def clean(path):
+              p = root / path
+              if not p.exists(): return
+              s = p.read_text()
+              original = s
+              # Remove simple dataclass/model declarations and call arguments.
+              s = re.sub(r'^\s*prefers_morning:\s*bool\s*=\s*False\s*\n', '', s, flags=re.M)
+              s = re.sub(r'^\s*morning_periods:\s*list\[int\]\s*\n', '', s, flags=re.M)
+              s = re.sub(r'^\s*prefers_morning\s*=.*\n', '', s, flags=re.M)
+              s = re.sub(r'^\s*morning_periods\s*=.*\n', '', s, flags=re.M)
+              s = re.sub(r'^\s*prefers_morning=.*\n', '', s, flags=re.M)
+              s = re.sub(r'^\s*morning_periods=.*\n', '', s, flags=re.M)
+              # Remove keyword arguments on their own line.
+              s = re.sub(r'^\s*prefers_morning\s*=.*?,?\s*\n', '', s, flags=re.M)
+              s = re.sub(r'^\s*morning_periods\s*=.*?,?\s*\n', '', s, flags=re.M)
+              if s != original: p.write_text(s)
+
+          for path in targets: clean(path)
+
+          # Remove the solver's legacy morning optimization/scoring blocks.
+          p = root / 'app/modules/scheduling/solver.py'
+          s = p.read_text()
+          s = re.sub(r'\n\s*# --- SOFT: morning preference.*?(?=\n\s*# --- SOFT:)', '\n', s, flags=re.S|re.I)
+          s = re.sub(r'\n\s*# Morning preference adherence.*?(?=\n\s*# )', '\n', s, flags=re.S|re.I)
+          s = re.sub(r'^\s*"morning_preference":.*\n', '', s, flags=re.M)
+          s = re.sub(r'^\s*\+ morning_score .*\n', '', s, flags=re.M)
+          s = re.sub(r'^\s*morning_score\s*=.*\n', '', s, flags=re.M)
+          s = re.sub(r'^\s*morning\s*=.*\n', '', s, flags=re.M)
+          s = re.sub(r'^\s*wants_morning\s*=.*\n', '', s, flags=re.M)
+          s = re.sub(r'^\s*morning_hits\s*=.*\n', '', s, flags=re.M)
+          s = re.sub(r'^\s*morning_total\s*=.*\n', '', s, flags=re.M)
+          s = re.sub(r'^\s*morning_preference\s*=.*\n', '', s, flags=re.M)
+          p.write_text(s)
+
+          # Remove any remaining source lines containing the exact legacy field names.
+          for p in root.rglob('*'):
+              if not p.is_file() or '.git' in p.parts or p.suffix not in {'.py','.ts','.tsx','.sql'}: continue
+              try: s = p.read_text()
+              except UnicodeDecodeError: continue
+              lines = s.splitlines(True)
+              kept = [line for line in lines if 'prefers_morning' not in line and 'morning_periods' not in line]
+              if len(kept) != len(lines): p.write_text(''.join(kept))
+
+          leftovers=[]
+          for p in root.rglob('*'):
+              if not p.is_file() or '.git' in p.parts or p.suffix not in {'.py','.ts','.tsx','.sql'}: continue
+              try: s=p.read_text()
+              except UnicodeDecodeError: continue
+              for needle in ('prefers_morning','morning_periods'):
+                  if needle in s: leftovers.append(f'{p}: {needle}')
+          if leftovers: raise SystemExit('\n'.join(leftovers))
+          PY
+          rm -f .github/workflows/remove-time-fields.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore: remove prefers_morning and morning_periods'
+          git push origin fix/remove-time-preference-v2
