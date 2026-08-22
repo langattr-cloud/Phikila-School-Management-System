@@ -1,9 +1,8 @@
 """Scheduling package bootstrap patches for subject-scoped time-off.
 
-Subject time-off is persisted as an ``avoid_lessons`` constraint.  The
+Subject time-off is persisted as an ``avoid_lessons`` constraint. The
 scheduler historically only understood teacher/class scopes, so this module
-keeps the compatibility fix close to the scheduling package without replacing
-large solver modules solely to add the missing scope.
+keeps the compatibility fix close to the scheduling package.
 """
 
 from __future__ import annotations
@@ -28,9 +27,7 @@ def _replace_function_source(function, replacements: list[tuple[str, str]]):
     return namespace[function.__name__]
 
 
-# Preserve subject scope when translating database constraints.  The previous
-# translator treated every non-teacher scope as a class rule, which made a
-# subject time-off selection accidentally block the whole class.
+# Preserve subject scope when translating database constraints.
 def _load_constraints(db, school_id):
     weights = _solver.Weights()
     avoid = []
@@ -69,29 +66,26 @@ _solver.preflight = _replace_function_source(
     _solver.preflight,
     [
         (
-            '    hard_blocked_teacher: dict[int, set[tuple[int, int]]] = {}\n',
-            '    hard_blocked_teacher: dict[int, set[tuple[int, int]]] = {}\n'
-            '    hard_blocked_subject: dict[int, set[tuple[int, int]]] = {}\n',
+            '    hard_teacher: dict[int, set[tuple[int, int]]] = {}\n',
+            '    hard_teacher: dict[int, set[tuple[int, int]]] = {}\n'
+            '    hard_subject: dict[int, set[tuple[int, int]]] = {}\n',
         ),
         (
-            '        bucket = hard_blocked_class if rule.scope == "class" else hard_blocked_teacher\n'
-            '        bucket.setdefault(rule.target_id, set()).update(rule.slots)\n',
+            '        (hard_class if rule.scope == "class" else hard_teacher).setdefault(rule.target_id, set()).update(rule.slots)\n',
             '        if rule.scope == "class":\n'
-            '            bucket = hard_blocked_class\n'
+            '            bucket = hard_class\n'
             '        elif rule.scope == "teacher":\n'
-            '            bucket = hard_blocked_teacher\n'
+            '            bucket = hard_teacher\n'
             '        elif rule.scope == "subject":\n'
-            '            bucket = hard_blocked_subject\n'
+            '            bucket = hard_subject\n'
             '        else:\n'
             '            continue\n'
             '        bucket.setdefault(rule.target_id, set()).update(rule.slots)\n',
         ),
         (
-            '    # A required room type must exist.\n',
-            '    # A subject-level hard block must still leave enough slots for each\n'
-            '    # individual requirement using that subject.\n'
+            '    for req in data.requirements:\n        subject = data.subjects.get(req.subject_id)\n',
             '    for req in data.requirements:\n'
-            '        blocked = hard_blocked_subject.get(req.subject_id, set())\n'
+            '        blocked = hard_subject.get(req.subject_id, set())\n'
             '        if blocked:\n'
             '            available = sum(\n'
             '                1 for day in data.days for period in data.teaching_periods\n'
@@ -104,8 +98,7 @@ _solver.preflight = _replace_function_source(
             '                    f"{name} needs {req.periods_per_week} lessons but only "\n'
             '                    f"{available} slots remain after subject time-off is applied."\n'
             '                )\n'
-            '\n'
-            '    # A required room type must exist.\n',
+            '        subject = data.subjects.get(req.subject_id)\n',
         ),
     ],
 )
@@ -116,20 +109,14 @@ _solver.solve = _replace_function_source(
     _solver.solve,
     [
         (
-            '            if rule.scope == "teacher" and req.teacher_id == rule.target_id and (day, period) in rule.slots:\n'
+            '            if rule.is_hard and (day, period) in rule.slots and ((rule.scope == "class" and rule.target_id == req.class_id) or (rule.scope == "teacher" and rule.target_id == req.teacher_id)):\n'
             '                return False\n',
-            '            if rule.scope == "teacher" and req.teacher_id == rule.target_id and (day, period) in rule.slots:\n'
-            '                return False\n'
-            '            if rule.scope == "subject" and req.subject_id == rule.target_id and (day, period) in rule.slots:\n'
+            '            if rule.is_hard and (day, period) in rule.slots and ((rule.scope == "class" and rule.target_id == req.class_id) or (rule.scope == "teacher" and rule.target_id == req.teacher_id) or (rule.scope == "subject" and rule.target_id == req.subject_id)):\n'
             '                return False\n',
         ),
         (
-            '                    rule.scope == "teacher" and req.teacher_id == rule.target_id\n'
-            '                )\n',
-            '                    rule.scope == "teacher" and req.teacher_id == rule.target_id\n'
-            '                ) or (\n'
-            '                    rule.scope == "subject" and req.subject_id == rule.target_id\n'
-            '                )\n',
+            '                match = (rule.scope == "class" and req.class_id == rule.target_id) or (rule.scope == "teacher" and req.teacher_id == rule.target_id)\n',
+            '                match = (rule.scope == "class" and req.class_id == rule.target_id) or (rule.scope == "teacher" and req.teacher_id == rule.target_id) or (rule.scope == "subject" and req.subject_id == rule.target_id)\n',
         ),
     ],
 )
