@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from . import models as m
-from .engine import build_input
+from .engine import build_input, detect_conflicts
 from .generation_rules import enforce_double_lessons
 from .solver import ORTOOLS_AVAILABLE, preflight, solve
 logger=logging.getLogger(__name__)
@@ -56,9 +56,22 @@ def _run_job(job_id,school_id,max_seconds):
             return _fail(db,job," ".join(double_problems))
         checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"passed");job.checks=checks;db.commit()
         version=_persist(db,school_id,result,job.created_by)
+        conflicts=detect_conflicts(db,school_id,version.id)
+        hard_conflicts=[c for c in conflicts if c.severity=="hard"]
+        if hard_conflicts:
+            job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
+            if job:
+                job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"failed")
+                job.message=f"Generation completed but {len(hard_conflicts)} hard conflict(s) prevented automatic publication."
+                db.commit()
+                _fail(db,job,job.message)
+            return
+        db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id,m.TtVersion.status=="published").update({"status":"archived"})
+        version.status="published"
+        version.published_at=datetime.utcnow()
         breakdown=result.quality.get("breakdown",{});checks=job.checks or initial_checks();checks=_set_checks(checks,["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed");checks=_set_checks(checks,["workload","distribution"],"passed");checks=_set_checks(checks,["preferences"],"passed" if breakdown.get("morning_preference",100)>=90 else "warning")
         job.checks=checks;job.status="completed";job.stage="Completed";job.progress=100;job.result_version_id=version.id;job.quality=result.quality;job.finished_at=datetime.utcnow();db.commit()
-        db.add(m.TtAuditEntry(school_id=school_id,actor=job.created_by,action="generate",entity="version",entity_id=version.id,summary=f"Generated timetable v{version.number} ({version.label or 'Generated'})"));db.commit()
+        db.add(m.TtAuditEntry(school_id=school_id,actor=job.created_by,action="generate",entity="version",entity_id=version.id,summary=f"Generated and published timetable v{version.number} ({version.label or 'Generated'})"));db.commit()
     except Exception:
         logger.exception("Solver job %s failed",job_id)
         try:
