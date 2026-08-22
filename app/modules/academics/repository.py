@@ -64,6 +64,13 @@ class StreamRepository:
     def create_stream(self, school_id: int, data: schemas.StreamCreate):
         db_stream = models.Stream(name=data.name.strip(), code=data.code.strip() if data.code else None, capacity=data.capacity, status=data.status, academic_year_id=data.academic_year_id, level_id=data.level_id, grade_id=data.grade_id, school_id=school_id)
         self.db.add(db_stream); self.db.commit(); self.db.refresh(db_stream); return db_stream
+    def create_streams_bulk(self, school_id: int, data: schemas.BulkStreamCreate):
+        streams = [models.Stream(name=item.name.strip(), code=item.code.strip() if item.code else None, capacity=item.capacity, status=item.status, academic_year_id=data.academic_year_id, level_id=data.level_id, grade_id=data.grade_id, school_id=school_id) for item in data.streams]
+        self.db.add_all(streams)
+        self.db.flush()
+        for stream in streams: self.db.refresh(stream)
+        self.db.commit()
+        return streams
     def update_stream(self, stream: models.Stream, data: schemas.StreamUpdate):
         for key, value in data.model_dump(exclude_unset=True).items(): setattr(stream, key, value.strip() if isinstance(value, str) else value)
         self.db.commit(); self.db.refresh(stream); return stream
