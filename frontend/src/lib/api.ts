@@ -2,7 +2,7 @@ import { getLocalSession } from './localAuth'
 import { supabase } from './supabase'
 const configuredApiUrl=(import.meta.env.VITE_API_URL||'').trim().replace(/\/$/,'')
 const sameOriginApiUrl=typeof window!=='undefined'?window.location.origin:''
-const isProductionHost=typeof window!=='undefined'&&['www.phikila.com','phikila.com'].includes(window.location.hostname)
+const isProductionHost=typeof window!=='undefined'&&(['www.phikila.com','phikila.com'].includes(window.location.hostname)||window.location.hostname.endsWith('.vercel.app'))
 const productionFallbackApiUrl=isProductionHost?'https://phikila-school-management-system.onrender.com':null
 const apiUrl=isProductionHost?sameOriginApiUrl:configuredApiUrl||sameOriginApiUrl
 export class ApiError extends Error{constructor(message:string,public readonly status:number,public readonly detail?:unknown){super(message)}}
