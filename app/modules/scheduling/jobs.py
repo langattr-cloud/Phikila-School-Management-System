@@ -61,6 +61,7 @@ def _run_job(job_id,school_id,max_seconds):
         if hard_conflicts:
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
             if job:
+                job.result_version_id=version.id
                 job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"failed")
                 job.message=f"Generation completed but {len(hard_conflicts)} hard conflict(s) prevented automatic publication."
                 db.commit()
