@@ -7,7 +7,6 @@ const LABELS: Record<string, string> = {
   room_utilisation: 'Room utilisation',
   teacher_gaps: 'Teacher gaps',
   class_distribution: 'Class distribution',
-  morning_preference: 'Morning preference',
 }
 
 function tone(value: number): 'good' | 'ok' | 'poor' {
@@ -22,7 +21,7 @@ function tone(value: number): 'good' | 'ok' | 'poor' {
  */
 export function QualityBars({ quality }: { quality: Partial<Quality> }) {
   const breakdown = quality.breakdown ?? {}
-  const entries = Object.entries(breakdown)
+  const entries = Object.entries(breakdown).filter(([key]) => key !== 'morning_preference')
 
   return (
     <div className="quality">
