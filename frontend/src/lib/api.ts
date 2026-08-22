@@ -3,19 +3,17 @@ import { supabase } from './supabase'
 
 const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '')
 const sameOriginApiUrl = typeof window !== 'undefined' ? window.location.origin : ''
-const isHostedProduction = typeof window !== 'undefined' && (
+const isProductionHost = typeof window !== 'undefined' && (
   ['www.phikila.com', 'phikila.com'].includes(window.location.hostname) ||
   window.location.hostname.endsWith('.vercel.app')
 )
-const productionFallbackApiUrl = isHostedProduction
+const productionFallbackApiUrl = isProductionHost
   ? 'https://phikila-school-management-system.onrender.com'
   : null
-const apiUrl = isHostedProduction ? sameOriginApiUrl : configuredApiUrl || sameOriginApiUrl
+const apiUrl = isProductionHost ? sameOriginApiUrl : configuredApiUrl || sameOriginApiUrl
 
 export class ApiError extends Error {
-  constructor(message: string, public readonly status: number, public readonly detail?: unknown) {
-    super(message)
-  }
+  constructor(message: string, public readonly status: number, public readonly detail?: unknown) { super(message) }
 }
 
 export function friendlyApiError(error: unknown, action: string): string {
@@ -37,22 +35,18 @@ async function currentAccessToken(): Promise<string | null> {
   const { data, error } = await supabase.auth.getSession()
   return error ? null : data.session?.access_token ?? null
 }
-
 async function refreshSessionToken(): Promise<string | null> {
   if (!supabase) return null
   const { data, error } = await supabase.auth.refreshSession()
   return !error && data.session?.access_token ? data.session.access_token : currentAccessToken()
 }
-
 function requestUrl(baseUrl: string, path: string): string {
   if (/^https?:\/\//i.test(path)) return path
   return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
 }
-
 async function fetchWithFallback(url: string, fallbackUrls: Array<string | null>, init: RequestInit): Promise<Response> {
   const candidates = [url, ...fallbackUrls].filter((candidate, index, all): candidate is string => Boolean(candidate) && all.indexOf(candidate) === index)
   let lastError: unknown = null
-
   for (const candidate of candidates) {
     try {
       const response = await fetch(candidate, init)
@@ -62,7 +56,6 @@ async function fetchWithFallback(url: string, fallbackUrls: Array<string | null>
       if (candidate === candidates[candidates.length - 1]) throw error
     }
   }
-
   if (lastError instanceof Error) throw lastError
   throw new Error('Network request failed')
 }
@@ -71,46 +64,27 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, authenti
   const baseHeaders = new Headers(init.headers)
   baseHeaders.set('Accept', 'application/json')
   if (init.body && !baseHeaders.has('Content-Type') && !(init.body instanceof FormData)) baseHeaders.set('Content-Type', 'application/json')
-
   const request = async (token: string | null) => {
     const headers = new Headers(baseHeaders)
     if (authenticated && token) headers.set('Authorization', `Bearer ${token}`)
-
     const primaryUrl = requestUrl(apiUrl, path)
-    const fallbackUrls = [
-      configuredApiUrl && !isHostedProduction ? requestUrl(configuredApiUrl, path) : null,
-      !isHostedProduction && sameOriginApiUrl ? requestUrl(sameOriginApiUrl, path) : null,
-      productionFallbackApiUrl ? requestUrl(productionFallbackApiUrl, path) : null,
-    ]
-
+    const fallbackUrls = [productionFallbackApiUrl ? requestUrl(productionFallbackApiUrl, path) : null]
     let response: Response
-    try {
-      response = await fetchWithFallback(primaryUrl, fallbackUrls, { ...init, headers })
-    } catch (error) {
-      throw new ApiError(`API could not be reached: ${error instanceof Error ? error.message : 'Network request failed'}`, 0)
-    }
-
+    try { response = await fetchWithFallback(primaryUrl, fallbackUrls, { ...init, headers }) }
+    catch (error) { throw new ApiError(`API could not be reached: ${error instanceof Error ? error.message : 'Network request failed'}`, 0) }
     if (!response.ok) {
       const payload = await response.json().catch(() => null)
       const raw = payload?.detail
-      const message = typeof raw === 'string'
-        ? raw
-        : typeof raw?.message === 'string'
-          ? raw.message
-          : `Request failed (${response.status})`
+      const message = typeof raw === 'string' ? raw : typeof raw?.message === 'string' ? raw.message : `Request failed (${response.status})`
       throw new ApiError(message, response.status, typeof raw === 'object' ? raw : undefined)
     }
-
     if (response.status === 204) return undefined as T
     return response.json() as Promise<T>
   }
-
   let token = authenticated ? await currentAccessToken() : null
   if (authenticated && !token) throw new ApiError('Please sign in again.', 401)
-
-  try {
-    return await request(token)
-  } catch (error) {
+  try { return await request(token) }
+  catch (error) {
     if (authenticated && error instanceof ApiError && error.status === 401 && supabase) {
       token = await refreshSessionToken()
       if (token) return await request(token)
@@ -127,6 +101,8 @@ export type Level = { id: number; name: string; code: string; display_order: num
 export type Grade = { id: number; name: string; code: string; display_order: number; status?: boolean | null; school_id: number; level_id: number }
 export type StreamStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
 export type Stream = { id: number; school_id: number; academic_year_id?: number | null; level_id: number; grade_id?: number | null; name: string; code?: string | null; capacity?: number | null; class_teacher_id?: number | null; status: StreamStatus; created_at?: string; updated_at?: string | null }
+export type StudentListItem = { id: number; admission_number: string; first_name: string; middle_name?: string | null; last_name: string; preferred_name?: string | null; date_of_birth?: string | null; gender?: string | null; email?: string | null; phone?: string | null; address?: string | null; nationality?: string | null; national_id?: string | null; photo_url?: string | null; admission_date?: string | null; status: string; status_reason?: string | null; status_date?: string | null; school_id?: number; created_at?: string | null; updated_at?: string | null; guardians?: unknown[] }
+export type StudentListResponse = { items: StudentListItem[]; total: number; page: number; page_size: number; pages: number }
 export type StreamStudent = { id: number; admission_number: string; first_name: string; middle_name?: string | null; last_name: string; current_class_id?: number | null; level_id?: number | null; stream_id?: number | null; status: string }
 
 export const api = {
@@ -138,7 +114,7 @@ export const api = {
   updateAcademicYear: (id: number, payload: Partial<Pick<AcademicYear, 'name' | 'start_date' | 'end_date' | 'is_current' | 'status'>>) => apiFetch<AcademicYear>(`/api/v1/academics/years/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   terms: () => apiFetch<Term[]>('/api/v1/academics/terms'),
   createTerm: (payload: { name: string; start_date?: string | null; end_date?: string | null; is_current?: boolean; academic_year_id: number }) => apiFetch<Term>('/api/v1/academics/terms', { method: 'POST', body: JSON.stringify(payload) }),
-  updateTerm: (id: number, payload: Partial<Pick<Term, 'name' | 'start_date' | 'end_date' | 'is_current' | 'academic_year_id'>>) => apiFetch<Term>(`/api/v1/academics/terms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  updateTerm: (id: number, payload: Partial<Pick<AcademicYear, 'name'>>) => apiFetch<Term>(`/api/v1/academics/terms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   levels: () => apiFetch<Level[]>('/api/v1/academics/levels'),
   createLevel: (payload: { name: string; code: string; display_order: number; status?: boolean }) => apiFetch<Level>('/api/v1/academics/levels', { method: 'POST', body: JSON.stringify(payload) }),
   updateLevel: (id: number, payload: Partial<Pick<Level, 'name' | 'code' | 'display_order' | 'status'>>) => apiFetch<Level>(`/api/v1/academics/levels/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
