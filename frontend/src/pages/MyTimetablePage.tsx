@@ -11,6 +11,12 @@ import { scheduling, type Calendar, type Event, type SchoolClass, type Teacher, 
 
 type Scope = 'class' | 'teacher'
 
+function canReviewGeneratedDraft(role?: string) {
+  const order = ['viewer', 'student', 'teacher', 'scheduler', 'admin', 'super_admin']
+  const index = order.indexOf(String(role ?? '').toLowerCase())
+  return index >= order.indexOf('scheduler')
+}
+
 function buildView(
   calendar: Calendar,
   version: NonNullable<TimetableView['version']>,
@@ -61,7 +67,7 @@ export function MyTimetablePage() {
       if (!active) return
       const { classes, teachers, me } = result.data
       setOptions({ classes, teachers })
-      setCanReviewDraft(['admin', 'scheduler'].includes(String(me.role ?? '').toLowerCase()))
+      setCanReviewDraft(canReviewGeneratedDraft(me.role))
       if (me.teacher_id) {
         setIsTeacher(true)
         setScope('teacher')
