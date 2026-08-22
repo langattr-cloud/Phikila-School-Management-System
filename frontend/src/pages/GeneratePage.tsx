@@ -35,7 +35,6 @@ function CheckRow({ check }: { check: SolverCheck }) {
         {icon}
       </span>
       <span className="check-row__label">{check.label}</span>
-      {/* State is spelled out, never signalled by colour alone. */}
       <span className="check-row__state">{label}</span>
     </li>
   )
@@ -49,6 +48,7 @@ export function GeneratePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [job, setJob] = useState<Job | null>(null)
+  const [hasTimetable, setHasTimetable] = useState(false)
   const [starting, setStarting] = useState(false)
   const [seconds, setSeconds] = useState(30)
   const timer = useRef<number | null>(null)
@@ -56,7 +56,14 @@ export function GeneratePage() {
   const loadSummary = useCallback(async () => {
     setLoading(true)
     try {
-      setSummary(await scheduling.dashboard())
+      const [dashboard, currentVersion, activeJob] = await Promise.all([
+        scheduling.dashboard(),
+        scheduling.currentVersion(),
+        scheduling.activeJob(),
+      ])
+      setSummary(dashboard)
+      setHasTimetable(currentVersion !== null)
+      setJob(activeJob)
       setError(null)
     } catch (err) {
       setError(friendlyApiError(err, 'load your school setup'))
@@ -69,7 +76,6 @@ export function GeneratePage() {
     void loadSummary()
   }, [loadSummary])
 
-  // Poll while a job is active; stop as soon as it settles.
   useEffect(() => {
     if (!job || !ACTIVE.has(job.status)) return
     timer.current = window.setInterval(async () => {
@@ -79,8 +85,8 @@ export function GeneratePage() {
         if (!ACTIVE.has(next.status)) {
           if (timer.current) window.clearInterval(timer.current)
           if (next.status === 'completed') {
-            notify('Timetable generated.', 'success')
-            void loadSummary()
+            setHasTimetable(true)
+            notify('Timetable generated. Use View timetable to open it.', 'success')
           } else if (next.status === 'failed') {
             notify('Generation could not finish.', 'error')
           }
@@ -92,7 +98,7 @@ export function GeneratePage() {
     return () => {
       if (timer.current) window.clearInterval(timer.current)
     }
-  }, [job, notify, loadSummary])
+  }, [job, notify])
 
   async function start() {
     if (starting) return
@@ -154,7 +160,22 @@ export function GeneratePage() {
           )}
 
           <section className="card section">
-            <h2 className="section__title">What will be scheduled</h2>
+            <div className="panel__head">
+              <div>
+                <h2 className="section__title">What will be scheduled</h2>
+                <p className="form__note">Generate a new timetable or open the latest saved timetable.</p>
+              </div>
+              {hasTimetable && !running && (
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => navigate('/timetable')}
+                >
+                  View timetable
+                </button>
+              )}
+            </div>
+
             <dl className="detail-list detail-list--two">
               <div>
                 <dt>Weekly lessons</dt>
@@ -295,7 +316,7 @@ export function GeneratePage() {
                     className="button button--primary"
                     onClick={() => navigate('/timetable')}
                   >
-                    Open timetable
+                    View timetable
                   </button>
                 )}
                 {(job.status === 'failed' || job.status === 'cancelled') && (
