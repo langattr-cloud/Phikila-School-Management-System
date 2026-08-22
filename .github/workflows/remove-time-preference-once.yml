@@ -1,17 +1,15 @@
 name: Remove legacy time preference
 
 on:
-  push:
-    branches: [fix/remove-time-preference]
-    paths-ignore:
-      - .github/workflows/remove-time-preference-once.yml
+  pull_request:
+    types: [synchronize, reopened]
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   remove:
-    if: github.event.head_commit.message != 'chore: trigger complete time preference removal'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,23 +21,19 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-
           root = Path('.')
 
           def edit(path, transform):
               p = root / path
-              if not p.exists():
-                  return
-              text = p.read_text()
-              new = transform(text)
-              if new != text:
-                  p.write_text(new)
+              if p.exists():
+                  old = p.read_text()
+                  new = transform(old)
+                  if new != old:
+                      p.write_text(new)
 
-          # Backend model/schema: the subject flag is no longer part of the API/domain model.
-          edit('app/modules/scheduling/models.py', lambda s: s.replace("; prefers_morning=Column(Boolean,default=False,nullable=False)", ""))
+          edit('app/modules/scheduling/models.py', lambda s: s.replace('; prefers_morning=Column(Boolean,default=False,nullable=False)', ''))
           edit('app/modules/scheduling/schemas.py', lambda s: re.sub(r'\n?    prefers_morning: bool = False;', '', s))
 
-          # Solver: remove the data field, weight, objective penalty, and quality metric.
           def solver(s):
               s = re.sub(r'\n    prefers_morning: bool = False', '', s)
               s = re.sub(r'\n    morning_preference: int = 10', '', s)
@@ -52,7 +46,6 @@ jobs:
               return s
           edit('app/modules/scheduling/solver.py', solver)
 
-          # Engine: stop deriving morning periods and stop mapping the subject flag.
           def engine(s):
               s = re.sub(r'\n    @property\n    def morning_indexes\(self\) -> list\[int\]:.*?\n\n\ndef load_calendar', '\n\n\ndef load_calendar', s, flags=re.S)
               s = re.sub(r'\n            prefers_morning=bool\(s\.prefers_morning\),', '', s)
@@ -60,55 +53,30 @@ jobs:
               return s
           edit('app/modules/scheduling/engine.py', engine)
 
-          # Copilot: do not expose or translate "morning" into a solver weight.
           def copilot(s):
               s = re.sub(r'\n    "morning": "morning_preference",', '', s)
               s = re.sub(r'\n    def morning_periods\(self\) -> list\[dict\]:.*?\n\n\ndef _match_name', '\n\n\ndef _match_name', s, flags=re.S)
               return s
           edit('app/modules/scheduling/copilot.py', copilot)
 
-          # Frontend subject persistence: do not send/read the removed field.
           for path in ['frontend/src/pages/SetupPage.tsx', 'frontend/src/components/SubjectColourManager.tsx']:
-              def frontend(s):
-                  s = re.sub(r',\s*prefers_morning:\s*[^,}]+', '', s)
-                  s = re.sub(r'prefers_morning:\s*[^,}]+,\s*', '', s)
-                  s = re.sub(r'\s+prefers_morning\??:\s*boolean;?', '', s)
-                  return s
-              edit(path, frontend)
+              edit(path, lambda s: re.sub(r',\s*prefers_morning:\s*[^,}]+|prefers_morning:\s*[^,}]+,|\s+prefers_morning\??:\s*boolean;?', '', s))
 
-          # Remove any remaining standalone source references, while leaving unrelated prose alone.
-          for p in root.rglob('*'):
-              if not p.is_file() or '.git' in p.parts or p.suffix not in {'.py', '.ts', '.tsx', '.sql', '.md'}:
-                  continue
-              try:
-                  text = p.read_text()
-              except UnicodeDecodeError:
-                  continue
-              if 'morning_preference' in text:
-                  text = re.sub(r'\n?[^\n]*morning_preference[^\n]*', '', text)
-                  p.write_text(text)
+          # Remove legacy preference constraint rows through a migration when the app supports migrations.
+          migration_dir = root / 'app/modules/scheduling/migrations'
+          if migration_dir.exists():
+              (migration_dir / '002_remove_time_preference.py').write_text('from sqlalchemy import text\n\n\ndef upgrade(connection):\n    connection.execute(text("DELETE FROM tt_constraints WHERE kind = \'morning_preference\'"))\n\n\ndef downgrade(connection):\n    pass\n')
 
-          # Remove legacy enabled constraint rows in the application database at runtime/migration level.
-          migration = root / 'app/modules/scheduling/migrations/002_remove_time_preference.py'
-          if migration.parent.exists():
-              migration.write_text('''from sqlalchemy import text\n\n\ndef upgrade(connection):\n    connection.execute(text("DELETE FROM tt_constraints WHERE kind = \'morning_preference\'"))\n\n\ndef downgrade(connection):\n    pass\n''')
-
-          # Verify the feature is absent from source.
           leftovers = []
           for p in root.rglob('*'):
               if not p.is_file() or '.git' in p.parts or p.suffix not in {'.py', '.ts', '.tsx', '.sql', '.md'}:
                   continue
-              try:
-                  text = p.read_text()
-              except UnicodeDecodeError:
-                  continue
+              try: text = p.read_text()
+              except UnicodeDecodeError: continue
               for needle in ('morning_preference', 'morning_periods', 'prefers_morning'):
-                  if needle in text:
-                      leftovers.append(f'{p}: {needle}')
-          if leftovers:
-              raise SystemExit('Legacy time preference references remain:\n' + '\n'.join(leftovers))
+                  if needle in text: leftovers.append(f'{p}: {needle}')
+          if leftovers: raise SystemExit('Legacy time preference references remain:\n' + '\n'.join(leftovers))
           PY
-
           rm -f .github/workflows/remove-time-preference-once.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
