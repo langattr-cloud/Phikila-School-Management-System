@@ -1,5 +1,6 @@
 """Pydantic contracts for the scheduling API."""
 from __future__ import annotations
+from datetime import time
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -15,7 +16,16 @@ class PeriodIn(BaseModel):
     end_time: str = Field(pattern=r'^\d{2}:\d{2}$')
     is_teaching: bool = True
 
-class PeriodOut(ORMModel, PeriodIn): id: int
+class PeriodOut(ORMModel, PeriodIn):
+    id: int
+
+    @field_validator('start_time', 'end_time', mode='before')
+    @classmethod
+    def serialize_time(cls, value):
+        if isinstance(value, time):
+            return value.strftime('%H:%M')
+        return value
+
 class DayIn(BaseModel):
     index: int = Field(ge=0, le=6); name: str = Field(min_length=1, max_length=20); is_active: bool = True
 class DayOut(ORMModel, DayIn): id: int
