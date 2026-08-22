@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app.modules.academics import models, schemas
 from app.modules.academics.repository import AcademicYearRepository, LevelRepository, GradeRepository, StreamRepository, TermRepository
 
@@ -98,6 +99,22 @@ class StreamService:
         if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade does not belong to the selected level")
         if self.repository.get_stream_by_name_context(school_id, data.academic_year_id, data.grade_id, data.name.strip()): raise HTTPException(status.HTTP_409_CONFLICT, "A stream with this name already exists for this grade in this academic year.")
         return self.repository.create_stream(school_id, data)
+    def create_streams_bulk(self, school_id, data: schemas.BulkStreamCreate):
+        year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == data.academic_year_id, models.AcademicYear.school_id == school_id).first()
+        grade = self.db.query(models.Grade).filter(models.Grade.id == data.grade_id, models.Grade.school_id == school_id, models.Grade.level_id == data.level_id).first()
+        if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
+        if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade does not belong to the selected level")
+        normalized = [item.name.strip().casefold() for item in data.streams]
+        existing = self.db.query(models.Stream.name).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == data.academic_year_id, models.Stream.grade_id == data.grade_id).all()
+        existing_names = {name.casefold() for (name,) in existing}
+        conflicts = [item.name.strip() for item, key in zip(data.streams, normalized) if key in existing_names]
+        if conflicts: raise HTTPException(status.HTTP_409_CONFLICT, f"These streams already exist for this grade: {', '.join(conflicts)}")
+        try:
+            streams = self.repository.create_streams_bulk(school_id, data)
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, "One or more streams already exist for this grade in this academic year.")
+        return streams
     def update_stream(self, school_id, stream_id, data):
         stream = self.get_stream_by_id(school_id, stream_id)
         if data.name:
