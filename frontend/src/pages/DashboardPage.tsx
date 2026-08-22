@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { Badge, EmptyState, LoadingBlock, Skeleton } from '../components/States'
 import { Alert } from '../components/Alert'
 import { QualityBars } from '../components/QualityBars'
-import { SchoolIcon, UserIcon, GridIcon, CheckIcon, SparkIcon } from '../components/icons'
+import { UserIcon, GridIcon, CheckIcon, SparkIcon } from '../components/icons'
 import { friendlyApiError, api } from '../lib/api'
 import { finance } from '../lib/finance'
 import { students } from '../lib/students'
@@ -70,7 +70,6 @@ export function DashboardPage() {
       <section className="dashboard-metrics" aria-label="Key school metrics">
         <Metric label="Students" value={studentsQuery.data?.total ?? 0} detail="Total enrolled records" loading={studentsQuery.loading} icon={<UserIcon />} tone="navy" to="/students" />
         <Metric label="Teachers" value={data?.counts.teachers ?? 0} detail="Staff available for scheduling" loading={loading} icon={<UserIcon />} tone="green" to="/setup/teachers" />
-        <Metric label="Classes" value={data?.counts.classes ?? 0} detail="Teaching groups" loading={loading} icon={<SchoolIcon />} tone="gold" to="/setup/classes" />
         <Metric label="Fee collection" value={money(financeQuery.data?.total_collected ?? 0)} detail={`${collectionRate}% of invoiced amount collected`} loading={financeQuery.loading} icon={<GridIcon />} tone="green" to="/finance" />
       </section>
 
