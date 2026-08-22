@@ -3,8 +3,7 @@ import { apiFetch } from './api'
 const SCHEDULING_API_PREFIX = '/api/v1/scheduling'
 const schedulingPath = (path: string) => `${SCHEDULING_API_PREFIX}${path.startsWith('/') ? path : `/${path}`}`
 const get = <T>(path: string) => apiFetch<T>(schedulingPath(path))
-const send = <T>(path: string, method: string = 'POST', payload?: unknown) =>
-  apiFetch<T>(schedulingPath(path), { method, ...(payload === undefined ? {} : { body: JSON.stringify(payload) }) })
+const send = <T>(path: string, method: string = 'POST', payload?: unknown) => apiFetch<T>(schedulingPath(path), { method, ...(payload === undefined ? {} : { body: JSON.stringify(payload) }) })
 
 type Loose = Record<string, any>
 export type Slots = Record<string, number[]>
@@ -46,15 +45,7 @@ export interface DashboardLessons { required: number; scheduled: number; unassig
 export interface DashboardCounts { teachers: number; classes: number; rooms: number }
 export interface DashboardVersion extends Loose { id?: number; number?: number; status: string }
 export interface DashboardActivity { at?: string; actor?: string; summary: string }
-export interface Dashboard extends Loose {
-  counts: DashboardCounts
-  conflicts: DashboardConflict
-  lessons: DashboardLessons
-  version: DashboardVersion | null
-  solver_available: boolean
-  quality?: JobQuality
-  recent: DashboardActivity[]
-}
+export interface Dashboard extends Loose { counts: DashboardCounts; conflicts: DashboardConflict; lessons: DashboardLessons; version: DashboardVersion | null; solver_available: boolean; quality?: JobQuality; recent: DashboardActivity[] }
 export interface Analytics extends Loose {}
 export interface AuditEntry extends Loose {}
 export interface Conflict extends Loose { severity: string; lesson_ids: number[] }
@@ -68,34 +59,19 @@ export interface Quality { overall?: number; breakdown?: Record<string, number> 
 export const scheduling = {
   me: () => get<Principal>('/me'), calendar: () => get<Calendar>('/calendar'),
   saveCalendar: (payload: { days: DayInput[]; periods: PeriodInput[] }) => send<Calendar>('/calendar', 'PUT', payload),
-  events: () => get<Event[]>('/events'), createEvent: (payload: EventInput) => send<Event>('/events', 'POST', payload),
-  updateEvent: (id: number, payload: EventInput) => send<Event>(`/events/${id}`, 'PUT', payload), deleteEvent: (id: number) => send<void>(`/events/${id}`, 'DELETE'),
-  teachers: () => get<Teacher[]>('/teachers'), createTeacher: (payload: TeacherInput) => send<Teacher>('/teachers', 'POST', payload),
-  updateTeacher: (id: number, payload: TeacherInput) => send<Teacher>(`/teachers/${id}`, 'PUT', payload), deleteTeacher: (id: number) => send<void>(`/teachers/${id}`, 'DELETE'),
-  subjects: () => get<Subject[]>('/subjects'), createSubject: (payload: SubjectInput) => send<Subject>('/subjects', 'POST', payload),
-  updateSubject: (id: number, payload: SubjectInput) => send<Subject>(`/subjects/${id}`, 'PUT', payload), deleteSubject: (id: number) => send<void>(`/subjects/${id}`, 'DELETE'),
-  rooms: () => get<Room[]>('/rooms'), createRoom: (payload: RoomInput) => send<Room>('/rooms', 'POST', payload),
-  updateRoom: (id: number, payload: RoomInput) => send<Room>(`/rooms/${id}`, 'PUT', payload), deleteRoom: (id: number) => send<void>(`/rooms/${id}`, 'DELETE'),
-  classes: () => get<SchoolClass[]>('/classes'), createClass: (payload: SchoolClassInput) => send<SchoolClass>('/classes', 'POST', payload),
-  updateClass: (id: number, payload: SchoolClassInput) => send<SchoolClass>(`/classes/${id}`, 'PUT', payload), deleteClass: (id: number) => send<void>(`/classes/${id}`, 'DELETE'),
+  events: () => get<Event[]>('/events'), createEvent: (payload: EventInput) => send<Event>('/events', 'POST', payload), updateEvent: (id: number, payload: EventInput) => send<Event>(`/events/${id}`, 'PUT', payload), deleteEvent: (id: number) => send<void>(`/events/${id}`, 'DELETE'),
+  teachers: () => get<Teacher[]>('/teachers'), createTeacher: (payload: TeacherInput) => send<Teacher>('/teachers', 'POST', payload), updateTeacher: (id: number, payload: TeacherInput) => send<Teacher>(`/teachers/${id}`, 'PUT', payload), deleteTeacher: (id: number) => send<void>(`/teachers/${id}`, 'DELETE'),
+  subjects: () => get<Subject[]>('/subjects'), createSubject: (payload: SubjectInput) => send<Subject>('/subjects', 'POST', payload), updateSubject: (id: number, payload: SubjectInput) => send<Subject>(`/subjects/${id}`, 'PUT', payload), deleteSubject: (id: number) => send<void>(`/subjects/${id}`, 'DELETE'),
+  rooms: () => get<Room[]>('/rooms'), createRoom: (payload: RoomInput) => send<Room>('/rooms', 'POST', payload), updateRoom: (id: number, payload: RoomInput) => send<Room>(`/rooms/${id}`, 'PUT', payload), deleteRoom: (id: number) => send<void>(`/rooms/${id}`, 'DELETE'),
+  classes: () => get<SchoolClass[]>('/classes'), createClass: (payload: SchoolClassInput) => send<SchoolClass>('/classes', 'POST', payload), updateClass: (id: number, payload: SchoolClassInput) => send<SchoolClass>(`/classes/${id}`, 'PUT', payload), deleteClass: (id: number) => send<void>(`/classes/${id}`, 'DELETE'),
   requirements: () => get<Requirement[]>('/requirements'), createRequirement: (payload: RequirementInput) => send<Requirement>('/requirements', 'POST', payload), deleteRequirement: (id: number) => send<void>(`/requirements/${id}`, 'DELETE'),
   constraints: () => get<Constraint[]>('/constraints'), createConstraint: (payload: ConstraintInput) => send<Constraint>('/constraints', 'POST', payload), deleteConstraint: (id: number) => send<void>(`/constraints/${id}`, 'DELETE'),
-  generate: (maxSeconds = 30) => send<Job>('/solver/generate', 'POST', { max_seconds: maxSeconds }),
-  generateAsync: (maxSeconds = 30) => send<Job>('/solver/generate-async', 'POST', { max_seconds: maxSeconds }),
-  activeJob: () => get<Job | null>('/solver/jobs/active'),
-  generateProfile: (payload: GenerateProfileInput) => send<Job>('/solver/generate-profile', 'POST', payload),
-  job: (id: number) => get<Job>(`/solver/jobs/${id}`), cancelJob: (id: number) => send<Job>(`/solver/jobs/${id}/cancel`, 'POST'),
-  versions: () => get<Version[]>('/versions'),
-  currentVersion: async () => { const requested = typeof window !== 'undefined' ? Number(new URLSearchParams(window.location.search).get('version')) : NaN; if (Number.isInteger(requested) && requested > 0) { const versions = await get<Version[]>('/versions'); const match = versions.find((version) => version.id === requested); if (match) return match.status === 'archived' ? { ...match, status: 'published' as const } : match } return get<Version | null>('/versions/current') },
-  lessons: (versionId: number) => get<Lesson[]>(`/versions/${versionId}/lessons`), conflicts: (versionId: number) => get<Conflict[]>(`/versions/${versionId}/conflicts`),
-  publish: (versionId: number) => send<Version>(`/versions/${versionId}/publish`, 'POST'), restore: (versionId: number) => send<Version>(`/versions/${versionId}/restore`, 'POST'), deleteVersion: (versionId: number) => send<void>(`/versions/${versionId}`, 'DELETE'),
-  moveLesson: (id: number, payload: { day_index: number; period_index: number; room_id?: number | null }) => send<Lesson>(`/lessons/${id}`, 'PATCH', payload), patchLesson: (id: number, payload: LessonPatch) => send<Lesson>(`/lessons/${id}`, 'PATCH', payload'),
-  duplicateLesson: (id: number) => send<Lesson>(`/lessons/${id}/duplicate`, 'POST'), deleteLesson: (id: number) => send<void>(`/lessons/${id}`, 'DELETE'), createLesson: (versionId: number, payload: LessonCreate) => send<Lesson>(`/versions/${versionId}/lessons`, 'POST', payload),
-  unassigned: (versionId: number) => get<Unassigned[]>(`/versions/${versionId}/unassigned`), assignRooms: (versionId: number) => send<{ assigned: number }>(`/versions/${versionId}/assign-rooms`, 'POST'),
-  explain: (id: number, day_index: number, period_index: number) => send<Explanation>(`/lessons/${id}/explain`, 'POST', { day_index, period_index }), suggestions: (id: number) => get<{ alternatives: Alternative[] }>(`/lessons/${id}/suggestions`),
-  dashboard: () => get<Dashboard>('/dashboard'), analytics: () => get<Analytics>('/analytics'), audit: (limit = 50) => get<AuditEntry[]>(`/audit?limit=${limit}`),
-  view: (scope: 'class' | 'teacher' | 'room', targetId: number) => get<TimetableView>(`/timetable/view?scope=${scope}&target_id=${targetId}`), interpret: (text: string) => send<{ command: CopilotCommand }>('/copilot/interpret', 'POST', { text }),
-  applyCommand: (command: CopilotCommand) => send<{ applied: boolean; requires_regeneration: boolean; message?: string }>('/copilot/apply', 'POST', { command }),
+  generate: (maxSeconds = 30) => send<Job>('/solver/generate', 'POST', { max_seconds: maxSeconds }), generateAsync: (maxSeconds = 30) => send<Job>('/solver/generate-async', 'POST', { max_seconds: maxSeconds }), activeJob: () => get<Job | null>('/solver/jobs/active'), generateProfile: (payload: GenerateProfileInput) => send<Job>('/solver/generate-profile', 'POST', payload), job: (id: number) => get<Job>(`/solver/jobs/${id}`), cancelJob: (id: number) => send<Job>(`/solver/jobs/${id}/cancel`, 'POST'),
+  versions: () => get<Version[]>('/versions'), currentVersion: async () => { const requested = typeof window !== 'undefined' ? Number(new URLSearchParams(window.location.search).get('version')) : NaN; if (Number.isInteger(requested) && requested > 0) { const versions = await get<Version[]>('/versions'); const match = versions.find((version) => version.id === requested); if (match) return match.status === 'archived' ? { ...match, status: 'published' as const } : match } return get<Version | null>('/versions/current') },
+  lessons: (versionId: number) => get<Lesson[]>(`/versions/${versionId}/lessons`), conflicts: (versionId: number) => get<Conflict[]>(`/versions/${versionId}/conflicts`), publish: (versionId: number) => send<Version>(`/versions/${versionId}/publish`, 'POST'), restore: (versionId: number) => send<Version>(`/versions/${versionId}/restore`, 'POST'), deleteVersion: (versionId: number) => send<void>(`/versions/${versionId}`, 'DELETE'),
+  moveLesson: (id: number, payload: { day_index: number; period_index: number; room_id?: number | null }) => send<Lesson>(`/lessons/${id}`, 'PATCH', payload), patchLesson: (id: number, payload: LessonPatch) => send<Lesson>(`/lessons/${id}`, 'PATCH', payload), duplicateLesson: (id: number) => send<Lesson>(`/lessons/${id}/duplicate`, 'POST'), deleteLesson: (id: number) => send<void>(`/lessons/${id}`, 'DELETE'), createLesson: (versionId: number, payload: LessonCreate) => send<Lesson>(`/versions/${versionId}/lessons`, 'POST', payload),
+  unassigned: (versionId: number) => get<Unassigned[]>(`/versions/${versionId}/unassigned`), assignRooms: (versionId: number) => send<{ assigned: number }>(`/versions/${versionId}/assign-rooms`, 'POST'), explain: (id: number, day_index: number, period_index: number) => send<Explanation>(`/lessons/${id}/explain`, 'POST', { day_index, period_index }), suggestions: (id: number) => get<{ alternatives: Alternative[] }>(`/lessons/${id}/suggestions`),
+  dashboard: () => get<Dashboard>('/dashboard'), analytics: () => get<Analytics>('/analytics'), audit: (limit = 50) => get<AuditEntry[]>(`/audit?limit=${limit}`), view: (scope: 'class' | 'teacher' | 'room', targetId: number) => get<TimetableView>(`/timetable/view?scope=${scope}&target_id=${targetId}`), interpret: (text: string) => send<{ command: CopilotCommand }>('/copilot/interpret', 'POST', { text }), applyCommand: (command: CopilotCommand) => send<{ applied: boolean; requires_regeneration: boolean; message?: string }>('/copilot/apply', 'POST', { command }),
 }
 export function teachingPeriods(periods: Period[]): Period[] { return periods.filter((p) => p.is_teaching) }
 export function activeDays(days: Day[]): Day[] { return days.filter((d) => d.is_active) }
