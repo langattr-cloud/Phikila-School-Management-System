@@ -31,7 +31,11 @@ class Settings:
             raise RuntimeError(
                 "CORS_ORIGINS must list exact trusted origins; wildcard CORS is not allowed"
             )
-        self.cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX") or None
+        self.cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX") or (
+            r"https://([a-z0-9-]+\.)*phikila\.com|https://[a-z0-9-]+\.vercel\.app"
+            if self.is_production
+            else None
+        )
 
         # VITE_SUPABASE_URL is already required by the browser build. Accept it
         # as a compatibility fallback so a Vercel deployment cannot accidentally
