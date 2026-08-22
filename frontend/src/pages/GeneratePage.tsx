@@ -10,6 +10,7 @@ import { scheduling, type Dashboard, type Job, type SolverCheck } from '../lib/s
 import { QualityBars } from '../components/QualityBars'
 
 const ACTIVE = new Set(['queued', 'running', 'optimizing', 'validating'])
+const JOB_STORAGE_KEY = 'phikila.active-timetable-job'
 
 function CheckRow({ check }: { check: SolverCheck }) {
   const icon =
@@ -53,6 +54,13 @@ export function GeneratePage() {
   const [seconds, setSeconds] = useState(30)
   const timer = useRef<number | null>(null)
 
+  const rememberJob = useCallback((next: Job | null) => {
+    setJob(next)
+    if (typeof window === 'undefined') return
+    if (next) window.localStorage.setItem(JOB_STORAGE_KEY, String(next.id))
+    else window.localStorage.removeItem(JOB_STORAGE_KEY)
+  }, [])
+
   const loadSummary = useCallback(async () => {
     setLoading(true)
     try {
@@ -63,14 +71,32 @@ export function GeneratePage() {
       ])
       setSummary(dashboard)
       setHasTimetable(currentVersion !== null)
-      setJob(activeJob)
+
+      if (activeJob) {
+        rememberJob(activeJob)
+      } else if (typeof window !== 'undefined') {
+        const storedId = Number(window.localStorage.getItem(JOB_STORAGE_KEY))
+        if (Number.isInteger(storedId) && storedId > 0) {
+          try {
+            const storedJob = await scheduling.job(storedId)
+            rememberJob(storedJob)
+          } catch {
+            window.localStorage.removeItem(JOB_STORAGE_KEY)
+            rememberJob(null)
+          }
+        } else {
+          rememberJob(null)
+        }
+      } else {
+        rememberJob(null)
+      }
       setError(null)
     } catch (err) {
       setError(friendlyApiError(err, 'load your school setup'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [rememberJob])
 
   useEffect(() => {
     void loadSummary()
@@ -78,33 +104,56 @@ export function GeneratePage() {
 
   useEffect(() => {
     if (!job || !ACTIVE.has(job.status)) return
-    timer.current = window.setInterval(async () => {
+
+    let cancelled = false
+
+    const poll = async () => {
       try {
         const next = await scheduling.job(job.id)
-        setJob(next)
+        if (cancelled) return
+        rememberJob(next)
+
         if (!ACTIVE.has(next.status)) {
-          if (timer.current) window.clearInterval(timer.current)
           if (next.status === 'completed') {
             setHasTimetable(true)
+            try {
+              const currentVersion = await scheduling.currentVersion()
+              if (!cancelled) setHasTimetable(currentVersion !== null)
+            } catch {
+              // The completed job already carries result_version_id, so keep the ready state.
+            }
             notify('Timetable generated. Use View timetable to open it.', 'success')
+            if (typeof window !== 'undefined') window.localStorage.removeItem(JOB_STORAGE_KEY)
           } else if (next.status === 'failed') {
-            notify('Generation could not finish.', 'error')
+            notify(next.message || 'Generation could not finish.', 'error')
+            if (typeof window !== 'undefined') window.localStorage.removeItem(JOB_STORAGE_KEY)
+          } else if (next.status === 'cancelled') {
+            notify('Timetable generation was cancelled.', 'info')
+            if (typeof window !== 'undefined') window.localStorage.removeItem(JOB_STORAGE_KEY)
           }
+          return
         }
+
+        timer.current = window.setTimeout(poll, 900)
       } catch {
-        if (timer.current) window.clearInterval(timer.current)
+        if (!cancelled) timer.current = window.setTimeout(poll, 2000)
       }
-    }, 900)
-    return () => {
-      if (timer.current) window.clearInterval(timer.current)
     }
-  }, [job, notify])
+
+    timer.current = window.setTimeout(poll, 0)
+    return () => {
+      cancelled = true
+      if (timer.current) window.clearTimeout(timer.current)
+      timer.current = null
+    }
+  }, [job?.id, job?.status, notify, rememberJob])
 
   async function start() {
-    if (starting) return
+    if (starting || running) return
     setStarting(true)
     try {
-      setJob(await scheduling.generate(seconds))
+      const next = await scheduling.generate(seconds)
+      rememberJob(next)
     } catch (err) {
       notify(friendlyApiError(err, 'start generation'), 'error')
     } finally {
@@ -113,9 +162,9 @@ export function GeneratePage() {
   }
 
   async function cancel() {
-    if (!job) return
+    if (!job || !running) return
     try {
-      setJob(await scheduling.cancelJob(job.id))
+      rememberJob(await scheduling.cancelJob(job.id))
       notify('Cancelling generation…', 'info')
     } catch (err) {
       notify(friendlyApiError(err, 'cancel generation'), 'error')
