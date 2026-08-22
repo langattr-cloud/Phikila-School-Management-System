@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 StreamStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
 LevelStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
@@ -79,6 +79,31 @@ class StreamUpdate(BaseModel):
 class StreamResponse(StreamBase):
     id: int; school_id: int; academic_year_id: Optional[int] = None; level_id: int; grade_id: Optional[int] = None; class_teacher_id: Optional[int] = None; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
+
+class BulkStreamItem(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    code: Optional[str] = Field(default=None, max_length=30)
+    capacity: Optional[int] = Field(default=None, ge=1)
+    status: StreamStatus = "ACTIVE"
+
+class BulkStreamCreate(BaseModel):
+    academic_year_id: int
+    level_id: int
+    grade_id: int
+    streams: list[BulkStreamItem] = Field(min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def validate_unique_names(self):
+        names = [item.name.strip().casefold() for item in self.streams]
+        if any(not name for name in names):
+            raise ValueError("Stream names cannot be empty.")
+        if len(names) != len(set(names)):
+            raise ValueError("Stream names must be unique.")
+        return self
+
+class BulkStreamResponse(BaseModel):
+    streams: list[StreamResponse]
+    created_count: int
 
 class StreamStudentResponse(BaseModel):
     id: int; admission_number: str; first_name: str; middle_name: Optional[str] = None; last_name: str; current_class_id: Optional[int] = None; level_id: Optional[int] = None; stream_id: Optional[int] = None; status: str
