@@ -1,13 +1,16 @@
 """Independent named timetable generation without changing the saved school calendar."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from . import jobs as job_queue
 from . import models as m
 from . import schemas as s
 from .solver import ORTOOLS_AVAILABLE
-from .tenancy import Principal, require_role
+from .tenancy import Principal, require_role, resolve_principal
+
 router=APIRouter()
+ACTIVE_STATUSES=("queued","running","optimizing","validating")
+
 @router.post('/solver/generate-profile',response_model=s.JobOut,status_code=202)
 def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
     if not ORTOOLS_AVAILABLE: raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,'The scheduling engine is not available on this server.')
@@ -15,7 +18,7 @@ def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),prin
     if not rows: raise HTTPException(status.HTTP_400_BAD_REQUEST,'Configure the school working days first.')
     by_index={d.index:d for d in rows}
     if any(i not in by_index for i in payload.day_indexes): raise HTTPException(status.HTTP_400_BAD_REQUEST,'One or more selected days are not configured.')
-    if db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==principal.school_id,m.TtSolverJob.status.in_(['queued','running','optimizing','validating'])).first(): raise HTTPException(status.HTTP_409_CONFLICT,'A timetable is already being generated.')
+    if db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==principal.school_id,m.TtSolverJob.status.in_(ACTIVE_STATUSES)).first(): raise HTTPException(status.HTTP_409_CONFLICT,'A timetable is already being generated.')
     original={d.index:d.is_active for d in rows}
     try:
         for d in rows:d.is_active=d.index in payload.day_indexes
@@ -31,3 +34,19 @@ def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),prin
     finally:
         for d in rows:d.is_active=original[d.index]
         db.commit()
+
+@router.post('/solver/generate-async',response_model=s.JobOut,status_code=202)
+def generate_async(payload:s.GenerateIn,background_tasks:BackgroundTasks,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
+    """Create a solver job and return immediately while generation runs in the background."""
+    if not ORTOOLS_AVAILABLE: raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,'The scheduling engine is not available on this server.')
+    running=db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==principal.school_id,m.TtSolverJob.status.in_(ACTIVE_STATUSES)).first()
+    if running: raise HTTPException(status.HTTP_409_CONFLICT,'A timetable is already being generated.')
+    job=job_queue.create_job(db,principal.school_id,principal.email)
+    background_tasks.add_task(job_queue.enqueue,job.id,principal.school_id,payload.max_seconds)
+    db.refresh(job)
+    return job
+
+@router.get('/solver/jobs/active',response_model=s.JobOut|None)
+def active_job(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
+    """Return the current solver job for this school, if generation is active."""
+    return db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==principal.school_id,m.TtSolverJob.status.in_(ACTIVE_STATUSES)).order_by(m.TtSolverJob.id.desc()).first()
