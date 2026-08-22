@@ -5,202 +5,34 @@
   gap: 1rem;
   flex-wrap: wrap;
 }
-
-.streams-toolbar > div {
-  min-width: 220px;
-}
-
-.grades-controls {
-  border: 1px solid rgb(20 35 29 / 8%);
-}
-
-.grades-count {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2rem;
-  padding: 0 .75rem;
-  border-radius: 999px;
-  background: rgb(20 35 29 / 6%);
-  font-size: .82rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.eyebrow {
-  margin: 0 0 .3rem;
-  font-size: .72rem;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  opacity: .62;
-}
-
-.table-code {
-  display: inline-flex;
-  padding: .2rem .5rem;
-  border-radius: .45rem;
-  background: rgb(20 35 29 / 6%);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: .78rem;
-  font-weight: 700;
-}
-
-.streams-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: .75rem;
-  background: rgb(20 35 29 / 45%);
-  overflow-y: auto;
-}
-
-.streams-modal {
-  width: min(100%, 440px);
-  max-height: min(70dvh, 560px);
-  overflow: hidden;
-  padding: .9rem 1rem;
-  box-sizing: border-box;
-  box-shadow: 0 20px 60px rgb(20 35 29 / 20%);
-}
-
-.grades-modal {
-  border: 1px solid rgb(20 35 29 / 10%);
-  border-radius: 1rem;
-}
-
-.grades-modal__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: .7rem;
-  border-bottom: 1px solid rgb(20 35 29 / 9%);
-}
-
-.grades-modal__header .section__title {
-  margin-bottom: .15rem;
-}
-
-.grades-modal form,
-.streams-modal > form {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  max-height: calc(min(70dvh, 560px) - 4rem);
-  overflow: hidden;
-  gap: 0;
-}
-
-.streams-modal__body {
-  display: grid;
-  gap: .65rem;
-  min-height: 0;
-  overflow-y: auto;
-  padding: .8rem .15rem .25rem 0;
-}
-
-.form-field {
-  display: grid;
-  gap: .3rem;
-}
-
-.form-hint {
-  font-size: .75rem;
-  opacity: .62;
-}
-
-.streams-modal input.input,
-.streams-modal select.input {
-  width: 100%;
-  min-height: 2.4rem;
-  box-sizing: border-box;
-}
-
-.grades-switch {
-  display: flex;
-  align-items: center;
-  gap: .7rem;
-  padding: .7rem .8rem;
-  border: 1px solid rgb(20 35 29 / 10%);
-  border-radius: .7rem;
-  background: rgb(20 35 29 / 3%);
-  cursor: pointer;
-}
-
-.grades-switch input {
-  width: 1rem;
-  height: 1rem;
-  flex: 0 0 auto;
-}
-
-.grades-switch span {
-  display: grid;
-  gap: .15rem;
-}
-
-.grades-switch small {
-  font-size: .74rem;
-  opacity: .62;
-}
-
-.streams-modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: .65rem;
-  flex-shrink: 0;
-  margin-top: .55rem;
-  padding-top: .65rem;
-  border-top: 1px solid rgb(20 35 29 / 10%);
-  background: inherit;
-}
-
-.streams-modal__actions .button {
-  min-height: 2.3rem;
-  white-space: nowrap;
-}
-
-.table-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .4rem;
-}
-
+.streams-toolbar > div { min-width: 220px; }
+.grades-controls { border: 1px solid rgb(20 35 29 / 8%); }
+.grades-count { display: inline-flex; align-items: center; min-height: 2rem; padding: 0 .75rem; border-radius: 999px; background: rgb(20 35 29 / 6%); font-size: .82rem; font-weight: 700; white-space: nowrap; }
+.eyebrow { margin: 0 0 .3rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .62; }
+.table-code { display: inline-flex; padding: .2rem .5rem; border-radius: .45rem; background: rgb(20 35 29 / 6%); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; font-weight: 700; }
+.streams-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: .75rem; background: rgb(20 35 29 / 45%); overflow-y: auto; }
+.streams-modal { width: min(100%, 520px); max-height: min(82dvh, 680px); overflow: hidden; padding: .9rem 1rem; box-sizing: border-box; box-shadow: 0 20px 60px rgb(20 35 29 / 20%); }
+.grades-modal { border: 1px solid rgb(20 35 29 / 10%); border-radius: 1rem; }
+.grades-modal__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: .7rem; border-bottom: 1px solid rgb(20 35 29 / 9%); }
+.grades-modal__header .section__title { margin-bottom: .15rem; }
+.grades-modal form, .streams-modal > form { display: flex; flex-direction: column; min-height: 0; max-height: calc(min(82dvh, 680px) - 5rem); overflow: hidden; gap: .55rem; }
+.streams-modal__body { display: grid; gap: .55rem; min-height: 0; overflow-y: auto; padding: .2rem .15rem .25rem 0; }
+.form-field { display: grid; gap: .3rem; }
+.form-hint { font-size: .75rem; opacity: .62; }
+.streams-modal input.input, .streams-modal select.input { width: 100%; min-height: 2.4rem; box-sizing: border-box; }
+.streams-mode { display: flex; gap: .45rem; padding-bottom: .5rem; border-bottom: 1px solid rgb(20 35 29 / 9%); }
+.stream-name-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; }
+.streams-modal__actions { display: flex; justify-content: flex-end; gap: .65rem; flex-shrink: 0; margin-top: .55rem; padding-top: .65rem; border-top: 1px solid rgb(20 35 29 / 10%); background: inherit; }
+.streams-modal__actions .button { min-height: 2.3rem; white-space: nowrap; }
+.table-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
 @media (max-width: 640px) {
-  .streams-toolbar {
-    align-items: stretch;
-  }
-
-  .streams-toolbar > div {
-    width: 100%;
-  }
-
-  .streams-modal-backdrop {
-    place-items: center;
-    padding: .5rem;
-  }
-
-  .streams-modal {
-    width: 100%;
-    max-height: calc(100dvh - 1rem);
-    padding: .8rem;
-  }
-
-  .grades-modal form,
-  .streams-modal > form {
-    max-height: calc(100dvh - 4rem);
-  }
-
-  .streams-modal__body {
-    padding-top: .7rem;
-  }
-
-  .streams-modal__actions {
-    justify-content: stretch;
-  }
-
-  .streams-modal__actions .button {
-    flex: 1;
-  }
+  .streams-toolbar { align-items: stretch; }
+  .streams-toolbar > div { width: 100%; }
+  .streams-modal-backdrop { place-items: center; padding: .5rem; }
+  .streams-modal { width: 100%; max-height: calc(100dvh - 1rem); padding: .8rem; }
+  .grades-modal form, .streams-modal > form { max-height: calc(100dvh - 5rem); }
+  .streams-modal__actions { justify-content: stretch; }
+  .streams-modal__actions .button { flex: 1; }
+  .stream-name-row { grid-template-columns: 1fr; }
+  .stream-name-row .button { width: 100%; }
 }
