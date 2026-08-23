@@ -41,15 +41,15 @@ class GradeResponse(GradeBase):
     id: int; school_id: int; level_id: int; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
 class StreamBase(BaseModel):
-    name: str = Field(min_length=1, max_length=100); code: Optional[str] = Field(default=None, max_length=30); capacity: Optional[int] = Field(default=None, ge=1); status: StreamStatus = "ACTIVE"
+    name: str = Field(min_length=1, max_length=100); code: Optional[str] = Field(default=None, max_length=30); status: StreamStatus = "ACTIVE"
 class StreamCreate(StreamBase): academic_year_id: int; level_id: int; grade_id: int
 class StreamUpdate(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100); code: Optional[str] = Field(default=None, max_length=30); capacity: Optional[int] = Field(default=None, ge=1); status: Optional[StreamStatus] = None; class_teacher_id: Optional[int] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100); code: Optional[str] = Field(default=None, max_length=30); status: Optional[StreamStatus] = None; class_teacher_id: Optional[int] = None
 class StreamResponse(StreamBase):
     id: int; school_id: int; academic_year_id: Optional[int] = None; level_id: int; grade_id: Optional[int] = None; class_teacher_id: Optional[int] = None; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
 class BulkStreamItem(BaseModel):
-    name: str = Field(min_length=1, max_length=100); code: Optional[str] = Field(default=None, max_length=30); capacity: Optional[int] = Field(default=None, ge=1); status: StreamStatus = "ACTIVE"
+    name: str = Field(min_length=1, max_length=100); code: Optional[str] = Field(default=None, max_length=30); status: StreamStatus = "ACTIVE"
 class BulkStreamCreate(BaseModel):
     academic_year_id: int; level_id: int; grade_id: int; streams: list[BulkStreamItem] = Field(min_length=1, max_length=50)
     @model_validator(mode="after")
