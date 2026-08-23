@@ -6,7 +6,6 @@ from app.core.database import Base
 
 StatusEnum = PgEnum("ACTIVE", "INACTIVE", "ARCHIVED", name="statusenum", create_type=False)
 
-
 class AcademicYear(Base):
     __tablename__ = "academic_years"
     id = Column(Integer, primary_key=True, index=True)
@@ -20,7 +19,6 @@ class AcademicYear(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     terms = relationship("Term", back_populates="academic_year", cascade="all, delete-orphan")
     streams = relationship("Stream", back_populates="academic_year")
-
 
 class Term(Base):
     __tablename__ = "terms"
@@ -36,9 +34,7 @@ class Term(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     academic_year = relationship("AcademicYear", back_populates="terms")
 
-
 class Level(Base):
-    """Broad education section: Pre-School, Primary, Junior School, Senior School."""
     __tablename__ = "levels"
     id = Column(Integer, primary_key=True, index=True)
     school_id = Column(Integer, ForeignKey("school_info.id"), nullable=False)
@@ -51,32 +47,25 @@ class Level(Base):
     grades = relationship("Grade", back_populates="level", cascade="all, delete-orphan")
     streams = relationship("Stream", back_populates="level")
 
-
 class Grade(Base):
     """Education year within a level, e.g. Grade 4 or PP1."""
     __tablename__ = "grades"
-    __table_args__ = (
-        UniqueConstraint("school_id", "level_id", "code", name="uq_grade_school_level_code"),
-    )
+    __table_args__ = (UniqueConstraint("school_id", "level_id", "code", name="uq_grade_school_level_code"),)
     id = Column(Integer, primary_key=True, index=True)
     school_id = Column(Integer, ForeignKey("school_info.id"), nullable=False, index=True)
     level_id = Column(Integer, ForeignKey("levels.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     code = Column(String(30), nullable=False)
-    display_order = Column(Integer, nullable=False, default=1)
     status = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     level = relationship("Level", back_populates="grades")
-    streams = relationship("Stream", back_populates="streams") if False else relationship("Stream", back_populates="grade", cascade="all, delete-orphan")
-
+    streams = relationship("Stream", back_populates="grade", cascade="all, delete-orphan")
 
 class Stream(Base):
     """A named student group within a grade for a specific academic year."""
     __tablename__ = "streams"
-    __table_args__ = (
-        UniqueConstraint("school_id", "academic_year_id", "grade_id", "name", name="uq_stream_school_year_grade_name"),
-    )
+    __table_args__ = (UniqueConstraint("school_id", "academic_year_id", "grade_id", "name", name="uq_stream_school_year_grade_name"),)
     id = Column(Integer, primary_key=True, index=True)
     school_id = Column(BigInteger, ForeignKey("school_info.id"), nullable=False, index=True)
     academic_year_id = Column(BigInteger, ForeignKey("academic_years.id", ondelete="CASCADE"), nullable=False, index=True)
