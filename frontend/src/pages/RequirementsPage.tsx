@@ -26,10 +26,8 @@ export function RequirementsPage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [requirements, years, classes, subjects, teachers] = await Promise.all([scheduling.requirements(), api.academicYears(), scheduling.classes(), scheduling.subjects(), scheduling.teachers()])
-      const currentYear = years.find((year) => year.is_current) ?? [...years].sort((a, b) => Number(b.name) - Number(a.name))[0]
-      const grades = await api.grades()
-      const streamGroups = currentYear ? await Promise.all(grades.map((grade) => api.streams(currentYear.id, grade.id).catch(() => []))) : []
+      const [requirements, years, classes, subjects, teachers, grades] = await Promise.all([scheduling.requirements(), api.academicYears(), scheduling.classes(), scheduling.subjects(), scheduling.teachers(), api.grades()])
+      const streamGroups = await Promise.all(years.flatMap((year) => grades.map((grade) => api.streams(year.id, grade.id).catch(() => []))))
       const streams = streamGroups.flat().filter((stream, index, all) => all.findIndex((item) => item.id === stream.id) === index && stream.status === 'ACTIVE')
       setData({ requirements, classes, streams, subjects, teachers })
     } catch (err) { setError(friendlyApiError(err, 'load teaching allocations')) }
@@ -43,10 +41,7 @@ export function RequirementsPage() {
     if (!data) return []
     const options: ClassOption[] = data.classes.map((item) => ({ value: `class:${item.id}`, label: item.grade ? `${item.name} — ${item.grade}` : item.name, stream: null, classRow: item }))
     const existingNames = new Set(options.map((item) => item.label.toLowerCase()))
-    data.streams.forEach((stream) => {
-      const label = stream.name
-      if (!existingNames.has(label.toLowerCase())) options.push({ value: `stream:${stream.id}`, label, stream, classRow: null })
-    })
+    data.streams.forEach((stream) => { if (!existingNames.has(stream.name.trim().toLowerCase())) options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null }) })
     return options.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
   }, [data])
 
@@ -85,10 +80,8 @@ export function RequirementsPage() {
   async function saveAllocations() {
     if (!drafts.length || saving) return
     setSaving(true)
-    try {
-      for (const draft of drafts) await scheduling.createRequirement({ class_id: Number(draft.class_id), subject_id: Number(draft.subject_id), teacher_id: Number(draft.teacher_id), periods_per_week: draft.periods_per_week, double_periods: draft.double_periods })
-      const count = drafts.length; setDrafts([]); notify(`${count} teaching allocation${count === 1 ? '' : 's'} saved.`, 'success'); await load()
-    } catch (err) { notify(friendlyApiError(err, 'save teaching allocations'), 'error') }
+    try { for (const draft of drafts) await scheduling.createRequirement({ class_id: Number(draft.class_id), subject_id: Number(draft.subject_id), teacher_id: Number(draft.teacher_id), periods_per_week: draft.periods_per_week, double_periods: draft.double_periods }); const count = drafts.length; setDrafts([]); notify(`${count} teaching allocation${count === 1 ? '' : 's'} saved.`, 'success'); await load() }
+    catch (err) { notify(friendlyApiError(err, 'save teaching allocations'), 'error') }
     finally { setSaving(false) }
   }
 
@@ -111,7 +104,7 @@ export function RequirementsPage() {
         <div className="toolbar"><div><h2 className="section__title">Add teaching allocation</h2><p className="section__description">Choose a teacher, then any captured grade/class stream, subject and workload.</p></div>{drafts.length > 0 && <Badge>{drafts.length} unsaved</Badge>}</div>
         <form className="form form--grid" onSubmit={addDraft}>
           <div className="field"><label className="field__label" htmlFor="allocation-teacher">Teacher</label><select id="allocation-teacher" className="input input--select" value={form.teacher_id} onChange={(event) => setForm({ ...form, teacher_id: event.target.value })} required><option value="">Select a teacher</option>{data.teachers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-class">Grade / Class</label><select id="allocation-class" className="input input--select" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value })} required><option value="">Select a grade / class</option>{classOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><span className="form__note">All active streams captured under the current academic year are included.</span></div>
+          <div className="field"><label className="field__label" htmlFor="allocation-class">Grade / Class</label><select id="allocation-class" className="input input--select" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value })} required><option value="">Select a grade / class</option>{classOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><span className="form__note">All active streams captured across the school's academic years are included.</span></div>
           <div className="field"><label className="field__label" htmlFor="allocation-subject">Subject</label><select id="allocation-subject" className="input input--select" value={form.subject_id} onChange={(event) => setForm({ ...form, subject_id: event.target.value })} required><option value="">Select a subject</option>{data.subjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
           <div className="field"><label className="field__label" htmlFor="allocation-workload">Workload for this subject</label><select id="allocation-workload" className="input input--select" value={form.periods_per_week} onChange={(event) => setForm({ ...form, periods_per_week: Number(event.target.value) })} required>{Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value} lesson{value === 1 ? '' : 's'} / week</option>)}</select></div>
           <div className="field form--grid__full"><label className="field__label" htmlFor="allocation-double">Lesson format</label><label className="form__check" htmlFor="allocation-double"><input id="allocation-double" type="checkbox" checked={form.double_lesson} onChange={(event) => setForm({ ...form, double_lesson: event.target.checked })} /><span>Include a double lesson</span></label><span className="form__note">A double lesson uses two consecutive teaching periods for this subject.</span></div>
