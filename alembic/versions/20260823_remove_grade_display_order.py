@@ -19,4 +19,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.add_column("grades", sa.Column("display_order", sa.Integer(), nullable=False, server_default="1"))
+    bind = op.get_bind()
+    columns = {c["name"] for c in sa.inspect(bind).get_columns("grades")}
+    if "display_order" not in columns:
+        op.add_column("grades", sa.Column("display_order", sa.Integer(), nullable=False, server_default="1"))
