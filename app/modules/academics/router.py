@@ -64,6 +64,10 @@ def get_streams(academic_year_id: int, grade_id: int, principal: Principal = Dep
 def get_stream(stream_id: int, principal: Principal = Depends(require_academic_role("viewer", "teacher", "admin")), db: Session = Depends(get_db)): return services.StreamService(db).get_stream_by_id(principal.school_id, stream_id)
 @router.post("/streams", response_model=schemas.StreamResponse, status_code=status.HTTP_201_CREATED)
 def create_stream(data: schemas.StreamCreate, principal: Principal = Depends(require_academic_role("admin")), db: Session = Depends(get_db)): return services.StreamService(db).create_stream(principal.school_id, data)
+@router.post("/streams/bulk", response_model=schemas.BulkStreamResponse, status_code=status.HTTP_201_CREATED)
+def create_streams_bulk(data: schemas.BulkStreamCreate, principal: Principal = Depends(require_academic_role("admin")), db: Session = Depends(get_db)):
+    streams = services.StreamService(db).create_streams_bulk(principal.school_id, data)
+    return schemas.BulkStreamResponse(streams=streams, created_count=len(streams))
 @router.patch("/streams/{stream_id}", response_model=schemas.StreamResponse)
 def update_stream(stream_id: int, data: schemas.StreamUpdate, principal: Principal = Depends(require_academic_role("admin")), db: Session = Depends(get_db)): return services.StreamService(db).update_stream(principal.school_id, stream_id, data)
 
