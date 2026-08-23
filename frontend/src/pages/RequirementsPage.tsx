@@ -5,13 +5,13 @@ import { Badge, EmptyState, ErrorState } from '../components/States'
 import { DataTable, type Column } from '../components/DataTable'
 import { CalendarIcon, SearchIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
-import { apiFetch, friendlyApiError, type Stream } from '../lib/api'
+import { api, type Stream } from '../lib/api'
+import { friendlyApiError } from '../lib/api'
 import { scheduling, type Requirement, type SchoolClass, type Subject, type Teacher } from '../lib/scheduling'
 
 type Data = { requirements: Requirement[]; classes: SchoolClass[]; streams: Stream[]; subjects: Subject[]; teachers: Teacher[] }
 type DraftAllocation = { id: string; teacher_id: string; class_id: string; subject_id: string; periods_per_week: number; double_periods: number }
-
-const academicsGrades = () => apiFetch<Array<{ id: number; name: string; code: string }>>('/api/v1/academics/grades')
+type ClassOption = { value: string; label: string; stream: Stream | null; classRow: SchoolClass | null }
 
 export function RequirementsPage() {
   const { notify } = useToast()
@@ -26,13 +26,11 @@ export function RequirementsPage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [requirements, grades, classes, subjects, teachers] = await Promise.all([
-        scheduling.requirements(), academicsGrades(), scheduling.classes(), scheduling.subjects(), scheduling.teachers(),
-      ])
-      // Streams are stored against the current academic year and grade. Load them all so
-      // every captured stream is available in the allocation selector.
-      const streamGroups = await Promise.all(grades.map((grade) => apiFetch<Stream[]>(`/api/v1/academics/years/current/grades/${grade.id}/streams`).catch(() => [])))
-      const streams = streamGroups.flat().filter((stream, index, all) => all.findIndex((item) => item.id === stream.id) === index)
+      const [requirements, years, classes, subjects, teachers] = await Promise.all([scheduling.requirements(), api.academicYears(), scheduling.classes(), scheduling.subjects(), scheduling.teachers()])
+      const currentYear = years.find((year) => year.is_current) ?? [...years].sort((a, b) => Number(b.name) - Number(a.name))[0]
+      const grades = await api.grades()
+      const streamGroups = currentYear ? await Promise.all(grades.map((grade) => api.streams(currentYear.id, grade.id).catch(() => []))) : []
+      const streams = streamGroups.flat().filter((stream, index, all) => all.findIndex((item) => item.id === stream.id) === index && stream.status === 'ACTIVE')
       setData({ requirements, classes, streams, subjects, teachers })
     } catch (err) { setError(friendlyApiError(err, 'load teaching allocations')) }
     finally { setLoading(false) }
@@ -41,16 +39,15 @@ export function RequirementsPage() {
   useEffect(() => { void load() }, [load])
 
   const ready = Boolean(data && data.subjects.length && data.teachers.length && (data.classes.length || data.streams.length))
-  const classOptions = useMemo(() => {
+  const classOptions = useMemo<ClassOption[]>(() => {
     if (!data) return []
-    const streamNames = new Set(data.streams.map((stream) => stream.name.trim().toLowerCase()))
-    const streamsAsClasses: SchoolClass[] = data.streams.map((stream) => ({
-      id: stream.id,
-      name: stream.name,
-      code: stream.code ?? undefined,
-      grade: undefined,
-    }))
-    return [...data.classes.filter((item) => !streamNames.has(item.name.trim().toLowerCase())), ...streamsAsClasses]
+    const options: ClassOption[] = data.classes.map((item) => ({ value: `class:${item.id}`, label: item.grade ? `${item.name} — ${item.grade}` : item.name, stream: null, classRow: item }))
+    const existingNames = new Set(options.map((item) => item.label.toLowerCase()))
+    data.streams.forEach((stream) => {
+      const label = stream.name
+      if (!existingNames.has(label.toLowerCase())) options.push({ value: `stream:${stream.id}`, label, stream, classRow: null })
+    })
+    return options.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
   }, [data])
 
   const filtered = useMemo(() => {
@@ -60,19 +57,27 @@ export function RequirementsPage() {
     return rows.filter((row) => [row.class_name, row.subject_name, row.teacher_name].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)))
   }, [data, query])
 
-  const draftRows = useMemo(() => drafts.map((draft) => ({
-    ...draft,
-    teacher_name: data?.teachers.find((item) => String(item.id) === draft.teacher_id)?.name ?? '—',
-    class_name: classOptions.find((item) => String(item.id) === draft.class_id)?.name ?? data?.classes.find((item) => String(item.id) === draft.class_id)?.name ?? '—',
-    subject_name: data?.subjects.find((item) => String(item.id) === draft.subject_id)?.name ?? '—',
-  })), [drafts, data, classOptions])
+  const draftRows = useMemo(() => drafts.map((draft) => ({ ...draft, teacher_name: data?.teachers.find((item) => String(item.id) === draft.teacher_id)?.name ?? '—', class_name: data?.classes.find((item) => String(item.id) === draft.class_id)?.name ?? '—', subject_name: data?.subjects.find((item) => String(item.id) === draft.subject_id)?.name ?? '—' })), [drafts, data])
 
-  function addDraft(event: FormEvent) {
+  async function addDraft(event: FormEvent) {
     event.preventDefault()
     if (!form.teacher_id || !form.class_id || !form.subject_id) { notify('Select a teacher, grade/class and subject.', 'error'); return }
-    const duplicate = drafts.some((item) => item.teacher_id === form.teacher_id && item.class_id === form.class_id && item.subject_id === form.subject_id)
+    const option = classOptions.find((item) => item.value === form.class_id)
+    if (!option) { notify('The selected grade/class could not be found.', 'error'); return }
+    let classId = option.classRow?.id
+    if (!classId && option.stream) {
+      try {
+        const classes = data?.classes ?? []
+        const existing = classes.find((item) => item.name.trim().toLowerCase() === option.stream!.name.trim().toLowerCase() || (item.code && option.stream!.code && item.code === option.stream!.code))
+        const classRow = existing ?? await scheduling.createClass({ name: option.stream.name, code: option.stream.code ?? `STREAM-${option.stream.id}`, grade: undefined })
+        classId = classRow.id
+        setData((current) => current ? { ...current, classes: current.classes.some((item) => item.id === classRow!.id) ? current.classes : [...current.classes, classRow!] } : current)
+      } catch (err) { notify(friendlyApiError(err, 'prepare that stream for scheduling'), 'error'); return }
+    }
+    if (!classId) return
+    const duplicate = drafts.some((item) => item.teacher_id === form.teacher_id && item.class_id === String(classId) && item.subject_id === form.subject_id)
     if (duplicate) { notify('That teacher, class and subject allocation is already in the list.', 'error'); return }
-    setDrafts((current) => [...current, { id: `${Date.now()}-${Math.random()}`, teacher_id: form.teacher_id, class_id: form.class_id, subject_id: form.subject_id, periods_per_week: Number(form.periods_per_week), double_periods: form.double_lesson ? 1 : 0 }])
+    setDrafts((current) => [...current, { id: `${Date.now()}-${Math.random()}`, teacher_id: form.teacher_id, class_id: String(classId), subject_id: form.subject_id, periods_per_week: Number(form.periods_per_week), double_periods: form.double_lesson ? 1 : 0 }])
     setForm((current) => ({ ...current, subject_id: '', double_lesson: false }))
     notify('Allocation added to the list. Save when finished.', 'success')
   }
@@ -87,17 +92,11 @@ export function RequirementsPage() {
     finally { setSaving(false) }
   }
 
-  async function remove(row: Requirement) {
-    try { await scheduling.deleteRequirement(row.id); notify('Teaching allocation removed.', 'success'); await load() }
-    catch (err) { notify(friendlyApiError(err, 'remove that allocation'), 'error') }
-  }
+  async function remove(row: Requirement) { try { await scheduling.deleteRequirement(row.id); notify('Teaching allocation removed.', 'success'); await load() } catch (err) { notify(friendlyApiError(err, 'remove that allocation'), 'error') } }
 
   const columns: Column<Requirement>[] = [
-    { key: 'teacher', header: 'Teacher', render: (row) => row.teacher_name ?? '—' },
-    { key: 'class', header: 'Grade / Class', render: (row) => row.class_name ?? '—' },
-    { key: 'subject', header: 'Subject', render: (row) => row.subject_name ?? '—' },
-    { key: 'workload', header: 'Workload', render: (row) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'} / week` },
-    { key: 'double', header: 'Double lesson', render: (row) => row.double_periods ? <Badge>Yes</Badge> : 'No' },
+    { key: 'teacher', header: 'Teacher', render: (row) => row.teacher_name ?? '—' }, { key: 'class', header: 'Grade / Class', render: (row) => row.class_name ?? '—' }, { key: 'subject', header: 'Subject', render: (row) => row.subject_name ?? '—' },
+    { key: 'workload', header: 'Workload', render: (row) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'} / week` }, { key: 'double', header: 'Double lesson', render: (row) => row.double_periods ? <Badge>Yes</Badge> : 'No' },
   ]
   const draftColumns: Column<(typeof draftRows)[number]>[] = [
     { key: 'teacher', header: 'Teacher', render: (row) => row.teacher_name }, { key: 'class', header: 'Grade / Class', render: (row) => row.class_name }, { key: 'subject', header: 'Subject', render: (row) => row.subject_name },
@@ -112,7 +111,7 @@ export function RequirementsPage() {
         <div className="toolbar"><div><h2 className="section__title">Add teaching allocation</h2><p className="section__description">Choose a teacher, then any captured grade/class stream, subject and workload.</p></div>{drafts.length > 0 && <Badge>{drafts.length} unsaved</Badge>}</div>
         <form className="form form--grid" onSubmit={addDraft}>
           <div className="field"><label className="field__label" htmlFor="allocation-teacher">Teacher</label><select id="allocation-teacher" className="input input--select" value={form.teacher_id} onChange={(event) => setForm({ ...form, teacher_id: event.target.value })} required><option value="">Select a teacher</option>{data.teachers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-class">Grade / Class</label><select id="allocation-class" className="input input--select" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value })} required><option value="">Select a grade / class</option>{classOptions.map((item) => <option key={`${item.id}-${item.name}`} value={item.id}>{item.name}{item.grade ? ` — ${item.grade}` : ''}</option>)}</select><span className="form__note">All captured streams are listed here, including streams such as Grade 8 Red and 6E.</span></div>
+          <div className="field"><label className="field__label" htmlFor="allocation-class">Grade / Class</label><select id="allocation-class" className="input input--select" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value })} required><option value="">Select a grade / class</option>{classOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><span className="form__note">All active streams captured under the current academic year are included.</span></div>
           <div className="field"><label className="field__label" htmlFor="allocation-subject">Subject</label><select id="allocation-subject" className="input input--select" value={form.subject_id} onChange={(event) => setForm({ ...form, subject_id: event.target.value })} required><option value="">Select a subject</option>{data.subjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
           <div className="field"><label className="field__label" htmlFor="allocation-workload">Workload for this subject</label><select id="allocation-workload" className="input input--select" value={form.periods_per_week} onChange={(event) => setForm({ ...form, periods_per_week: Number(event.target.value) })} required>{Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value} lesson{value === 1 ? '' : 's'} / week</option>)}</select></div>
           <div className="field form--grid__full"><label className="field__label" htmlFor="allocation-double">Lesson format</label><label className="form__check" htmlFor="allocation-double"><input id="allocation-double" type="checkbox" checked={form.double_lesson} onChange={(event) => setForm({ ...form, double_lesson: event.target.checked })} /><span>Include a double lesson</span></label><span className="form__note">A double lesson uses two consecutive teaching periods for this subject.</span></div>
