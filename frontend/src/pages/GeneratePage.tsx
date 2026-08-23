@@ -49,6 +49,65 @@ function ConflictList({ conflicts, calendar, lessons, teachers, subjects, classe
   )
 }
 
+function LessonPreview({ calendar, lessons, subjects, classes }: { calendar: Calendar | null; lessons: Lesson[]; subjects: Subject[]; classes: SchoolClass[] }) {
+  const activeDaysList = calendar?.days.filter((day) => day.is_active) ?? []
+  const teachingPeriods = calendar?.periods.filter((period) => period.is_teaching) ?? []
+  const subjectMap = new Map(subjects.map((subject) => [subject.id, subject]))
+  const classMap = new Map(classes.map((schoolClass) => [schoolClass.id, schoolClass]))
+  const lessonAt = (day: number, period: number) => lessons.find((lesson) => lesson.day_index === day && lesson.period_index === period)
+
+  return (
+    <section className="card section">
+      <div className="panel__head">
+        <div>
+          <h2 className="section__title">Lesson preview</h2>
+          <p className="form__note">Your established working days and periods, with the accumulated subjects and grades visible before generation.</p>
+        </div>
+        <Badge tone="neutral">{lessons.length} lessons</Badge>
+      </div>
+
+      <div className="lesson-preview__subjects" aria-label="Subjects">
+        {subjects.map((subject) => (
+          <span key={subject.id} className="lesson-preview__subject">
+            <span className="lesson-preview__swatch" style={{ backgroundColor: subject.color || '#64748b' }} aria-hidden="true" />
+            {subject.name}
+          </span>
+        ))}
+      </div>
+
+      <div className="lesson-preview__grid-wrap">
+        <table className="lesson-preview__grid">
+          <thead>
+            <tr><th>Period</th>{activeDaysList.map((day) => <th key={day.index}>{day.name}</th>)}</tr>
+          </thead>
+          <tbody>
+            {teachingPeriods.map((period) => (
+              <tr key={period.index}>
+                <th>{period.name}<span>{period.start_time}–{period.end_time}</span></th>
+                {activeDaysList.map((day) => {
+                  const lesson = lessonAt(day.index, period.index)
+                  const subject = lesson ? subjectMap.get(lesson.subject_id) : null
+                  const schoolClass = lesson ? classMap.get(lesson.class_id) : null
+                  return <td key={`${day.index}-${period.index}`}>
+                    {lesson && subject ? <div className="lesson-preview__card" style={{ borderLeftColor: subject.color || '#64748b' }}><strong>{subject.name}</strong>{schoolClass && <span>{schoolClass.name}</span>}</div> : <span className="lesson-preview__empty">—</span>}
+                  </td>
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="lesson-preview__grades">
+        <h3 className="panel__subtitle">Grades / classes</h3>
+        <div className="lesson-preview__grade-list">
+          {classes.map((schoolClass) => <span key={schoolClass.id} className="badge">{schoolClass.name}</span>)}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export function GeneratePage() {
   const navigate = useNavigate()
   const { notify } = useToast()
@@ -58,9 +117,10 @@ export function GeneratePage() {
   const [job, setJob] = useState<Job | null>(null)
   const [hasTimetable, setHasTimetable] = useState(false)
   const [starting, setStarting] = useState(false)
-  const [seconds, setSeconds] = useState(30)
+  const [seconds] = useState(30)
   const [conflicts, setConflicts] = useState<Conflict[]>([])
   const [conflictContext, setConflictContext] = useState<{ calendar: Calendar | null; lessons: Lesson[]; teachers: Teacher[]; subjects: Subject[]; classes: SchoolClass[]; rooms: Room[] }>({ calendar: null, lessons: [], teachers: [], subjects: [], classes: [], rooms: [] })
+  const [preview, setPreview] = useState<{ calendar: Calendar; lessons: Lesson[]; subjects: Subject[]; classes: SchoolClass[] } | null>(null)
   const timer = useRef<number | null>(null)
 
   const rememberJob = useCallback((next: Job | null) => { setJob(next); if (typeof window === 'undefined') return; if (next) window.localStorage.setItem(JOB_STORAGE_KEY, String(next.id)); else window.localStorage.removeItem(JOB_STORAGE_KEY) }, [])
@@ -68,8 +128,11 @@ export function GeneratePage() {
   const loadSummary = useCallback(async () => {
     setLoading(true)
     try {
-      const [dashboard, currentVersion, activeJob] = await Promise.all([scheduling.dashboard(), scheduling.currentVersion(), scheduling.activeJob()])
+      const [dashboard, currentVersion, activeJob, calendar, lessons, subjects, classes] = await Promise.all([
+        scheduling.dashboard(), scheduling.currentVersion(), scheduling.activeJob(), scheduling.calendar(), scheduling.lessons(), scheduling.subjects(), scheduling.classes(),
+      ])
       setSummary(dashboard); setHasTimetable(currentVersion !== null)
+      setPreview({ calendar, lessons, subjects, classes })
       if (activeJob) rememberJob(activeJob)
       else if (typeof window !== 'undefined') {
         const storedId = Number(window.localStorage.getItem(JOB_STORAGE_KEY))
@@ -88,9 +151,7 @@ export function GeneratePage() {
       ])
       setConflicts(found.filter((conflict) => conflict.severity === 'hard'))
       setConflictContext({ calendar, lessons, teachers, subjects, classes, rooms })
-    } catch {
-      setConflicts([])
-    }
+    } catch { setConflicts([]) }
   }, [])
 
   useEffect(() => {
@@ -136,14 +197,14 @@ export function GeneratePage() {
 
   return (
     <>
-      <PageHeader title="Generate timetable" description="The scheduling engine places every required lesson without breaking a hard constraint." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Generate' }]} />
+      <PageHeader title="Generate timetable" description="Review the established timetable structure and accumulated lessons before generation." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Generate' }]} />
       {loading ? <div className="card section"><LoadingBlock label="Checking your school setup" rows={3} /></div> : error ? <ErrorState title="Setup could not load" message={error} onRetry={loadSummary} /> : <>
         {summary && !summary.solver_available && <Alert tone="error" title="Scheduling engine unavailable">The optimisation engine is not installed on this server, so timetables cannot be generated here.</Alert>}
         {!ready && <Alert tone="info" title="Finish your setup first">Add teachers, classes and lesson requirements before generating. You have {summary?.counts.teachers ?? 0} teachers, {summary?.counts.classes ?? 0} classes and {summary?.lessons.required ?? 0} weekly lessons defined.</Alert>}
+        {preview && <LessonPreview {...preview} />}
         <section className="card section">
-          <div className="panel__head"><div><h2 className="section__title">What will be scheduled</h2><p className="form__note">Generate a new timetable or open the latest saved timetable.</p></div>{hasTimetable && !running && <button type="button" className="button button--secondary" onClick={() => navigate('/timetable')}>View timetable</button>}</div>
-          <dl className="detail-list detail-list--two"><div><dt>Weekly lessons</dt><dd>{summary?.lessons.required ?? 0}</dd></div><div><dt>Classes</dt><dd>{summary?.counts.classes ?? 0}</dd></div><div><dt>Teachers</dt><dd>{summary?.counts.teachers ?? 0}</dd></div><div><dt>Rooms</dt><dd>{summary?.counts.rooms ?? 0}</dd></div></dl>
-          {!running && <div className="generate-controls"><div className="field field--inline"><label className="field__label" htmlFor="budget">Optimisation time</label><select id="budget" className="input input--select" value={seconds} onChange={(event) => setSeconds(Number(event.target.value))}><option value={10}>Quick (10s)</option><option value={30}>Balanced (30s)</option><option value={60}>Thorough (60s)</option><option value={120}>Maximum (2 min)</option></select></div><p className="form__note">Longer runs improve preferences like teacher gaps and morning lessons. Hard constraints are always satisfied.</p><button type="button" className="button button--primary" onClick={start} disabled={starting || !ready || !summary?.solver_available}>{starting ? 'Starting…' : 'Generate timetable'}</button></div>}
+          <div className="panel__head"><div><h2 className="section__title">Generate from this setup</h2><p className="form__note">The timetable will be generated from the lessons shown above.</p></div>{hasTimetable && !running && <button type="button" className="button button--secondary" onClick={() => navigate('/timetable')}>View timetable</button>}</div>
+          {!running && <div className="generate-controls"><p className="form__note">Weekly lessons: {summary?.lessons.required ?? 0} · Classes: {summary?.counts.classes ?? 0}</p><button type="button" className="button button--primary" onClick={start} disabled={starting || !ready || !summary?.solver_available}>{starting ? 'Starting…' : 'Generate timetable'}</button></div>}
         </section>
         {job && <section className="card section" aria-live="polite">
           <div className="panel__head"><h2 className="section__title">{running ? 'Generating timetable' : job.status === 'completed' ? 'Generation complete' : job.status === 'cancelled' ? 'Generation cancelled' : 'Generation failed'}</h2><Badge tone={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : 'neutral'}>{job.status}</Badge></div>
