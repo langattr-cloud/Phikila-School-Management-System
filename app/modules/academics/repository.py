@@ -42,7 +42,8 @@ class GradeRepository:
     def get_all(self, school_id: int, level_id: int | None = None):
         q = self.db.query(models.Grade).filter(models.Grade.school_id == school_id)
         if level_id is not None: q = q.filter(models.Grade.level_id == level_id)
-        numeric_grade = cast(func.regexp_replace(models.Grade.name, r'[^0-9]', '', 'g'), Integer)
+        numeric_text = func.nullif(func.regexp_replace(models.Grade.name, r'[^0-9]', '', 'g'), '')
+        numeric_grade = cast(numeric_text, Integer)
         return q.order_by(numeric_grade.nulls_last(), models.Grade.name).all()
     def get_by_id(self, school_id: int, grade_id: int): return self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.id == grade_id).first()
     def get_by_code(self, school_id: int, level_id: int, code: str): return self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.level_id == level_id, models.Grade.code == code).first()
