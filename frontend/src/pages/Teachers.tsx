@@ -1,5 +1,82 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import './teachers.css'
+import { PageHeader } from '../components/PageHeader'
+import { Badge, EmptyState, ErrorState } from '../components/States'
+import { DataTable, type Column } from '../components/DataTable'
+import { SearchIcon, UserIcon } from '../components/icons'
+import { useToast } from '../components/Toast'
+import { friendlyApiError } from '../lib/api'
+import { api, type Grade } from '../lib/api'
+import { scheduling, type Teacher, type Subject, type SchoolClass, type Requirement } from '../lib/scheduling'
 import { SetupPage } from './SetupPage'
 
+type Assignment = { key: string; classId: number; subjectId: number; lessons: number; role: string }
+
 export default function Teachers() {
-  return <SetupPage kind="teachers" />
+  const { notify } = useToast()
+  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [requirements, setRequirements] = useState<Requirement[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [teacher, setTeacher] = useState<Teacher | null>(null)
+  const [rows, setRows] = useState<Assignment[]>([])
+  const [saving, setSaving] = useState(false)
+  const [grades, setGrades] = useState<Grade[]>([])
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null)
+    try {
+      const [teacherData, subjectData, classData, requirementData, gradeData] = await Promise.all([scheduling.teachers(), scheduling.subjects(), scheduling.classes(), scheduling.requirements(), api.grades()])
+      setTeachers(teacherData); setSubjects(subjectData); setClasses(classData); setRequirements(requirementData); setGrades(gradeData)
+    } catch (err) { setError(friendlyApiError(err, 'load teachers and assignments')) } finally { setLoading(false) }
+  }, [])
+  useEffect(() => { void load() }, [load])
+
+  const filtered = useMemo(() => { const q = query.trim().toLowerCase(); return q ? teachers.filter(t => t.name.toLowerCase().includes(q) || (t.code ?? '').toLowerCase().includes(q)) : teachers }, [teachers, query])
+  const open = (t: Teacher) => {
+    const mine = requirements.filter(r => r.teacher_id === t.id)
+    setTeacher(t)
+    setRows(mine.map(r => ({ key: `${r.id}`, classId: r.class_id, subjectId: r.subject_id, lessons: r.periods_per_week, role: '' })))
+    const classRoles = classes.filter(c => Number((c as any).class_teacher_id) === t.id)
+    setRows(current => [...current, ...classRoles.filter(c => !current.some(r => r.classId === c.id && r.role === 'Class teacher')).map(c => ({ key: `role-${c.id}`, classId: c.id, subjectId: 0, lessons: 0, role: 'Class teacher' }))])
+  }
+  const add = () => { const firstClass = classes[0]; const firstSubject = subjects[0]; if (firstClass && firstSubject) setRows(r => [...r, { key: `${Date.now()}`, classId: firstClass.id, subjectId: firstSubject.id, lessons: 1, role: '' }]) }
+  const remove = (key: string) => setRows(r => r.filter(x => x.key !== key))
+  const update = (key: string, patch: Partial<Assignment>) => setRows(r => r.map(x => x.key === key ? { ...x, ...patch } : x))
+  const gradeForClass = (c: SchoolClass) => grades.find(g => g.name === c.grade || g.code === c.grade)
+
+  async function saveAll() {
+    if (!teacher) return
+    const subjectRows = rows.filter(r => r.subjectId > 0)
+    const roleRows = rows.filter(r => r.role === 'Class teacher')
+    const duplicate = new Set<string>(); for (const r of subjectRows) { const key = `${r.classId}:${r.subjectId}`; if (duplicate.has(key)) { notify('A teacher cannot have the same subject twice for the same class.', 'error'); return } duplicate.add(key) }
+    if (subjectRows.some(r => r.lessons < 1)) { notify('Each assigned subject must have at least 1 lesson.', 'error'); return }
+    setSaving(true)
+    try {
+      const old = requirements.filter(r => r.teacher_id === teacher.id)
+      for (const req of old) await scheduling.deleteRequirement(req.id)
+      for (const r of subjectRows) await scheduling.createRequirement({ class_id: r.classId, subject_id: r.subjectId, teacher_id: teacher.id, room_id: null, periods_per_week: r.lessons, double_periods: 0 })
+      for (const c of classes) { const isAssigned = roleRows.some(r => r.classId === c.id); const current = Number((c as any).class_teacher_id || 0) === teacher.id; if (isAssigned !== current) await scheduling.updateClass(c.id, { ...(c as any), class_teacher_id: isAssigned ? teacher.id : null }) }
+      notify(`${teacher.name}'s subjects, workloads and roles were saved.`, 'success'); setTeacher(null); await load()
+    } catch (err) { notify(friendlyApiError(err, 'save teacher assignments'), 'error') } finally { setSaving(false) }
+  }
+
+  const columns: Column<Teacher>[] = [
+    { key: 'name', header: 'Teacher', render: r => <strong>{r.name}</strong> },
+    { key: 'code', header: 'Code', render: r => r.code || '—' },
+    { key: 'department', header: 'Department', render: r => r.department || '—' },
+    { key: 'max', header: 'Max/day', render: r => r.max_lessons_per_day ?? '—' },
+    { key: 'assign', header: 'Assignments', render: r => <button type="button" className="button button--primary button--sm" onClick={() => open(r)}>Assign subjects & roles</button> },
+  ]
+
+  return <>
+    <PageHeader title="Teachers" description="Assign multiple subjects, weekly workload and class-teacher roles, then save everything together." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Setup' }, { label: 'Teachers' }]} actions={<button type="button" className="button button--secondary button--sm" onClick={() => { /* existing add flow remains available below */ document.getElementById('teachers-add')?.click() }}>Add teacher</button>} />
+    <button id="teachers-add" hidden type="button" onClick={() => {}} />
+    {error ? <ErrorState title="Teachers could not load" message={error} onRetry={load} /> : <section className="card section"><div className="toolbar"><div className="search"><SearchIcon className="search__icon" width={18} height={18}/><label className="visually-hidden" htmlFor="teacher-search">Search teachers</label><input id="teacher-search" className="input input--search" type="search" placeholder="Search by name or code" value={query} onChange={e => setQuery(e.target.value)}/></div>{!loading && <span className="toolbar__count">{filtered.length} of {teachers.length}</span>}</div><DataTable caption="Teachers" columns={columns} rows={filtered} rowKey={r => r.id} loading={loading} loadingLabel="Loading teachers" empty={<EmptyState title="No teachers yet" description="Add teachers in Setup, then assign subjects and roles here." icon={<UserIcon width={22} height={22}/>}/>} /></section>}
+    {teacher && <div className="teacher-modal-backdrop"><div className="card teacher-modal" role="dialog" aria-modal="true" aria-labelledby="teacher-assignment-title"><div className="teacher-modal__header"><div><p className="eyebrow">Teacher assignment</p><h2 id="teacher-assignment-title" className="section__title">{teacher.name}</h2><p className="section__description">Assign as many subjects as needed, with the workload for each subject and optional class-teacher role.</p></div><button type="button" className="button button--ghost button--sm" onClick={() => setTeacher(null)}>×</button></div><div className="teacher-assignment-table"><div className="teacher-assignment-head"><span>Grade / Class</span><span>Subject</span><span>Lessons / week</span><span>Role</span><span></span></div>{rows.map(r => <div className="teacher-assignment-row" key={r.key}><select className="input" value={r.classId} onChange={e => update(r.key,{classId:Number(e.target.value)})}>{classes.map(c => <option key={c.id} value={c.id}>{c.grade ? `${c.grade} — ` : ''}{c.name}</option>)}</select><select className="input" value={r.subjectId} disabled={r.role === 'Class teacher'} onChange={e => update(r.key,{subjectId:Number(e.target.value)})}><option value="0">Select subject</option>{subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select><input className="input" type="number" min="1" max="40" value={r.lessons || ''} disabled={r.role === 'Class teacher'} onChange={e => update(r.key,{lessons:Number(e.target.value)})}/><select className="input" value={r.role} onChange={e => update(r.key,{role:e.target.value,subjectId:e.target.value==='Class teacher'?0:r.subjectId,lessons:e.target.value==='Class teacher'?0:r.lessons})}><option value="">Subject teacher</option><option value="Class teacher">Class teacher</option></select><button type="button" className="button button--ghost button--sm" onClick={() => remove(r.key)}>Remove</button></div>)}</div><div className="teacher-modal__actions"><button type="button" className="button button--secondary" onClick={add} disabled={!classes.length || !subjects.length}>+ Add subject</button><span className="teacher-total">{rows.filter(r => r.subjectId > 0).reduce((sum,r) => sum+r.lessons,0)} lessons/week</span><button type="button" className="button button--ghost" onClick={() => setTeacher(null)}>Cancel</button><button type="button" className="button button--primary" disabled={saving} onClick={() => void saveAll()}>{saving ? 'Saving…' : 'Save all'}</button></div></div></div>}
+    <div hidden><SetupPage kind="teachers" /></div>
+  </>
 }
