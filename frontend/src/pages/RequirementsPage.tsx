@@ -10,8 +10,9 @@ import { friendlyApiError } from '../lib/api'
 import { scheduling, type Requirement, type SchoolClass, type Subject, type Teacher } from '../lib/scheduling'
 
 type Data = { requirements: Requirement[]; classes: SchoolClass[]; levels: Level[]; grades: Grade[]; streams: Stream[]; subjects: Subject[]; teachers: Teacher[] }
-type DraftAllocation = { id: string; teacher_id: string; class_id: string; subject_id: string; periods_per_week: number; double_periods: number }
+type DraftAllocation = { id: string; teacher_id: string; level_id: string; grade_id: string; class_id: string; subject_id: string; periods_per_week: number; double_periods: number }
 type ClassOption = { value: string; label: string; stream: Stream | null; classRow: SchoolClass | null }
+type TeacherSummary = { teacher_id: number; teacher_name: string; total_workload: number; allocations: Requirement[] }
 
 export function RequirementsPage() {
   const { notify } = useToast()
@@ -21,6 +22,7 @@ export function RequirementsPage() {
   const [query, setQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [drafts, setDrafts] = useState<DraftAllocation[]>([])
+  const [expandedTeacher, setExpandedTeacher] = useState<number | null>(null)
   const [form, setForm] = useState({ teacher_id: '', level_id: '', grade_id: '', class_id: '', subject_id: '', periods_per_week: 4, double_lesson: false })
 
   const load = useCallback(async () => {
@@ -39,24 +41,14 @@ export function RequirementsPage() {
   const ready = Boolean(data && data.levels.length && data.grades.length && data.subjects.length && data.teachers.length && (data.classes.length || data.streams.length))
   const selectedLevelId = Number(form.level_id) || null
   const selectedGradeId = Number(form.grade_id) || null
-
   const filteredGrades = useMemo(() => data?.grades.filter((grade) => !selectedLevelId || grade.level_id === selectedLevelId) ?? [], [data, selectedLevelId])
-  const filteredStreams = useMemo(() => {
-    if (!data || !selectedGradeId) return []
-    return data.streams.filter((stream) => stream.grade_id === selectedGradeId && (!selectedLevelId || stream.level_id === selectedLevelId))
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-  }, [data, selectedGradeId, selectedLevelId])
-
+  const filteredStreams = useMemo(() => !data || !selectedGradeId ? [] : data.streams.filter((stream) => stream.grade_id === selectedGradeId && (!selectedLevelId || stream.level_id === selectedLevelId)).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })), [data, selectedGradeId, selectedLevelId])
   const classOptions = useMemo<ClassOption[]>(() => {
     if (!data || !selectedGradeId) return []
     const grade = data.grades.find((item) => item.id === selectedGradeId)
-    const options: ClassOption[] = data.classes
-      .filter((item) => !item.grade || item.grade.trim().toLowerCase() === grade?.name.trim().toLowerCase())
-      .map((item) => ({ value: `class:${item.id}`, label: item.name, stream: null, classRow: item }))
+    const options: ClassOption[] = data.classes.filter((item) => !item.grade || item.grade.trim().toLowerCase() === grade?.name.trim().toLowerCase()).map((item) => ({ value: `class:${item.id}`, label: item.name, stream: null, classRow: item }))
     const existingNames = new Set(options.map((item) => item.label.trim().toLowerCase()))
-    filteredStreams.forEach((stream) => {
-      if (!existingNames.has(stream.name.trim().toLowerCase())) options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null })
-    })
+    filteredStreams.forEach((stream) => { if (!existingNames.has(stream.name.trim().toLowerCase())) options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null }) })
     return options.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
   }, [data, selectedGradeId, filteredStreams])
 
@@ -67,7 +59,19 @@ export function RequirementsPage() {
     return rows.filter((row) => [row.class_name, row.subject_name, row.teacher_name].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)))
   }, [data, query])
 
-  const draftRows = useMemo(() => drafts.map((draft) => ({ ...draft, teacher_name: data?.teachers.find((item) => String(item.id) === draft.teacher_id)?.name ?? '—', class_name: data?.classes.find((item) => String(item.id) === draft.class_id)?.name ?? '—', subject_name: data?.subjects.find((item) => String(item.id) === draft.subject_id)?.name ?? '—' })), [drafts, data])
+  const teacherSummaries = useMemo<TeacherSummary[]>(() => {
+    const grouped = new Map<number, TeacherSummary>()
+    filtered.forEach((row) => {
+      const id = Number(row.teacher_id ?? 0)
+      if (!grouped.has(id)) grouped.set(id, { teacher_id: id, teacher_name: row.teacher_name ?? 'Unassigned', total_workload: 0, allocations: [] })
+      const summary = grouped.get(id)!
+      summary.total_workload += Number(row.periods_per_week || 0)
+      summary.allocations.push(row)
+    })
+    return Array.from(grouped.values()).sort((a, b) => a.teacher_name.localeCompare(b.teacher_name))
+  }, [filtered])
+
+  const draftRows = useMemo(() => drafts.map((draft) => ({ ...draft, teacher_name: data?.teachers.find((item) => String(item.id) === draft.teacher_id)?.name ?? '—', class_name: data?.classes.find((item) => String(item.id) === draft.class_id)?.name ?? classOptions.find((item) => item.value === draft.class_id)?.label ?? '—', subject_name: data?.subjects.find((item) => String(item.id) === draft.subject_id)?.name ?? '—' })), [drafts, data, classOptions])
 
   function changeLevel(value: string) { setForm((current) => ({ ...current, level_id: value, grade_id: '', class_id: '' })) }
   function changeGrade(value: string) { setForm((current) => ({ ...current, grade_id: value, class_id: '' })) }
@@ -80,17 +84,16 @@ export function RequirementsPage() {
     let classId = option.classRow?.id
     if (!classId && option.stream) {
       try {
-        const classes = data?.classes ?? []
-        const existing = classes.find((item) => item.name.trim().toLowerCase() === option.stream!.name.trim().toLowerCase() || (item.code && option.stream!.code && item.code === option.stream!.code))
+        const existing = (data?.classes ?? []).find((item) => item.name.trim().toLowerCase() === option.stream!.name.trim().toLowerCase() || (item.code && option.stream!.code && item.code === option.stream!.code))
         const classRow = existing ?? await scheduling.createClass({ name: option.stream.name, code: option.stream.code ?? `STREAM-${option.stream.id}`, grade: data?.grades.find((grade) => grade.id === selectedGradeId)?.name })
         classId = classRow.id
-        setData((current) => current ? { ...current, classes: current.classes.some((item) => item.id === classRow!.id) ? current.classes : [...current.classes, classRow!] } : current)
+        setData((current) => current ? { ...current, classes: current.classes.some((item) => item.id === classRow.id) ? current.classes : [...current.classes, classRow] } : current)
       } catch (err) { notify(friendlyApiError(err, 'prepare that stream for scheduling'), 'error'); return }
     }
     if (!classId) return
     const duplicate = drafts.some((item) => item.teacher_id === form.teacher_id && item.class_id === String(classId) && item.subject_id === form.subject_id)
     if (duplicate) { notify('That teacher, class and subject allocation is already in the list.', 'error'); return }
-    setDrafts((current) => [...current, { id: `${Date.now()}-${Math.random()}`, teacher_id: form.teacher_id, class_id: String(classId), subject_id: form.subject_id, periods_per_week: Number(form.periods_per_week), double_periods: form.double_lesson ? 1 : 0 }])
+    setDrafts((current) => [...current, { id: `${Date.now()}-${Math.random()}`, teacher_id: form.teacher_id, level_id: form.level_id, grade_id: form.grade_id, class_id: String(classId), subject_id: form.subject_id, periods_per_week: Number(form.periods_per_week), double_periods: form.double_lesson ? 1 : 0 }])
     setForm((current) => ({ ...current, subject_id: '', class_id: '', double_lesson: false }))
     notify('Allocation added to the list. Save when finished.', 'success')
   }
@@ -105,13 +108,13 @@ export function RequirementsPage() {
 
   async function remove(row: Requirement) { try { await scheduling.deleteRequirement(row.id); notify('Teaching allocation removed.', 'success'); await load() } catch (err) { notify(friendlyApiError(err, 'remove that allocation'), 'error') } }
 
-  const columns: Column<Requirement>[] = [
-    { key: 'teacher', header: 'Teacher', render: (row) => row.teacher_name ?? '—' }, { key: 'class', header: 'Grade / Class', render: (row) => row.class_name ?? '—' }, { key: 'subject', header: 'Subject', render: (row) => row.subject_name ?? '—' },
-    { key: 'workload', header: 'Workload', render: (row) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'} / week` }, { key: 'double', header: 'Double lesson', render: (row) => row.double_periods ? <Badge>Yes</Badge> : 'No' },
+  const summaryColumns: Column<TeacherSummary>[] = [
+    { key: 'teacher', header: 'Teacher', render: (row) => row.teacher_name },
+    { key: 'workload', header: 'Total workload', render: (row) => `${row.total_workload} lesson${row.total_workload === 1 ? '' : 's'} / week` },
+    { key: 'details', header: 'Details', render: (row) => <button type="button" className="button button--ghost button--sm" onClick={() => setExpandedTeacher((current) => current === row.teacher_id ? null : row.teacher_id)}>{expandedTeacher === row.teacher_id ? 'Hide subjects' : 'View subjects'}</button> },
   ]
   const draftColumns: Column<(typeof draftRows)[number]>[] = [
-    { key: 'teacher', header: 'Teacher', render: (row) => row.teacher_name }, { key: 'class', header: 'Grade / Class', render: (row) => row.class_name }, { key: 'subject', header: 'Subject', render: (row) => row.subject_name },
-    { key: 'workload', header: 'Workload', render: (row) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'} / week` }, { key: 'double', header: 'Double lesson', render: (row) => row.double_periods ? <Badge>Yes</Badge> : 'No' },
+    { key: 'teacher', header: 'Teacher', render: (row) => row.teacher_name }, { key: 'class', header: 'Grade / Class', render: (row) => row.class_name }, { key: 'subject', header: 'Subject', render: (row) => row.subject_name }, { key: 'workload', header: 'Workload', render: (row) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'} / week` }, { key: 'double', header: 'Double lesson', render: (row) => row.double_periods ? <Badge>Yes</Badge> : 'No' },
   ]
 
   return <>
@@ -122,17 +125,22 @@ export function RequirementsPage() {
         <div className="toolbar"><div><h2 className="section__title">Add teaching allocation</h2><p className="section__description">Select Level → Grade → Class / Stream. Each choice narrows the next list to prevent assigning a teacher to the wrong class.</p></div>{drafts.length > 0 && <Badge>{drafts.length} unsaved</Badge>}</div>
         <form className="form form--grid" onSubmit={addDraft}>
           <div className="field"><label className="field__label" htmlFor="allocation-teacher">Teacher</label><select id="allocation-teacher" className="input input--select" value={form.teacher_id} onChange={(event) => setForm({ ...form, teacher_id: event.target.value })} required><option value="">Select a teacher</option>{data.teachers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-level">Level</label><select id="allocation-level" className="input input--select" value={form.level_id} onChange={(event) => changeLevel(event.target.value)} required><option value="">Select a level</option>{data.levels.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="form__note">Only grades belonging to the selected level will be shown.</span></div>
+          <div className="field"><label className="field__label" htmlFor="allocation-level">Level</label><select id="allocation-level" className="input input--select" value={form.level_id} onChange={(event) => changeLevel(event.target.value)} required><option value="">Select a level</option>{data.levels.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
           <div className="field"><label className="field__label" htmlFor="allocation-grade">Grade</label><select id="allocation-grade" className="input input--select" value={form.grade_id} onChange={(event) => changeGrade(event.target.value)} disabled={!form.level_id} required><option value="">{form.level_id ? 'Select a grade' : 'Select a level first'}</option>{filteredGrades.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-class">Class / Stream</label><select id="allocation-class" className="input input--select" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value })} disabled={!form.grade_id} required><option value="">{form.grade_id ? (classOptions.length ? 'Select a class / stream' : 'No streams captured for this grade') : 'Select a grade first'}</option>{classOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><span className="form__note">Only classes/streams captured under the selected level and grade are shown.</span></div>
+          <div className="field"><label className="field__label" htmlFor="allocation-class">Class / Stream</label><select id="allocation-class" className="input input--select" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value })} disabled={!form.grade_id} required><option value="">{form.grade_id ? (classOptions.length ? 'Select a class / stream' : 'No streams captured for this grade') : 'Select a grade first'}</option>{classOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
           <div className="field"><label className="field__label" htmlFor="allocation-subject">Subject</label><select id="allocation-subject" className="input input--select" value={form.subject_id} onChange={(event) => setForm({ ...form, subject_id: event.target.value })} required><option value="">Select a subject</option>{data.subjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-workload">Workload for this subject</label><select id="allocation-workload" className="input input--select" value={form.periods_per_week} onChange={(event) => setForm({ ...form, periods_per_week: Number(event.target.value) })} required>{Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value} lesson{value === 1 ? '' : 's'} / week</option>)}</select></div>
-          <div className="field form--grid__full"><label className="field__label" htmlFor="allocation-double">Lesson format</label><label className="form__check" htmlFor="allocation-double"><input id="allocation-double" type="checkbox" checked={form.double_lesson} onChange={(event) => setForm({ ...form, double_lesson: event.target.checked })} /><span>Include a double lesson</span></label><span className="form__note">A double lesson uses two consecutive teaching periods for this subject.</span></div>
+          <div className="field"><label className="field__label" htmlFor="allocation-workload">Workload</label><select id="allocation-workload" className="input input--select" value={form.periods_per_week} onChange={(event) => setForm({ ...form, periods_per_week: Number(event.target.value) })} required>{Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value} lesson{value === 1 ? '' : 's'} / week</option>)}</select></div>
+          <div className="field form--grid__full"><label className="form__check"><input type="checkbox" checked={form.double_lesson} onChange={(event) => setForm({ ...form, double_lesson: event.target.checked })} /><span>Include a double lesson</span></label></div>
           <div className="form__row form--grid__full"><button className="button button--primary" type="submit">+ Add allocation</button></div>
         </form>
       </section>}
-      {ready && draftRows.length > 0 && <section className="card section"><div className="toolbar"><div><h2 className="section__title">Allocations to save</h2><p className="section__description">Review the teacher, class, subject and workload before saving.</p></div><div className="form__row"><button type="button" className="button button--ghost" onClick={() => setDrafts([])} disabled={saving}>Clear</button><button type="button" className="button button--primary" onClick={saveAllocations} disabled={saving}>{saving ? 'Saving…' : `Save ${draftRows.length} allocation${draftRows.length === 1 ? '' : 's'}`}</button></div></div><DataTable caption="Allocations to save" columns={draftColumns} rows={draftRows} rowKey={(row) => row.id} /></section>}
-      <section className="card section"><div className="toolbar"><div><h2 className="section__title">Saved teaching allocations</h2><p className="section__description">Existing allocations already saved in the timetable requirements.</p></div><div className="search"><SearchIcon className="search__icon" width={18} height={18} /><label className="visually-hidden" htmlFor="allocation-search">Search allocations</label><input id="allocation-search" className="input input--search" type="search" placeholder="Search teacher, class or subject" value={query} onChange={(event) => setQuery(event.target.value)} /></div></div><DataTable caption="Saved teaching allocations" columns={columns} rows={filtered} rowKey={(row) => row.id} loading={loading} loadingLabel="Loading teaching allocations" empty={<EmptyState title={query ? 'No matching allocations' : 'No teaching allocations yet'} description={query ? 'Nothing matches your search.' : 'Add an allocation above, then save it.'} icon={<CalendarIcon width={22} height={22} />} />} rowActions={(row) => <button type="button" className="button button--ghost button--sm" onClick={() => remove(row)}>Delete</button>} /></section>
+
+      {ready && draftRows.length > 0 && <section className="card section"><div className="toolbar"><div><h2 className="section__title">Allocations to save</h2><p className="section__description">Review the allocations before saving.</p></div><div className="form__row"><button type="button" className="button button--ghost" onClick={() => setDrafts([])} disabled={saving}>Clear</button><button type="button" className="button button--primary" onClick={saveAllocations} disabled={saving}>{saving ? 'Saving…' : `Save ${draftRows.length} allocation${draftRows.length === 1 ? '' : 's'}`}</button></div></div><DataTable caption="Allocations to save" columns={draftColumns} rows={draftRows} rowKey={(row) => row.id} /></section>}
+
+      <section className="card section"><div className="toolbar"><div><h2 className="section__title">Saved teaching allocations</h2><p className="section__description">Teacher totals are shown here. Select a teacher to view all subjects and detailed workloads.</p></div><div className="search"><SearchIcon className="search__icon" width={18} height={18} /><label className="visually-hidden" htmlFor="allocation-search">Search allocations</label><input id="allocation-search" className="input input--search" type="search" placeholder="Search teacher or subject" value={query} onChange={(event) => setQuery(event.target.value)} /></div></div>
+        <DataTable caption="Teacher workload summary" columns={summaryColumns} rows={teacherSummaries} rowKey={(row) => row.teacher_id} loading={loading} loadingLabel="Loading teaching allocations" empty={<EmptyState title={query ? 'No matching allocations' : 'No teaching allocations yet'} description={query ? 'Nothing matches your search.' : 'Add an allocation above, then save it.'} icon={<CalendarIcon width={22} height={22} />} />} />
+        {expandedTeacher !== null && (() => { const summary = teacherSummaries.find((item) => item.teacher_id === expandedTeacher); if (!summary) return null; const detailColumns: Column<Requirement>[] = [{ key: 'subject', header: 'Subject', render: (row) => row.subject_name ?? '—' }, { key: 'class', header: 'Grade / Stream', render: (row) => row.class_name ?? '—' }, { key: 'workload', header: 'Workload', render: (row) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'} / week` }, { key: 'double', header: 'Double', render: (row) => row.double_periods ? <Badge>Yes</Badge> : 'No' }]; return <div className="section" aria-label={`${summary.teacher_name} subject details`}><div className="toolbar"><div><h3 className="section__title">{summary.teacher_name} — subjects</h3><p className="section__description">Detailed workload report.</p></div><Badge>{summary.total_workload} lessons / week</Badge></div><DataTable caption={`${summary.teacher_name} subject workload`} columns={detailColumns} rows={summary.allocations} rowKey={(row) => row.id} rowActions={(row) => <button type="button" className="button button--ghost button--sm" onClick={() => remove(row)}>Delete</button>} /></div> })()}
+      </section>
     </>}
   </>
 }
