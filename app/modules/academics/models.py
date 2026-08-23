@@ -71,7 +71,6 @@ class Stream(Base):
     grade_id = Column(BigInteger, ForeignKey("grades.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     code = Column(String(30), nullable=True)
-    capacity = Column(Integer, nullable=True)
     class_teacher_id = Column(Integer, nullable=True)
     status = Column(String(20), default="ACTIVE", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
