@@ -26,7 +26,7 @@ function LessonPreview({ calendar, requirements, subjects, classes }: { calendar
   const lessonCards = requirements.flatMap(r => Array.from({ length: Math.max(0, r.periods_per_week) }, (_, index) => ({ r, index })))
   return <section className="card section lesson-preview">
     <div className="panel__head">
-      <div><h2 className="section__title">Option 2 · Lesson staging board</h2><p className="form__note">Review the established timetable structure and every accumulated lesson before the generator assigns slots.</p></div>
+      <div><h2 className="section__title">Lesson staging board</h2><p className="form__note">Review the established timetable structure and every accumulated lesson before the generator assigns slots.</p></div>
       <Badge tone="neutral">{lessonCount} lessons / week</Badge>
     </div>
     <div className="lesson-preview__structure">
