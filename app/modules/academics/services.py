@@ -104,16 +104,47 @@ class StreamService:
         grade = self.db.query(models.Grade).filter(models.Grade.id == data.grade_id, models.Grade.school_id == school_id, models.Grade.level_id == data.level_id).first()
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
         if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade does not belong to the selected level")
-        normalized = [item.name.strip().casefold() for item in data.streams]
-        existing = self.db.query(models.Stream.name).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == data.academic_year_id, models.Stream.grade_id == data.grade_id).all()
-        existing_names = {name.casefold() for (name,) in existing}
-        conflicts = [item.name.strip() for item, key in zip(data.streams, normalized) if key in existing_names]
-        if conflicts: raise HTTPException(status.HTTP_409_CONFLICT, f"These streams already exist for this grade: {', '.join(conflicts)}")
+
+        # Bulk stream configuration is idempotent for a grade/year. The same
+        # stream names are valid across different grades, but submitting the
+        # same grade configuration again should reuse existing streams rather
+        # than returning a misleading 409 conflict.
+        existing = self.db.query(models.Stream).filter(
+            models.Stream.school_id == school_id,
+            models.Stream.academic_year_id == data.academic_year_id,
+            models.Stream.grade_id == data.grade_id,
+        ).all()
+        existing_by_name = {stream.name.strip().casefold(): stream for stream in existing}
+
+        streams = []
         try:
-            streams = self.repository.create_streams_bulk(school_id, data)
+            for item in data.streams:
+                name = item.name.strip()
+                key = name.casefold()
+                stream = existing_by_name.get(key)
+                if stream is not None:
+                    stream.code = item.code.strip() if item.code else None
+                    stream.status = item.status
+                    stream.level_id = data.level_id
+                else:
+                    stream = models.Stream(
+                        name=name,
+                        code=item.code.strip() if item.code else None,
+                        status=item.status,
+                        academic_year_id=data.academic_year_id,
+                        level_id=data.level_id,
+                        grade_id=data.grade_id,
+                        school_id=school_id,
+                    )
+                    self.db.add(stream)
+                    existing_by_name[key] = stream
+                streams.append(stream)
+            self.db.commit()
+            for stream in streams:
+                self.db.refresh(stream)
         except IntegrityError:
             self.db.rollback()
-            raise HTTPException(status.HTTP_409_CONFLICT, "One or more streams already exist for this grade in this academic year.")
+            raise HTTPException(status.HTTP_409_CONFLICT, "One or more streams conflict with an existing stream for the same grade and academic year.")
         return streams
     def update_stream(self, school_id, stream_id, data):
         stream = self.get_stream_by_id(school_id, stream_id)
