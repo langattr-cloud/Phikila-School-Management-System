@@ -6,10 +6,10 @@
 .lesson-preview__grid tr:last-child th, .lesson-preview__grid tr:last-child td { border-bottom: 0; }
 .lesson-preview__grid th:last-child, .lesson-preview__grid td:last-child { border-right: 0; }
 .lesson-preview__grid thead th { background: var(--color-primary); color: #fff; text-align: center; font-size: .78rem; font-weight: 700; }
-.lesson-preview__grid thead .lesson-preview__corner { width: 7rem; text-align: left; }
+.lesson-preview__grid thead .lesson-preview__corner { width: 2.8rem; min-width: 2.8rem; max-width: 2.8rem; padding-left: .2rem; padding-right: .2rem; text-align: center; }
 .lesson-preview__grid thead .lesson-preview__day-head { height: 2.3rem; font-size: .85rem; }
 .lesson-preview__grid thead .lesson-preview__period-head { background: var(--color-surface-muted); color: var(--color-ink); height: 2rem; font-size: .72rem; }
-.lesson-preview__grid tbody th { width: 7rem; background: var(--color-surface-muted); text-align: left; font-size: .82rem; font-weight: 700; white-space: nowrap; }
+.lesson-preview__grid tbody th { width: 2.8rem; min-width: 2.8rem; max-width: 2.8rem; padding-left: .2rem; padding-right: .2rem; background: var(--color-surface-muted); text-align: center; font-size: .82rem; font-weight: 700; white-space: nowrap; }
 .lesson-preview__cell { height: 3.8rem; background: #fff; text-align: center; }
 .lesson-preview__tile { display: flex; min-height: 2.55rem; align-items: center; justify-content: center; padding: .3rem; border: 1px solid; border-radius: .35rem; color: #fff; font-size: .68rem; font-weight: 700; line-height: 1.1; text-shadow: 0 1px 1px rgba(0,0,0,.18); }
 .lesson-preview__empty { color: #b2b8b4; }
