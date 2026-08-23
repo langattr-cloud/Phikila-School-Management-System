@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional, Literal
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 
 StreamStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
 LevelStatus = Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
@@ -26,9 +26,19 @@ class TermResponse(BaseModel):
     class Config: from_attributes = True
 class LevelBase(BaseModel):
     name: str = Field(min_length=1, max_length=100); code: str = Field(min_length=1, max_length=30); display_order: int = Field(ge=1); status: LevelStatus = "ACTIVE"
-class LevelCreate(LevelBase): pass
+class LevelCreate(LevelBase):
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        if isinstance(value, bool): return "ACTIVE" if value else "INACTIVE"
+        return value
 class LevelUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100); code: Optional[str] = Field(default=None, min_length=1, max_length=30); display_order: Optional[int] = Field(default=None, ge=1); status: Optional[LevelStatus] = None
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        if isinstance(value, bool): return "ACTIVE" if value else "INACTIVE"
+        return value
 class LevelResponse(LevelBase):
     id: int; school_id: int; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
