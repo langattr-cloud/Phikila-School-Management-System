@@ -72,7 +72,7 @@ class Stream(Base):
     name = Column(String(100), nullable=False)
     code = Column(String(30), nullable=True)
     class_teacher_id = Column(Integer, nullable=True)
-    status = Column(String(20), default="ACTIVE", nullable=False)
+    status = Column(StatusEnum, default="ACTIVE", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     level = relationship("Level", back_populates="streams")
