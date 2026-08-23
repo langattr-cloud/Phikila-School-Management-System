@@ -77,5 +77,5 @@ class Stream(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     level = relationship("Level", back_populates="streams")
-    grade = relationship("Grade", back_populates="grade" ) if False else relationship("Grade", back_populates="streams")
+    grade = relationship("Grade", back_populates="streams")
     academic_year = relationship("AcademicYear", back_populates="streams")
