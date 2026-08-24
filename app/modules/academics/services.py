@@ -58,7 +58,7 @@ class LevelService:
         return self.repository.update_level(level, data)
     def delete_level(self, school_id, level_id):
         level = self.get_level_by_id(school_id, level_id)
-        if self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.level_id == level_id).count(): raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete a level that still contains grades. Delete its grades first.")
+        if self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.level_id == level_id).count(): raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete a level that still contains grades. Move or delete its grades first.")
         self.db.delete(level); self.db.commit()
 
 class GradeService:
@@ -74,14 +74,21 @@ class GradeService:
         if self.repository.get_by_code(school_id, data.level_id, data.code.strip()): raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in this level.")
         return self.repository.create(school_id, data)
     def update(self, school_id, grade_id, data):
-        grade = self.get(school_id, grade_id)
-        if data.code:
-            duplicate = self.repository.get_by_code(school_id, grade.level_id, data.code.strip())
-            if duplicate and duplicate.id != grade.id: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in this level.")
-        return self.repository.update(grade, data)
+        grade = self.get(school_id, grade_id); values = data.model_dump(exclude_unset=True)
+        target_level_id = values.get("level_id", grade.level_id)
+        if target_level_id != grade.level_id:
+            target_level = self.db.query(models.Level).filter(models.Level.id == target_level_id, models.Level.school_id == school_id).first()
+            if not target_level: raise HTTPException(status.HTTP_404_NOT_FOUND, "Target level not found")
+        code = values.get("code", grade.code)
+        duplicate = self.repository.get_by_code(school_id, target_level_id, code.strip())
+        if duplicate and duplicate.id != grade.id: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in the target level.")
+        for key, value in values.items(): setattr(grade, key, value)
+        try: self.db.commit()
+        except IntegrityError: self.db.rollback(); raise HTTPException(status.HTTP_409_CONFLICT, "The grade could not be moved because it conflicts with another grade in the target level.")
+        self.db.refresh(grade); return grade
     def delete(self, school_id, grade_id):
         grade = self.get(school_id, grade_id)
-        if self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.grade_id == grade_id).count(): raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete a grade that still contains streams. Delete its streams first.")
+        if self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.grade_id == grade_id).count(): raise HTTPException(status.HTTP_409_CONFLICT, "This grade has streams. Move the grade to the correct level instead, or delete/reassign its streams first.")
         self.db.delete(grade); self.db.commit()
 
 class StreamService:
