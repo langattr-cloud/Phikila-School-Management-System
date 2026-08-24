@@ -1,9 +1,12 @@
-"""Compatibility wrapper for the production scheduling engine.
+"""Compatibility entry points for the production scheduling engine.
 
-The active timetable generator lives in ``app.modules.scheduling.jobs`` and
-uses the CP-SAT solver.  This module remains for legacy timetable routes.
+The active generator is ``app.modules.scheduling``. These legacy routes are
+kept so older clients still work, but they now translate class-register data
+into the scheduling model and invoke the same constraint-aware solver.
 """
 from sqlalchemy.orm import Session
+from app.modules.academics.models import Grade, Stream
+from app.modules.class_register.models import ClassRegister
 from app.modules.scheduling import jobs as scheduling_jobs
 from app.modules.scheduling import models as m
 
@@ -12,21 +15,43 @@ class TimetableGenerator:
     def __init__(self, db: Session):
         self.db = db
 
-    def generate_for_class(self, class_register_id: int, academic_year_id: int) -> dict:
-        """Generate through the production school-wide solver and report the result.
+    def _sync_class_register(self, class_register_id: int, academic_year_id: int) -> tuple[int, int]:
+        register = self.db.query(ClassRegister).filter(
+            ClassRegister.id == class_register_id,
+            ClassRegister.academic_year_id == academic_year_id,
+        ).first()
+        if register is None:
+            raise ValueError(f"Class register {class_register_id} was not found for academic year {academic_year_id}.")
 
-        The old implementation was a success-returning placeholder.  Class-level
-        generation now uses the same constraint-aware engine as the Generate page
-        so it cannot claim success without actually producing lessons.
-        """
-        school_id = (
-            self.db.query(m.TtClass.school_id)
-            .filter(m.TtClass.id == class_register_id)
-            .scalar()
-        )
-        if school_id is None:
-            raise ValueError(f"Class ID {class_register_id} was not found.")
+        stream = self.db.query(Stream).filter(Stream.id == register.stream_id).first()
+        grade = self.db.query(Grade).filter(Grade.id == register.grade_form_id).first()
+        if stream is None or grade is None:
+            raise ValueError("The class register is missing its grade or stream academic structure.")
 
+        school_id = int(stream.school_id)
+        code = f"STREAM-{stream.id}"
+        name = f"{grade.name} — {stream.name}" if stream.name else grade.name
+        row = self.db.query(m.TtClass).filter(m.TtClass.school_id == school_id, m.TtClass.code == code).first()
+        if row is None:
+            row = m.TtClass(
+                school_id=school_id,
+                name=name,
+                code=code,
+                grade=grade.name,
+                student_count=register.capacity or 40,
+                class_teacher_id=register.class_teacher_id,
+            )
+            self.db.add(row)
+        else:
+            row.name = name
+            row.grade = grade.name
+            row.student_count = register.capacity or row.student_count or 40
+            row.class_teacher_id = register.class_teacher_id
+        self.db.commit()
+        self.db.refresh(row)
+        return school_id, row.id
+
+    def _run(self, school_id: int) -> dict:
         job = scheduling_jobs.create_job(self.db, school_id, "legacy-timetable-route")
         scheduling_jobs.enqueue(job.id, school_id, 30.0)
         self.db.expire_all()
@@ -35,29 +60,17 @@ class TimetableGenerator:
             raise RuntimeError("Timetable generation job disappeared.")
         if job.status != "completed":
             raise RuntimeError(job.message or "Timetable generation failed.")
-        return {
-            "class_register_id": class_register_id,
-            "status": "Generated",
-            "message": "Timetable generated successfully.",
-            "job_id": job.id,
-            "version_id": job.result_version_id,
-        }
+        return {"status": "Generated", "message": "Timetable generated successfully.", "job_id": job.id, "version_id": job.result_version_id}
+
+    def generate_for_class(self, class_register_id: int, academic_year_id: int) -> dict:
+        school_id, _ = self._sync_class_register(class_register_id, academic_year_id)
+        result = self._run(school_id)
+        result["class_register_id"] = class_register_id
+        return result
 
     def generate_school_wide(self, academic_year_id: int) -> list[dict]:
-        """Generate a real school-wide timetable using the production solver."""
-        class_row = self.db.query(m.TtClass.school_id).first()
-        if class_row is None:
+        register = self.db.query(ClassRegister).filter(ClassRegister.academic_year_id == academic_year_id).first()
+        if register is None:
             return []
-        school_id = class_row[0]
-        job = scheduling_jobs.create_job(self.db, school_id, "legacy-timetable-route")
-        scheduling_jobs.enqueue(job.id, school_id, 30.0)
-        self.db.expire_all()
-        job = self.db.query(m.TtSolverJob).filter(m.TtSolverJob.id == job.id).first()
-        if job is None or job.status != "completed":
-            raise RuntimeError((job.message if job else None) or "Timetable generation failed.")
-        return [{
-            "status": "Generated",
-            "message": "Timetable generated successfully.",
-            "job_id": job.id,
-            "version_id": job.result_version_id,
-        }]
+        school_id, _ = self._sync_class_register(register.id, academic_year_id)
+        return [self._run(school_id)]
