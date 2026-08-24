@@ -1,17 +1,14 @@
-.timetable__time-grid{display:grid;grid-template-columns:7rem var(--tt-columns);min-width:760px;overflow:hidden;border:1px solid var(--color-line);border-radius:var(--radius-lg);background:var(--color-surface)}
+.timetable__time-grid{display:grid;grid-template-columns:5.25rem var(--tt-columns);min-width:680px;overflow:hidden;border:1px solid var(--color-line);border-radius:var(--radius-lg);background:var(--color-surface)}
 .timetable__corner,.timetable__period-head,.timetable__day-label,.timetable__cell{min-width:0;border-right:1px solid var(--color-line);border-bottom:1px solid var(--color-line)}
-.timetable__corner,.timetable__period-head{min-height:4.25rem;padding:.65rem .55rem;background:var(--color-surface-muted)}
-.timetable__corner{position:sticky;left:0;z-index:3;font-size:.78rem;font-weight:700;color:var(--color-ink-muted);text-transform:uppercase;letter-spacing:.04em}
-.timetable__period-head{display:flex;flex-direction:column;justify-content:center;gap:.15rem;text-align:center}
-.timetable__period-head--break{background:var(--color-primary-soft)}
-.timetable__period{font-weight:700;line-height:1.15}.timetable__clock{color:var(--color-ink-muted);font-size:.72rem;white-space:nowrap}
-.timetable__day-row{display:grid;grid-column:1/-1;grid-template-columns:7rem var(--tt-columns);min-height:6.5rem}
-.timetable__day-label{position:sticky;left:0;z-index:2;display:flex;align-items:flex-start;justify-content:center;padding:.8rem .45rem;background:var(--color-surface-muted);font-weight:700;font-size:.82rem}
-.timetable__cell{position:relative;min-height:6.5rem;padding:.35rem;overflow:hidden}.timetable__cell--empty{background:var(--color-surface)}
-.timetable__cell--break{display:flex;align-items:center;justify-content:center;padding:0;background:var(--color-surface-muted)}
-.timetable__break-vertical{display:inline-flex;align-items:center;justify-content:center;width:1.5rem;height:100%;min-height:5.8rem;font-size:1rem;font-weight:800;letter-spacing:.05em;writing-mode:vertical-rl;transform:rotate(180deg);color:var(--color-primary)}
+.timetable__corner,.timetable__period-head{min-height:3.7rem;padding:.45rem .4rem;background:var(--color-surface-muted)}
+.timetable__corner{position:sticky;left:0;z-index:3;font-size:.72rem;font-weight:700;color:var(--color-ink-muted);text-transform:uppercase;letter-spacing:.04em}
+.timetable__period-head{display:flex;flex-direction:column;justify-content:center;gap:.08rem;text-align:center}.timetable__period-head--break{background:var(--color-primary-soft)}
+.timetable__period{font-weight:700;font-size:.86rem;line-height:1.1}.timetable__clock{color:var(--color-ink-muted);font-size:.64rem;white-space:nowrap}
+.timetable__day-row{display:grid;grid-column:1/-1;grid-template-columns:5.25rem var(--tt-columns);min-height:4.9rem}.timetable__day-label{position:sticky;left:0;z-index:2;display:flex;align-items:flex-start;justify-content:center;padding:.65rem .35rem;background:var(--color-surface-muted);font-weight:700;font-size:.78rem;text-transform:none}
+.timetable__cell{position:relative;min-height:4.9rem;padding:.22rem;overflow:hidden}.timetable__cell--empty{background:var(--color-surface)}.timetable__cell--break{display:flex;align-items:center;justify-content:center;padding:0;background:var(--color-surface-muted)}
+.timetable__break-vertical{display:inline-flex;align-items:center;justify-content:center;width:1.25rem;height:100%;min-height:4.4rem;font-size:.85rem;font-weight:800;letter-spacing:.05em;writing-mode:vertical-rl;transform:rotate(180deg);color:var(--color-primary)}
 .timetable__cell--now{box-shadow:inset 0 0 0 2px var(--color-primary)}.timetable__cell--target{background:var(--color-primary-soft)}
-.timetable__time-grid .lesson-card{min-height:5.7rem;width:100%;overflow:hidden}.timetable__time-grid .lesson-card__subject{display:block;font-weight:750;line-height:1.15}.timetable__time-grid .lesson-card__line{display:block;margin-top:.15rem;font-size:.78rem}.timetable__time-grid .lesson-card__room,.timetable__time-grid .lesson-card__badge{font-size:.68rem}
+.timetable__time-grid .lesson-card{min-height:4.35rem;width:100%;overflow:hidden;border-radius:.35rem;padding:.38rem .4rem .38rem .48rem;gap:.08rem;box-shadow:none}.timetable__time-grid .lesson-card__subject{display:block;font-size:.78rem;font-weight:800;line-height:1.1}.timetable__time-grid .lesson-card__line{display:block;margin-top:.08rem;font-size:.68rem;font-weight:650;line-height:1.1}.timetable__time-grid .lesson-card__room,.timetable__time-grid .lesson-card__badge{display:none}
 .timetable__agenda{display:none}
 @media(max-width:767px){.timetable__time-grid{display:none}.timetable__agenda{display:block}}
-@media print{.timetable__time-grid{min-width:0;grid-template-columns:5rem var(--tt-columns);border-color:#999}.timetable__day-row{grid-template-columns:5rem var(--tt-columns)}.timetable__agenda{display:none!important}}
+@media print{.timetable__time-grid{min-width:0;grid-template-columns:4.5rem var(--tt-columns);border-color:#999}.timetable__day-row{grid-template-columns:4.5rem var(--tt-columns)}.timetable__agenda{display:none!important}}
