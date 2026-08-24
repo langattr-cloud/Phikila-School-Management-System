@@ -46,7 +46,7 @@ class GradeBase(BaseModel):
     name: str = Field(min_length=1, max_length=100); code: str = Field(min_length=1, max_length=30); status: Optional[bool] = True
 class GradeCreate(GradeBase): level_id: int
 class GradeUpdate(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100); code: Optional[str] = Field(default=None, min_length=1, max_length=30); status: Optional[bool] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100); code: Optional[str] = Field(default=None, min_length=1, max_length=30); status: Optional[bool] = None; level_id: Optional[int] = None
 class GradeResponse(GradeBase):
     id: int; school_id: int; level_id: int; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
