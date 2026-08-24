@@ -15,7 +15,7 @@ class DayIn(BaseModel): index:int=Field(ge=0,le=6); name:str=Field(min_length=1,
 class DayOut(ORMModel,DayIn): id:int
 class CalendarIn(BaseModel): days:list[DayIn]; periods:list[PeriodIn]
 class TeacherIn(BaseModel):
-    name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); email:str|None=None; department:str|None=None; max_lessons_per_day:int=Field(default=7,ge=1,le=20); max_consecutive:int=Field(default=4,ge=1,le=20); workload_target:int|None=Field(default=None,ge=0,le=80); unavailable:Slots=Field(default_factory=dict); is_active:bool=True
+    name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); phone:str|None=None; email:str|None=None; department:str|None=None; role:str=Field(default='Teacher',max_length=80); role_assignment:dict[str,Any]=Field(default_factory=dict); max_lessons_per_day:int=Field(default=7,ge=1,le=20); max_consecutive:int=Field(default=4,ge=1,le=20); workload_target:int|None=Field(default=None,ge=0,le=80); unavailable:Slots=Field(default_factory=dict); is_active:bool=True
 class TeacherOut(ORMModel,TeacherIn): id:int
 class SubjectIn(BaseModel):
     name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); colour:str=Field(default='#0F2A47',max_length=9); prefers_morning:bool=False; prefers_double:bool=False; spread_across_week:bool=True; required_room_type:str|None=None
@@ -23,9 +23,9 @@ class SubjectOut(ORMModel,SubjectIn): id:int
 class RoomIn(BaseModel):
     name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); building:str|None=None; capacity:int=Field(default=40,ge=1,le=2000); room_type:str=Field(default='classroom',max_length=40); is_accessible:bool=True; unavailable:Slots=Field(default_factory=dict)
 class RoomOut(ORMModel,RoomIn): id:int
-class ClassIn(BaseModel):
-    name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); grade:str|None=None; student_count:int=Field(default=40,ge=1,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
+class ClassIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); grade:str|None=None; student_count:int=Field(default=40,ge=1,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
 class ClassOut(ORMModel,ClassIn): id:int
+class TtLessonRequirementIn(BaseModel): pass
 class RequirementIn(BaseModel): class_id:int; subject_id:int; teacher_id:int|None=None; room_id:int|None=None; periods_per_week:int=Field(default=1,ge=1,le=40); double_periods:int=Field(default=0,ge=0,le=10)
 class RequirementOut(ORMModel,RequirementIn): id:int; class_name:str|None=None; subject_name:str|None=None; teacher_name:str|None=None; room_name:str|None=None
 class TeacherAssignmentIn(BaseModel): class_id:int; subject_id:int; periods_per_week:int=Field(ge=1,le=40); double_periods:int=Field(default=0,ge=0,le=10); role:str|None=None
