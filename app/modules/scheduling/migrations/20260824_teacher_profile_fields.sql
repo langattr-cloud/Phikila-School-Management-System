@@ -1,8 +1,0 @@
-ALTER TABLE tt_teachers
-  ADD COLUMN IF NOT EXISTS phone VARCHAR(40),
-  ADD COLUMN IF NOT EXISTS role VARCHAR(80) NOT NULL DEFAULT 'Teacher',
-  ADD COLUMN IF NOT EXISTS role_assignment JSONB NOT NULL DEFAULT '{}'::jsonb;
-
-ALTER TABLE tt_teachers
-  DROP COLUMN IF EXISTS max_lessons_per_day,
-  DROP COLUMN IF EXISTS max_consecutive;
