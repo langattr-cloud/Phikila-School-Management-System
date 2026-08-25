@@ -11,21 +11,18 @@ from .solver import ORTOOLS_AVAILABLE
 from .tenancy import Principal, require_role, resolve_principal
 router=APIRouter()
 ACTIVE_STATUSES=("queued","running","optimizing","validating")
-STALE_AFTER=timedelta(minutes=5)
+STALE_AFTER=timedelta(minutes=30)
+
+def _utc(value):
+    if value is None:return None
+    if value.tzinfo is None:return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 def _active_job(db:Session,school_id:int):
     job=db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==school_id,func.lower(m.TtSolverJob.status).in_(ACTIVE_STATUSES)).order_by(m.TtSolverJob.id.desc()).first()
     if not job:return None
     now=datetime.now(timezone.utc)
-    # `updated_at` is the worker heartbeat: jobs.py commits progress while the
-    # solver is running. Do not treat a long-running solve as abandoned merely
-    # because more than five minutes have elapsed since it started.
-    heartbeat=job.updated_at or job.started_at
-    if heartbeat is not None:
-        if heartbeat.tzinfo is None:
-            heartbeat=heartbeat.replace(tzinfo=timezone.utc)
-        else:
-            heartbeat=heartbeat.astimezone(timezone.utc)
+    heartbeat=_utc(job.updated_at or job.started_at)
     stale=(job.finished_at is not None or (job.progress or 0)>=100)
     if job.stage=="Completed" or (job.progress or 0)>=99:stale=True
     elif heartbeat and now-heartbeat>STALE_AFTER:stale=True
