@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
-import type { Day, Lesson, Period, SchoolClass, Subject, Teacher, Room } from '../lib/scheduling'
+import type { Lesson, Period, SchoolClass, Subject, Teacher, Room, Day } from '../lib/scheduling'
 import { LockIcon } from './icons'
 import './timetable-time-grid.css'
 import './timetable-subject-colours.css'
@@ -9,6 +9,25 @@ type LessonMeta = { subjects: Map<number, Subject>; teachers: Map<number, Teache
 export type { LessonMeta }
 export const UNASSIGNED_DRAG_TYPE = 'application/x-phikila-unassigned'
 const SUBJECT_COLOURS = ['#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#0891B2', '#0F766E', '#4F46E5']
+
+type Props = {
+  days: Day[]
+  periods: Period[]
+  lessons: Lesson[]
+  meta: LessonMeta
+  conflicted?: Set<number>
+  selectedId?: number | null
+  readOnly?: boolean
+  zoom?: number
+  dense?: boolean
+  currentSlot?: { day: number; period: number } | null
+  onSelect?: (lesson: Lesson) => void
+  onMove?: (lesson: Lesson, day: number, period: number) => void
+  onResize?: (lesson: Lesson, duration: number) => void
+  onDropUnassigned?: (unassignedId: number, day: number, period: number) => void
+  secondary?: (lesson: Lesson) => string | null | undefined
+  teacherInitials?: boolean
+}
 function minutes(value: string) { const [hour, minute] = value.split(':').map(Number); return hour * 60 + minute }
 function initials(name: string | null | undefined) { if (!name) return ''; const parts = name.trim().split(/\s+/).filter(Boolean); return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') }
 function validColour(value: string | undefined, index: number) { return value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value : SUBJECT_COLOURS[index % SUBJECT_COLOURS.length] }
