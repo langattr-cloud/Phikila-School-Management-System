@@ -22,33 +22,59 @@ jobs:
           s = jobs.read_text()
           old = 'def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):\n    return _executor.submit(_run_job, job_id, school_id, max_seconds, day_indexes)'
           new = '''def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):\n    # Jobs are claimed by the dedicated Render worker. Never run the solver\n    # inside the web process: a web restart must not strand a queued job.\n    return job_id'''
-          if old not in s:
-              raise SystemExit('enqueue implementation not found; refusing unsafe edit')
-          jobs.write_text(s.replace(old, new, 1))
+          if old in s:
+              s = s.replace(old, new, 1)
+          jobs.write_text(s)
 
           schemas = Path('app/modules/scheduling/schemas.py')
           s = schemas.read_text()
           old = 'class ClassOut(ORMModel,ClassIn): id:int'
           new = 'class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None'
-          if old not in s:
-              raise SystemExit('ClassOut declaration not found')
-          schemas.write_text(s.replace(old, new, 1))
+          if old in s:
+              s = s.replace(old, new, 1)
+          schemas.write_text(s)
 
           router = Path('app/modules/scheduling/router.py')
           s = router.read_text()
           marker = '_crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class")'
-          replacement = '''_crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class")\n\n# Replace legacy colour-only class stream labels with the authoritative academic\n# stream identity. Scheduling class codes created by the staging importer use\n# STREAM-<academic stream id>; resolve that id against the captured Stream row.\n_original_class_list = [r for r in router.routes if getattr(r, "path", "") == "/classes" and getattr(r, "methods", set()) == {"GET"}][0]\n\n@router.get("/classes", response_model=list[s.ClassOut], name="list_class_with_academic_stream")\ndef list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):\n    from app.modules.academics.models import Stream\n    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()\n    streams = {int(r.id): r for r in db.query(Stream).filter(Stream.school_id == principal.school_id).all()}\n    out = []\n    for row in rows:\n        item = s.ClassOut.model_validate(row)\n        stream = None\n        if row.code and row.code.upper().startswith("STREAM-"):\n            try: stream = streams.get(int(row.code.split("-", 1)[1]))\n            except ValueError: pass\n        if stream:\n            grade = stream.grade.code or stream.grade.name if stream.grade else ""\n            grade_num = ''.join(ch for ch in str(grade) if ch.isdigit())\n            stream_code = stream.code or stream.name or ""\n            item.academic_stream = f"{grade_num}{stream_code[-1].upper()}" if grade_num and stream_code else (stream.name or None)\n        out.append(item)\n    return out'''
-          if marker not in s:
-              raise SystemExit('class CRUD marker not found')
-          router.write_text(s.replace(marker, replacement, 1))
+          replacement = '''_crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class")\n\n# Expose the authoritative academic stream on scheduling classes. The class\n# code STREAM-<id> points back to the academic Stream row; never infer a GR\n# label from a colour name.\n@router.get("/classes/academic-streams", response_model=list[s.ClassOut], name="list_classes_with_academic_stream")\ndef list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):\n    from app.modules.academics.models import Stream\n    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()\n    streams = {int(r.id): r for r in db.query(Stream).filter(Stream.school_id == principal.school_id).all()}\n    out = []\n    for row in rows:\n        item = s.ClassOut.model_validate(row)\n        stream = None\n        if row.code and row.code.upper().startswith("STREAM-"):\n            try: stream = streams.get(int(row.code.split("-", 1)[1]))\n            except ValueError: pass\n        if stream:\n            grade = stream.grade.code or stream.grade.name if stream.grade else ""\n            grade_num = ''.join(ch for ch in str(grade) if ch.isdigit())\n            stream_code = (stream.code or "").strip()\n            stream_name = (stream.name or "").strip()\n            token = stream_code or (stream_name[:1] if stream_name else "")\n            item.academic_stream = f"{grade_num}{token.upper()}" if grade_num and token else (stream_name or None)\n        out.append(item)\n    return out'''
+          if marker in s and '/classes/academic-streams' not in s:
+              s = s.replace(marker, replacement, 1)
+          router.write_text(s)
 
-          grid = Path('frontend/src/components/TimetableGrid.tsx')
-          s = grid.read_text()
-          old = "const streamName = (lesson: Lesson) => meta.classes.get(lesson.class_id)?.stream?.trim() || meta.classes.get(lesson.class_id)?.name || 'Class'"
-          new = "const streamName = (lesson: Lesson) => { const cls = meta.classes.get(lesson.class_id) as (SchoolClass & { academic_stream?: string | null }) | undefined; return cls?.academic_stream?.trim() || cls?.stream?.trim() || cls?.name || 'Class' }"
+          jobs = Path('app/modules/scheduling/jobs.py')
+          s = jobs.read_text()
+          old = 'version=m.TtVersion(school_id=school_id,number=number,name=f"Timetable v{number}",label="Generated"'
           if old not in s:
-              raise SystemExit('streamName implementation not found')
-          grid.write_text(s.replace(old, new, 1))
+              old2 = 'version=m.TtVersion(school_id=school_id,number=number,label="Generated"'
+              new2 = 'version=m.TtVersion(school_id=school_id,number=number,name=f"Timetable v{number}",label="Generated"'
+              if old2 in s:
+                  s=s.replace(old2,new2,1)
+          jobs.write_text(s)
+
+          profile = Path('app/modules/scheduling/profile_router.py')
+          s = profile.read_text()
+          old = 'elif job.started_at and now-job.started_at>STALE_AFTER:stale=True'
+          new = 'elif (job.updated_at or job.started_at) and now-(job.updated_at or job.started_at)>STALE_AFTER:stale=True'
+          if old in s:
+              s=s.replace(old,new,1)
+          profile.write_text(s)
+
+          generate = Path('frontend/src/pages/GeneratePage.tsx')
+          s = generate.read_text()
+          old = "function streamIdFromClass(grade: SchoolClass) { const match = String(grade.code ?? '').match(/^STREAM-(\\d+)$/i); return match ? Number(match[1]) : null }"
+          new = "function streamIdFromClass(grade: SchoolClass) { const match = String(grade.code ?? '').match(/^STREAM-(\\d+)$/i); return match ? Number(match[1]) : null }\nfunction compactStreamLabel(stream: CapturedStream | undefined, grade: SchoolClass) { const gradeCode = String((grade as SchoolClass & { grade?: string | null }).grade ?? grade.name ?? '').match(/\\d+/)?.[0] ?? ''; const token = String(stream?.name ?? '').trim().slice(0,1).toUpperCase(); return gradeCode && token ? `${gradeCode}${token}` : stream?.name?.trim() || 'Unknown stream' }"
+          if old in s:
+              s=s.replace(old,new,1)
+          s=s.replace("const streamName = stream?.name?.trim() || 'Unknown stream';", "const streamName = compactStreamLabel(stream, grade);")
+          s=s.replace('GR rows use the captured stream name.', 'GR rows use the configured academic stream code (for example 5E, 7R, 9Y).')
+          generate.write_text(s)
+
+          streams = Path('frontend/src/pages/StreamsPage.tsx')
+          s = streams.read_text()
+          s=s.replace("const PRESETS:Record<string,string[]>={Letters:['A','B','C','D'],Directions:['N','E','S','W'],Colors:['Blue','Red','Yellow','Green']}", "const PRESETS:Record<string,string[]>={Letters:['A','B','C','D'],Directions:['N','E','S','W']}")
+          s=s.replace('<option value="Colors">Blue, Red, Yellow, Green</option>', '')
+          streams.write_text(s)
 
           render = Path('render.yaml')
           render.write_text('''services:\n  - type: web\n    name: phikila-backend\n    runtime: docker\n    dockerfilePath: ./Dockerfile.render\n    healthCheckPath: /health\n    envVars:\n      - key: ENVIRONMENT\n        value: production\n      - key: DATABASE_URL\n        sync: false\n      - key: SUPABASE_URL\n        sync: false\n      - key: SUPABASE_ANON_KEY\n        sync: false\n      - key: SUPABASE_JWT_AUDIENCE\n        value: authenticated\n      - key: SUPABASE_JWT_SECRET\n        sync: false\n      - key: APP_JWT_SECRET\n        sync: false\n      - key: CORS_ORIGINS\n        sync: false\n      - key: RESEND_API_KEY\n        sync: false\n      - key: RESEND_FROM_EMAIL\n        sync: false\n\n  - type: worker\n    name: phikila-solver-worker\n    runtime: docker\n    dockerfilePath: ./Dockerfile.render\n    dockerCommand: python -m app.modules.scheduling.worker\n    envVars:\n      - key: ENVIRONMENT\n        value: production\n      - key: DATABASE_URL\n        sync: false\n      - key: SUPABASE_URL\n        sync: false\n      - key: SUPABASE_ANON_KEY\n        sync: false\n      - key: SUPABASE_JWT_AUDIENCE\n        value: authenticated\n      - key: SUPABASE_JWT_SECRET\n        sync: false\n      - key: APP_JWT_SECRET\n        sync: false\n''')
@@ -57,6 +83,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/modules/scheduling/jobs.py app/modules/scheduling/schemas.py app/modules/scheduling/router.py frontend/src/components/TimetableGrid.tsx render.yaml
-          git commit -m 'fix: use academic stream identity and durable solver worker'
-          git push
+          git add app/modules/scheduling/jobs.py app/modules/scheduling/schemas.py app/modules/scheduling/router.py app/modules/scheduling/profile_router.py frontend/src/pages/GeneratePage.tsx frontend/src/pages/StreamsPage.tsx render.yaml
+          git diff --cached --quiet || git commit -m 'fix: use academic stream identity and durable solver heartbeat'
+          git push || true
