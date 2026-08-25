@@ -42,8 +42,12 @@ def create_job(db: Session, school_id: int, actor: str | None):
     db.add(job); db.commit(); db.refresh(job); return job
 
 def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):
-    # Jobs are claimed by the dedicated Render worker. Never run the solver
-    # inside the web process: a web restart must not strand a queued job.
+    """Submit a queued solver job to the in-process worker pool.
+
+    The web service currently has no separate Render worker attached to the
+    queue, so simply returning the job id leaves jobs permanently queued.
+    """
+    _executor.submit(_run_job, job_id, school_id, max_seconds, day_indexes)
     return job_id
 
 def _ensure_calendar(db: Session, school_id: int):
