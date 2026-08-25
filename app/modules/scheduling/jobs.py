@@ -12,7 +12,7 @@ from .solver import ORTOOLS_AVAILABLE, preflight, solve
 logger=logging.getLogger(__name__)
 _WORKERS=2
 _executor=ThreadPoolExecutor(max_workers=_WORKERS,thread_name_prefix="phikila-solver")
-CHECKS=[{"key":"teacher_conflicts","label":"Teacher conflicts","group":"hard"},{"key":"class_conflicts","label":"Class conflicts","group":"hard"},{"key":"room_conflicts","label":"Room conflicts","group":"hard"},{"key":"availability","label":"Availability","group":"hard"},{"key":"double_lessons","label":"Double lessons","group":"hard"},{"key":"workload","label":"Workload balance","group":"soft"},{"key":"distribution","label":"Subject distribution","group":"soft"},{"key":"preferences","label":"Time preferences","group":"soft"}]
+CHECKS=[{"key":"teacher_conflicts","label":"Teacher conflicts","group":"hard"},{"key":"class_conflicts","label":"Class conflicts","group":"hard"},{"key":"room_conflicts","label":"Room conflicts","group":"hard"},{"key":"availability","label":"Availability","group":"hard"},{"key":"double_lessons","label":"Double lessons","group":"hard"},{"key":"workload","label":"Workload balance","group":"soft"},{"key":"distribution","label":"Subject distribution","group":"soft"}]
 DEFAULT_DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday"]
 DEFAULT_PERIODS=[(0,"P1","08:00","08:45",True),(1,"P2","08:45","09:30",True),(2,"P3","09:30","10:15",True),(3,"Break","10:15","10:45",False),(4,"P4","10:45","11:30",True),(5,"P5","11:30","12:15",True),(6,"P6","12:15","13:00",True),(7,"Lunch","13:00","14:00",False),(8,"P7","14:00","14:45",True),(9,"P8","14:45","15:30",True)]
 def initial_checks(): return [{**c,"state":"pending"} for c in CHECKS]
@@ -38,6 +38,8 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             for d in days:d.is_active=d.index in requested
             db.commit()
         data=build_input(db,school_id,max_seconds=max_seconds)
+        # Time preferences are intentionally not part of timetable generation.
+        data.weights.morning_preference=0 if hasattr(data.weights,"morning_preference") else 0
         problems=preflight(data)
         if problems:return _fail(db,job," ".join(problems))
         def cancelled():
@@ -52,6 +54,9 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             if pct>=84:row.status="validating"
             row.checks=checks;db.commit()
         result=solve(data,on_progress=report,should_cancel=cancelled)
+        # Never expose or persist time-preference quality data.
+        if isinstance(result.quality,dict):
+            result.quality.pop("morning_preference",None)
         if result.status=="cancelled" or cancelled():
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
             if job:job.status="cancelled";job.stage="Cancelled";job.finished_at=datetime.utcnow();job.message="Generation was cancelled.";db.commit()
@@ -71,7 +76,7 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
                 job.result_version_id=version.id;job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"failed");job.message=f"Generation completed but {len(hard_conflicts)} hard conflict(s) prevented automatic publication.";db.commit();_fail(db,job,job.message)
             return
         db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id,m.TtVersion.status=="published").update({"status":"archived"})
-        version.status="published";version.published_at=datetime.utcnow();breakdown=result.quality.get("breakdown",{});checks=job.checks or initial_checks();checks=_set_checks(checks,["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed");checks=_set_checks(checks,["workload","distribution"],"passed");checks=_set_checks(checks,["preferences"],"passed" if breakdown.get("morning_preference",100)>=90 else "warning")
+        version.status="published";version.published_at=datetime.utcnow();checks=job.checks or initial_checks();checks=_set_checks(checks,["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed");checks=_set_checks(checks,["workload","distribution"],"passed")
         job.checks=checks;job.status="completed";job.stage="Completed";job.progress=100;job.result_version_id=version.id;job.quality=result.quality;job.finished_at=datetime.utcnow();db.commit();db.add(m.TtAuditEntry(school_id=school_id,actor=job.created_by,action="generate",entity="version",entity_id=version.id,summary=f"Generated and published timetable v{version.number} ({version.label or 'Generated'})"));db.commit()
     except Exception:
         logger.exception("Solver job %s failed",job_id)
