@@ -160,6 +160,31 @@ _crud("teachers", m.TtTeacher, s.TeacherIn, s.TeacherOut, "teacher")
 _crud("subjects", m.TtSubject, s.SubjectIn, s.SubjectOut, "subject")
 _crud("rooms", m.TtRoom, s.RoomIn, s.RoomOut, "room")
 _crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class")
+
+# Replace legacy colour-only class stream labels with the authoritative academic
+# stream identity. Scheduling class codes created by the staging importer use
+# STREAM-<academic stream id>; resolve that id against the captured Stream row.
+_original_class_list = [r for r in router.routes if getattr(r, "path", "") == "/classes" and getattr(r, "methods", set()) == {"GET"}][0]
+
+@router.get("/classes", response_model=list[s.ClassOut], name="list_class_with_academic_stream")
+def list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
+    from app.modules.academics.models import Stream
+    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()
+    streams = {int(r.id): r for r in db.query(Stream).filter(Stream.school_id == principal.school_id).all()}
+    out = []
+    for row in rows:
+        item = s.ClassOut.model_validate(row)
+        stream = None
+        if row.code and row.code.upper().startswith("STREAM-"):
+            try: stream = streams.get(int(row.code.split("-", 1)[1]))
+            except ValueError: pass
+        if stream:
+            grade = stream.grade.code or stream.grade.name if stream.grade else ""
+            grade_num = ''.join(ch for ch in str(grade) if ch.isdigit())
+            stream_code = stream.code or stream.name or ""
+            item.academic_stream = f"{grade_num}{stream_code[-1].upper()}" if grade_num and stream_code else (stream.name or None)
+        out.append(item)
+    return out
 _crud("constraints", m.TtConstraint, s.ConstraintIn, s.ConstraintOut, "constraint")
 
 

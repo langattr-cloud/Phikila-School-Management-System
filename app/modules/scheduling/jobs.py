@@ -42,7 +42,9 @@ def create_job(db: Session, school_id: int, actor: str | None):
     db.add(job); db.commit(); db.refresh(job); return job
 
 def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):
-    return _executor.submit(_run_job, job_id, school_id, max_seconds, day_indexes)
+    # Jobs are claimed by the dedicated Render worker. Never run the solver
+    # inside the web process: a web restart must not strand a queued job.
+    return job_id
 
 def _ensure_calendar(db: Session, school_id: int):
     if db.query(m.TtDay).filter(m.TtDay.school_id == school_id).count() == 0:
