@@ -10,7 +10,6 @@ import { Link } from '../lib/router'
 import { scheduling, type Calendar, type Event, type SchoolClass, type Teacher, type TimetableView } from '../lib/scheduling'
 
 type Scope = 'class' | 'teacher'
-
 type SubjectOption = { id: number; name: string; code?: string }
 
 function canReviewGeneratedDraft(role?: string) {
@@ -19,69 +18,34 @@ function canReviewGeneratedDraft(role?: string) {
   return index >= order.indexOf('scheduler')
 }
 
-function buildView(
-  calendar: Calendar,
-  version: NonNullable<TimetableView['version']>,
-  lessons: Array<{ day_index: number; period_index: number; subject_id: number; teacher_id: number; class_id: number }>,
-  subjects: SubjectOption[],
-  teachers: Array<{ id: number; name: string; code?: string; staff_number?: string }>,
-  classes: Array<{ id: number; name: string; code?: string }>,
-  scope: Scope,
-  targetId: number,
-): TimetableView {
+function buildView(calendar: Calendar, version: NonNullable<TimetableView['version']>, lessons: Array<{ day_index: number; period_index: number; subject_id: number; teacher_id: number; class_id: number }>, subjects: SubjectOption[], teachers: Array<{ id: number; name: string; code?: string; staff_number?: string }>, classes: Array<{ id: number; name: string; code?: string }>, scope: Scope, targetId: number): TimetableView {
   const subjectCode = new Map(subjects.map((item) => [item.id, item.code?.trim() || item.name]))
   const teacherCode = new Map(teachers.map((item) => [item.id, item.code?.trim() || item.staff_number?.trim() || item.name]))
   const classCode = new Map(classes.map((item) => [item.id, item.code?.trim() || item.name]))
-  const target = scope === 'teacher'
-    ? teachers.find((item) => item.id === targetId)?.name
-    : classes.find((item) => item.id === targetId)?.name
+  const target = scope === 'teacher' ? teachers.find((item) => item.id === targetId)?.name : classes.find((item) => item.id === targetId)?.name
   return {
     version,
     target_name: target,
     days: calendar.days.filter((day) => day.is_active).map((day) => ({ index: day.index, name: day.name })),
     periods: calendar.periods.map((period) => ({ index: period.index, name: period.name, start_time: period.start_time, end_time: period.end_time, is_teaching: period.is_teaching })),
-    lessons: lessons.map((lesson) => ({
-      day: lesson.day_index,
-      period: lesson.period_index,
-      subject: subjectCode.get(lesson.subject_id) ?? 'Unknown subject',
-      teacher: teacherCode.get(lesson.teacher_id) ?? null,
-      class: classCode.get(lesson.class_id) ?? 'Unknown class',
-    })),
+    lessons: lessons.map((lesson) => ({ day: lesson.day_index, period: lesson.period_index, subject: subjectCode.get(lesson.subject_id) ?? 'Unknown subject', teacher: teacherCode.get(lesson.teacher_id) ?? null, class: classCode.get(lesson.class_id) ?? 'Unknown class' })),
   }
 }
 
-// Published-view endpoints historically returned display names in the lesson
-// strings. The grid must never use those names: resolve them back to the
-// authoritative codes before rendering. This also handles already-correct
-// code values without changing them.
-function normalisePublishedView(
-  view: TimetableView,
-  subjects: SubjectOption[],
-  teachers: Teacher[],
-  classes: SchoolClass[],
-): TimetableView {
+function normalisePublishedView(view: TimetableView, subjects: SubjectOption[], teachers: Teacher[], classes: SchoolClass[]): TimetableView {
   const subjectByName = new Map(subjects.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.name]))
   const subjectByCode = new Set(subjects.map((item) => item.code?.trim()).filter(Boolean))
   const teacherByName = new Map(teachers.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.staff_number?.trim() || item.name]))
   const teacherByCode = new Set(teachers.flatMap((item) => [item.code?.trim(), item.staff_number?.trim()]).filter(Boolean))
   const classByName = new Map(classes.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.name]))
   const classByCode = new Set(classes.map((item) => item.code?.trim()).filter(Boolean))
-
   return {
     ...view,
     lessons: view.lessons.map((lesson) => ({
       ...lesson,
-      subject: lesson.subject && subjectByCode.has(lesson.subject.trim())
-        ? lesson.subject.trim()
-        : subjectByName.get(lesson.subject.trim().toLowerCase()) ?? lesson.subject,
-      teacher: lesson.teacher
-        ? (teacherByCode.has(lesson.teacher.trim())
-          ? lesson.teacher.trim()
-          : teacherByName.get(lesson.teacher.trim().toLowerCase()) ?? lesson.teacher)
-        : null,
-      class: classByCode.has(lesson.class.trim())
-        ? lesson.class.trim()
-        : classByName.get(lesson.class.trim().toLowerCase()) ?? lesson.class,
+      subject: lesson.subject && subjectByCode.has(lesson.subject.trim()) ? lesson.subject.trim() : subjectByName.get(lesson.subject.trim().toLowerCase()) ?? lesson.subject,
+      teacher: lesson.teacher ? (teacherByCode.has(lesson.teacher.trim()) ? lesson.teacher.trim() : teacherByName.get(lesson.teacher.trim().toLowerCase()) ?? lesson.teacher) : null,
+      class: classByCode.has(lesson.class.trim()) ? lesson.class.trim() : classByName.get(lesson.class.trim().toLowerCase()) ?? lesson.class,
     })),
   }
 }
@@ -101,25 +65,16 @@ export function MyTimetablePage() {
   useEffect(() => {
     let active = true
     cachedFetch('mytt:options', async () => {
-      const [classes, teachers, subjects, me] = await Promise.all([
-        scheduling.classes(), scheduling.teachers(), scheduling.subjects(), scheduling.me(),
-      ])
+      const [classes, teachers, subjects, me] = await Promise.all([scheduling.classes(), scheduling.teachers(), scheduling.subjects(), scheduling.me()])
       return { classes, teachers, subjects, me }
     }).then((result) => {
       if (!active) return
       const { classes, teachers, subjects, me } = result.data
       setOptions({ classes, teachers, subjects })
       setCanReviewDraft(canReviewGeneratedDraft(me.role))
-      if (me.teacher_id) {
-        setIsTeacher(true)
-        setScope('teacher')
-        setTargetId(me.teacher_id)
-      } else if (me.class_id) {
-        setScope('class')
-        setTargetId(me.class_id)
-      } else {
-        setTargetId(classes[0]?.id ?? null)
-      }
+      if (me.teacher_id) { setIsTeacher(true); setScope('teacher'); setTargetId(me.teacher_id) }
+      else if (me.class_id) { setScope('class'); setTargetId(me.class_id) }
+      else setTargetId(classes[0]?.id ?? null)
     }).catch(() => { if (active) setError('Could not load your school data.') }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [])
@@ -131,20 +86,10 @@ export function MyTimetablePage() {
     setError(null)
     const load = async () => {
       if (!canReviewDraft) {
-        const [result, eventRows] = await Promise.all([
-          cachedFetch(`mytt:${scope}:${targetId}`, () => scheduling.view(scope, targetId)),
-          scheduling.events(),
-        ])
-        return {
-          view: normalisePublishedView(result.data, options.subjects, options.teachers, options.classes),
-          events: eventRows,
-          savedAt: result.stale ? result.savedAt : null,
-        }
+        const [result, eventRows] = await Promise.all([cachedFetch(`mytt:${scope}:${targetId}`, () => scheduling.view(scope, targetId)), scheduling.events()])
+        return { view: normalisePublishedView(result.data, options.subjects, options.teachers, options.classes), events: eventRows, savedAt: result.stale ? result.savedAt : null }
       }
-
-      const [calendar, versions, subjects, teachers, classes, eventRows] = await Promise.all([
-        scheduling.calendar(), scheduling.versions(), scheduling.subjects(), scheduling.teachers(), scheduling.classes(), scheduling.events(),
-      ])
+      const [calendar, versions, subjects, teachers, classes, eventRows] = await Promise.all([scheduling.calendar(), scheduling.versions(), scheduling.subjects(), scheduling.teachers(), scheduling.classes(), scheduling.events()])
       const version = [...versions].sort((a, b) => (b.number ?? b.id) - (a.number ?? a.id))[0]
       if (!version) return { view: null, events: eventRows, savedAt: null }
       const allLessons = await scheduling.lessons(version.id)
@@ -158,7 +103,7 @@ export function MyTimetablePage() {
   const targets = scope === 'class' ? (options?.classes ?? []) : (options?.teachers ?? [])
   const isDraft = view?.version?.status === 'draft'
   if (loading && !view) return <><PageHeader title="My timetable" description="Your personal school timetable." /><div className="card section"><LoadingBlock label="Loading your timetable" rows={6} /></div></>
-  if (error && !view) return <><PageHeader title="My timetable" /><ErrorState title="Timetable could not load" message={error} /></ErrorState></> 
+  if (error && !view) return <><PageHeader title="My timetable" /><ErrorState title="Timetable could not load" message={error} /></>
   return <>
     <PageHeader title={scope === 'teacher' ? `Teacher: ${view?.target_name ?? ''}` : 'My timetable'} description="Your current generated timetable." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My timetable' }]} actions={view?.version && canReviewDraft && isDraft ? <Link className="button button--secondary button--sm" to={`/timetable?version=${view.version.id}`}>Edit timetable</Link> : undefined} />
     {stale && <Alert tone="info" title="Offline copy">Saved on this device {formatSavedAt(stale)}. It will refresh when you reconnect.</Alert>}
