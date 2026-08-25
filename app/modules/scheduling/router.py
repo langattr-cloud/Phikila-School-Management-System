@@ -161,6 +161,31 @@ _crud("subjects", m.TtSubject, s.SubjectIn, s.SubjectOut, "subject")
 _crud("rooms", m.TtRoom, s.RoomIn, s.RoomOut, "room")
 _crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class")
 
+# Expose the authoritative academic stream on scheduling classes. The class
+# code STREAM-<id> points back to the academic Stream row; never infer a GR
+# label from a colour name.
+@router.get("/classes/academic-streams", response_model=list[s.ClassOut], name="list_classes_with_academic_stream")
+def list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
+    from app.modules.academics.models import Stream
+    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()
+    streams = {int(r.id): r for r in db.query(Stream).filter(Stream.school_id == principal.school_id).all()}
+    out = []
+    for row in rows:
+        item = s.ClassOut.model_validate(row)
+        stream = None
+        if row.code and row.code.upper().startswith("STREAM-"):
+            try: stream = streams.get(int(row.code.split("-", 1)[1]))
+            except ValueError: pass
+        if stream:
+            grade = stream.grade.code or stream.grade.name if stream.grade else ""
+            grade_num = ''.join(ch for ch in str(grade) if ch.isdigit())
+            stream_code = (stream.code or "").strip()
+            stream_name = (stream.name or "").strip()
+            token = stream_code or (stream_name[:1] if stream_name else "")
+            item.academic_stream = f"{grade_num}{token.upper()}" if grade_num and token else (stream_name or None)
+        out.append(item)
+    return out
+
 # Replace legacy colour-only class stream labels with the authoritative academic
 # stream identity. Scheduling class codes created by the staging importer use
 # STREAM-<academic stream id>; resolve that id against the captured Stream row.
