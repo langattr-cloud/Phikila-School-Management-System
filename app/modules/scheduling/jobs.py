@@ -18,13 +18,18 @@ DEFAULT_PERIODS=[(0,"P1","08:00","08:45",True),(1,"P2","08:45","09:30",True),(2,
 def initial_checks(): return [{**c,"state":"pending"} for c in CHECKS]
 def create_job(db:Session,school_id:int,actor:str|None):
     job=m.TtSolverJob(school_id=school_id,status="queued",stage="Queued",progress=0,checks=initial_checks(),created_by=actor);db.add(job);db.commit();db.refresh(job);return job
-def enqueue(job_id:int,school_id:int,max_seconds:float=30.0,day_indexes:list[int]|None=None):
-    return _executor.submit(_run_job,job_id,school_id,max_seconds,day_indexes)
+def enqueue(job_id:int,school_id:int,max_seconds:float=30.0,day_indexes:list[int]|None=None): return _executor.submit(_run_job,job_id,school_id,max_seconds,day_indexes)
 def _ensure_calendar(db:Session,school_id:int):
     if db.query(m.TtDay).filter(m.TtDay.school_id==school_id).count()==0: db.add_all([m.TtDay(school_id=school_id,index=i,name=n,day_of_week=i,is_active=True) for i,n in enumerate(DEFAULT_DAYS)])
     if db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).count()==0: db.add_all([m.TtPeriod(school_id=school_id,index=i,name=n,start_time=s,end_time=e,is_teaching=t) for i,n,s,e,t in DEFAULT_PERIODS])
     db.commit()
 def _set_checks(checks,keys,state): return [{**c,"state":state} if c["key"] in keys else c for c in checks]
+def _actor_uuid(db,school_id,actor):
+    if not actor:return None
+    membership=db.query(m.TtMembership).filter(m.TtMembership.school_id==school_id,m.TtMembership.user_id==actor).first()
+    if membership:return membership.user_id
+    membership=db.query(m.TtMembership).filter(m.TtMembership.school_id==school_id,m.TtMembership.email==actor).first()
+    return membership.user_id if membership else actor
 def _run_job(job_id,school_id,max_seconds,day_indexes=None):
     db=SessionLocal(); original_days=None
     try:
@@ -38,8 +43,6 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             for d in days:d.is_active=d.index in requested
             db.commit()
         data=build_input(db,school_id,max_seconds=max_seconds)
-        # Time preferences are intentionally not part of timetable generation.
-        data.weights.morning_preference=0 if hasattr(data.weights,"morning_preference") else 0
         problems=preflight(data)
         if problems:return _fail(db,job," ".join(problems))
         def cancelled():
@@ -54,9 +57,6 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             if pct>=84:row.status="validating"
             row.checks=checks;db.commit()
         result=solve(data,on_progress=report,should_cancel=cancelled)
-        # Never expose or persist time-preference quality data.
-        if isinstance(result.quality,dict):
-            result.quality.pop("morning_preference",None)
         if result.status=="cancelled" or cancelled():
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
             if job:job.status="cancelled";job.stage="Cancelled";job.finished_at=datetime.utcnow();job.message="Generation was cancelled.";db.commit()
@@ -68,7 +68,7 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
         if double_problems:
             job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"failed");db.commit();return _fail(db,job," ".join(double_problems))
         job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"passed");db.commit()
-        version=_persist(db,school_id,result,job.created_by)
+        version=_persist(db,school_id,result,_actor_uuid(db,school_id,job.created_by))
         conflicts=detect_conflicts(db,school_id,version.id);hard_conflicts=[c for c in conflicts if c.severity=="hard"]
         if hard_conflicts:
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
