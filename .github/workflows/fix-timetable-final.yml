@@ -49,7 +49,11 @@ jobs:
 
           scheduling = Path('frontend/src/lib/scheduling.ts')
           s = scheduling.read_text()
-          s=s.replace('export interface SchoolClass extends Loose { id: number; name: string;', 'export interface SchoolClass extends Loose { id: number; name: string; academic_stream?: string | null;')
+          # Make this repair idempotent: normalize any accidental duplicate
+          # academic_stream declarations back to exactly one declaration.
+          import re
+          s = re.sub(r' academic_stream\?: string \| null;', '', s)
+          s = s.replace('export interface SchoolClass extends Loose { id: number; name: string;', 'export interface SchoolClass extends Loose { id: number; name: string; academic_stream?: string | null;', 1)
           s=s.replace("classes: () => get<SchoolClass[]>('/classes')", "classes: () => get<SchoolClass[]>('/classes/academic-streams')")
           scheduling.write_text(s)
 
@@ -59,6 +63,8 @@ jobs:
           new = "function compactStreamLabel(stream: CapturedStream | undefined, grade: SchoolClass) { const authoritative = String((grade as SchoolClass & { academic_stream?: string | null }).academic_stream ?? '').trim(); if (authoritative) return authoritative; const gradeCode = String((grade as SchoolClass & { grade?: string | null }).grade ?? grade.name ?? '').match(/\\d+/)?.[0] ?? ''; const token = String(stream?.code ?? stream?.name ?? '').trim().slice(0,1).toUpperCase(); return gradeCode && token ? `${gradeCode}${token}` : stream?.name?.trim() || 'Unknown stream' }"
           if old in s: s=s.replace(old,new,1)
           s=s.replace('GR rows use the captured stream name.', 'GR rows use the configured academic stream code (for example 5E, 7R, 9Y).')
+          # CapturedStream must include code because the renderer consumes it.
+          s=s.replace('type CapturedStream = { id:number; name:string; academic_year_id?:number|null; grade_id?:number|null }', 'type CapturedStream = { id:number; name:string; code?:string; academic_year_id?:number|null; grade_id?:number|null }')
           generate.write_text(s)
 
           streams = Path('frontend/src/pages/StreamsPage.tsx')
