@@ -1,0 +1,62 @@
+name: Final timetable repair
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair durable solver and stream identity
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          jobs = Path('app/modules/scheduling/jobs.py')
+          s = jobs.read_text()
+          old = 'def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):\n    return _executor.submit(_run_job, job_id, school_id, max_seconds, day_indexes)'
+          new = '''def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):\n    # Jobs are claimed by the dedicated Render worker. Never run the solver\n    # inside the web process: a web restart must not strand a queued job.\n    return job_id'''
+          if old not in s:
+              raise SystemExit('enqueue implementation not found; refusing unsafe edit')
+          jobs.write_text(s.replace(old, new, 1))
+
+          schemas = Path('app/modules/scheduling/schemas.py')
+          s = schemas.read_text()
+          old = 'class ClassOut(ORMModel,ClassIn): id:int'
+          new = 'class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None'
+          if old not in s:
+              raise SystemExit('ClassOut declaration not found')
+          schemas.write_text(s.replace(old, new, 1))
+
+          router = Path('app/modules/scheduling/router.py')
+          s = router.read_text()
+          marker = '_crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class")'
+          replacement = '''_crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class")\n\n# Replace legacy colour-only class stream labels with the authoritative academic\n# stream identity. Scheduling class codes created by the staging importer use\n# STREAM-<academic stream id>; resolve that id against the captured Stream row.\n_original_class_list = [r for r in router.routes if getattr(r, "path", "") == "/classes" and getattr(r, "methods", set()) == {"GET"}][0]\n\n@router.get("/classes", response_model=list[s.ClassOut], name="list_class_with_academic_stream")\ndef list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):\n    from app.modules.academics.models import Stream\n    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()\n    streams = {int(r.id): r for r in db.query(Stream).filter(Stream.school_id == principal.school_id).all()}\n    out = []\n    for row in rows:\n        item = s.ClassOut.model_validate(row)\n        stream = None\n        if row.code and row.code.upper().startswith("STREAM-"):\n            try: stream = streams.get(int(row.code.split("-", 1)[1]))\n            except ValueError: pass\n        if stream:\n            grade = stream.grade.code or stream.grade.name if stream.grade else ""\n            grade_num = ''.join(ch for ch in str(grade) if ch.isdigit())\n            stream_code = stream.code or stream.name or ""\n            item.academic_stream = f"{grade_num}{stream_code[-1].upper()}" if grade_num and stream_code else (stream.name or None)\n        out.append(item)\n    return out'''
+          if marker not in s:
+              raise SystemExit('class CRUD marker not found')
+          router.write_text(s.replace(marker, replacement, 1))
+
+          grid = Path('frontend/src/components/TimetableGrid.tsx')
+          s = grid.read_text()
+          old = "const streamName = (lesson: Lesson) => meta.classes.get(lesson.class_id)?.stream?.trim() || meta.classes.get(lesson.class_id)?.name || 'Class'"
+          new = "const streamName = (lesson: Lesson) => { const cls = meta.classes.get(lesson.class_id) as (SchoolClass & { academic_stream?: string | null }) | undefined; return cls?.academic_stream?.trim() || cls?.stream?.trim() || cls?.name || 'Class' }"
+          if old not in s:
+              raise SystemExit('streamName implementation not found')
+          grid.write_text(s.replace(old, new, 1))
+
+          render = Path('render.yaml')
+          render.write_text('''services:\n  - type: web\n    name: phikila-backend\n    runtime: docker\n    dockerfilePath: ./Dockerfile.render\n    healthCheckPath: /health\n    envVars:\n      - key: ENVIRONMENT\n        value: production\n      - key: DATABASE_URL\n        sync: false\n      - key: SUPABASE_URL\n        sync: false\n      - key: SUPABASE_ANON_KEY\n        sync: false\n      - key: SUPABASE_JWT_AUDIENCE\n        value: authenticated\n      - key: SUPABASE_JWT_SECRET\n        sync: false\n      - key: APP_JWT_SECRET\n        sync: false\n      - key: CORS_ORIGINS\n        sync: false\n      - key: RESEND_API_KEY\n        sync: false\n      - key: RESEND_FROM_EMAIL\n        sync: false\n\n  - type: worker\n    name: phikila-solver-worker\n    runtime: docker\n    dockerfilePath: ./Dockerfile.render\n    dockerCommand: python -m app.modules.scheduling.worker\n    envVars:\n      - key: ENVIRONMENT\n        value: production\n      - key: DATABASE_URL\n        sync: false\n      - key: SUPABASE_URL\n        sync: false\n      - key: SUPABASE_ANON_KEY\n        sync: false\n      - key: SUPABASE_JWT_AUDIENCE\n        value: authenticated\n      - key: SUPABASE_JWT_SECRET\n        sync: false\n      - key: APP_JWT_SECRET\n        sync: false\n''')
+          PY
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/modules/scheduling/jobs.py app/modules/scheduling/schemas.py app/modules/scheduling/router.py frontend/src/components/TimetableGrid.tsx render.yaml
+          git commit -m 'fix: use academic stream identity and durable solver worker'
+          git push
