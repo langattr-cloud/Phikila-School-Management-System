@@ -19,7 +19,7 @@ export interface Subject extends Loose { id: number; name: string; code?: string
 export interface SubjectInput extends Loose {}
 export interface Room extends Loose { id: number; name: string; code?: string; room_type?: string }
 export interface RoomInput extends Loose {}
-export interface SchoolClass extends Loose { id: number; name: string; academic_stream?: string | null; academic_stream?: string | null; code?: string; grade?: string | null; stream?: string | null; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; unavailable?: Slots }
+export interface SchoolClass extends Loose { id: number; name: string; academic_stream?: string | null; code?: string; grade?: string | null; stream?: string | null; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; unavailable?: Slots }
 export interface SchoolClassInput { name: string; code: string; grade: string | null; stream?: string | null; student_count: number; home_room_id: number | null; class_teacher_id: number | null; unavailable: Slots }
 export interface Requirement { id: number; class_id: number; class_name?: string; subject_id: number; subject_name?: string; teacher_id: number | null; teacher_name?: string | null; room_id?: number | null; room_name?: string | null; periods_per_week: number; double_periods: number }
 export interface RequirementInput { class_id: number; subject_id: number; teacher_id: number | null; room_id?: number | null; periods_per_week: number; double_periods?: number }
