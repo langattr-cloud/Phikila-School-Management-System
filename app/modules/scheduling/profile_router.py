@@ -22,7 +22,7 @@ def _active_job(db:Session,school_id:int):
     if stale:
         job.status="completed" if job.result_version_id else "failed";job.stage="Completed" if job.result_version_id else "Failed"
         if job.finished_at is None:job.finished_at=now
-        if not job.message and job.status=="failed":job.message="The previous generation ended without recording a final status. It was released automatically."
+        if not job.message and job.status=="failed":job.message="The solver worker stopped before recording a final result. The incomplete generation was released; start a new generation."
         db.commit();return None
     return job
 
