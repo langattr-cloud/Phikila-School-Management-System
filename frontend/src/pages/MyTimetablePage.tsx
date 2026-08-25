@@ -11,6 +11,8 @@ import { scheduling, type Calendar, type Event, type SchoolClass, type Teacher, 
 
 type Scope = 'class' | 'teacher'
 
+type SubjectOption = { id: number; name: string; code?: string }
+
 function canReviewGeneratedDraft(role?: string) {
   const order = ['viewer', 'student', 'teacher', 'scheduler', 'admin', 'super_admin']
   const index = order.indexOf(String(role ?? '').toLowerCase())
@@ -21,7 +23,7 @@ function buildView(
   calendar: Calendar,
   version: NonNullable<TimetableView['version']>,
   lessons: Array<{ day_index: number; period_index: number; subject_id: number; teacher_id: number; class_id: number }>,
-  subjects: Array<{ id: number; name: string; code?: string }>,
+  subjects: SubjectOption[],
   teachers: Array<{ id: number; name: string; code?: string; staff_number?: string }>,
   classes: Array<{ id: number; name: string; code?: string }>,
   scope: Scope,
@@ -30,7 +32,6 @@ function buildView(
   const subjectCode = new Map(subjects.map((item) => [item.id, item.code?.trim() || item.name]))
   const teacherCode = new Map(teachers.map((item) => [item.id, item.code?.trim() || item.staff_number?.trim() || item.name]))
   const classCode = new Map(classes.map((item) => [item.id, item.code?.trim() || item.name]))
-  // The heading identifies the person/class by its full display name. Codes are only for cells inside the grid.
   const target = scope === 'teacher'
     ? teachers.find((item) => item.id === targetId)?.name
     : classes.find((item) => item.id === targetId)?.name
@@ -49,10 +50,46 @@ function buildView(
   }
 }
 
+// Published-view endpoints historically returned display names in the lesson
+// strings. The grid must never use those names: resolve them back to the
+// authoritative codes before rendering. This also handles already-correct
+// code values without changing them.
+function normalisePublishedView(
+  view: TimetableView,
+  subjects: SubjectOption[],
+  teachers: Teacher[],
+  classes: SchoolClass[],
+): TimetableView {
+  const subjectByName = new Map(subjects.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.name]))
+  const subjectByCode = new Set(subjects.map((item) => item.code?.trim()).filter(Boolean))
+  const teacherByName = new Map(teachers.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.staff_number?.trim() || item.name]))
+  const teacherByCode = new Set(teachers.flatMap((item) => [item.code?.trim(), item.staff_number?.trim()]).filter(Boolean))
+  const classByName = new Map(classes.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.name]))
+  const classByCode = new Set(classes.map((item) => item.code?.trim()).filter(Boolean))
+
+  return {
+    ...view,
+    lessons: view.lessons.map((lesson) => ({
+      ...lesson,
+      subject: lesson.subject && subjectByCode.has(lesson.subject.trim())
+        ? lesson.subject.trim()
+        : subjectByName.get(lesson.subject.trim().toLowerCase()) ?? lesson.subject,
+      teacher: lesson.teacher
+        ? (teacherByCode.has(lesson.teacher.trim())
+          ? lesson.teacher.trim()
+          : teacherByName.get(lesson.teacher.trim().toLowerCase()) ?? lesson.teacher)
+        : null,
+      class: classByCode.has(lesson.class.trim())
+        ? lesson.class.trim()
+        : classByName.get(lesson.class.trim().toLowerCase()) ?? lesson.class,
+    })),
+  }
+}
+
 export function MyTimetablePage() {
   const [scope, setScope] = useState<Scope>('class')
   const [targetId, setTargetId] = useState<number | null>(null)
-  const [options, setOptions] = useState<{ classes: SchoolClass[]; teachers: Teacher[] } | null>(null)
+  const [options, setOptions] = useState<{ classes: SchoolClass[]; teachers: Teacher[]; subjects: SubjectOption[] } | null>(null)
   const [view, setView] = useState<TimetableView | null>(null)
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,12 +101,14 @@ export function MyTimetablePage() {
   useEffect(() => {
     let active = true
     cachedFetch('mytt:options', async () => {
-      const [classes, teachers, me] = await Promise.all([scheduling.classes(), scheduling.teachers(), scheduling.me()])
-      return { classes, teachers, me }
+      const [classes, teachers, subjects, me] = await Promise.all([
+        scheduling.classes(), scheduling.teachers(), scheduling.subjects(), scheduling.me(),
+      ])
+      return { classes, teachers, subjects, me }
     }).then((result) => {
       if (!active) return
-      const { classes, teachers, me } = result.data
-      setOptions({ classes, teachers })
+      const { classes, teachers, subjects, me } = result.data
+      setOptions({ classes, teachers, subjects })
       setCanReviewDraft(canReviewGeneratedDraft(me.role))
       if (me.teacher_id) {
         setIsTeacher(true)
@@ -86,7 +125,7 @@ export function MyTimetablePage() {
   }, [])
 
   useEffect(() => {
-    if (!targetId) return
+    if (!targetId || !options) return
     let active = true
     setLoading(true)
     setError(null)
@@ -96,7 +135,11 @@ export function MyTimetablePage() {
           cachedFetch(`mytt:${scope}:${targetId}`, () => scheduling.view(scope, targetId)),
           scheduling.events(),
         ])
-        return { view: result.data, events: eventRows, savedAt: result.stale ? result.savedAt : null }
+        return {
+          view: normalisePublishedView(result.data, options.subjects, options.teachers, options.classes),
+          events: eventRows,
+          savedAt: result.stale ? result.savedAt : null,
+        }
       }
 
       const [calendar, versions, subjects, teachers, classes, eventRows] = await Promise.all([
@@ -110,12 +153,12 @@ export function MyTimetablePage() {
     }
     load().then((result) => { if (!active) return; setView(result.view); setEvents(result.events); setStale(result.savedAt) }).catch((err) => { if (active) setError(friendlyApiError(err, 'load the timetable')) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [scope, targetId, canReviewDraft])
+  }, [scope, targetId, canReviewDraft, options])
 
   const targets = scope === 'class' ? (options?.classes ?? []) : (options?.teachers ?? [])
   const isDraft = view?.version?.status === 'draft'
   if (loading && !view) return <><PageHeader title="My timetable" description="Your personal school timetable." /><div className="card section"><LoadingBlock label="Loading your timetable" rows={6} /></div></>
-  if (error && !view) return <><PageHeader title="My timetable" /><ErrorState title="Timetable could not load" message={error} /></>
+  if (error && !view) return <><PageHeader title="My timetable" /><ErrorState title="Timetable could not load" message={error} /></ErrorState></> 
   return <>
     <PageHeader title={scope === 'teacher' ? `Teacher: ${view?.target_name ?? ''}` : 'My timetable'} description="Your current generated timetable." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My timetable' }]} actions={view?.version && canReviewDraft && isDraft ? <Link className="button button--secondary button--sm" to={`/timetable?version=${view.version.id}`}>Edit timetable</Link> : undefined} />
     {stale && <Alert tone="info" title="Offline copy">Saved on this device {formatSavedAt(stale)}. It will refresh when you reconnect.</Alert>}
