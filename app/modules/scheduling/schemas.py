@@ -41,7 +41,13 @@ class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=6); period_index:int=
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=6); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
 class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=6); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
 class UnassignedOut(BaseModel): requirement_id:int; subject_id:int; subject_name:str; subject_colour:str; class_id:int; class_name:str; teacher_id:int|None; teacher_name:str|None; room_id:int|None; room_name:str|None; periods_per_week:int; placed:int; remaining:int; requires_double:bool
-class VersionOut(ORMModel): id:int; number:int; label:str|None; status:str; quality:dict[str,Any]=Field(default_factory=dict); stats:dict[str,Any]=Field(default_factory=dict); created_by:Any=None; created_at:Any=None; published_at:Any=None; day_indexes:list[int]=Field(default_factory=list); day_names:list[str]=Field(default_factory=list)
+class VersionOut(ORMModel):
+    id:int; number:int; label:str|None; status:str; quality:dict[str,Any]=Field(default_factory=dict); stats:dict[str,Any]=Field(default_factory=dict); created_by:str|None=None; created_at:Any=None; published_at:Any=None; day_indexes:list[int]=Field(default_factory=list); day_names:list[str]=Field(default_factory=list)
+    @field_validator('created_by', mode='before')
+    @classmethod
+    def serialize_created_by(cls, value):
+        """Normalize legacy UUID-backed actor values for the JSON API contract."""
+        return None if value is None else str(value)
 class ConflictOut(BaseModel): severity:str; kind:str; message:str; lesson_ids:list[int]; day:int|None=None; period:int|None=None
 class EventIn(BaseModel): name:str=Field(min_length=1,max_length=80); start_time:str=Field(pattern=r'^\d{2}:\d{2}$'); end_time:str=Field(pattern=r'^\d{2}:\d{2}$'); day_indexes:list[int]=Field(min_length=1,max_length=7); event_type:str=Field(default='break',min_length=1,max_length=40); note:str|None=None
 class EventOut(ORMModel,EventIn): id:int
