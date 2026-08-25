@@ -35,11 +35,11 @@ class Weights:
 class AvoidRule: scope:str; target_id:int; slots:set[tuple[int,int]]; is_hard:bool=False; weight:int=25; note:str=""
 @dataclass
 class SolverInput:
-    days:list[int]; periods:list[int]; teaching_periods:list[int]; morning_periods:list[int]; teachers:dict[int,TeacherSpec]; rooms:dict[int,RoomSpec]; classes:dict[int,ClassSpec]; subjects:dict[int,SubjectSpec]; requirements:list[RequirementSpec]; weights:Weights=field(default_factory=Weights); avoid_rules:list[AvoidRule]=field(default_factory=list); locked:dict[int,list[tuple[int,int]]]=field(default_factory=dict); max_seconds:float=30.0; workers:int=8
+    days:list[int]; periods:list[int]; teaching_periods:list[int]; morning_periods:list[int]; teachers:dict[int,TeacherSpec]; rooms:dict[int,RoomSpec]; classes:dict[int,ClassSpec]; subjects:dict[int,SubjectSpec]; requirements:list[RequirementSpec]; weights:Weights=field(default_factory=Weights); avoid_rules:list[AvoidRule]=field(default_factory=list); locked:dict[int,list[tuple[int,int]]]=field(default_factory=dict); max_seconds:float=30.0; workers:int=1
 @dataclass
 class Placement: requirement_id:int; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day:int; period:int; duration:int=1
 @dataclass
-class SolverOutput:
+class SolverOutput: 
     status:str; placements:list[Placement]; quality:dict; stats:dict; messages:list[str]
     @property
     def solved(self)->bool:return self.status in {"optimal","feasible"}
@@ -110,7 +110,7 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
             cap=2 if r.double_periods else 1
             for d in data.days:
                 v=[x[(r.id,d,p)] for p in data.teaching_periods if (r.id,d,p) in x]
-                if len(v)>cap:model.Add(sum(v)<=cap)
+                if len(v)>1:model.Add(sum(v)<=cap)
     report(26,"Applying constraints")
     if should_cancel and should_cancel():return SolverOutput("cancelled",[],{}, {},["Generation cancelled."])
     penalties=[];w=data.weights;busy={}
@@ -163,7 +163,7 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
                 if v:
                     over=model.NewIntVar(0,len(v),f"load_{tid}_{d}");model.Add(over>=sum(v)-fair);penalties.append((over,w.workload_balance))
     if penalties:model.Minimize(sum(v*weight for v,weight in penalties))
-    report(38,"Optimising");solver=cp_model.CpSolver();solver.parameters.max_time_in_seconds=float(data.max_seconds);solver.parameters.num_search_workers=int(data.workers);callback=_ProgressCallback(report,should_cancel);status=solver.Solve(model,callback)
+    report(38,"Optimising");solver=cp_model.CpSolver();solver.parameters.max_time_in_seconds=float(data.max_seconds);solver.parameters.num_search_workers=max(1,min(int(data.workers),2));callback=_ProgressCallback(report,should_cancel);status=solver.Solve(model,callback)
     if should_cancel and should_cancel():return SolverOutput("cancelled",[],{}, {},["Generation cancelled."])
     label="optimal" if status==cp_model.OPTIMAL else "feasible" if status==cp_model.FEASIBLE else None
     if not label:return SolverOutput("infeasible",[],{}, {},["No timetable satisfies every hard constraint. Relax an availability rule, reduce weekly lessons, or add rooms/periods."])
