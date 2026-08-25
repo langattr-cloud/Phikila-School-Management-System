@@ -88,8 +88,18 @@ class GradeService:
         self.db.refresh(grade); return grade
     def delete(self, school_id, grade_id):
         grade = self.get(school_id, grade_id)
-        if self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.grade_id == grade_id).count(): raise HTTPException(status.HTTP_409_CONFLICT, "This grade has streams. Move the grade to the correct level instead, or delete/reassign its streams first.")
-        self.db.delete(grade); self.db.commit()
+        streams = self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.grade_id == grade_id).all()
+        if streams:
+            stream_ids = [stream.id for stream in streams]
+            student_count = self.db.query(student_models.Student).filter(student_models.Student.school_id == school_id, student_models.Student.stream_id.in_(stream_ids)).count()
+            if student_count:
+                raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this grade because its streams still have students assigned. Reassign the students first.")
+            for stream in streams: self.db.delete(stream)
+        self.db.delete(grade)
+        try: self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this grade because it is still referenced by existing school data.")
 
 class StreamService:
     def __init__(self, db): self.repository = StreamRepository(db); self.db = db
