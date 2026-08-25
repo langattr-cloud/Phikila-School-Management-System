@@ -15,7 +15,7 @@ export interface Event extends Loose { id: number; name: string; start_time: str
 export interface EventInput extends Loose {}
 export interface Teacher extends Loose { id: number; name: string; code?: string; staff_number?: string; first_name?: string; last_name?: string; email?: string; phone?: string; department?: string; role?: string; role_assignment?: Loose; unavailable?: Slots }
 export interface TeacherInput extends Loose {}
-export interface Subject extends Loose { id: number; name: string; code?: string; color?: string; unavailable?: Slots }
+export interface Subject extends Loose { id: number; name: string; code?: string; colour?: string; unavailable?: Slots }
 export interface SubjectInput extends Loose {}
 export interface Room extends Loose { id: number; name: string; code?: string; room_type?: string }
 export interface RoomInput extends Loose {}
