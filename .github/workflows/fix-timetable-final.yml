@@ -22,16 +22,14 @@ jobs:
           s = jobs.read_text()
           old = 'def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):\n    return _executor.submit(_run_job, job_id, school_id, max_seconds, day_indexes)'
           new = '''def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):\n    # Jobs are claimed by the dedicated Render worker. Never run the solver\n    # inside the web process: a web restart must not strand a queued job.\n    return job_id'''
-          if old in s:
-              s = s.replace(old, new, 1)
+          if old in s: s = s.replace(old, new, 1)
           jobs.write_text(s)
 
           schemas = Path('app/modules/scheduling/schemas.py')
           s = schemas.read_text()
           old = 'class ClassOut(ORMModel,ClassIn): id:int'
           new = 'class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None'
-          if old in s:
-              s = s.replace(old, new, 1)
+          if old in s: s = s.replace(old, new, 1)
           schemas.write_text(s)
 
           router = Path('app/modules/scheduling/router.py')
@@ -42,31 +40,24 @@ jobs:
               s = s.replace(marker, replacement, 1)
           router.write_text(s)
 
-          jobs = Path('app/modules/scheduling/jobs.py')
-          s = jobs.read_text()
-          old = 'version=m.TtVersion(school_id=school_id,number=number,name=f"Timetable v{number}",label="Generated"'
-          if old not in s:
-              old2 = 'version=m.TtVersion(school_id=school_id,number=number,label="Generated"'
-              new2 = 'version=m.TtVersion(school_id=school_id,number=number,name=f"Timetable v{number}",label="Generated"'
-              if old2 in s:
-                  s=s.replace(old2,new2,1)
-          jobs.write_text(s)
-
           profile = Path('app/modules/scheduling/profile_router.py')
           s = profile.read_text()
           old = 'elif job.started_at and now-job.started_at>STALE_AFTER:stale=True'
           new = 'elif (job.updated_at or job.started_at) and now-(job.updated_at or job.started_at)>STALE_AFTER:stale=True'
-          if old in s:
-              s=s.replace(old,new,1)
+          if old in s: s=s.replace(old,new,1)
           profile.write_text(s)
+
+          scheduling = Path('frontend/src/lib/scheduling.ts')
+          s = scheduling.read_text()
+          s=s.replace('export interface SchoolClass extends Loose { id: number; name: string;', 'export interface SchoolClass extends Loose { id: number; name: string; academic_stream?: string | null;')
+          s=s.replace("classes: () => get<SchoolClass[]>('/classes')", "classes: () => get<SchoolClass[]>('/classes/academic-streams')")
+          scheduling.write_text(s)
 
           generate = Path('frontend/src/pages/GeneratePage.tsx')
           s = generate.read_text()
-          old = "function streamIdFromClass(grade: SchoolClass) { const match = String(grade.code ?? '').match(/^STREAM-(\\d+)$/i); return match ? Number(match[1]) : null }"
-          new = "function streamIdFromClass(grade: SchoolClass) { const match = String(grade.code ?? '').match(/^STREAM-(\\d+)$/i); return match ? Number(match[1]) : null }\nfunction compactStreamLabel(stream: CapturedStream | undefined, grade: SchoolClass) { const gradeCode = String((grade as SchoolClass & { grade?: string | null }).grade ?? grade.name ?? '').match(/\\d+/)?.[0] ?? ''; const token = String(stream?.name ?? '').trim().slice(0,1).toUpperCase(); return gradeCode && token ? `${gradeCode}${token}` : stream?.name?.trim() || 'Unknown stream' }"
-          if old in s:
-              s=s.replace(old,new,1)
-          s=s.replace("const streamName = stream?.name?.trim() || 'Unknown stream';", "const streamName = compactStreamLabel(stream, grade);")
+          old = "function compactStreamLabel(stream: CapturedStream | undefined, grade: SchoolClass) { const gradeCode = String((grade as SchoolClass & { grade?: string | null }).grade ?? grade.name ?? '').match(/\\d+/)?.[0] ?? ''; const token = String(stream?.name ?? '').trim().slice(0,1).toUpperCase(); return gradeCode && token ? `${gradeCode}${token}` : stream?.name?.trim() || 'Unknown stream' }"
+          new = "function compactStreamLabel(stream: CapturedStream | undefined, grade: SchoolClass) { const authoritative = String((grade as SchoolClass & { academic_stream?: string | null }).academic_stream ?? '').trim(); if (authoritative) return authoritative; const gradeCode = String((grade as SchoolClass & { grade?: string | null }).grade ?? grade.name ?? '').match(/\\d+/)?.[0] ?? ''; const token = String(stream?.code ?? stream?.name ?? '').trim().slice(0,1).toUpperCase(); return gradeCode && token ? `${gradeCode}${token}` : stream?.name?.trim() || 'Unknown stream' }"
+          if old in s: s=s.replace(old,new,1)
           s=s.replace('GR rows use the captured stream name.', 'GR rows use the configured academic stream code (for example 5E, 7R, 9Y).')
           generate.write_text(s)
 
@@ -83,6 +74,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/modules/scheduling/jobs.py app/modules/scheduling/schemas.py app/modules/scheduling/router.py app/modules/scheduling/profile_router.py frontend/src/pages/GeneratePage.tsx frontend/src/pages/StreamsPage.tsx render.yaml
+          git add app/modules/scheduling/jobs.py app/modules/scheduling/schemas.py app/modules/scheduling/router.py app/modules/scheduling/profile_router.py frontend/src/lib/scheduling.ts frontend/src/pages/GeneratePage.tsx frontend/src/pages/StreamsPage.tsx render.yaml
           git diff --cached --quiet || git commit -m 'fix: use academic stream identity and durable solver heartbeat'
           git push || true
