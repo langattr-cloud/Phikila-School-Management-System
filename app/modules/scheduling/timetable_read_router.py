@@ -1,5 +1,5 @@
 """Read-side compatibility endpoints for the timetable workspace."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from . import models as m
@@ -15,7 +15,6 @@ def _version(db, school_id, version_id):
 def version_conflicts(version_id: int, db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
     version = _version(db, principal.school_id, version_id)
     if not version:
-        from fastapi import HTTPException, status
         raise HTTPException(status.HTTP_404_NOT_FOUND, 'Not found')
     return [
         {
@@ -26,14 +25,13 @@ def version_conflicts(version_id: int, db: Session = Depends(get_db), principal:
             'day': getattr(c, 'day', None),
             'period': getattr(c, 'period', None),
         }
-        for c in detect_conflicts(db, principal.school_id, version)
+        for c in detect_conflicts(db, principal.school_id, version.id)
     ]
 
 @router.get('/versions/{version_id}/unassigned')
 def version_unassigned(version_id: int, db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
     version = _version(db, principal.school_id, version_id)
     if not version:
-        from fastapi import HTTPException, status
         raise HTTPException(status.HTTP_404_NOT_FOUND, 'Not found')
     requirements = db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id == principal.school_id).all()
     scheduled = db.query(m.TtLesson.requirement_id).filter(m.TtLesson.school_id == principal.school_id, m.TtLesson.version_id == version_id).all()
