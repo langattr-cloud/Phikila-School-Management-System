@@ -30,9 +30,10 @@ function buildView(
   const subjectCode = new Map(subjects.map((item) => [item.id, item.code?.trim() || item.name]))
   const teacherCode = new Map(teachers.map((item) => [item.id, item.code?.trim() || item.staff_number?.trim() || item.name]))
   const classCode = new Map(classes.map((item) => [item.id, item.code?.trim() || item.name]))
+  // The heading identifies the person/class by its full display name. Codes are only for cells inside the grid.
   const target = scope === 'teacher'
-    ? (teachers.find((item) => item.id === targetId)?.code?.trim() || teachers.find((item) => item.id === targetId)?.staff_number?.trim() || teachers.find((item) => item.id === targetId)?.name)
-    : (classes.find((item) => item.id === targetId)?.code?.trim() || classes.find((item) => item.id === targetId)?.name)
+    ? teachers.find((item) => item.id === targetId)?.name
+    : classes.find((item) => item.id === targetId)?.name
   return {
     version,
     target_name: target,
@@ -116,7 +117,7 @@ export function MyTimetablePage() {
   if (loading && !view) return <><PageHeader title="My timetable" description="Your personal school timetable." /><div className="card section"><LoadingBlock label="Loading your timetable" rows={6} /></div></>
   if (error && !view) return <><PageHeader title="My timetable" /><ErrorState title="Timetable could not load" message={error} /></>
   return <>
-    <PageHeader title={scope === 'teacher' ? `Teacher ${view?.target_name ?? ''}` : 'My timetable'} description="Your current generated timetable." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My timetable' }]} actions={view?.version && canReviewDraft && isDraft ? <Link className="button button--secondary button--sm" to={`/timetable?version=${view.version.id}`}>Edit timetable</Link> : undefined} />
+    <PageHeader title={scope === 'teacher' ? `Teacher: ${view?.target_name ?? ''}` : 'My timetable'} description="Your current generated timetable." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My timetable' }]} actions={view?.version && canReviewDraft && isDraft ? <Link className="button button--secondary button--sm" to={`/timetable?version=${view.version.id}`}>Edit timetable</Link> : undefined} />
     {stale && <Alert tone="info" title="Offline copy">Saved on this device {formatSavedAt(stale)}. It will refresh when you reconnect.</Alert>}
     {view?.version && <section className="card section"><div className="toolbar"><div><h2 className="section__title">Timetable</h2><p className="section__description">Version {view.version.number ?? view.version.id}</p></div><Badge tone={isDraft ? 'neutral' : 'success'}>{isDraft ? 'Draft' : 'Published'}</Badge></div></section>}
     <section className="card section"><div className="toolbar"><div className="field field--inline"><label className="field__label" htmlFor="my-scope">Show</label><select id="my-scope" className="input input--select" value={scope} disabled={isTeacher} onChange={(event) => { const next = event.target.value as Scope; setScope(next); setTargetId(next === 'class' ? (options?.classes[0]?.id ?? null) : (options?.teachers[0]?.id ?? null)) }}><option value="teacher">My teacher timetable</option><option value="class">A class timetable</option></select></div>{!isTeacher && <div className="field field--inline"><label className="field__label" htmlFor="my-target">{scope === 'class' ? 'Class' : 'Teacher'}</label><select id="my-target" className="input input--select" value={targetId ?? ''} onChange={(event) => setTargetId(Number(event.target.value))}>{targets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>}</div></section>
