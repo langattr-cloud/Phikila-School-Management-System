@@ -23,13 +23,14 @@ class TimetableGenerator:
 
         school_id = int(stream.school_id)
         code = f"STREAM-{stream.id}"
-        name = f"{grade.name} — {stream.name}" if stream.name else grade.name
+        stream_name = (stream.name or stream.code or '').strip()
+        name = f"{grade.name} — {stream_name}" if stream_name else grade.name
         row = self.db.query(m.TtClass).filter(m.TtClass.school_id == school_id, m.TtClass.code == code).first()
         if row is None:
-            row = m.TtClass(school_id=school_id,name=name,code=code,grade=grade.name,student_count=register.capacity or 40,class_teacher_id=register.class_teacher_id)
+            row = m.TtClass(school_id=school_id,name=name,code=code,grade=grade.name,stream=stream_name,student_count=register.capacity or 40,class_teacher_id=register.class_teacher_id)
             self.db.add(row)
         else:
-            row.name=name; row.grade=grade.name; row.student_count=register.capacity or row.student_count or 40; row.class_teacher_id=register.class_teacher_id
+            row.name=name; row.grade=grade.name; row.stream=stream_name; row.student_count=register.capacity or row.student_count or 40; row.class_teacher_id=register.class_teacher_id
         self.db.commit(); self.db.refresh(row)
         return school_id, row.id
 
