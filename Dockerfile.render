@@ -12,7 +12,6 @@ ENV PORT=8000
 
 EXPOSE 8000
 
-# The current Render project has the API service provisioned but not a
-# separately provisioned worker service. Start the durable DB-backed solver
-# worker alongside the API so queued timetable jobs are actually consumed.
-CMD ["sh", "-c", "alembic upgrade head && python -m app.modules.scheduling.worker & exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Keep the Render web service dedicated to FastAPI. The solver worker must
+# run as its own Render worker service rather than sharing the web process.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
