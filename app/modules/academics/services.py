@@ -4,6 +4,8 @@ from sqlalchemy.exc import IntegrityError
 from app.modules.academics import models, schemas
 from app.modules.academics.repository import AcademicYearRepository, LevelRepository, GradeRepository, StreamRepository, TermRepository
 from app.modules.students import models_v2 as student_models
+from app.modules.attendance import models as attendance_models
+from app.modules.examinations import models_v2 as examination_models
 
 
 class AcademicYearService:
@@ -121,7 +123,7 @@ class StreamService:
     def create_streams_bulk(self, school_id, data: schemas.BulkStreamCreate):
         year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == data.academic_year_id, models.AcademicYear.school_id == school_id).first(); grade = self.db.query(models.Grade).filter(models.Grade.id == data.grade_id, models.Grade.school_id == school_id, models.Grade.level_id == data.level_id).first()
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
-        if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade does not belong to the selected level")
+        if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade does not belong to selected level")
         existing = self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == data.academic_year_id, models.Stream.grade_id == data.grade_id).all(); existing_by_name = {s.name.strip().casefold():s for s in existing}; streams=[]
         try:
             for item in data.streams:
@@ -140,6 +142,35 @@ class StreamService:
             if duplicate and duplicate.id != stream.id: raise HTTPException(status.HTTP_409_CONFLICT,"A stream with this name already exists for this grade in this academic year.")
         return self.repository.update_stream(stream,data)
     def delete(self, school_id, stream_id):
-        stream=self.get_stream_by_id(school_id,stream_id)
-        if self.db.query(student_models.Student).filter(student_models.Student.school_id==school_id,student_models.Student.stream_id==stream_id).count(): raise HTTPException(status.HTTP_409_CONFLICT,"Cannot delete a stream that still has students assigned. Reassign the students first.")
-        self.db.delete(stream); self.db.commit()
+        stream = self.get_stream_by_id(school_id, stream_id)
+
+        attendance_exists = self.db.query(attendance_models.AttendanceSession.id).filter(
+            attendance_models.AttendanceSession.school_id == school_id,
+            attendance_models.AttendanceSession.stream_id == stream_id,
+        ).first() is not None
+
+        exam_subject_exists = self.db.query(examination_models.ExamSubject.id).filter(
+            examination_models.ExamSubject.school_id == school_id,
+            examination_models.ExamSubject.stream_id == stream_id,
+        ).first() is not None
+
+        if attendance_exists or exam_subject_exists:
+            dependencies = []
+            if attendance_exists:
+                dependencies.append("attendance sessions")
+            if exam_subject_exists:
+                dependencies.append("exam subjects")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Cannot delete this stream because it is referenced by " + " and ".join(dependencies) + ".",
+            )
+
+        try:
+            self.db.delete(stream)
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Cannot delete this stream because it is still referenced by existing school data.",
+            )
