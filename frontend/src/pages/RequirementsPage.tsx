@@ -73,19 +73,6 @@ export function RequirementsPage() {
     return Array.from(grouped.values()).sort((a, b) => a.teacher_name.localeCompare(b.teacher_name))
   }, [filtered])
 
-  const gradeLabel = useCallback((row: Requirement) => {
-    const className = String(row.class_name ?? '—').trim()
-    if (className === '—' || /^\d/.test(className)) return className
-    const subjectGrade = data?.grades.find((grade) => String(grade.name).trim().toLowerCase() === className.toLowerCase())
-    if (subjectGrade) return className
-    const matchingClass = data?.classes.find((item) => String(item.name).trim().toLowerCase() === className.toLowerCase())
-    const gradeName = matchingClass?.grade?.trim() ?? ''
-    if (gradeName && !className.toLowerCase().startsWith(gradeName.toLowerCase())) return `${gradeName}${className}`
-    const matchingStream = data?.streams.find((stream) => String(stream.name).trim().toLowerCase() === className.toLowerCase())
-    const streamGrade = data?.grades.find((grade) => grade.id === matchingStream?.grade_id)?.name?.trim() ?? ''
-    return streamGrade && !className.toLowerCase().startsWith(streamGrade.toLowerCase()) ? `${streamGrade}${className}` : className
-  }, [data])
-
   const draftRows = useMemo(() => drafts.map((draft) => {
     const gradeName = data?.grades.find((item) => String(item.id) === draft.grade_id)?.name?.trim() ?? ''
     const classRow = data?.classes.find((item) => String(item.id) === draft.class_id)
@@ -181,25 +168,38 @@ export function RequirementsPage() {
     {error ? <ErrorState title="Teaching allocations could not load" message={error} onRetry={load} /> : <>
       {!ready && !loading && <Alert tone="info" title="Set up academic levels, grades, teachers and subjects first">Teaching allocations need academic levels and grades before streams can be selected.</Alert>}
       {ready && data && <section className="card section">
-        <div className="toolbar"><div><h2 className="section__title">{editingDraftId || editingSavedId ? 'Edit teaching allocation' : 'Add teaching allocation'}</h2><p className="section__description">Select Level → Grade → Class / Stream.</p></div>{drafts.length > 0 && <Badge>{drafts.length} unsaved</Badge>}</div>
-        <form className="form form--grid" onSubmit={editingSavedId ? saveSavedEdit : addDraft}>
-          <div className="field"><label className="field__label" htmlFor="allocation-teacher">Teacher</label><select id="allocation-teacher" className="input input--select" value={form.teacher_id} onChange={(event) => setForm({ ...form, teacher_id: event.target.value })} required><option value="">Select a teacher</option>{data.teachers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-level">Level</label><select id="allocation-level" className="input input--select" value={form.level_id} onChange={(event) => changeLevel(event.target.value)} required><option value="">Select a level</option>{data.levels.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-grade">Grade</label><select id="allocation-grade" className="input input--select" value={form.grade_id} onChange={(event) => changeGrade(event.target.value)} disabled={!form.level_id} required><option value="">{form.level_id ? 'Select a grade' : 'Select a level first'}</option>{filteredGrades.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-class">Class / Stream</label><select id="allocation-class" className="input input--select" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value })} disabled={!form.grade_id} required><option value="">{form.grade_id ? (classOptions.length ? 'Select a class / stream' : 'No streams captured for this grade') : 'Select a grade first'}</option>{classOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-subject">Subject</label><select id="allocation-subject" className="input input--select" value={form.subject_id} onChange={(event) => setForm({ ...form, subject_id: event.target.value })} required><option value="">Select a subject</option>{data.subjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div className="field"><label className="field__label" htmlFor="allocation-workload">Workload</label><select id="allocation-workload" className="input input--select" value={form.periods_per_week} onChange={(event) => setForm({ ...form, periods_per_week: Number(event.target.value) })} required>{Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value} lesson{value === 1 ? '' : 's'}</option>)}</select></div>
-          <div className="field form--grid__full"><label className="form__check"><input type="checkbox" checked={form.double_lesson} onChange={(event) => setForm({ ...form, double_lesson: event.target.checked })} /><span>Include a double lesson</span></label></div>
-          <div className="form__row form--grid__full"><button className="button button--primary" type="submit">{editingSavedId ? 'Update allocation' : editingDraftId ? 'Update allocation' : '+ Add allocation'}</button>{(editingDraftId || editingSavedId) && <button type="button" className="button button--ghost" onClick={resetDraftForm}>Cancel</button>}</div>
+        <div className="toolbar"><div><h2 className="section__title">{editingDraftId || editingSavedId ? 'Edit teaching allocation' : 'Add teaching allocation'}</h2><p className="muted">Choose the teacher, academic level, grade and class/stream, then assign the subject and weekly workload.</p></div><button type="button" className="button button--ghost" onClick={resetDraftForm}>Clear</button></div>
+        <form className="form-grid" onSubmit={editingSavedId ? saveSavedEdit : addDraft}>
+          <label>Teacher<select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))}><option value="">Select teacher</option>{data.teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
+          <label>Level<select value={form.level_id} onChange={(event) => changeLevel(event.target.value)}><option value="">Select level</option>{data.levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}</select></label>
+          <label>Grade<select value={form.grade_id} onChange={(event) => changeGrade(event.target.value)}><option value="">Select grade</option>{filteredGrades.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}</select></label>
+          <label>Class / Stream<select value={form.class_id} onChange={(event) => setForm((current) => ({ ...current, class_id: event.target.value }))}><option value="">Select class / stream</option>{classOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label>Subject<select value={form.subject_id} onChange={(event) => setForm((current) => ({ ...current, subject_id: event.target.value }))}><option value="">Select subject</option>{data.subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></label>
+          <label>Lessons / week<input type="number" min="1" value={form.periods_per_week} onChange={(event) => setForm((current) => ({ ...current, periods_per_week: Number(event.target.value) }))} /></label>
+          <label className="checkbox"><input type="checkbox" checked={form.double_lesson} onChange={(event) => setForm((current) => ({ ...current, double_lesson: event.target.checked }))} />Double lesson</label>
+          <div className="form__actions"><button type="submit" className="button button--primary">{editingSavedId ? 'Update allocation' : 'Add to list'}</button></div>
         </form>
       </section>}
-
-      {ready && draftRows.length > 0 && <section className="card section"><div className="toolbar"><div><h2 className="section__title">Allocations to save</h2><p className="section__description">Review the allocations before saving.</p></div><div className="form__row"><button type="button" className="button button--ghost" onClick={() => { setDrafts([]); resetDraftForm() }} disabled={saving}>Clear</button><button type="button" className="button button--primary" onClick={saveAllocations} disabled={saving}>{saving ? 'Saving…' : `Save ${draftRows.length} allocation${draftRows.length === 1 ? '' : 's'}`}</button></div></div><DataTable caption="Allocations to save" columns={draftColumns} rows={draftRows} rowKey={(row) => row.id} /></section>}
-
-      <section className="card section"><div className="toolbar"><div><h2 className="section__title">Saved teaching allocations</h2><p className="section__description">Teacher totals are shown here. Select a teacher to view all subjects and detailed workloads.</p></div><div className="search"><SearchIcon className="search__icon" width={18} height={18} /><label className="visually-hidden" htmlFor="allocation-search">Search allocations</label><input id="allocation-search" className="input input--search" type="search" placeholder="Search teacher or subject" value={query} onChange={(event) => setQuery(event.target.value)} /></div></div>
-        <DataTable caption="Teacher workload summary" columns={summaryColumns} rows={teacherSummaries} rowKey={(row) => row.teacher_id} loading={loading} loadingLabel="Loading teaching allocations" empty={<EmptyState title={query ? 'No matching allocations' : 'No teaching allocations yet'} description={query ? 'Nothing matches your search.' : 'Add an allocation above, then save it.'} icon={<CalendarIcon width={22} height={22} />} />} />
-        {expandedTeacher !== null && (() => { const summary = teacherSummaries.find((item) => item.teacher_id === expandedTeacher); if (!summary) return null; const detailColumns: Column<Requirement>[] = [{ key: 'subject', header: 'Subject / Learning area', render: (row) => row.subject_name ?? '—' }, { key: 'double', header: 'DL', render: (row) => row.double_periods ? <Badge>DL</Badge> : '—' }]; return <div className="section" aria-label={`${summary.teacher_name} subject details`}><div className="toolbar"><div><h3 className="section__title">{summary.teacher_name} — subjects</h3><p className="section__description">Subjects assigned to this teacher.</p></div><Badge>{summary.total_workload} lessons</Badge></div><DataTable caption={`${summary.teacher_name} subject workload`} columns={detailColumns} rows={summary.allocations} rowKey={(row) => row.id} rowActions={(row) => <div className="form__row"><button type="button" className="button button--ghost button--sm" onClick={() => editSaved(row)}>Edit</button><button type="button" className="button button--ghost button--sm" onClick={() => remove(row)}>Delete</button></div>} /></div> })()}
-      </section>
+      {ready && data && <section className="section">
+        <div className="toolbar"><div><h2 className="section__title">Pending allocations</h2><p className="muted">Review the list before saving.</p></div>{drafts.length > 0 && <button type="button" className="button button--primary" onClick={saveAllocations} disabled={saving}>{saving ? 'Saving…' : `Save ${drafts.length} allocation${drafts.length === 1 ? '' : 's'}`}</button>}</div>
+        {drafts.length ? <DataTable columns={draftColumns} rows={draftRows} emptyMessage="No pending allocations." /> : <EmptyState title="No pending allocations" message="Add one or more teaching allocations above." />}
+      </section>}
+      {ready && data && <section className="section">
+        <div className="toolbar"><div><h2 className="section__title">Saved allocations</h2><p className="muted">Search, edit or remove saved teaching allocations.</p></div><label className="search"><SearchIcon size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search teacher, grade, subject…" /></label></div>
+        {loading ? <div className="muted">Loading…</div> : teacherSummaries.length === 0 ? <EmptyState title="No allocations found" message="Add teaching allocations above or adjust your search." /> : <>
+          <DataTable columns={summaryColumns} rows={teacherSummaries} emptyMessage="No allocations found." />
+          {expandedTeacher !== null && <div className="section__content">
+            <h3 className="section__title">{teacherSummaries.find((summary) => summary.teacher_id === expandedTeacher)?.teacher_name ?? 'Teacher'} — subjects</h3>
+            <DataTable columns={[
+              { key: 'class', header: 'Grade', render: (row) => row.class_name ?? '—' },
+              { key: 'subject', header: 'Subject', render: (row) => row.subject_name ?? '—' },
+              { key: 'workload', header: 'Workload', render: (row) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'}` },
+              { key: 'double', header: 'DL', render: (row) => Number(row.double_periods ?? 0) > 0 ? <Badge>DL</Badge> : '—' },
+              { key: 'actions', header: 'Actions', render: (row) => <div className="form__row"><button type="button" className="button button--ghost button--sm" onClick={() => editSaved(row)}>Edit</button><button type="button" className="button button--ghost button--sm" onClick={() => void remove(row)}>Delete</button></div> },
+            ]} rows={teacherSummaries.find((summary) => summary.teacher_id === expandedTeacher)?.allocations ?? []} emptyMessage="No allocations found." />
+          </div>}
+        </>}
+      </section>}
     </>}
   </>
 }
