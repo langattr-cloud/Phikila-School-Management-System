@@ -26,7 +26,7 @@ class RoomOut(ORMModel,RoomIn): id:int
 class ClassIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int=Field(default=40,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
 class ClassUpdateIn(BaseModel):
     name:str|None=Field(default=None,min_length=1,max_length=120); code:str|None=Field(default=None,min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int|None=Field(default=None,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots|None=None
-class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None; academic_stream:str|None=None
+class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None
 class TtLessonRequirementIn(BaseModel): pass
 class RequirementIn(BaseModel): class_id:int; subject_id:int; teacher_id:int|None=None; room_id:int|None=None; periods_per_week:int=Field(default=1,ge=1,le=40); double_periods:int=Field(default=0,ge=0,le=10)
 class RequirementOut(ORMModel,RequirementIn): id:int; class_name:str|None=None; subject_name:str|None=None; teacher_name:str|None=None; room_name:str|None=None
@@ -51,7 +51,7 @@ class VersionOut(ORMModel):
 class ConflictOut(BaseModel): severity:str; kind:str; message:str; lesson_ids:list[int]; day:int|None=None; period:int|None=None
 class EventIn(BaseModel): name:str=Field(min_length=1,max_length=80); start_time:str=Field(pattern=r'^\d{2}:\d{2}$'); end_time:str=Field(pattern=r'^\d{2}:\d{2}$'); day_indexes:list[int]=Field(min_length=1,max_length=7); event_type:str=Field(default='break',min_length=1,max_length=40); note:str|None=None
 class EventOut(ORMModel,EventIn): id:int
-class ExplainIn(BaseModel): day_index:int=Field(ge=0,le=6); period_index:int=Field(ge=0,le=30)
+class ExplainIn(BaseModel): day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30)
 class CopilotIn(BaseModel): text:str=Field(min_length=1,max_length=400)
 class CopilotApplyIn(BaseModel): command:dict[str,Any]
 class ImportRow(BaseModel): teacher:str|None=None; subject:str|None=None; klass:str|None=Field(default=None,alias='class'); room:str|None=None; periods_per_week:int|None=None; model_config=ConfigDict(populate_by_name=True)
