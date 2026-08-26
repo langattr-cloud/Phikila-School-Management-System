@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -31,6 +32,11 @@ DEFAULT_PERIODS = [
     (6, "P6", "12:15", "13:00", True), (7, "Lunch", "13:00", "14:00", False),
     (8, "P7", "14:00", "14:45", True), (9, "P8", "14:45", "15:30", True),
 ]
+# The current Render workspace provisions the FastAPI web service but not the
+# separate worker declared in render.yaml. Run jobs in a bounded background
+# pool so the API can accept a generation and the existing UI does not stall
+# at "Queued". The database remains the source of truth for job state.
+_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="timetable-solver")
 
 def initial_checks():
     return [{**c, "state": "pending"} for c in CHECKS]
@@ -40,12 +46,13 @@ def create_job(db: Session, school_id: int, actor: str | None):
     db.add(job); db.commit(); db.refresh(job); return job
 
 def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):
-    """Leave the job queued for the dedicated solver worker to claim.
+    """Submit a persisted job to the single background solver thread.
 
-    The Render deployment runs the worker alongside the API container. Keeping
-    execution out of the request process prevents jobs from disappearing when
-    the web process restarts or reloads.
+    A dedicated Render worker can replace this transport later; until that
+    service is provisioned, keeping the execution in a bounded background
+    thread prevents the API request from remaining stuck in QUEUED.
     """
+    _EXECUTOR.submit(_run_job, job_id, school_id, max_seconds, day_indexes)
     return job_id
 
 def _ensure_calendar(db: Session, school_id: int):
