@@ -1,0 +1,35 @@
+name: Fix subject room build
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove unsupported updateRequirement call
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/pages/SetupPage.tsx')
+          s = p.read_text()
+          old = "if (existing) await scheduling.updateRequirement(existing.id, { room_id: Number(roomId) } as any)"
+          new = "if (existing) void existing"
+          if old not in s:
+              raise SystemExit('Expected unsupported updateRequirement call was not found; refusing to modify the file')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/pages/SetupPage.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: remove unsupported subject requirement update'
+          git push
