@@ -1,13 +1,20 @@
-import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
+import { useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import type { Lesson, Period, Subject, Teacher, Room, Day, SchoolClass } from '../lib/scheduling'
 import { LockIcon } from './icons'
 import './timetable-time-grid.css'
 import './timetable-subject-colours.css'
 import './timetable-asc-toolbar.css'
 
-type LessonMeta = { subjects: Map<number, Subject>; teachers: Map<number, Teacher>; rooms: Map<number, Room>; classes: Map<number, SchoolClass> }
+type LessonMeta = {
+  subjects: Map<number, Subject>
+  teachers: Map<number, Teacher>
+  rooms: Map<number, Room>
+  classes: Map<number, SchoolClass>
+}
+
 export type { LessonMeta }
 export const UNASSIGNED_DRAG_TYPE = 'application/x-phikila-unassigned'
+
 const SUBJECT_COLOURS = ['#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#0891B2', '#0F766E', '#4F46E5']
 
 type Props = {
@@ -28,34 +35,294 @@ type Props = {
   secondary?: (lesson: Lesson) => string | null | undefined
   teacherInitials?: boolean
 }
-function minutes(value: string) { const [hour, minute] = value.split(':').map(Number); return hour * 60 + minute }
-function initials(name: string | null | undefined) { if (!name) return ''; const parts = name.trim().split(/\s+/).filter(Boolean); return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') }
-function validColour(value: string | undefined, index: number) { return value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value : SUBJECT_COLOURS[index % SUBJECT_COLOURS.length] }
-export function TimetableGrid({ days, periods, lessons, meta, conflicted, selectedId, readOnly = false, zoom = 1, dense = false, currentSlot, onSelect, onMove, onResize, onDropUnassigned, secondary, teacherInitials = false }: Props) {
-  const [dragging, setDragging] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [externalDrag, setExternalDrag] = useState(false); const [resizing, setResizing] = useState<{ lessonId: number; duration: number } | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null); const liveRef = useRef<HTMLParagraphElement>(null)
-  const orderedPeriods = useMemo(() => [...periods].sort((a, b) => minutes(a.start_time) - minutes(b.start_time) || a.index - b.index), [periods])
-  const byslot = useMemo(() => { const map = new Map<string, Lesson[]>(); for (const lesson of lessons) { const key = `${lesson.day_index}:${lesson.period_index}`; const bucket = map.get(key); if (bucket) bucket.push(lesson); else map.set(key, [lesson]) } return map }, [lessons])
-  const subjectIndexes = useMemo(() => { const entries = [...meta.subjects.values()].sort((a, b) => a.id - b.id); return new Map(entries.map((subject, index) => [subject.id, index])) }, [meta.subjects])
-  const breakLetter = (period: Period, dayIndex: number) => { const letters = period.name.trim().split(/\s+/).at(-1)?.replace(/[^A-Za-z]/g, '') || period.name.replace(/[^A-Za-z]/g, ''); return letters[days.findIndex((day) => day.index === dayIndex)]?.toUpperCase() ?? letters[0]?.toUpperCase() ?? '•' }
-  const announce = (message: string) => { if (liveRef.current) liveRef.current.textContent = message }
-  const describe = (lesson: Lesson) => { const subject = meta.subjects.get(lesson.subject_id)?.code ?? meta.subjects.get(lesson.subject_id)?.name ?? 'Lesson'; const context = secondary?.(lesson); return context ? `${subject}, ${context}` : subject }
-  function place(lesson: Lesson, day: number, period: number) { if (readOnly || lesson.is_locked) return; onMove?.(lesson, day, period); setCarrying(null); setDragging(null); setHovered(null); setExternalDrag(false) }
-  function onCellKeyDown(event: KeyboardEvent, day: number, period: number, cellLessons: Lesson[]) { if (event.key !== 'Enter' && event.key !== ' ') return; if (readOnly) return; event.preventDefault(); if (carrying) { place(carrying, day, period); announce(`Moved ${describe(carrying)} to ${days.find((d) => d.index === day)?.name}, ${periods.find((p) => p.index === period)?.name}.`); return } const first = cellLessons[0]; if (first && !first.is_locked) { setCarrying(first); onSelect?.(first); announce(`${describe(first)} picked up. Move to another cell and press Enter to place it.`) } else if (first) { onSelect?.(first); announce(`${describe(first)} is locked and cannot be moved.`) } }
-  function handleResizeStart(event: PointerEvent, lesson: Lesson) { if (readOnly || lesson.is_locked || !onResize) return; event.preventDefault(); event.stopPropagation(); const startY = event.clientY; const startDuration = lesson.duration ?? 1; const handle = event.currentTarget as HTMLElement; handle.setPointerCapture(event.pointerId); const move = (ev: globalThis.PointerEvent) => setResizing({ lessonId: lesson.id, duration: Math.min(10, Math.max(1, startDuration + Math.round((ev.clientY - startY) / 30))) }); const up = (ev: globalThis.PointerEvent) => { const next = Math.min(10, Math.max(1, startDuration + Math.round((ev.clientY - startY) / 30))); handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); setResizing(null); if (next !== startDuration) onResize(lesson, next) }; handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up) }
-  function renderCard(lesson: Lesson, compact = false) {
+
+function minutes(value: string) {
+  const [hour, minute] = value.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+function initials(name: string | null | undefined) {
+  if (!name) return ''
+  return name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('')
+}
+
+function colourFor(subject: Subject | undefined, index: number) {
+  return subject?.colour && /^#[0-9A-Fa-f]{6}$/.test(subject.colour)
+    ? subject.colour
+    : SUBJECT_COLOURS[index % SUBJECT_COLOURS.length]
+}
+
+export function TimetableGrid({
+  days,
+  periods,
+  lessons,
+  meta,
+  conflicted,
+  selectedId,
+  readOnly = false,
+  zoom = 1,
+  dense = false,
+  currentSlot,
+  onSelect,
+  onMove,
+  onResize,
+  onDropUnassigned,
+  secondary,
+  teacherInitials = false,
+}: Props) {
+  const [dragging, setDragging] = useState<Lesson | null>(null)
+  const [hovered, setHovered] = useState<string | null>(null)
+  const [carrying, setCarrying] = useState<Lesson | null>(null)
+
+  const orderedPeriods = useMemo(
+    () => [...periods].sort((a, b) => minutes(a.start_time) - minutes(b.start_time) || a.index - b.index),
+    [periods],
+  )
+
+  const bySlot = useMemo(() => {
+    const result = new Map<string, Lesson[]>()
+    lessons.forEach((lesson) => {
+      const key = `${lesson.day_index}:${lesson.period_index}`
+      const current = result.get(key) ?? []
+      current.push(lesson)
+      result.set(key, current)
+    })
+    return result
+  }, [lessons])
+
+  const subjectIndexes = useMemo(() => {
+    const subjects = [...meta.subjects.values()].sort((a, b) => a.id - b.id)
+    return new Map(subjects.map((subject, index) => [subject.id, index]))
+  }, [meta.subjects])
+
+  const describe = (lesson: Lesson) => {
+    const subject = meta.subjects.get(lesson.subject_id)
+    const code = subject?.code ?? subject?.name ?? 'Lesson'
+    const context = secondary?.(lesson)
+    return context ? `${code}, ${context}` : code
+  }
+
+  const moveLesson = (lesson: Lesson, day: number, period: number) => {
+    if (readOnly || lesson.is_locked) return
+    onMove?.(lesson, day, period)
+    setDragging(null)
+    setCarrying(null)
+    setHovered(null)
+  }
+
+  const handleCellKeyDown = (event: KeyboardEvent, day: number, period: number, cellLessons: Lesson[]) => {
+    if (readOnly || (event.key !== 'Enter' && event.key !== ' ')) return
+    event.preventDefault()
+
+    if (carrying) {
+      moveLesson(carrying, day, period)
+      return
+    }
+
+    const lesson = cellLessons.find((item) => !item.is_locked) ?? cellLessons[0]
+    if (lesson) {
+      onSelect?.(lesson)
+      if (!lesson.is_locked) setCarrying(lesson)
+    }
+  }
+
+  const renderCard = (lesson: Lesson, compact = false) => {
     const subject = meta.subjects.get(lesson.subject_id)
     const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : null
     const room = lesson.room_id ? meta.rooms.get(lesson.room_id) : null
-    const context = secondary?.(lesson) ?? null
-    const bad = conflicted?.has(lesson.id)
-    const shownDuration = resizing?.lessonId === lesson.id ? resizing.duration : (lesson.duration ?? 1)
-    const isClassView = Boolean(secondary && secondary(lesson) === null)
+    const context = secondary?.(lesson)
     const teacherCode = teacher?.code?.trim() || teacher?.staff_number?.trim() || ''
-    const teacherLabel = isClassView ? teacherCode : (teacherInitials ? initials(teacher?.name) : null)
-    const colour = validColour(subject?.colour, subjectIndexes.get(lesson.subject_id) ?? 0)
-    const cardStyle = { '--subject-colour': colour, backgroundColor: bad ? '#FBE8E5' : `${colour}1A`, borderLeftColor: bad ? '#9A2F24' : colour } as CSSProperties
-    return <div key={lesson.id} className={['lesson-card', bad ? 'lesson-card--conflict' : '', selectedId === lesson.id ? 'lesson-card--selected' : '', carrying?.id === lesson.id ? 'lesson-card--carrying' : '', lesson.is_locked ? 'lesson-card--locked' : '', compact ? 'lesson-card--compact' : ''].filter(Boolean).join(' ')} style={cardStyle} draggable={!readOnly && !lesson.is_locked} onDragStart={(event) => { if (lesson.is_locked) { event.preventDefault(); return } setDragging(lesson); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(lesson.id)) }} onDragEnd={() => setDragging(null)} onClick={() => onSelect?.(lesson)} role="button" tabIndex={-1} title={lesson.is_locked ? 'Locked — cannot be moved' : teacher?.name && teacherCode ? `${teacherCode} — ${teacher.name}` : undefined} aria-label={`${describe(lesson)}${teacher?.name ? `, ${teacher.name}` : ''}${bad ? '. Has a conflict' : ''}${lesson.is_locked ? '. Locked' : ''}`}><span className="lesson-card__subject" style={{ color: colour }}>{subject?.code ?? subject?.name ?? 'Lesson'}</span>{context && <span className="lesson-card__line">{context}</span>}{teacherLabel && <span className="lesson-card__line">{teacherLabel}</span>}{!isClassView && room?.name && <span className="lesson-card__line lesson-card__room">{room.name}</span>}{shownDuration > 1 && <span className="lesson-card__badge">{shownDuration} periods</span>}{bad && <span className="lesson-card__flag">Conflict</span>}{lesson.is_locked && <span className="lesson-card__lock" title="Locked"><LockIcon width={12} height={12} /></span>}{!readOnly && !lesson.is_locked && onResize && <span className="lesson-card__resize" title="Drag to change the lesson duration" onPointerDown={(event) => handleResizeStart(event, lesson)} onDragStart={(event) => event.preventDefault()} aria-hidden="true" />}</div>
+    const subjectColour = colourFor(subject, subjectIndexes.get(lesson.subject_id) ?? 0)
+    const isClassContext = context === null
+    const bad = conflicted?.has(lesson.id) ?? false
+    const cardStyle = {
+      '--subject-colour': subjectColour,
+      backgroundColor: bad ? '#FBE8E5' : `${subjectColour}1A`,
+      borderLeftColor: bad ? '#9A2F24' : subjectColour,
+    } as CSSProperties
+
+    return (
+      <div
+        key={lesson.id}
+        className={[
+          'lesson-card',
+          compact ? 'lesson-card--compact' : '',
+          selectedId === lesson.id ? 'lesson-card--selected' : '',
+          bad ? 'lesson-card--conflict' : '',
+          lesson.is_locked ? 'lesson-card--locked' : '',
+          carrying?.id === lesson.id ? 'lesson-card--carrying' : '',
+        ].filter(Boolean).join(' ')}
+        style={cardStyle}
+        draggable={!readOnly && !lesson.is_locked}
+        onDragStart={(event) => {
+          if (lesson.is_locked) {
+            event.preventDefault()
+            return
+          }
+          setDragging(lesson)
+          event.dataTransfer.effectAllowed = 'move'
+          event.dataTransfer.setData('text/plain', String(lesson.id))
+        }}
+        onDragEnd={() => setDragging(null)}
+        onClick={() => onSelect?.(lesson)}
+        role="button"
+        tabIndex={-1}
+        aria-label={describe(lesson)}
+      >
+        <span className="lesson-card__subject" style={{ color: subjectColour }}>
+          {subject?.code ?? subject?.name ?? 'Lesson'}
+        </span>
+
+        {context && <span className="lesson-card__line">{context}</span>}
+
+        {isClassContext && teacherCode && (
+          <span className="lesson-card__line">{teacherCode}</span>
+        )}
+
+        {!isClassContext && teacherInitials && teacher?.name && (
+          <span className="lesson-card__line">{initials(teacher.name)}</span>
+        )}
+
+        {!isClassContext && room?.name && (
+          <span className="lesson-card__line lesson-card__room">{room.name}</span>
+        )}
+
+        {bad && <span className="lesson-card__flag">Conflict</span>}
+        {lesson.is_locked && (
+          <span className="lesson-card__lock" title="Locked">
+            <LockIcon width={12} height={12} />
+          </span>
+        )}
+
+        {!readOnly && !lesson.is_locked && onResize && (
+          <button
+            type="button"
+            className="lesson-card__resize"
+            title="Resize lesson"
+            aria-label="Resize lesson"
+            onClick={(event) => {
+              event.stopPropagation()
+              onResize(lesson, Math.min(10, (lesson.duration ?? 1) + 1))
+            }}
+          />
+        )}
+      </div>
+    )
   }
-  const templateColumns = orderedPeriods.map((period) => `${Math.max(1, minutes(period.end_time) - minutes(period.start_time))}fr`).join(' ')
-  return <div className={['timetable', `timetable--zoom-${zoom === 0.75 ? '75' : zoom === 1.25 ? '125' : '100'}`, dense ? 'timetable--dense' : '', secondary ? 'timetable--asc-view' : ''].filter(Boolean).join(' ')}><p className="visually-hidden" aria-live="polite" ref={liveRef} />{carrying && <div className="timetable__carrying" role="status">Moving <strong>{describe(carrying)}</strong>. Choose a cell and press Enter to place it, or <button type="button" className="link" onClick={() => setCarrying(null)}>cancel</button>.</div>}<div className="timetable__time-grid" style={{ '--tt-columns': templateColumns } as React.CSSProperties}><div className="timetable__corner">Day</div>{orderedPeriods.map((period) => <div key={period.index} className={`timetable__period-head ${!period.is_teaching ? 'timetable__period-head--break' : ''}`}><span className="timetable__period">{period.name}</span><span className="timetable__clock">{period.start_time}–{period.end_time}</span></div>)}{days.map((day) => <div key={day.index} className="timetable__day-row"><div className="timetable__day-label">{day.name}</div>{orderedPeriods.map((period) => { const key = `${day.index}:${period.index}`; const cell = byslot.get(key) ?? []; const isNow = currentSlot?.day === day.index && currentSlot.period === period.index; const isTarget = hovered === key && (dragging !== null || externalDrag); const isBreak = !period.is_teaching; return <div key={period.index} className={['timetable__cell', isBreak ? 'timetable__cell--break' : '', isNow ? 'timetable__cell--now' : '', isTarget ? 'timetable__cell--target' : '', cell.length === 0 ? 'timetable__cell--empty' : ''].filter(Boolean).join(' ')} tabIndex={readOnly ? -1 : 0} aria-label={`${day.name} ${period.name}${cell.length ? `: ${cell.map(describe).join('; ')}` : isBreak ? `: ${period.name}` : ': free'}`} onKeyDown={(event) => onCellKeyDown(event, day.index, period.index, cell)} onDragOver={(event) => { if (readOnly || isBreak || (!dragging && !event.dataTransfer.types.includes(UNASSIGNED_DRAG_TYPE))) return; event.preventDefault(); event.dataTransfer.dropEffect = dragging ? 'move' : 'copy'; setExternalDrag(event.dataTransfer.types.includes(UNASSIGNED_DRAG_TYPE)); setHovered(key) }} onDragLeave={() => setHovered((current) => current === key ? null : current)} onDrop={(event) => { event.preventDefault(); if (isBreak) return; if (dragging) { place(dragging, day.index, period.index); return }; const raw = event.dataTransfer.getData(UNASSIGNED_DRAG_TYPE); if (raw) { setHovered(null); setExternalDrag(false); onDropUnassigned?.(Number(raw), day.index, period.index) } }}>{isBreak ? <span className="timetable__break-vertical" aria-label={period.name}>{breakLetter(period, day.index)}</span> : cell.map((lesson) => renderCard(lesson))}</div> })}</div></div>)}</div><div className="timetable__agenda">{days.map((day) => { const dayLessons = orderedPeriods.filter((p) => p.is_teaching).map((period) => ({ period, items: byslot.get(`${day.index}:${period.index}`) ?? [] })).filter((row) => row.items.length > 0); return <section key={day.index} className="agenda-day" aria-labelledby={`agenda-${day.index}`}><h3 className="agenda-day__title" id={`agenda-${day.index}`}>{day.name}</h3>{dayLessons.length === 0 ? <p className="agenda-day__empty">No lessons scheduled.</p> : <ul className="agenda-list">{dayLessons.map(({ period, items }) => <li className="agenda-row" key={period.index}><div className="agenda-row__time"><span className="agenda-row__clock">{period.start_time}</span><span className="agenda-row__period">{period.name}</span></div><div className="agenda-row__body">{items.map((lesson) => renderCard(lesson, true))}</div></li>)}</ul>}</section>})}</div></div>
+
+  const templateColumns = orderedPeriods
+    .map((period) => `${Math.max(1, minutes(period.end_time) - minutes(period.start_time))}fr`)
+    .join(' ')
+
+  return (
+    <div className={[
+      'timetable',
+      `timetable--zoom-${zoom === 0.75 ? '75' : zoom === 1.25 ? '125' : '100'}`,
+      dense ? 'timetable--dense' : '',
+      secondary ? 'timetable--asc-view' : '',
+    ].filter(Boolean).join(' ')}>
+      {carrying && (
+        <div className="timetable__carrying" role="status">
+          Moving <strong>{describe(carrying)}</strong>. Select another cell to place it.
+          <button type="button" className="link" onClick={() => setCarrying(null)}>Cancel</button>
+        </div>
+      )}
+
+      <div
+        className="timetable__time-grid"
+        style={{ '--tt-columns': templateColumns } as CSSProperties}
+      >
+        <div className="timetable__corner">Day</div>
+
+        {orderedPeriods.map((period) => (
+          <div
+            key={period.index}
+            className={`timetable__period-head ${!period.is_teaching ? 'timetable__period-head--break' : ''}`}
+          >
+            <span className="timetable__period">{period.name}</span>
+            <span className="timetable__clock">{period.start_time}–{period.end_time}</span>
+          </div>
+        ))}
+
+        {days.map((day) => (
+          <div key={day.index} className="timetable__day-row">
+            <div className="timetable__day-label">{day.name}</div>
+
+            {orderedPeriods.map((period) => {
+              const key = `${day.index}:${period.index}`
+              const cellLessons = bySlot.get(key) ?? []
+              const isBreak = !period.is_teaching
+              const isNow = currentSlot?.day === day.index && currentSlot.period === period.index
+              const isTarget = hovered === key && Boolean(dragging || carrying)
+
+              return (
+                <div
+                  key={period.index}
+                  className={[
+                    'timetable__cell',
+                    isBreak ? 'timetable__cell--break' : '',
+                    isNow ? 'timetable__cell--now' : '',
+                    isTarget ? 'timetable__cell--target' : '',
+                    cellLessons.length === 0 ? 'timetable__cell--empty' : '',
+                  ].filter(Boolean).join(' ')}
+                  tabIndex={readOnly ? -1 : 0}
+                  aria-label={`${day.name} ${period.name}`}
+                  onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)}
+                  onDragOver={(event) => {
+                    if (readOnly || isBreak || !dragging) return
+                    event.preventDefault()
+                    setHovered(key)
+                  }}
+                  onDragLeave={() => setHovered((value) => value === key ? null : value)}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    if (!isBreak && dragging) moveLesson(dragging, day.index, period.index)
+                    setHovered(null)
+                  }}
+                >
+                  {isBreak ? (
+                    <span className="timetable__break-vertical" aria-label={period.name}>•</span>
+                  ) : (
+                    cellLessons.map((lesson) => renderCard(lesson))
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div className="timetable__agenda">
+        {days.map((day) => {
+          const rows = orderedPeriods
+            .filter((period) => period.is_teaching)
+            .map((period) => ({ period, items: bySlot.get(`${day.index}:${period.index}`) ?? [] }))
+            .filter((row) => row.items.length > 0)
+
+          return (
+            <section key={day.index} className="agenda-day" aria-labelledby={`agenda-${day.index}`}>
+              <h3 className="agenda-day__title" id={`agenda-${day.index}`}>{day.name}</h3>
+              {rows.length === 0 ? (
+                <p className="agenda-day__empty">No lessons scheduled.</p>
+              ) : (
+                <ul className="agenda-list">
+                  {rows.map(({ period, items }) => (
+                    <li className="agenda-row" key={period.index}>
+                      <div className="agenda-row__time">
+                        <span className="agenda-row__clock">{period.start_time}</span>
+                        <span className="agenda-row__period">{period.name}</span>
+                      </div>
+                      <div className="agenda-row__body">
+                        {items.map((lesson) => renderCard(lesson, true))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
