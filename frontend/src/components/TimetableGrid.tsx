@@ -4,7 +4,6 @@ import { LockIcon } from './icons'
 import './timetable-time-grid.css'
 import './timetable-subject-colours.css'
 import './timetable-asc-toolbar.css'
-import './timetable-asc.css'
 
 type LessonMeta = { subjects: Map<number, Subject>; teachers: Map<number, Teacher>; rooms: Map<number, Room>; classes: Map<number, SchoolClass> }
 export type { LessonMeta }
