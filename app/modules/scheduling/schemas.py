@@ -23,10 +23,10 @@ class SubjectOut(ORMModel,SubjectIn): id:int
 class RoomIn(BaseModel):
     name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); building:str|None=None; capacity:int=Field(default=40,ge=1,le=2000); room_type:str=Field(default='classroom',max_length=40); is_accessible:bool=True; unavailable:Slots=Field(default_factory=dict)
 class RoomOut(ORMModel,RoomIn): id:int
-class ClassIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int=Field(default=40,ge=1,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
+class ClassIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int=Field(default=40,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
 class ClassUpdateIn(BaseModel):
-    name:str|None=Field(default=None,min_length=1,max_length=120); code:str|None=Field(default=None,min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int|None=Field(default=None,ge=1,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots|None=None
-class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None; academic_stream:str|None=None
+    name:str|None=Field(default=None,min_length=1,max_length=120); code:str|None=Field(default=None,min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int|None=Field(default=None,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots|None=None
+class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None
 class TtLessonRequirementIn(BaseModel): pass
 class RequirementIn(BaseModel): class_id:int; subject_id:int; teacher_id:int|None=None; room_id:int|None=None; periods_per_week:int=Field(default=1,ge=1,le=40); double_periods:int=Field(default=0,ge=0,le=10)
 class RequirementOut(ORMModel,RequirementIn): id:int; class_name:str|None=None; subject_name:str|None=None; teacher_name:str|None=None; room_name:str|None=None
@@ -41,7 +41,7 @@ class JobOut(ORMModel): id:int; status:str; progress:int; stage:str|None; checks
 class LessonOut(ORMModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
 class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=6); period_index:int=Field(ge=0,le=30); room_id:int|None=None
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=6); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
-class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=6); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
+class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
 class UnassignedOut(BaseModel): requirement_id:int; subject_id:int; subject_name:str; subject_colour:str; class_id:int; class_name:str; teacher_id:int|None; teacher_name:str|None; room_id:int|None; room_name:str|None; periods_per_week:int; placed:int; remaining:int; requires_double:bool
 class VersionOut(ORMModel):
     id:int; number:int; label:str|None; status:str; quality:dict[str,Any]=Field(default_factory=dict); stats:dict[str,Any]=Field(default_factory=dict); created_by:str|None=None; created_at:Any=None; published_at:Any=None; day_indexes:list[int]=Field(default_factory=list); day_names:list[str]=Field(default_factory=list)
