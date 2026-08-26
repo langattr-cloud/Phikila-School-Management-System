@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -15,8 +14,6 @@ from .solver import ORTOOLS_AVAILABLE, preflight, solve
 from .tenancy import TtMembership
 
 logger = logging.getLogger(__name__)
-_WORKERS = 2
-_executor = ThreadPoolExecutor(max_workers=_WORKERS, thread_name_prefix="phikila-solver")
 CHECKS = [
     {"key": "teacher_conflicts", "label": "Teacher conflicts", "group": "hard"},
     {"key": "class_conflicts", "label": "Class conflicts", "group": "hard"},
@@ -35,19 +32,20 @@ DEFAULT_PERIODS = [
     (8, "P7", "14:00", "14:45", True), (9, "P8", "14:45", "15:30", True),
 ]
 
-def initial_checks(): return [{**c, "state": "pending"} for c in CHECKS]
+def initial_checks():
+    return [{**c, "state": "pending"} for c in CHECKS]
 
 def create_job(db: Session, school_id: int, actor: str | None):
     job = m.TtSolverJob(school_id=school_id, status="queued", stage="Queued", progress=0, checks=initial_checks(), created_by=actor)
     db.add(job); db.commit(); db.refresh(job); return job
 
 def enqueue(job_id: int, school_id: int, max_seconds: float = 30.0, day_indexes: list[int] | None = None):
-    """Submit a queued solver job to the in-process worker pool.
+    """Leave the job queued for the dedicated solver worker to claim.
 
-    The web service currently has no separate Render worker attached to the
-    queue, so simply returning the job id leaves jobs permanently queued.
+    The Render deployment runs the worker alongside the API container. Keeping
+    execution out of the request process prevents jobs from disappearing when
+    the web process restarts or reloads.
     """
-    _executor.submit(_run_job, job_id, school_id, max_seconds, day_indexes)
     return job_id
 
 def _ensure_calendar(db: Session, school_id: int):
@@ -71,6 +69,7 @@ def _run_job(job_id, school_id, max_seconds, day_indexes=None):
     try:
         job = db.query(m.TtSolverJob).filter(m.TtSolverJob.id == job_id).first()
         if not job: return
+        if job.status != "queued": return
         job.status="running"; job.stage="Loading school data"; job.progress=4; job.started_at=datetime.utcnow(); db.commit()
         if not ORTOOLS_AVAILABLE: return _fail(db, job, "The scheduling engine is not available on this server.")
         _ensure_calendar(db, school_id)
