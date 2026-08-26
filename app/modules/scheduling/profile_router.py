@@ -11,7 +11,7 @@ from .solver import ORTOOLS_AVAILABLE
 from .tenancy import Principal, require_role, resolve_principal
 router=APIRouter()
 ACTIVE_STATUSES=("queued","running","optimizing","validating")
-STALE_AFTER=timedelta(minutes=30)
+STALE_AFTER=timedelta(minutes=10)
 
 def _utc(value):
     if value is None:return None
