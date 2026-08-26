@@ -3,7 +3,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, EmptyState, ErrorState } from '../components/States'
 import { DataTable, type Column } from '../components/DataTable'
-import { CalendarIcon, SearchIcon } from '../components/icons'
+import { SearchIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { api, type Grade, type Level, type Stream } from '../lib/api'
 import { friendlyApiError } from '../lib/api'
@@ -182,21 +182,21 @@ export function RequirementsPage() {
       </section>}
       {ready && data && <section className="section">
         <div className="toolbar"><div><h2 className="section__title">Pending allocations</h2><p className="muted">Review the list before saving.</p></div>{drafts.length > 0 && <button type="button" className="button button--primary" onClick={saveAllocations} disabled={saving}>{saving ? 'Saving…' : `Save ${drafts.length} allocation${drafts.length === 1 ? '' : 's'}`}</button>}</div>
-        {drafts.length ? <DataTable columns={draftColumns} rows={draftRows} emptyMessage="No pending allocations." /> : <EmptyState title="No pending allocations" message="Add one or more teaching allocations above." />}
+        {drafts.length ? <DataTable caption="Pending teaching allocations" columns={draftColumns} rows={draftRows} rowKey={(row) => row.id} empty={<EmptyState title="No pending allocations" description="Add one or more teaching allocations above." />} /> : <EmptyState title="No pending allocations" description="Add one or more teaching allocations above." />}
       </section>}
       {ready && data && <section className="section">
-        <div className="toolbar"><div><h2 className="section__title">Saved allocations</h2><p className="muted">Search, edit or remove saved teaching allocations.</p></div><label className="search"><SearchIcon size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search teacher, grade, subject…" /></label></div>
-        {loading ? <div className="muted">Loading…</div> : teacherSummaries.length === 0 ? <EmptyState title="No allocations found" message="Add teaching allocations above or adjust your search." /> : <>
-          <DataTable columns={summaryColumns} rows={teacherSummaries} emptyMessage="No allocations found." />
+        <div className="toolbar"><div><h2 className="section__title">Saved allocations</h2><p className="muted">Search, edit or remove saved teaching allocations.</p></div><label className="search"><SearchIcon width={18} height={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search teacher, grade, subject…" /></label></div>
+        {loading ? <div className="muted">Loading…</div> : teacherSummaries.length === 0 ? <EmptyState title="No allocations found" description="Add teaching allocations above or adjust your search." /> : <>
+          <DataTable caption="Teacher workload summaries" columns={summaryColumns} rows={teacherSummaries} rowKey={(row) => row.teacher_id} empty={<EmptyState title="No allocations found" description="Add teaching allocations above or adjust your search." />} />
           {expandedTeacher !== null && <div className="section__content">
             <h3 className="section__title">{teacherSummaries.find((summary) => summary.teacher_id === expandedTeacher)?.teacher_name ?? 'Teacher'} — subjects</h3>
-            <DataTable columns={[
-              { key: 'class', header: 'Grade', render: (row) => row.class_name ?? '—' },
-              { key: 'subject', header: 'Subject', render: (row) => row.subject_name ?? '—' },
-              { key: 'workload', header: 'Workload', render: (row) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'}` },
-              { key: 'double', header: 'DL', render: (row) => Number(row.double_periods ?? 0) > 0 ? <Badge>DL</Badge> : '—' },
-              { key: 'actions', header: 'Actions', render: (row) => <div className="form__row"><button type="button" className="button button--ghost button--sm" onClick={() => editSaved(row)}>Edit</button><button type="button" className="button button--ghost button--sm" onClick={() => void remove(row)}>Delete</button></div> },
-            ]} rows={teacherSummaries.find((summary) => summary.teacher_id === expandedTeacher)?.allocations ?? []} emptyMessage="No allocations found." />
+            <DataTable caption="Teacher subject allocations" columns={[
+              { key: 'class', header: 'Grade', render: (row: Requirement) => row.class_name ?? '—' },
+              { key: 'subject', header: 'Subject', render: (row: Requirement) => row.subject_name ?? '—' },
+              { key: 'workload', header: 'Workload', render: (row: Requirement) => `${row.periods_per_week} lesson${row.periods_per_week === 1 ? '' : 's'}` },
+              { key: 'double', header: 'DL', render: (row: Requirement) => Number(row.double_periods ?? 0) > 0 ? <Badge>DL</Badge> : '—' },
+              { key: 'actions', header: 'Actions', render: (row: Requirement) => <div className="form__row"><button type="button" className="button button--ghost button--sm" onClick={() => editSaved(row)}>Edit</button><button type="button" className="button button--ghost button--sm" onClick={() => void remove(row)}>Delete</button></div> },
+            ]} rows={teacherSummaries.find((summary) => summary.teacher_id === expandedTeacher)?.allocations ?? []} rowKey={(row) => row.id} empty={<EmptyState title="No allocations found" description="No saved subject allocations are available for this teacher." />} />
           </div>}
         </>}
       </section>}
