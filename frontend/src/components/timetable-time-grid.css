@@ -4,11 +4,23 @@
 .timetable__corner{position:sticky;left:0;z-index:3;font-size:.72rem;font-weight:700;color:var(--color-ink-muted);text-transform:uppercase;letter-spacing:.04em}
 .timetable__period-head{display:flex;flex-direction:column;justify-content:center;gap:.08rem;text-align:center}.timetable__period-head--break{background:var(--color-primary-soft)}
 .timetable__period{font-weight:700;font-size:.86rem;line-height:1.1}.timetable__clock{color:var(--color-ink-muted);font-size:.64rem;white-space:nowrap}
-.timetable__day-row{display:grid;grid-column:1/-1;grid-template-columns:5.25rem var(--tt-columns);min-height:4.9rem}.timetable__day-label{position:sticky;left:0;z-index:2;display:flex;align-items:flex-start;justify-content:center;padding:.65rem .35rem;background:var(--color-surface-muted);font-weight:700;font-size:.78rem;text-transform:none}
-.timetable__cell{position:relative;min-height:4.9rem;padding:.22rem;overflow:hidden}.timetable__cell--empty{background:var(--color-surface)}.timetable__cell--break{display:flex;align-items:center;justify-content:center;padding:0;background:var(--color-surface-muted)}
-.timetable__break-vertical{display:inline-flex;align-items:center;justify-content:center;width:1.25rem;height:100%;min-height:4.4rem;font-size:.85rem;font-weight:800;letter-spacing:.05em;writing-mode:vertical-rl;transform:rotate(180deg);color:var(--color-primary)}
+.timetable__day-row{display:grid;grid-column:1/-1;grid-template-columns:5.25rem var(--tt-columns);min-height:5.35rem}.timetable__day-label{position:sticky;left:0;z-index:2;display:flex;align-items:flex-start;justify-content:center;padding:.72rem .35rem;background:var(--color-surface-muted);font-weight:700;font-size:.78rem;text-transform:none}
+.timetable__cell{position:relative;min-height:5.35rem;padding:.32rem;overflow:hidden;background:var(--color-surface)}.timetable__cell--empty{background:var(--color-surface)}.timetable__cell--break{display:flex;align-items:center;justify-content:center;padding:0;background:var(--color-surface-muted)}
+.timetable__break-vertical{display:inline-flex;align-items:center;justify-content:center;width:1.25rem;height:100%;min-height:4.8rem;font-size:.85rem;font-weight:800;letter-spacing:.05em;writing-mode:vertical-rl;transform:rotate(180deg);color:var(--color-primary)}
 .timetable__cell--now{box-shadow:inset 0 0 0 2px var(--color-primary)}.timetable__cell--target{background:var(--color-primary-soft)}
-.timetable__time-grid .lesson-card{min-height:4.35rem;width:100%;overflow:hidden;border-radius:.35rem;padding:.38rem .4rem .38rem .48rem;gap:.08rem;box-shadow:none}.timetable__time-grid .lesson-card__subject{display:block;font-size:.78rem;font-weight:800;line-height:1.1}.timetable__time-grid .lesson-card__line{display:block;margin-top:.08rem;font-size:.68rem;font-weight:650;line-height:1.1}.timetable__time-grid .lesson-card__room,.timetable__time-grid .lesson-card__badge{display:none}
+
+/* aSc-style lesson cards: the grid remains the timetable, while each lesson is a distinct card inside its cell. */
+.timetable__time-grid .lesson-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;min-height:4.7rem;width:100%;box-sizing:border-box;overflow:hidden;margin:0;padding:.55rem .48rem .45rem .62rem;gap:.16rem;border:1px solid color-mix(in srgb,var(--subject-colour,#64748b) 48%,#d9dedb);border-left:4px solid var(--subject-colour,#64748b);border-radius:.52rem;background:color-mix(in srgb,var(--subject-colour,#64748b) 11%,#fff);box-shadow:0 1px 2px rgb(15 23 42 / 8%),0 2px 5px rgb(15 23 42 / 5%);transition:box-shadow .12s ease,transform .12s ease,filter .12s ease}
+.timetable__time-grid .lesson-card:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgb(15 23 42 / 13%);filter:none}
+.timetable__time-grid .lesson-card--selected{box-shadow:0 0 0 2px var(--subject-colour,#64748b),0 3px 8px rgb(15 23 42 / 13%)}
+.timetable__time-grid .lesson-card--conflict{border-left-color:#9a2f24;background:#fbe8e5}
+.timetable__time-grid .lesson-card__subject{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.84rem;font-weight:850;line-height:1.08;letter-spacing:.01em;text-transform:uppercase}
+.timetable__time-grid .lesson-card__line{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.04rem;font-size:.68rem;font-weight:650;line-height:1.08;color:var(--color-ink-muted)}
+.timetable--class-view .lesson-card__subject{font-size:.86rem}.timetable--class-view .lesson-card__line{font-size:.72rem;font-weight:750;color:var(--color-ink)}
+.timetable__time-grid .lesson-card__room,.timetable__time-grid .lesson-card__badge{display:none}
+.timetable__time-grid .lesson-card__flag{display:block;margin-top:auto;font-size:.55rem;font-weight:800;text-transform:uppercase;color:#9a2f24}
+.timetable__time-grid .lesson-card__lock{position:absolute;top:.32rem;right:.34rem}
+.timetable__time-grid .lesson-card__resize{position:absolute;right:0;bottom:0;left:0;height:.22rem;cursor:ns-resize}
 .timetable__agenda{display:none}
 @media(max-width:767px){.timetable__time-grid{display:none}.timetable__agenda{display:block}}
-@media print{.timetable__time-grid{min-width:0;grid-template-columns:4.5rem var(--tt-columns);border-color:#999}.timetable__day-row{grid-template-columns:4.5rem var(--tt-columns)}.timetable__agenda{display:none!important}}
+@media print{.timetable__time-grid{min-width:0;grid-template-columns:4.5rem var(--tt-columns);border-color:#999}.timetable__day-row{grid-template-columns:4.5rem var(--tt-columns)}.timetable__agenda{display:none!important}.timetable__time-grid .lesson-card{box-shadow:none}}
