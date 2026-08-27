@@ -7,14 +7,6 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
-      - key: SOLVER_DEDICATED_WORKER
-        value: "1"
-      - key: DB_POOL_SIZE
-        value: "3"
-      - key: DB_MAX_OVERFLOW
-        value: "1"
-      - key: DB_POOL_TIMEOUT
-        value: "15"
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
@@ -32,4 +24,25 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
+        sync: false
+
+  - type: worker
+    name: phikila-solver-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerCommand: python -m app.modules.scheduling.worker
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_AUDIENCE
+        value: authenticated
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: APP_JWT_SECRET
         sync: false
