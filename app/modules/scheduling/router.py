@@ -1,9 +1,7 @@
 """Scheduling API.
 
 Every route is scoped to the caller's school. ``school_id`` is resolved
-server-side from the verified Supabase token (never trusted from the client),
-which is the application-level counterpart to the PostgreSQL RLS policies in
-docs/rls.sql.
+server-side from the verified Supabase token.
 """
 
 from __future__ import annotations
@@ -106,6 +104,40 @@ _crud("teachers", m.TtTeacher, s.TeacherIn, s.TeacherOut, "teacher")
 _crud("subjects", m.TtSubject, s.SubjectIn, s.SubjectOut, "subject")
 _crud("rooms", m.TtRoom, s.RoomIn, s.RoomOut, "room")
 _crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class", update_schema=s.ClassUpdateIn)
+
+
+@router.patch("/classes/{ident}/teacher", response_model=s.ClassOut, name="assign_class_teacher")
+def assign_class_teacher(
+    ident: int,
+    payload: s.ClassTeacherAssignmentIn,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    """Assign or remove a class teacher without going through generic class editing."""
+    row = _owned(db, m.TtClass, principal.school_id, ident)
+    teacher = None
+    if payload.teacher_id is not None:
+        teacher = _owned(db, m.TtTeacher, principal.school_id, payload.teacher_id)
+        if not teacher.is_active:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "The selected teacher is inactive.")
+
+    previous_teacher_id = row.class_teacher_id
+    row.class_teacher_id = payload.teacher_id
+    db.commit()
+    db.refresh(row)
+    _audit(
+        db,
+        principal,
+        "assign_teacher",
+        "class",
+        row.id,
+        f"Assigned class teacher for {row.name}",
+        before={"class_teacher_id": previous_teacher_id},
+        after={"class_teacher_id": row.class_teacher_id, "teacher_id": teacher.id if teacher else None},
+    )
+    db.commit()
+    return row
+
 
 @router.get("/classes/academic-streams", response_model=list[s.ClassOut], name="list_classes_with_academic_stream")
 def list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
