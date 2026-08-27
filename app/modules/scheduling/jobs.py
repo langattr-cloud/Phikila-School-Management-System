@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -29,25 +29,22 @@ DEFAULT_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 DEFAULT_PERIODS = [(0,"P1","08:00","08:45",True),(1,"P2","08:45","09:30",True),(2,"P3","09:30","10:15",True),(3,"Break","10:15","10:45",False),(4,"P4","10:45","11:30",True),(5,"P5","11:30","12:15",True),(6,"P6","12:15","13:00",True),(7,"Lunch","13:00","14:00",False),(8,"P7","14:00","14:45",True),(9,"P8","14:45","15:30",True)]
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="timetable-solver")
 
+def utcnow(): return datetime.now(timezone.utc).replace(tzinfo=None)
 def initial_checks(): return [{**c,"state":"pending"} for c in CHECKS]
 
 def create_job(db:Session,school_id:int,actor:str|None):
     job=m.TtSolverJob(school_id=school_id,status="queued",stage="Queued",progress=0,checks=initial_checks(),created_by=actor); db.add(job); db.commit(); db.refresh(job); return job
 
 def enqueue(job_id:int,school_id:int,max_seconds:float=30.0,day_indexes:list[int]|None=None):
-    if os.getenv("SOLVER_DEDICATED_WORKER") == "1":
-        logger.info("Queued solver job %s for dedicated worker",job_id); return job_id
-    future=_EXECUTOR.submit(_run_job,job_id,school_id,max_seconds,day_indexes)
-    future.add_done_callback(lambda f: logger.exception("Solver job %s background task failed",job_id) if f.exception() else None)
-    return job_id
+    if os.getenv("SOLVER_DEDICATED_WORKER") == "1": logger.info("Queued solver job %s for dedicated worker",job_id); return job_id
+    future=_EXECUTOR.submit(_run_job,job_id,school_id,max_seconds,day_indexes); future.add_done_callback(lambda f: logger.exception("Solver job %s background task failed",job_id) if f.exception() else None); return job_id
 
 def _ensure_calendar(db,school_id):
     if db.query(m.TtDay).filter(m.TtDay.school_id==school_id).count()==0: db.add_all([m.TtDay(school_id=school_id,index=i,name=n,day_of_week=i,is_active=True) for i,n in enumerate(DEFAULT_DAYS)])
-    if db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).count()==0: db.add_all([m.TtPeriod(school_id=school_id,index=i,name=n,start_time=s,end_time=e,is_teaching=t) for i,n,s,e,t in DEFAULT_PERIODS])
+    if db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).count()==0: db.add_all([m.TtPeriod(school_id=school_id,index=i,name=n,start_time=s,end_time=e,is_teaching=t) for i,n,s,e,t in enumerate(DEFAULT_PERIODS)])
     db.commit()
 
 def _set_checks(checks,keys,state): return [{**c,"state":state} if c["key"] in keys else c for c in checks]
-
 def _actor_uuid(db,school_id,actor):
     if not actor:return None
     membership=db.query(TtMembership).filter(TtMembership.school_id==school_id,TtMembership.user_id==actor,TtMembership.is_active.is_(True)).first()
@@ -59,37 +56,41 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
     db=SessionLocal(); original_days=None; logger.info("Starting solver job %s for school %s",job_id,school_id)
     try:
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
-        if not job:return
-        # A dedicated worker claims the job by changing it to running before
-        # calling this function. The in-process executor invokes it while the
-        # job is still queued. Accept both states so the worker cannot leave a
-        # claimed job permanently stuck at 1%.
-        if job.status not in {"queued", "running"}:return
-        job.status="running";job.stage="Loading school data";job.progress=max(job.progress or 0,4);job.started_at=job.started_at or datetime.utcnow();db.commit()
-        if not ORTOOLS_AVAILABLE:return _fail(db,job,"The scheduling engine is not available on this server.")
+        if not job or job.status not in {"queued","running"}: return
+        job.status="running"; job.stage="Loading school data"; job.progress=max(job.progress or 0,4); job.started_at=job.started_at or utcnow(); db.commit()
+        if not ORTOOLS_AVAILABLE: return _fail(db,job,"The scheduling engine is not available on this server.")
         _ensure_calendar(db,school_id)
         if day_indexes is not None:
             requested={int(i) for i in day_indexes};days=db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all();original_days={d.id:d.is_active for d in days}
             for d in days:d.is_active=d.index in requested
             db.commit()
-        data=build_input(db,school_id,max_seconds=max_seconds);logger.info("Solver job %s built input: %d requirements, %d classes, %d teachers",job_id,len(data.requirements),len(data.classes),len(data.teachers))
+        logger.info("Solver job %s building solver input",job_id)
+        data=build_input(db,school_id,max_seconds=max_seconds)
+        logger.info("Solver job %s built input: %d requirements, %d classes, %d teachers, %d rooms",job_id,len(data.requirements),len(data.classes),len(data.teachers),len(data.rooms))
         problems=preflight(data)
         if problems:return _fail(db,job," ".join(problems))
         def cancelled():
-            db.expire_all();row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first();return bool(row and row.cancel_requested)
+            try:
+                db.expire_all();row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first();return bool(row and row.cancel_requested)
+            except Exception: db.rollback(); return False
         def report(pct,stage):
-            row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
-            if not row:return
-            row.progress=max(row.progress or 0,min(99,pct));row.stage=stage;checks=row.checks or initial_checks()
-            if pct>=26:checks=_set_checks(checks,["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed");row.status="running"
-            if pct>=40:row.status="optimizing"
-            if pct>=60:checks=_set_checks(checks,["workload","distribution"],"passed")
-            if pct>=84:row.status="validating"
-            row.checks=checks;db.commit()
-        logger.info("Solver job %s starting OR-Tools solve",job_id);result=solve(data,on_progress=report,should_cancel=cancelled);logger.info("Solver job %s returned status=%s placements=%d",job_id,result.status,len(result.placements))
+            try:
+                row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
+                if not row:return
+                row.progress=max(row.progress or 0,min(99,pct));row.stage=stage;checks=row.checks or initial_checks()
+                if pct>=26:checks=_set_checks(checks,["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed")
+                if pct>=40:row.status="optimizing"
+                if pct>=60:checks=_set_checks(checks,["workload","distribution"],"passed")
+                if pct>=84:row.status="validating"
+                row.checks=checks;db.commit()
+            except Exception:
+                db.rollback();logger.exception("Solver job %s progress update failed",job_id)
+        logger.info("Solver job %s starting OR-Tools solve",job_id)
+        result=solve(data,on_progress=report,should_cancel=cancelled)
+        logger.info("Solver job %s returned status=%s placements=%d",job_id,result.status,len(result.placements))
         if result.status=="cancelled" or cancelled():
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
-            if job:job.status="cancelled";job.stage="Cancelled";job.finished_at=datetime.utcnow();job.message="Generation was cancelled.";db.commit()
+            if job:job.status="cancelled";job.stage="Cancelled";job.finished_at=utcnow();job.message="Generation was cancelled.";db.commit()
             return
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
         if not job:return
@@ -102,7 +103,7 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
             if job:job.result_version_id=version.id;job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"failed");job.message=f"Generation completed but {len(hard_conflicts)} hard conflict(s) prevented automatic publication.";db.commit();_fail(db,job,job.message)
             return
-        db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id,m.TtVersion.status=="published").update({"status":"archived"});version.status="published";version.published_at=datetime.utcnow();checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability","double_lessons","workload","distribution"],"passed");job.checks=checks;job.status="completed";job.stage="Completed";job.progress=100;job.result_version_id=version.id;job.quality=result.quality;job.finished_at=datetime.utcnow();db.commit();db.add(m.TtAuditEntry(school_id=school_id,actor=job.created_by,action="generate",entity="version",entity_id=version.id,summary=f"Generated and published timetable v{version.number} ({version.label or 'Generated'})"));db.commit();logger.info("Solver job %s completed and published version %s",job_id,version.id)
+        db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id,m.TtVersion.status=="published").update({"status":"archived"});version.status="published";version.published_at=utcnow();checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability","double_lessons","workload","distribution"],"passed");job.checks=checks;job.status="completed";job.stage="Completed";job.progress=100;job.result_version_id=version.id;job.quality=result.quality;job.finished_at=utcnow();db.commit();db.add(m.TtAuditEntry(school_id=school_id,actor=job.created_by,action="generate",entity="version",entity_id=version.id,summary=f"Generated and published timetable v{version.number} ({version.label or 'Generated'})"));db.commit();logger.info("Solver job %s completed and published version %s",job_id,version.id)
     except Exception:
         logger.exception("Solver job %s failed",job_id)
         try:
@@ -119,8 +120,7 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             except Exception:db.rollback()
         db.close()
 
-def _fail(db,job,message):job.status="failed";job.stage="Failed";job.message=message;job.finished_at=datetime.utcnow();db.commit();logger.error("Solver job %s failed: %s",job.id,message)
-
+def _fail(db,job,message):job.status="failed";job.stage="Failed";job.message=message;job.finished_at=utcnow();db.commit();logger.error("Solver job %s failed: %s",job.id,message)
 def _persist(db,school_id,result,actor):
     last=db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id).order_by(m.TtVersion.number.desc()).first();active=db.query(m.TtDay).filter(m.TtDay.school_id==school_id,m.TtDay.is_active.is_(True)).order_by(m.TtDay.index).all();number=(last.number+1) if last else 1
     version=m.TtVersion(school_id=school_id,number=number,name=f"Timetable v{number}",label="Generated",status="draft",quality=result.quality,stats=result.stats,created_by=actor,day_indexes=[d.index for d in active],day_names=[d.name for d in active]);db.add(version);db.flush()
