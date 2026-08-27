@@ -1,4 +1,4 @@
-"""Dedicated Render worker for durable timetable solver jobs."""
+"""Dedicated worker for durable timetable solver jobs."""
 from __future__ import annotations
 
 import logging
@@ -11,20 +11,26 @@ from app.core.database import SessionLocal
 from . import models as m
 from .jobs import _run_job
 
-logger = logging.getLogger(__name__)
+# The worker is launched as a child of the Render supervisor, so configure
+# logging here as well. Previously all worker INFO logs were silently dropped.
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [solver-worker] %(message)s",
+    force=True,
+)
+logger = logging.getLogger("solver-worker")
+
 POLL_SECONDS = float(os.getenv("SOLVER_POLL_SECONDS", "2"))
-STALE_MINUTES = float(os.getenv("SOLVER_STALE_MINUTES", "5"))
-DEFAULT_MAX_SECONDS = float(os.getenv("SOLVER_MAX_SECONDS", "30"))
-WORKER_GRACE_SECONDS = float(os.getenv("SOLVER_WORKER_GRACE_SECONDS", "15"))
+STALE_MINUTES = float(os.getenv("SOLVER_STALE_MINUTES", "10"))
+DEFAULT_MAX_SECONDS = float(os.getenv("SOLVER_MAX_SECONDS", "300"))
+WORKER_GRACE_SECONDS = float(os.getenv("SOLVER_WORKER_GRACE_SECONDS", "30"))
 
 
 def utcnow() -> datetime:
-    """Return a timezone-aware UTC datetime."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def recover_stale_jobs(db) -> int:
-    """Fail jobs abandoned by a crashed/restarted worker instead of leaving them running forever."""
     cutoff = utcnow() - timedelta(minutes=STALE_MINUTES)
     rows = (
         db.query(m.TtSolverJob)
@@ -45,7 +51,6 @@ def recover_stale_jobs(db) -> int:
 
 
 def _run_job_isolated(job_id: int, school_id: int, max_seconds: float, day_indexes=None) -> None:
-    """Run a solver job in a fresh process so a hung native solver/DB call is killable."""
     _run_job(job_id, school_id, max_seconds, day_indexes)
 
 
@@ -68,7 +73,6 @@ def _fail_job(job_id: int, message: str) -> None:
 
 
 def run_isolated(job_id: int, school_id: int, max_seconds: float, day_indexes=None) -> None:
-    """Execute one job with a hard process-level wall-clock limit."""
     ctx = mp.get_context("spawn")
     process = ctx.Process(
         target=_run_job_isolated,
@@ -103,13 +107,19 @@ def run_isolated(job_id: int, school_id: int, max_seconds: float, day_indexes=No
 
 
 def main() -> None:
-    # Spawn is deliberately selected because the worker already owns a SQLAlchemy
-    # engine; fork would risk sharing pooled DB connections with the child.
     mp.set_start_method("spawn", force=True)
+    logger.info(
+        "Solver worker started poll=%.1fs max_seconds=%.1f stale_minutes=%.1f",
+        POLL_SECONDS,
+        DEFAULT_MAX_SECONDS,
+        STALE_MINUTES,
+    )
     while True:
         db = SessionLocal()
         try:
-            recover_stale_jobs(db)
+            recovered = recover_stale_jobs(db)
+            if recovered:
+                logger.warning("Recovered %s stale solver job(s)", recovered)
             job = (
                 db.query(m.TtSolverJob)
                 .filter(m.TtSolverJob.status == "queued")
