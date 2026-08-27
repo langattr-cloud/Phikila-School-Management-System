@@ -172,10 +172,18 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
 class _ProgressCallback(cp_model.CpSolverSolutionCallback if ORTOOLS_AVAILABLE else object):
     def __init__(self,report,should_cancel):
         if ORTOOLS_AVAILABLE:cp_model.CpSolverSolutionCallback.__init__(self)
-        self._report=report;self._should_cancel=should_cancel;self._count=0
+        self._report=report;self._should_cancel=should_cancel;self._count=0;self._last_report=0.0
     def on_solution_callback(self):
-        self._count+=1;self._report(min(80,40+self._count*6),f"Improving solution ({self._count})")
-        if self._should_cancel and self._should_cancel():self.StopSearch()
+        import time
+        self._count+=1
+        now=time.monotonic()
+        # Solution callbacks run on the solver hot path. Do not perform a database
+        # query/commit for every incumbent; that can dominate solve time.
+        if now-self._last_report >= 0.75 or self._count == 1:
+            self._last_report=now
+            self._report(min(80,40+self._count*6),f"Improving solution ({self._count})")
+        if self._should_cancel and (self._count % 10 == 0 or now-self._last_report < 0.01) and self._should_cancel():
+            self.StopSearch()
 def score(data:SolverInput,placements:Sequence[Placement])->dict:
     required=sum(r.periods_per_week for r in data.requirements);placed=len(placements);hard=100.0 if placed==required else round(100.0*placed/max(1,required),1)
     by_teacher_day={}

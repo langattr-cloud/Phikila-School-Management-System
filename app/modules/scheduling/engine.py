@@ -71,7 +71,7 @@ def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0) -> So
     subjects={s.id: SubjectSpec(id=s.id,name=s.name,prefers_morning=bool(s.prefers_morning),spread_across_week=bool(s.spread_across_week),required_room_type=s.required_room_type) for s in db.query(m.TtSubject).filter(m.TtSubject.school_id==school_id)}
     requirements=[RequirementSpec(id=r.id,class_id=r.class_id,subject_id=r.subject_id,teacher_id=r.teacher_id,room_id=r.room_id,periods_per_week=r.periods_per_week or 1,double_periods=r.double_periods or 0) for r in db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==school_id)]
     weights,avoid_rules=load_constraints(db,school_id)
-    return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,max_seconds=max_seconds)
+    return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,max_seconds=max_seconds,workers=2)
 
 def load_constraints(db: Session, school_id: int) -> tuple[Weights,list[AvoidRule]]:
     weights=Weights(); avoid=[]
