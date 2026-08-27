@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair GeneratePage syntax
+      - name: Repair GeneratePage syntax when needed
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -22,9 +22,11 @@ jobs:
           s = p.read_text()
           broken = "</div></section>}</section>}</>}"
           fixed = "</div></section>}</>}"
-          if broken not in s:
-              raise SystemExit('GeneratePage malformed closing sequence not found; refusing to modify the file')
-          p.write_text(s.replace(broken, fixed, 1))
+          if broken in s:
+              p.write_text(s.replace(broken, fixed, 1))
+              print('Repaired malformed GeneratePage closing sequence.')
+          else:
+              print('GeneratePage already repaired; no change needed.')
           PY
       - name: Remove unused grade display helper if present
         run: |
@@ -35,6 +37,9 @@ jobs:
           target = "function gradeDisplayName(name: string) { const value = name.trim(); const match = value.match(/(?:grade|gr)\\s*([0-9]+)\\s*[-–—:\\s]*([A-Za-z0-9]+)?/i); if (!match) return value.replace(/^(grade|gr)\\s*/i,'').trim(); return match[2] ? `${match[1]}${match[2].charAt(0).toUpperCase()}` : match[1] }\n"
           if target in s:
               p.write_text(s.replace(target, '', 1))
+              print('Removed unused gradeDisplayName helper.')
+          else:
+              print('Unused helper not present; no change needed.')
           PY
       - name: Commit build fix
         run: |
