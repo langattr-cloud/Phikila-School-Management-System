@@ -41,11 +41,31 @@ jobs:
           else:
               print('Unused helper not present; no change needed.')
           PY
+      - name: Allow async worker generation to be started from the UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/pages/GeneratePage.tsx')
+          s = p.read_text()
+          old = "const canGenerate=Boolean(!loading&&!error&&ready&&summary?.solver_available&&!running&&!starting);"
+          new = "const canGenerate=Boolean(!loading&&!error&&ready&&!running&&!starting);"
+          if old in s:
+              s = s.replace(old, new, 1)
+              print('Removed web-API solver availability from Generate button gating.')
+          else:
+              print('Generate button gating already updated or not found.')
+          old_alert = "<Alert tone=\"error\" title=\"Scheduling engine unavailable\">The optimisation engine is not installed on this server, so timetables cannot be generated here.</Alert>"
+          new_alert = "<Alert tone=\"warning\" title=\"Scheduling worker status\">The dedicated scheduling worker will report availability when generation starts.</Alert>"
+          if old_alert in s:
+              s = s.replace(old_alert, new_alert, 1)
+              print('Changed solver status from blocking error to warning.')
+          p.write_text(s)
+          PY
       - name: Commit build fix
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add frontend/src/pages/GeneratePage.tsx
           git diff --cached --quiet && exit 0
-          git commit -m 'fix: repair GeneratePage JSX syntax'
+          git commit -m 'fix: allow timetable generation to start via async worker'
           git push
