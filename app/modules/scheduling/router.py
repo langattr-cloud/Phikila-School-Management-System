@@ -257,3 +257,22 @@ def list_versions(db: Session = Depends(get_db), principal: Principal = Depends(
     query = db.query(m.TtVersion).filter(m.TtVersion.school_id == principal.school_id)
     if not principal.at_least("scheduler"): query = query.filter(m.TtVersion.status == "published")
     return query.order_by(m.TtVersion.number.desc()).all()
+
+
+@router.get("/versions/current", response_model=s.VersionOut | None)
+def current_version(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
+    """Return the current published timetable, or null when none exists.
+
+    The timetable workspace treats a new school with no published version as
+    a valid empty state. Returning 404 made the frontend report a false
+    "API could not be reached" error even though the API itself was healthy.
+    """
+    return (
+        db.query(m.TtVersion)
+        .filter(
+            m.TtVersion.school_id == principal.school_id,
+            m.TtVersion.status == "published",
+        )
+        .order_by(m.TtVersion.number.desc())
+        .first()
+    )
