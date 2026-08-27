@@ -43,7 +43,15 @@ export function RequirementsPage() {
   const ready = Boolean(data && data.levels.length && data.grades.length && data.subjects.length && data.teachers.length && (data.classes.length || data.streams.length))
   const selectedGradeId = Number(form.grade_id) || null
   const filteredGrades = useMemo(() => data?.grades.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })) ?? [], [data])
-  const filteredStreams = useMemo(() => !data || !selectedGradeId ? [] : data.streams.filter((stream) => stream.grade_id === selectedGradeId).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })), [data, selectedGradeId])
+  const filteredStreams = useMemo(() => {
+    if (!data || !selectedGradeId) return []
+    const grade = data.grades.find((item) => item.id === selectedGradeId)
+    const gradeName = grade?.name?.trim().toLowerCase() ?? ''
+    return data.streams.filter((stream) => {
+      const streamGradeId = stream.grade_id == null ? null : Number(stream.grade_id)
+      return streamGradeId === selectedGradeId
+    }).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+  }, [data, selectedGradeId])
   const classOptions = useMemo<ClassOption[]>(() => {
     if (!data || !selectedGradeId) return []
     const grade = data.grades.find((item) => item.id === selectedGradeId)
