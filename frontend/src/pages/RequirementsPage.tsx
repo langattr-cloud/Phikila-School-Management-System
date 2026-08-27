@@ -47,11 +47,22 @@ export function RequirementsPage() {
   const classOptions = useMemo<ClassOption[]>(() => {
     if (!data || !selectedGradeId) return []
     const grade = data.grades.find((item) => item.id === selectedGradeId)
-    const options: ClassOption[] = data.classes.filter((item) => !item.grade || item.grade.trim().toLowerCase() === grade?.name.trim().toLowerCase()).map((item) => ({ value: `class:${item.id}`, label: item.name, stream: null, classRow: item }))
+    const gradeName = grade?.name?.trim().toLowerCase() ?? ''
+    const options: ClassOption[] = data.classes
+      .filter((item) => {
+        const classGradeId = item.grade_id == null ? null : Number(item.grade_id)
+        const classGradeName = item.grade?.trim().toLowerCase() ?? ''
+        return classGradeId === selectedGradeId || classGradeName === gradeName
+      })
+      .map((item) => ({ value: `class:${item.id}`, label: item.name, stream: null, classRow: item }))
     const existingNames = new Set(options.map((item) => item.label.trim().toLowerCase()))
-    filteredStreams.forEach((stream) => { if (!existingNames.has(stream.name.trim().toLowerCase())) options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null }) })
+    filteredStreams.forEach((stream) => {
+      if (!existingNames.has(stream.name.trim().toLowerCase())) options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null })
+    })
     return options.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
   }, [data, selectedGradeId, filteredStreams])
+  const selectedGradeHasStreams = filteredStreams.length > 0
+  const selectedGradeHasClasses = classOptions.some((option) => Boolean(option.classRow))
 
   const filtered = useMemo(() => {
     const rows = data?.requirements ?? []
@@ -87,7 +98,7 @@ export function RequirementsPage() {
 
   async function addDraft(event: FormEvent) {
     event.preventDefault()
-    if (!form.teacher_id || !form.level_id || !form.grade_id || !form.class_id || !form.subject_id) { notify('Select a teacher, academic level, grade, class/stream and subject.', 'error'); return }
+    if (!form.teacher_id || !form.level_id || !form.grade_id || !form.class_id || !form.subject_id) { notify('Select a teacher, academic level, grade, class or stream, and subject.', 'error'); return }
     const option = classOptions.find((item) => item.value === form.class_id)
     if (!option) { notify('The selected grade/class/stream could not be found.', 'error'); return }
     let classId = option.classRow?.id
@@ -99,7 +110,7 @@ export function RequirementsPage() {
         setData((current) => current ? { ...current, classes: current.classes.some((item) => item.id === classRow.id) ? current.classes : [...current.classes, classRow] } : current)
       } catch (err) { notify(friendlyApiError(err, 'prepare that stream for scheduling'), 'error'); return }
     }
-    if (!classId) return
+    if (!classId) { notify('Select a class or stream for this grade before adding the allocation.', 'error'); return }
     const duplicate = drafts.some((item) => item.id !== editingDraftId && item.teacher_id === form.teacher_id && item.class_id === String(classId) && item.subject_id === form.subject_id)
     if (duplicate) { notify('That teacher, class and subject allocation is already in the list.', 'error'); return }
     const draft: DraftAllocation = { id: editingDraftId ?? `${Date.now()}-${Math.random()}`, teacher_id: form.teacher_id, level_id: form.level_id, grade_id: form.grade_id, class_id: String(classId), subject_id: form.subject_id, periods_per_week: Number(form.periods_per_week), double_periods: form.double_lesson ? 1 : 0 }
@@ -170,7 +181,7 @@ export function RequirementsPage() {
           <label><span>Teacher</span><select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))}><option value="">Select teacher</option>{data.teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
           <label><span>Academic level</span><select value={form.level_id} onChange={(event) => changeLevel(event.target.value)}><option value="">Select academic level</option>{data.levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}</select></label>
           <label><span>Grade</span><select value={form.grade_id} onChange={(event) => changeGrade(event.target.value)}><option value="">Select grade</option>{filteredGrades.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}</select><small className="field__hint">All active grades are available.</small></label>
-          <label><span>Class / Stream</span><select value={form.class_id} onChange={(event) => setForm((current) => ({ ...current, class_id: event.target.value }))} disabled={!form.grade_id}><option value="">{form.grade_id ? 'Select class / stream' : 'Select a grade first'}</option>{classOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label><span>Class / Stream</span><select value={form.class_id} onChange={(event) => setForm((current) => ({ ...current, class_id: event.target.value }))} disabled={!form.grade_id}><option value="">{form.grade_id ? selectedGradeHasStreams || selectedGradeHasClasses ? 'Select class or stream' : 'No class or stream available' : 'Select a grade first'}</option>{classOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><small className="field__hint">Streams are optional. {selectedGradeHasStreams ? 'Select a stream when the grade is divided into streams.' : selectedGradeHasClasses ? 'This grade has no streams, so select the class directly.' : 'No class or stream has been configured for this grade yet.'}</small></label>
           <div className="form-grid__section"><div className="form-grid__section-title">Teaching assignment</div><div className="form-grid__section-note">Specify what will be taught and the expected weekly workload.</div></div>
           <label><span>Subject</span><select value={form.subject_id} onChange={(event) => setForm((current) => ({ ...current, subject_id: event.target.value }))}><option value="">Select subject</option>{data.subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></label>
           <label><span>Lessons per week</span><input type="number" min="1" value={form.periods_per_week} onChange={(event) => setForm((current) => ({ ...current, periods_per_week: Number(event.target.value) }))} /><small className="field__hint">Enter the number of lessons this teacher should teach each week.</small></label>
