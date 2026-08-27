@@ -41,7 +41,7 @@ def enqueue(job_id:int,school_id:int,max_seconds:float=30.0,day_indexes:list[int
 
 def _ensure_calendar(db,school_id):
     if db.query(m.TtDay).filter(m.TtDay.school_id==school_id).count()==0: db.add_all([m.TtDay(school_id=school_id,index=i,name=n,day_of_week=i,is_active=True) for i,n in enumerate(DEFAULT_DAYS)])
-    if db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).count()==0: db.add_all([m.TtPeriod(school_id=school_id,index=i,name=n,start_time=s,end_time=e,is_teaching=t) for i,n,s,e,t in enumerate(DEFAULT_PERIODS)])
+    if db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).count()==0: db.add_all([m.TtPeriod(school_id=school_id,index=i,name=n,start_time=s,end_time=e,is_teaching=t) for i,n,s,e,t in DEFAULT_PERIODS])
     db.commit()
 
 def _set_checks(checks,keys,state): return [{**c,"state":state} if c["key"] in keys else c for c in checks]
@@ -64,9 +64,7 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             requested={int(i) for i in day_indexes};days=db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all();original_days={d.id:d.is_active for d in days}
             for d in days:d.is_active=d.index in requested
             db.commit()
-        logger.info("Solver job %s building solver input",job_id)
-        data=build_input(db,school_id,max_seconds=max_seconds)
-        logger.info("Solver job %s built input: %d requirements, %d classes, %d teachers, %d rooms",job_id,len(data.requirements),len(data.classes),len(data.teachers),len(data.rooms))
+        logger.info("Solver job %s building solver input",job_id); data=build_input(db,school_id,max_seconds=max_seconds); logger.info("Solver job %s built input: %d requirements, %d classes, %d teachers, %d rooms",job_id,len(data.requirements),len(data.classes),len(data.teachers),len(data.rooms))
         problems=preflight(data)
         if problems:return _fail(db,job," ".join(problems))
         def cancelled():
@@ -85,9 +83,7 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
                 row.checks=checks;db.commit()
             except Exception:
                 db.rollback();logger.exception("Solver job %s progress update failed",job_id)
-        logger.info("Solver job %s starting OR-Tools solve",job_id)
-        result=solve(data,on_progress=report,should_cancel=cancelled)
-        logger.info("Solver job %s returned status=%s placements=%d",job_id,result.status,len(result.placements))
+        logger.info("Solver job %s starting OR-Tools solve",job_id); result=solve(data,on_progress=report,should_cancel=cancelled); logger.info("Solver job %s returned status=%s placements=%d",job_id,result.status,len(result.placements))
         if result.status=="cancelled" or cancelled():
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
             if job:job.status="cancelled";job.stage="Cancelled";job.finished_at=utcnow();job.message="Generation was cancelled.";db.commit()
