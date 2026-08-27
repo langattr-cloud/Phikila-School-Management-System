@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -18,10 +20,10 @@ else:
     # Keep a small bounded pool in each process instead.
     engine_options.update(
         {
-            "pool_size": int(__import__("os").getenv("DB_POOL_SIZE", "3")),
-            "max_overflow": int(__import__("os").getenv("DB_MAX_OVERFLOW", "1")),
-            "pool_timeout": int(__import__("os").getenv("DB_POOL_TIMEOUT", "15")),
-            "pool_recycle": int(__import__("os").getenv("DB_POOL_RECYCLE", "300")),
+            "pool_size": int(os.getenv("DB_POOL_SIZE", "3")),
+            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "1")),
+            "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "15")),
+            "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "300")),
             "connect_args": {"connect_timeout": 10},
         }
     )
