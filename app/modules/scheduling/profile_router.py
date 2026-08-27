@@ -33,6 +33,9 @@ def _active_job(db:Session,school_id:int):
         db.commit();return None
     return job
 
+def _job_out(job:m.TtSolverJob)->dict:
+    return {"id":job.id,"status":job.status,"progress":job.progress or 0,"stage":job.stage,"checks":job.checks or [],"result_version_id":job.result_version_id,"quality":job.quality or {},"message":job.message}
+
 @router.post('/solver/generate-profile',response_model=s.JobOut,status_code=202)
 def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
     if not ORTOOLS_AVAILABLE:raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,'The scheduling engine is not available on this server.')
@@ -51,4 +54,5 @@ def generate_async(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Pri
 
 @router.get('/solver/jobs/active',response_model=s.JobOut|None)
 def active_job(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
-    return _active_job(db,principal.school_id)
+    job=_active_job(db,principal.school_id)
+    return _job_out(job) if job else None
