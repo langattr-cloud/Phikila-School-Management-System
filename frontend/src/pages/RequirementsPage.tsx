@@ -59,7 +59,8 @@ export function RequirementsPage() {
     filteredStreams.forEach((stream) => {
       if (!existingNames.has(stream.name.trim().toLowerCase())) options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null })
     })
-    return options.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
+    options.unshift({ value: `no-stream:${selectedGradeId}`, label: 'No stream', stream: null, classRow: options.find((item) => Boolean(item.classRow))?.classRow ?? null })
+    return options
   }, [data, selectedGradeId, filteredStreams])
   const selectedGradeHasStreams = filteredStreams.length > 0
   const selectedGradeHasClasses = classOptions.some((option) => Boolean(option.classRow))
@@ -102,6 +103,19 @@ export function RequirementsPage() {
     const option = classOptions.find((item) => item.value === form.class_id)
     if (!option) { notify('Select a valid stream.', 'error'); return }
     let classId = option.classRow?.id
+    if (!classId && option.value.startsWith('no-stream:')) {
+      try {
+        const grade = data?.grades.find((item) => item.id === selectedGradeId)
+        const existing = (data?.classes ?? []).find((item) => {
+          const classGradeId = item.grade_id == null ? null : Number(item.grade_id)
+          const classGradeName = item.grade?.trim().toLowerCase() ?? ''
+          return classGradeId === selectedGradeId || classGradeName === grade?.name?.trim().toLowerCase()
+        })
+        const classRow = existing ?? await scheduling.createClass({ name: grade?.name ?? 'No stream', code: `NO-STREAM-${selectedGradeId}`, grade: grade?.name })
+        classId = classRow.id
+        setData((current) => current ? { ...current, classes: current.classes.some((item) => item.id === classRow.id) ? current.classes : [...current.classes, classRow] } : current)
+      } catch (err) { notify(friendlyApiError(err, 'prepare this grade without a stream'), 'error'); return }
+    }
     if (!classId && option.stream) {
       try {
         const existing = (data?.classes ?? []).find((item) => item.name.trim().toLowerCase() === option.stream!.name.trim().toLowerCase() || (item.code && option.stream!.code && item.code === option.stream!.code))
@@ -110,7 +124,7 @@ export function RequirementsPage() {
         setData((current) => current ? { ...current, classes: current.classes.some((item) => item.id === classRow.id) ? current.classes : [...current.classes, classRow] } : current)
       } catch (err) { notify(friendlyApiError(err, 'prepare that stream for scheduling'), 'error'); return }
     }
-    if (!classId) { notify('Select a stream for this grade before adding the allocation.', 'error'); return }
+    if (!classId) { notify('Select a stream or No stream for this grade before adding the allocation.', 'error'); return }
     const duplicate = drafts.some((item) => item.id !== editingDraftId && item.teacher_id === form.teacher_id && item.class_id === String(classId) && item.subject_id === form.subject_id)
     if (duplicate) { notify('That teacher, stream and subject allocation is already in the list.', 'error'); return }
     const draft: DraftAllocation = { id: editingDraftId ?? `${Date.now()}-${Math.random()}`, teacher_id: form.teacher_id, level_id: form.level_id, grade_id: form.grade_id, class_id: String(classId), subject_id: form.subject_id, periods_per_week: Number(form.periods_per_week), double_periods: form.double_lesson ? 1 : 0 }
@@ -180,7 +194,7 @@ export function RequirementsPage() {
           <label><span>Teacher</span><select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))}><option value="">Select teacher</option>{data.teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
           <label><span>Academic level</span><select value={form.level_id} onChange={(event) => changeLevel(event.target.value)}><option value="">Select academic level</option>{data.levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}</select></label>
           <label><span>Grade</span><select value={form.grade_id} onChange={(event) => changeGrade(event.target.value)}><option value="">Select grade</option>{filteredGrades.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}</select></label>
-          <label><span>Stream</span><select value={form.class_id} onChange={(event) => setForm((current) => ({ ...current, class_id: event.target.value }))} disabled={!form.grade_id}><option value="">{form.grade_id ? selectedGradeHasStreams || selectedGradeHasClasses ? 'Select stream' : 'No stream' : 'Select grade first'}</option>{classOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label><span>Stream</span><select value={form.class_id} onChange={(event) => setForm((current) => ({ ...current, class_id: event.target.value }))} disabled={!form.grade_id}><option value="">{form.grade_id ? 'Select stream' : 'Select grade first'}</option>{classOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           <label><span>Subject</span><select value={form.subject_id} onChange={(event) => setForm((current) => ({ ...current, subject_id: event.target.value }))}><option value="">Select subject</option>{data.subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></label>
           <label><span>Lessons per week</span><select value={form.periods_per_week} onChange={(event) => setForm((current) => ({ ...current, periods_per_week: Number(event.target.value) }))}>{Array.from({ length: 20 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
           <label><span>Double lesson</span><select value={form.double_lesson ? 'yes' : 'no'} onChange={(event) => setForm((current) => ({ ...current, double_lesson: event.target.value === 'yes' }))}><option value="no">No</option><option value="yes">Yes</option></select></label>
