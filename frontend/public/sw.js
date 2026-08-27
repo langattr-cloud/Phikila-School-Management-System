@@ -6,19 +6,18 @@
  *    falling back to the cached shell when offline.
  *  - Hashed build assets: cache-first, since their URL changes on every build.
  *  - Timetable GET APIs: network-first with a cache fallback, so the schedule
- *    stays readable on a train or in a school with patchy connectivity.
+ *    stays readable offline.
  *  - Everything else (writes, solver jobs): never cached.
  */
 
 // Bump this whenever the API/client contract changes so browsers discard stale shell/assets.
-const VERSION = 'v3'
+const VERSION = 'v4'
 const SHELL_CACHE = `phikila-shell-${VERSION}`
 const ASSET_CACHE = `phikila-assets-${VERSION}`
 const DATA_CACHE = `phikila-data-${VERSION}`
 
 const SHELL_URLS = ['/', '/index.html', '/favicon.svg', '/site.webmanifest']
 
-// Read-only endpoints worth keeping for offline viewing.
 const CACHEABLE_API = [
   '/api/v1/scheduling/timetable/view',
   '/api/v1/scheduling/calendar',
@@ -58,13 +57,12 @@ function isCacheableApi(url) {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
-  // Only GET is ever cached; a POST/PATCH must always reach the server.
+  // Writes are never intercepted or cached.
   if (request.method !== 'GET') return
 
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
 
-  // Hashed assets: cache-first.
   if (isAsset(url)) {
     event.respondWith(
       caches.match(request).then(
@@ -80,7 +78,6 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Timetable data: network-first, fall back to the last good copy.
   if (isCacheableApi(url)) {
     event.respondWith(
       fetch(request)
@@ -105,7 +102,6 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Navigations: network-first so new deploys apply, cached shell offline.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
