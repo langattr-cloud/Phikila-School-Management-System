@@ -55,7 +55,8 @@ class ClassUpdateIn(BaseModel):
                     normalized[str(day)]=vals
                 data['unavailable']=normalized
         return data
-class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None
+class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None
+class ClassTeacherAssignmentIn(BaseModel): teacher_id:int|None=None
 class TtLessonRequirementIn(BaseModel): pass
 class RequirementIn(BaseModel): class_id:int; subject_id:int; teacher_id:int|None=None; room_id:int|None=None; periods_per_week:int=Field(default=1,ge=1,le=40); double_periods:int=Field(default=0,ge=0,le=10)
 class RequirementOut(ORMModel,RequirementIn): id:int; class_name:str|None=None; subject_name:str|None=None; teacher_name:str|None=None; room_name:str|None=None
