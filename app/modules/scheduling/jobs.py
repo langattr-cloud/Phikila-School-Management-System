@@ -60,8 +60,12 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
     try:
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
         if not job:return
-        if job.status!="queued":return
-        job.status="running";job.stage="Loading school data";job.progress=4;job.started_at=datetime.utcnow();db.commit()
+        # A dedicated worker claims the job by changing it to running before
+        # calling this function. The in-process executor invokes it while the
+        # job is still queued. Accept both states so the worker cannot leave a
+        # claimed job permanently stuck at 1%.
+        if job.status not in {"queued", "running"}:return
+        job.status="running";job.stage="Loading school data";job.progress=max(job.progress or 0,4);job.started_at=job.started_at or datetime.utcnow();db.commit()
         if not ORTOOLS_AVAILABLE:return _fail(db,job,"The scheduling engine is not available on this server.")
         _ensure_calendar(db,school_id)
         if day_indexes is not None:
