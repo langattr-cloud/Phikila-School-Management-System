@@ -10,10 +10,21 @@ engine_options: dict = {"pool_pre_ping": True}
 if settings.database_url.startswith("sqlite"):
     engine_options["connect_args"] = {"check_same_thread": False}
 else:
-    # A serverless function must not retain a pool of scarce Supabase connections.
-    # Use Supabase's transaction pooler URL in DATABASE_URL for production.
-    engine_options["poolclass"] = NullPool
-    engine_options["connect_args"] = {"connect_timeout": 10}
+    # Render runs the API and the solver worker in separate processes, and the
+    # solver can briefly create an isolated child process. Supabase's session
+    # pooler has a small per-project connection limit, so NullPool is unsafe:
+    # every polling request opens a new database connection and concurrent
+    # browser polling can exhaust the pooler before the solver gets a connection.
+    # Keep a small bounded pool in each process instead.
+    engine_options.update(
+        {
+            "pool_size": int(__import__("os").getenv("DB_POOL_SIZE", "3")),
+            "max_overflow": int(__import__("os").getenv("DB_MAX_OVERFLOW", "1")),
+            "pool_timeout": int(__import__("os").getenv("DB_POOL_TIMEOUT", "15")),
+            "pool_recycle": int(__import__("os").getenv("DB_POOL_RECYCLE", "300")),
+            "connect_args": {"connect_timeout": 10},
+        }
+    )
 
 engine = create_engine(settings.database_url, **engine_options)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
