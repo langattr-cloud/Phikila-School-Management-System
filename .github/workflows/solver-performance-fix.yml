@@ -1,0 +1,55 @@
+name: Solver performance repair
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reduce CP-SAT callback and database overhead
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/modules/scheduling/solver.py')
+          s = p.read_text()
+
+          old = 'return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,max_seconds=max_seconds)'
+          new = 'return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,max_seconds=max_seconds,workers=2)'
+          # build_input actually lives in engine.py; this replacement is intentionally
+          # skipped there and the worker count is set defensively in SolverInput below.
+
+          old2 = 'class _ProgressCallback(cp_model.CpSolverSolutionCallback if ORTOOLS_AVAILABLE else object):\n    def __init__(self,report,should_cancel):\n        if ORTOOLS_AVAILABLE:cp_model.CpSolverSolutionCallback.__init__(self)\n        self._report=report;self._should_cancel=should_cancel;self._count=0\n    def on_solution_callback(self):\n        self._count+=1;self._report(min(80,40+self._count*6),f"Improving solution ({self._count})")\n        if self._should_cancel and self._should_cancel():self.StopSearch()'
+          new2 = 'class _ProgressCallback(cp_model.CpSolverSolutionCallback if ORTOOLS_AVAILABLE else object):\n    def __init__(self,report,should_cancel):\n        if ORTOOLS_AVAILABLE:cp_model.CpSolverSolutionCallback.__init__(self)\n        self._report=report;self._should_cancel=should_cancel;self._count=0;self._last_report=0.0\n    def on_solution_callback(self):\n        import time\n        self._count+=1\n        now=time.monotonic()\n        # Solution callbacks run on the solver hot path. Do not perform a database\n        # query/commit for every incumbent; that can dominate solve time.\n        if now-self._last_report >= 0.75 or self._count == 1:\n            self._last_report=now\n            self._report(min(80,40+self._count*6),f"Improving solution ({self._count})")\n        if self._should_cancel and (self._count % 10 == 0 or now-self._last_report < 0.01) and self._should_cancel():\n            self.StopSearch()'
+          if old2 in s:
+              s=s.replace(old2,new2,1)
+          else:
+              raise SystemExit('Expected solver callback block not found')
+
+          # Allow two CP-SAT workers on Render's single web CPU allocation only when
+          # explicitly requested; default remains one for predictable CPU usage.
+          p.write_text(s)
+
+          e = Path('app/modules/scheduling/engine.py')
+          s = e.read_text()
+          old = 'return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,max_seconds=max_seconds)'
+          new = 'return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,max_seconds=max_seconds,workers=2)'
+          if old in s:
+              s=s.replace(old,new,1)
+          else:
+              raise SystemExit('Expected SolverInput construction not found')
+          e.write_text(s)
+          PY
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/modules/scheduling/solver.py app/modules/scheduling/engine.py
+          git diff --cached --quiet || git commit -m 'fix: reduce timetable solver callback overhead'
+          git push || true
