@@ -1,0 +1,35 @@
+name: One-time staging board fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch staging-board resolution
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/pages/GeneratePage.tsx')
+          s = p.read_text()
+          old = "function streamIdFromClass(grade: SchoolClass) { const match = String(grade.code ?? '').match(/^STREAM-(\\d+)$/i); return match ? Number(match[1]) : null }\nfunction compactStreamLabel(stream: CapturedStream | undefined, grade: SchoolClass) { const authoritative = String(grade.academic_stream ?? '').trim(); if (authoritative) return authoritative; const gradeCode = String(grade.grade ?? grade.name ?? '').match(/\\d+/)?.[0] ?? ''; const token = String(stream?.code ?? stream?.name ?? '').trim().slice(0,1).toUpperCase(); return gradeCode && token ? `${gradeCode}${token}` : stream?.name?.trim() || 'Unknown stream' }"
+          new = "function streamIdFromClass(grade: SchoolClass) { const match = String(grade.code ?? '').match(/^STREAM-(\\d+)$/i); return match ? Number(match[1]) : null }\nfunction normalizeGradeNumber(value: unknown) { return String(value ?? '').match(/\\d+/)?.[0] ?? '' }\nfunction normalizeStreamToken(value: unknown) { const text = String(value ?? '').trim(); if (!text) return ''; const compact = text.replace(/[^A-Za-z0-9]/g, ''); return compact.length === 1 ? compact.toUpperCase() : compact.match(/^([A-Za-z])/i)?.[1]?.toUpperCase() ?? '' }\nfunction compactStreamLabel(stream: CapturedStream | undefined, grade: SchoolClass) {\n  const authoritative = String(grade.academic_stream ?? '').trim();\n  if (authoritative) return authoritative;\n  const gradeCode = normalizeGradeNumber(grade.grade ?? grade.name);\n  const token = normalizeStreamToken(stream?.code ?? stream?.name ?? grade.stream);\n  if (gradeCode && token) return `${gradeCode}${token}`;\n  return gradeCode || String(grade.name ?? grade.grade ?? '').trim() || 'Unlinked class';\n}"
+          if old not in s:
+            raise SystemExit('Expected staging helper block not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit and remove one-time workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/pages/GeneratePage.tsx
+          git diff --cached --quiet || git commit -m 'Fix lesson staging board academic labels'
+          rm -f .github/workflows/patch-staging-board.yml
+          git add .github/workflows/patch-staging-board.yml
+          git commit -m 'Remove one-time staging board patch workflow' || true
+          git push
