@@ -45,29 +45,24 @@ export function RequirementsPage() {
   const filteredGrades = useMemo(() => data?.grades.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })) ?? [], [data])
   const filteredStreams = useMemo(() => {
     if (!data || !selectedGradeId) return []
-    const grade = data.grades.find((item) => item.id === selectedGradeId)
-    const gradeName = grade?.name?.trim().toLowerCase() ?? ''
-    return data.streams.filter((stream) => {
-      const streamGradeId = stream.grade_id == null ? null : Number(stream.grade_id)
-      return streamGradeId === selectedGradeId
-    }).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    return data.streams.filter((stream) => Number(stream.grade_id) === selectedGradeId).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
   }, [data, selectedGradeId])
   const classOptions = useMemo<ClassOption[]>(() => {
     if (!data || !selectedGradeId) return []
     const grade = data.grades.find((item) => item.id === selectedGradeId)
     const gradeName = grade?.name?.trim().toLowerCase() ?? ''
-    const options: ClassOption[] = data.classes
-      .filter((item) => {
-        const classGradeId = item.grade_id == null ? null : Number(item.grade_id)
-        const classGradeName = item.grade?.trim().toLowerCase() ?? ''
-        return classGradeId === selectedGradeId || classGradeName === gradeName
-      })
-      .map((item) => ({ value: `class:${item.id}`, label: item.name, stream: null, classRow: item }))
-    const existingNames = new Set(options.map((item) => item.label.trim().toLowerCase()))
-    filteredStreams.forEach((stream) => {
-      if (!existingNames.has(stream.name.trim().toLowerCase())) options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null })
+    const options: ClassOption[] = [{ value: `no-stream:${selectedGradeId}`, label: 'No stream', stream: null, classRow: null }]
+    if (filteredStreams.length) {
+      filteredStreams.forEach((stream) => options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null }))
+      return options
+    }
+    const classRows = data.classes.filter((item) => {
+      const classGradeId = item.grade_id == null ? null : Number(item.grade_id)
+      const classGradeName = item.grade?.trim().toLowerCase() ?? ''
+      return classGradeId === selectedGradeId || classGradeName === gradeName
     })
-    options.unshift({ value: `no-stream:${selectedGradeId}`, label: 'No stream', stream: null, classRow: options.find((item) => Boolean(item.classRow))?.classRow ?? null })
+    const fallback = classRows[0] ?? null
+    options[0] = { value: `no-stream:${selectedGradeId}`, label: 'No stream', stream: null, classRow: fallback }
     return options
   }, [data, selectedGradeId, filteredStreams])
 
