@@ -1,0 +1,43 @@
+name: Fix teaching allocation stream selector
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-stream-selector:
+    if: !contains(github.event.head_commit.message, 'fix: teaching allocation stream selector')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch teaching allocation stream options
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('frontend/src/pages/RequirementsPage.tsx')
+          text = path.read_text()
+
+          old = "filteredStreams.forEach((stream) => options.push({ value: `stream:${stream.id}`, label: stream.name, stream, classRow: null }))"
+          new = "filteredStreams.forEach((stream) => options.push({ value: `stream:${stream.id}`, label: `${grade?.name ?? 'Grade'} — ${stream.name}`, stream, classRow: null }))"
+
+          if old not in text:
+              raise SystemExit('Expected teaching allocation stream option code was not found')
+
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/pages/RequirementsPage.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: teaching allocation stream selector"
+          git push
