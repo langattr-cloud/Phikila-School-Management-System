@@ -2,7 +2,7 @@
 from __future__ import annotations
 from datetime import time
 from typing import Any, Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 Slots = dict[str, list[int]]
 class ORMModel(BaseModel): model_config = ConfigDict(from_attributes=True)
 class PeriodIn(BaseModel): index:int=Field(ge=0,le=30); name:str=Field(min_length=1,max_length=40); start_time:str=Field(pattern=r'^\d{2}:\d{2}$'); end_time:str=Field(pattern=r'^\d{2}:\d{2}$'); is_teaching:bool=True
@@ -26,7 +26,23 @@ class RoomOut(ORMModel,RoomIn): id:int
 class ClassIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int=Field(default=40,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
 class ClassUpdateIn(BaseModel):
     name:str|None=Field(default=None,min_length=1,max_length=120); code:str|None=Field(default=None,min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int|None=Field(default=None,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots|None=None
-class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_frontend_values(cls, value):
+        if not isinstance(value, dict): return value
+        data=dict(value)
+        for key in ('name','code','grade','stream'):
+            if key in data and data[key] is not None:
+                data[key]=str(data[key]).strip()
+                if key in ('grade','stream') and data[key]=='': data[key]=None
+        for key in ('student_count','home_room_id','class_teacher_id'):
+            if key in data and data[key] is not None and data[key] != '':
+                try: data[key]=int(float(data[key]))
+                except (TypeError,ValueError): pass
+            elif key in data and data[key]=='': data[key]=None
+        if 'unavailable' in data and data['unavailable'] is None: data['unavailable']={}
+        return data
+class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None
 class TtLessonRequirementIn(BaseModel): pass
 class RequirementIn(BaseModel): class_id:int; subject_id:int; teacher_id:int|None=None; room_id:int|None=None; periods_per_week:int=Field(default=1,ge=1,le=40); double_periods:int=Field(default=0,ge=0,le=10)
 class RequirementOut(ORMModel,RequirementIn): id:int; class_name:str|None=None; subject_name:str|None=None; teacher_name:str|None=None; room_name:str|None=None
