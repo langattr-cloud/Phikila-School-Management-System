@@ -10,10 +10,10 @@ COPY . .
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 ENV SOLVER_DEDICATED_WORKER=1
+ENV LOG_LEVEL=INFO
 
 EXPOSE 8000
 
-# The current Render workspace has the web service but does not provision the
-# worker declared in render.yaml. Start the durable DB-backed solver loop in a
-# child process so queued jobs are actually claimed while FastAPI serves HTTP.
-CMD ["sh", "-c", "alembic upgrade head && python -m app.modules.scheduling.worker & exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run the API and solver under one supervisor so Render restarts the worker
+# independently if it exits, instead of silently orphaning it behind a shell.
+CMD ["sh", "-c", "alembic upgrade head && exec python -m app.render_entrypoint"]
