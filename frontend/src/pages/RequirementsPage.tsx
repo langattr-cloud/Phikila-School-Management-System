@@ -176,7 +176,7 @@ export function RequirementsPage() {
       {!ready && !loading && <Alert tone="info" title="Complete academic setup first">Teaching allocations require academic levels, grades, teachers and subjects.</Alert>}
       {ready && data && <section className="card section">
         <div className="toolbar"><h2 className="section__title">{editingDraftId || editingSavedId ? 'Edit Teaching Allocation' : 'Add Teaching Allocation'}</h2><button type="button" className="button button--ghost" onClick={resetDraftForm}>Clear</button></div>
-        <form className="form-grid" onSubmit={editingSavedId ? saveSavedEdit : addDraft}>
+        <form className="form--grid" onSubmit={editingSavedId ? saveSavedEdit : addDraft}>
           <label><span>Teacher</span><select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))}><option value="">Select teacher</option>{data.teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
           <label><span>Academic level</span><select value={form.level_id} onChange={(event) => changeLevel(event.target.value)}><option value="">Select academic level</option>{data.levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}</select></label>
           <label><span>Grade</span><select value={form.grade_id} onChange={(event) => changeGrade(event.target.value)}><option value="">Select grade</option>{filteredGrades.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}</select></label>
