@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove unsupported updateRequirement call
+      - name: Remove unsupported updateRequirement call when needed
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -21,9 +21,11 @@ jobs:
           s = p.read_text()
           old = "if (existing) await scheduling.updateRequirement(existing.id, { room_id: Number(roomId) } as any)"
           new = "if (existing) void existing"
-          if old not in s:
-              raise SystemExit('Expected unsupported updateRequirement call was not found; refusing to modify the file')
-          p.write_text(s.replace(old, new, 1))
+          if old in s:
+              p.write_text(s.replace(old, new, 1))
+              print('Removed unsupported updateRequirement call.')
+          else:
+              print('Unsupported updateRequirement call already removed; no change needed.')
           PY
       - name: Commit fix
         run: |
