@@ -62,8 +62,6 @@ export function RequirementsPage() {
     options.unshift({ value: `no-stream:${selectedGradeId}`, label: 'No stream', stream: null, classRow: options.find((item) => Boolean(item.classRow))?.classRow ?? null })
     return options
   }, [data, selectedGradeId, filteredStreams])
-  const selectedGradeHasStreams = filteredStreams.length > 0
-  const selectedGradeHasClasses = classOptions.some((option) => Boolean(option.classRow))
 
   const filtered = useMemo(() => {
     const rows = data?.requirements ?? []
