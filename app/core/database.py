@@ -11,11 +11,10 @@ engine_options: dict = {"pool_pre_ping": True}
 if settings.database_url.startswith("sqlite"):
     engine_options["connect_args"] = {"check_same_thread": False}
 else:
-    # The Render container runs FastAPI, the polling worker, and isolated solver
-    # children. Supabase's session-mode pooler has a hard per-project client cap.
-    # Keep every long-lived process to one connection and never create an
-    # unbounded overflow pool. Sessions are short-lived and connections are
-    # recycled, so this stays below the pooler's limit even during generation.
+    # Render runs FastAPI, the polling worker, and isolated solver children.
+    # Supabase's session-mode pooler has a hard per-project client cap. Keep
+    # every long-lived process to one connection and never create an unbounded
+    # overflow pool. Sessions are short-lived and connections are recycled.
     engine_options.update(
         {
             "pool_size": int(os.getenv("DB_POOL_SIZE", "1")),
