@@ -10,24 +10,17 @@ type LessonMeta = { subjects: Map<number, Subject>; teachers: Map<number, Teache
 export type { LessonMeta }
 export const UNASSIGNED_DRAG_TYPE = 'application/x-phikila-unassigned'
 const SUBJECT_COLOURS = ['#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#0891B2', '#0F766E', '#4F46E5']
-type Props = { days: Day[]; periods: Period[]; lessons: Lesson[]; meta: LessonMeta; conflicted?: Set<number>; selectedId?: number | null; readOnly?: boolean; zoom?: number; dense?: boolean; currentSlot?: { day: number; period: number } | null; onSelect?: (lesson: Lesson) => void; onMove?: (lesson: Lesson, day: number, period: number) => void; onResize?: (lesson: Lesson, duration: number) => void; onDropUnassigned?: (unassignedId: number, day: number, period: number) => void; secondary?: (lesson: Lesson) => string | null | undefined; teacherInitials?: boolean }
+type ViewKind = 'whole-school' | 'class' | 'teacher' | 'generic'
+type Props = { days: Day[]; periods: Period[]; lessons: Lesson[]; meta: LessonMeta; view?: ViewKind; conflicted?: Set<number>; selectedId?: number | null; readOnly?: boolean; zoom?: number; dense?: boolean; currentSlot?: { day: number; period: number } | null; onSelect?: (lesson: Lesson) => void; onMove?: (lesson: Lesson, day: number, period: number) => void; onResize?: (lesson: Lesson, duration: number) => void; onDropUnassigned?: (unassignedId: number, day: number, period: number) => void; secondary?: (lesson: Lesson) => string | null | undefined; teacherInitials?: boolean }
 function minutes(value: string) { const [hour, minute] = value.split(':').map(Number); return hour * 60 + minute }
 function initials(name: string | null | undefined) { if (!name) return ''; return name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') }
 function colourFor(subject: Subject | undefined, index: number) { return subject?.colour && /^#[0-9A-Fa-f]{6}$/.test(subject.colour) ? subject.colour : SUBJECT_COLOURS[index % SUBJECT_COLOURS.length] }
 
-export function TimetableGrid({ days, periods, lessons, meta, conflicted, selectedId, readOnly = false, zoom = 1, dense = false, currentSlot, onSelect, onMove, onResize, secondary, teacherInitials = false }: Props) {
+export function TimetableGrid({ days, periods, lessons, meta, view = 'whole-school', conflicted, selectedId, readOnly = false, zoom = 1, dense = false, currentSlot, onSelect, onMove, onResize, secondary, teacherInitials = false }: Props) {
   const [dragging, setDragging] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null)
   const orderedPeriods = useMemo(() => [...periods].sort((a, b) => minutes(a.start_time) - minutes(b.start_time) || a.index - b.index), [periods])
   const bySlot = useMemo(() => { const result = new Map<string, Lesson[]>(); lessons.forEach((lesson) => { const key = `${lesson.day_index}:${lesson.period_index}`; result.set(key, [...(result.get(key) ?? []), lesson]) }); return result }, [lessons])
   const subjectIndexes = useMemo(() => { const subjects = [...meta.subjects.values()].sort((a, b) => a.id - b.id); return new Map(subjects.map((subject, index) => [subject.id, index])) }, [meta.subjects])
-  const viewKind = useMemo<'whole-school' | 'class' | 'teacher'>(() => {
-    if (!secondary || lessons.length === 0) return 'whole-school'
-    const classIds = new Set(lessons.map((lesson) => lesson.class_id))
-    const teacherIds = new Set(lessons.map((lesson) => lesson.teacher_id).filter((id) => id != null))
-    if (teacherIds.size === 1 && classIds.size > 1) return 'teacher'
-    if (classIds.size === 1) return 'class'
-    return 'whole-school'
-  }, [lessons, secondary])
   const wholeRows = useMemo(() => {
     const ids = [...new Set(lessons.map((lesson) => lesson.class_id))]
     return ids.map((id) => ({ id, name: meta.classes.get(id)?.name ?? `Class ${id}` })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
@@ -38,11 +31,10 @@ export function TimetableGrid({ days, periods, lessons, meta, conflicted, select
   const renderCard = (lesson: Lesson, compact = false) => { const subject = meta.subjects.get(lesson.subject_id); const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : null; const room = lesson.room_id ? meta.rooms.get(lesson.room_id) : null; const context = secondary?.(lesson); const teacherCode = teacher?.code?.trim() || teacher?.staff_number?.trim() || ''; const subjectColour = colourFor(subject, subjectIndexes.get(lesson.subject_id) ?? 0); const bad = conflicted?.has(lesson.id) ?? false; const cardStyle = { '--subject-colour': subjectColour, backgroundColor: bad ? '#FBE8E5' : `${subjectColour}1A`, borderLeftColor: bad ? '#9A2F24' : subjectColour } as CSSProperties
     return <div key={lesson.id} className={['lesson-card', compact ? 'lesson-card--compact' : '', selectedId === lesson.id ? 'lesson-card--selected' : '', bad ? 'lesson-card--conflict' : '', lesson.is_locked ? 'lesson-card--locked' : '', carrying?.id === lesson.id ? 'lesson-card--carrying' : ''].filter(Boolean).join(' ')} style={cardStyle} draggable={!readOnly && !lesson.is_locked} onDragStart={(event) => { if (lesson.is_locked) { event.preventDefault(); return }; setDragging(lesson); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(lesson.id)) }} onDragEnd={() => setDragging(null)} onClick={() => onSelect?.(lesson)} role="button" tabIndex={-1} aria-label={describe(lesson)}>
       <span className="lesson-card__subject" style={{ color: subjectColour }}>{subject?.code ?? subject?.name ?? 'Lesson'}</span>
-      {viewKind === 'whole-school' && context && <span className="lesson-card__line">{context}</span>}
-      {viewKind === 'teacher' && context && <span className="lesson-card__line">{context}</span>}
-      {viewKind === 'class' && teacherCode && <span className="lesson-card__line">{teacherCode}</span>}
-      {viewKind === 'teacher' && teacherInitials && teacher?.name && <span className="lesson-card__line">{initials(teacher.name)}</span>}
-      {viewKind === 'class' && room?.name && <span className="lesson-card__line lesson-card__room">{room.name}</span>}
+      {(view === 'whole-school' || view === 'teacher' || view === 'generic') && context && <span className="lesson-card__line">{context}</span>}
+      {view === 'class' && teacherCode && <span className="lesson-card__line">{teacherCode}</span>}
+      {view === 'teacher' && teacherInitials && teacher?.name && <span className="lesson-card__line">{initials(teacher.name)}</span>}
+      {view === 'class' && room?.name && <span className="lesson-card__line lesson-card__room">{room.name}</span>}
       {bad && <span className="lesson-card__flag">Conflict</span>}
       {lesson.is_locked && <span className="lesson-card__lock" title="Locked"><LockIcon width={12} height={12} /></span>}
       {!readOnly && !lesson.is_locked && onResize && <button type="button" className="lesson-card__resize" title="Resize lesson" aria-label="Resize lesson" onClick={(event) => { event.stopPropagation(); onResize(lesson, Math.min(10, (lesson.duration ?? 1) + 1)) }} />}
@@ -68,7 +60,7 @@ export function TimetableGrid({ days, periods, lessons, meta, conflicted, select
     </div>
     <div className="timetable__agenda">{days.map((day) => { const rows = orderedPeriods.filter((period) => period.is_teaching).map((period) => ({ period, items: bySlot.get(`${day.index}:${period.index}`) ?? [] })).filter((row) => row.items.length > 0); return <section key={day.index} className="agenda-day" aria-labelledby={`agenda-${day.index}`}><h3 className="agenda-day__title" id={`agenda-${day.index}`}>{day.name}</h3>{rows.length === 0 ? <p className="agenda-day__empty">No lessons scheduled.</p> : <ul className="agenda-list">{rows.map(({ period, items }) => <li className="agenda-row" key={period.index}><div className="agenda-row__time"><span className="agenda-row__clock">{period.start_time}</span><span className="agenda-row__period">{period.name}</span></div><div className="agenda-row__body">{items.map((lesson) => renderCard(lesson, true))}</div></li>)}</ul>}</section> })}</div>
   </>
-  return <div className={['timetable', `timetable--zoom-${zoom === 0.75 ? '75' : zoom === 1.25 ? '125' : '100'}`, dense ? 'timetable--dense' : '', `timetable--${viewKind}-view`].join(' ')}>
-    {viewKind === 'whole-school' ? classGrid : dayPeriodGrid}
+  return <div className={['timetable', `timetable--zoom-${zoom === 0.75 ? '75' : zoom === 1.25 ? '125' : '100'}`, dense ? 'timetable--dense' : '', `timetable--${view}-view`].join(' ')}>
+    {view === 'whole-school' ? classGrid : dayPeriodGrid}
   </div>
 }
