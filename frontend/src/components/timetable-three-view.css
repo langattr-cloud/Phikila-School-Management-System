@@ -1,0 +1,13 @@
+.timetable__whole-school-grid{display:grid;grid-template-columns:9rem var(--tt-columns);min-width:760px;overflow:auto;border:1px solid var(--color-line);border-radius:var(--radius-lg);background:var(--color-surface)}
+.timetable__whole-corner,.timetable__whole-day-head,.timetable__whole-class-label,.timetable__whole-day-cell{border-right:1px solid var(--color-line);border-bottom:1px solid var(--color-line)}
+.timetable__whole-corner,.timetable__whole-day-head{min-height:3.7rem;padding:.65rem .55rem;background:var(--color-surface-muted);font-size:.72rem;font-weight:750;text-transform:uppercase;letter-spacing:.04em}
+.timetable__whole-day-head{text-align:center}
+.timetable__whole-row{display:grid;grid-column:1/-1;grid-template-columns:9rem var(--tt-columns);min-height:7rem}
+.timetable__whole-class-label{position:sticky;left:0;z-index:2;display:flex;align-items:flex-start;padding:.7rem .6rem;background:var(--color-surface-muted);font-size:.8rem;font-weight:750}
+.timetable__whole-day-cell{display:grid;grid-template-rows:repeat(var(--tt-period-count,1),minmax(3.5rem,auto));min-width:0;padding:0;background:var(--color-surface)}
+.timetable__whole-period{position:relative;min-width:0;min-height:3.5rem;padding:.25rem;border-bottom:1px dashed var(--color-line)}
+.timetable__whole-period:last-child{border-bottom:0}.timetable__whole-period--break{background:var(--color-surface-muted)}.timetable__whole-period--now{box-shadow:inset 0 0 0 2px var(--color-primary)}
+.timetable__whole-break{display:block;padding:.35rem;color:var(--color-ink-muted);font-size:.58rem;font-weight:700;text-align:center}
+.timetable__whole-school-grid .lesson-card{min-height:3rem;padding:.38rem .4rem .35rem .48rem;gap:.1rem}.timetable__whole-school-grid .lesson-card__subject{font-size:.72rem}.timetable__whole-school-grid .lesson-card__line{font-size:.58rem}
+@media(max-width:767px){.timetable__whole-school-grid{display:none}.timetable--whole-school-view .timetable__agenda{display:block}}
+@media print{.timetable__whole-school-grid{min-width:0;grid-template-columns:7rem var(--tt-columns)}.timetable__whole-row{grid-template-columns:7rem var(--tt-columns)}.timetable__whole-school-grid .lesson-card{box-shadow:none}}
