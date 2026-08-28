@@ -1,15 +1,15 @@
 .lesson-card {
-  --subject-colour: #0f2a47;
+  --subject-colour: #263238;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: .12rem;
   min-height: 5.7rem;
   padding: .55rem .6rem .55rem .72rem;
-  border: 1px solid color-mix(in srgb, var(--subject-colour) 42%, #dcd8cc);
-  border-left: .35rem solid var(--subject-colour);
+  border: 1px solid #c7ced1;
+  border-left: .35rem solid #263238;
   border-radius: .55rem;
-  background: color-mix(in srgb, var(--subject-colour) 13%, #fff);
+  background: #f7f8f8;
   color: #14231d;
   box-shadow: 0 1px 2px rgba(20, 35, 29, .08);
   transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
@@ -19,11 +19,10 @@
 .lesson-card:hover {
   transform: translateY(-1px);
   box-shadow: 0 5px 14px rgba(20, 35, 29, .12);
-  filter: saturate(1.04);
 }
 
 .lesson-card__subject {
-  color: color-mix(in srgb, var(--subject-colour) 82%, #14231d);
+  color: #263238;
   font-weight: 800;
   line-height: 1.15;
 }
@@ -43,8 +42,8 @@
   margin-top: .18rem;
   padding: .1rem .38rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--subject-colour) 18%, #fff);
-  color: color-mix(in srgb, var(--subject-colour) 78%, #14231d);
+  background: #e8ecee;
+  color: #263238;
   font-size: .66rem;
   font-weight: 700;
 }
@@ -68,8 +67,8 @@
   display: inline-flex;
   padding: .18rem;
   border-radius: .3rem;
-  background: color-mix(in srgb, var(--subject-colour) 14%, #fff);
-  color: color-mix(in srgb, var(--subject-colour) 80%, #14231d);
+  background: #e8ecee;
+  color: #263238;
 }
 
 .lesson-card__resize {
@@ -80,11 +79,11 @@
   height: .35rem;
   cursor: ns-resize;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--subject-colour) 45%, transparent);
+  background: #9aa5aa;
 }
 
 .lesson-card--selected {
-  outline: 3px solid color-mix(in srgb, var(--subject-colour) 45%, #2bc194);
+  outline: 3px solid #69757a;
   outline-offset: 1px;
 }
 
@@ -107,10 +106,4 @@
 .lesson-card--compact .lesson-card__line,
 .lesson-card--compact .lesson-card__room {
   font-size: .7rem;
-}
-
-@supports not (background: color-mix(in srgb, red 10%, white)) {
-  .lesson-card { background: #f5f8fb; border-color: #c6d2df; }
-  .lesson-card__badge { background: #e7eef5; color: #0f2a47; }
-  .lesson-card__lock { background: #e7eef5; color: #0f2a47; }
 }
