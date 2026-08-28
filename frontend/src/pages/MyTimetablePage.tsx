@@ -10,7 +10,7 @@ import { Link } from '../lib/router'
 import { scheduling, type Calendar, type Event, type SchoolClass, type Teacher, type TimetableView } from '../lib/scheduling'
 
 type Scope = 'class' | 'teacher'
-type SubjectOption = { id: number; name: string; code?: string }
+type SubjectOption = { id: number; name: string; code?: string; colour?: string }
 
 function canReviewGeneratedDraft(role?: string) {
   const order = ['viewer', 'student', 'teacher', 'scheduler', 'admin', 'super_admin']
@@ -18,8 +18,11 @@ function canReviewGeneratedDraft(role?: string) {
   return index >= order.indexOf('scheduler')
 }
 
+function validSubjectColour(value: string | undefined) { return value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value : undefined }
+
 function buildView(calendar: Calendar, version: NonNullable<TimetableView['version']>, lessons: Array<{ day_index: number; period_index: number; subject_id: number; teacher_id: number; class_id: number }>, subjects: SubjectOption[], teachers: Array<{ id: number; name: string; code?: string; staff_number?: string }>, classes: Array<{ id: number; name: string; code?: string }>, scope: Scope, targetId: number): TimetableView {
   const subjectCode = new Map(subjects.map((item) => [item.id, item.code?.trim() || item.name]))
+  const subjectColour = new Map(subjects.map((item) => [item.id, validSubjectColour(item.colour)]))
   const teacherCode = new Map(teachers.map((item) => [item.id, item.code?.trim() || item.staff_number?.trim() || item.name]))
   const classCode = new Map(classes.map((item) => [item.id, item.code?.trim() || item.name]))
   const target = scope === 'teacher' ? teachers.find((item) => item.id === targetId)?.name : classes.find((item) => item.id === targetId)?.name
@@ -28,25 +31,30 @@ function buildView(calendar: Calendar, version: NonNullable<TimetableView['versi
     target_name: target,
     days: calendar.days.filter((day) => day.is_active).map((day) => ({ index: day.index, name: day.name })),
     periods: calendar.periods.map((period) => ({ index: period.index, name: period.name, start_time: period.start_time, end_time: period.end_time, is_teaching: period.is_teaching })),
-    lessons: lessons.map((lesson) => ({ day: lesson.day_index, period: lesson.period_index, subject: subjectCode.get(lesson.subject_id) ?? 'Unknown subject', teacher: teacherCode.get(lesson.teacher_id) ?? null, class: classCode.get(lesson.class_id) ?? 'Unknown class' })),
+    lessons: lessons.map((lesson) => ({ day: lesson.day_index, period: lesson.period_index, subject: subjectCode.get(lesson.subject_id) ?? 'Unknown subject', subject_colour: subjectColour.get(lesson.subject_id), teacher: teacherCode.get(lesson.teacher_id) ?? null, class: classCode.get(lesson.class_id) ?? 'Unknown class' })),
   }
 }
 
 function normalisePublishedView(view: TimetableView, subjects: SubjectOption[], teachers: Teacher[], classes: SchoolClass[]): TimetableView {
-  const subjectByName = new Map(subjects.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.name]))
-  const subjectByCode = new Set(subjects.map((item) => item.code?.trim()).filter(Boolean))
+  const subjectByName = new Map(subjects.map((item) => [item.name.trim().toLowerCase(), item]))
+  const subjectByCode = new Map(subjects.map((item) => [item.code?.trim().toLowerCase(), item]).filter(([key]) => Boolean(key)))
   const teacherByName = new Map(teachers.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.staff_number?.trim() || item.name]))
   const teacherByCode = new Set(teachers.flatMap((item) => [item.code?.trim(), item.staff_number?.trim()]).filter(Boolean))
   const classByName = new Map(classes.map((item) => [item.name.trim().toLowerCase(), item.code?.trim() || item.name]))
   const classByCode = new Set(classes.map((item) => item.code?.trim()).filter(Boolean))
   return {
     ...view,
-    lessons: view.lessons.map((lesson) => ({
-      ...lesson,
-      subject: lesson.subject && subjectByCode.has(lesson.subject.trim()) ? lesson.subject.trim() : subjectByName.get(lesson.subject.trim().toLowerCase()) ?? lesson.subject,
-      teacher: lesson.teacher ? (teacherByCode.has(lesson.teacher.trim()) ? lesson.teacher.trim() : teacherByName.get(lesson.teacher.trim().toLowerCase()) ?? lesson.teacher) : null,
-      class: classByCode.has(lesson.class.trim()) ? lesson.class.trim() : classByName.get(lesson.class.trim().toLowerCase()) ?? lesson.class,
-    })),
+    lessons: view.lessons.map((lesson) => {
+      const rawSubject = lesson.subject?.trim() ?? ''
+      const subject = subjectByCode.get(rawSubject.toLowerCase()) ?? subjectByName.get(rawSubject.toLowerCase())
+      return {
+        ...lesson,
+        subject: subject?.code?.trim() || subject?.name || lesson.subject,
+        subject_colour: validSubjectColour(subject?.colour) ?? validSubjectColour(lesson.subject_colour),
+        teacher: lesson.teacher ? (teacherByCode.has(lesson.teacher.trim()) ? lesson.teacher.trim() : teacherByName.get(lesson.teacher.trim().toLowerCase()) ?? lesson.teacher) : null,
+        class: classByCode.has(lesson.class.trim()) ? lesson.class.trim() : classByName.get(lesson.class.trim().toLowerCase()) ?? lesson.class,
+      }
+    }),
   }
 }
 
