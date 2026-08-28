@@ -1,7 +1,10 @@
 import type { TimetableView } from '../lib/scheduling'
 import './timetable-time-grid.css'
+import './timetable-subject-colours.css'
 
 function minutes(value: string) { const [h, m] = value.split(':').map(Number); return h * 60 + m }
+const SUBJECT_COLOURS = ['#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#0891B2', '#0F766E', '#4F46E5']
+function subjectColour(subject: string) { let hash = 0; for (let i = 0; i < subject.length; i++) hash = (hash * 31 + subject.charCodeAt(i)) >>> 0; return SUBJECT_COLOURS[hash % SUBJECT_COLOURS.length] }
 type Props = { view: TimetableView; mode: 'teacher' | 'class' }
 
 export function PublishedTimetableGrid({ view, mode }: Props) {
@@ -10,6 +13,6 @@ export function PublishedTimetableGrid({ view, mode }: Props) {
   return <div className="timetable timetable--published"><div className="timetable__time-grid" style={{ '--tt-columns': columns } as React.CSSProperties}>
     <div className="timetable__corner">Day</div>
     {periods.map((p) => <div className={`timetable__period-head ${!p.is_teaching ? 'timetable__period-head--break' : ''}`} key={p.index}><span className="timetable__period">{p.name}</span><span className="timetable__clock">{p.start_time}–{p.end_time}</span></div>)}
-    {view.days.map((day) => <div className="timetable__day-row" key={day.index}><div className="timetable__day-label">{day.name}</div>{periods.map((period) => { const lesson = view.lessons.find((item) => item.day === day.index && item.period === period.index); const isBreak = !period.is_teaching; const breakWord = period.name.trim().split(/\s+/).at(-1)?.replace(/[^A-Za-z]/g, '') || period.name.replace(/[^A-Za-z]/g, ''); const letter = breakWord[view.days.findIndex((d) => d.index === day.index)]?.toUpperCase() ?? breakWord[0]?.toUpperCase() ?? '•'; return <div className={`timetable__cell ${isBreak ? 'timetable__cell--break' : ''}`} key={period.index}>{isBreak ? <span className="timetable__break-vertical" aria-label={period.name}>{letter}</span> : lesson ? <div className="lesson-card" title={mode === 'class' && lesson.teacher ? lesson.teacher : undefined}><span className="lesson-card__subject">{lesson.subject}</span><span className="lesson-card__line">{mode === 'teacher' ? lesson.class : lesson.teacher}</span></div> : null}</div> })}</div>)}
+    {view.days.map((day) => <div className="timetable__day-row" key={day.index}><div className="timetable__day-label">{day.name}</div>{periods.map((period) => { const lesson = view.lessons.find((item) => item.day === day.index && item.period === period.index); const isBreak = !period.is_teaching; const breakWord = period.name.trim().split(/\s+/).at(-1)?.replace(/[^A-Za-z]/g, '') || period.name.replace(/[^A-Za-z]/g, ''); const letter = breakWord[view.days.findIndex((d) => d.index === day.index)]?.toUpperCase() ?? breakWord[0]?.toUpperCase() ?? '•'; const colour = lesson ? subjectColour(lesson.subject) : undefined; return <div className={`timetable__cell ${isBreak ? 'timetable__cell--break' : ''}`} key={period.index}>{isBreak ? <span className="timetable__break-vertical" aria-label={period.name}>{letter}</span> : lesson ? <div className="lesson-card lesson-card--published" style={{ '--subject-colour': colour } as React.CSSProperties} title={mode === 'class' && lesson.teacher ? lesson.teacher : undefined}><span className="lesson-card__subject">{lesson.subject}</span><span className="lesson-card__class">{lesson.class}</span>{mode === 'class' && lesson.teacher && <span className="lesson-card__line">{lesson.teacher}</span>}</div> : null}</div> })}</div>)}
   </div></div>
 }
