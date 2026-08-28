@@ -17,7 +17,7 @@ function minutes(value: string) { const [hour, minute] = value.split(':').map(Nu
 const SUBJECT_COLOURS = ['#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#0891B2', '#0F766E', '#4F46E5']
 function colourFor(subject: Subject | undefined, index: number) { return subject?.colour && /^#[0-9A-Fa-f]{6}$/.test(subject.colour) ? subject.colour : SUBJECT_COLOURS[index % SUBJECT_COLOURS.length] }
 function dayLabel(day: Day) { const item = day as Day & { date?: string; date_label?: string }; return item.date_label || item.date ? `${day.name} · ${item.date_label ?? item.date}` : day.name }
-function classLabel(item: SchoolClass) { const grade = item.grade?.trim(); const stream = (item.stream ?? item.academic_stream)?.trim(); if (stream) return `${grade ?? ''}${stream}`.trim(); return grade || item.code?.trim() || item.name }
+function classLabel(item: SchoolClass) { const grade = item.grade?.trim(); const stream = (item.stream ?? item.academic_stream)?.trim(); return stream || grade || item.code?.trim() || item.name.trim() }
 function formatTime(value: string, format: TimeFormat) { const [rawHour, minute] = value.split(':').map(Number); if (format === '24h') return `${String(rawHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`; const suffix = rawHour >= 12 ? 'PM' : 'AM'; const hour = rawHour % 12 || 12; return `${hour}:${String(minute).padStart(2, '0')} ${suffix}` }
 
 export function TimetableGrid({ days, periods, lessons, meta, view = 'whole-school', conflicted, selectedId, readOnly = false, zoom = 1, dense = false, currentSlot, timeFormat = '24h', timeLayout = 'split', onSelect, onMove, onResize, secondary, teacherInitials = false }: Props) {
