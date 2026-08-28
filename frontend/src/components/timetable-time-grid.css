@@ -1,23 +1,21 @@
-.timetable__time-grid{display:grid;grid-template-columns:4.2rem var(--tt-columns);min-width:620px;overflow:hidden;border:1px solid var(--color-line);border-radius:.35rem;background:var(--color-surface)}
+.timetable__time-grid{display:grid;grid-template-columns:3.1rem minmax(0,var(--tt-columns));width:100%;min-width:0;overflow:hidden;border:1px solid var(--color-line);border-radius:.25rem;background:var(--color-surface)}
 .timetable__corner,.timetable__period-head,.timetable__day-label,.timetable__cell{min-width:0;border-right:1px solid var(--color-line);border-bottom:1px solid var(--color-line)}
-.timetable__corner,.timetable__period-head{min-height:2.7rem;padding:.22rem .2rem;background:var(--color-surface-muted)}
-.timetable__corner{position:sticky;left:0;z-index:3;font-size:.6rem;font-weight:700;color:var(--color-ink-muted);text-transform:uppercase;letter-spacing:.03em}
-.timetable__period-head{display:flex;flex-direction:column;justify-content:center;gap:.02rem;text-align:center}.timetable__period-head--break{background:var(--color-primary-soft)}
-.timetable__period{font-weight:700;font-size:.66rem;line-height:1}.timetable__clock{color:var(--color-ink-muted);font-size:.5rem;white-space:nowrap}
-.timetable__day-row{display:grid;grid-column:1/-1;grid-template-columns:4.2rem var(--tt-columns);min-height:2.8rem}.timetable__day-label{position:sticky;left:0;z-index:2;display:flex;align-items:flex-start;justify-content:center;padding:.35rem .18rem;background:var(--color-surface-muted);font-weight:700;font-size:.62rem;text-transform:none}
-.timetable__cell{position:relative;min-height:2.8rem;padding:.12rem;overflow:hidden;background:var(--color-surface)}.timetable__cell--empty{background:var(--color-surface)}.timetable__cell--break{display:flex;align-items:center;justify-content:center;padding:0;background:var(--color-surface-muted)}
-.timetable__break-vertical{display:inline-flex;align-items:center;justify-content:center;width:.9rem;height:100%;min-height:2.4rem;font-size:.65rem;font-weight:800;letter-spacing:.03em;writing-mode:vertical-rl;transform:rotate(180deg);color:var(--color-primary)}
-.timetable__cell--now{box-shadow:inset 0 0 0 2px var(--color-primary)}.timetable__cell--target{background:var(--color-primary-soft)}
-
-.timetable__time-grid .lesson-card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:1.9rem;width:100%;height:100%;box-sizing:border-box;overflow:hidden;margin:0;padding:.14rem .1rem;gap:.05rem;border:1px solid var(--subject-colour,#64748b);border-left:1px solid var(--subject-colour,#64748b);border-radius:.22rem;background:var(--subject-colour,#64748b)!important;box-shadow:none;transition:box-shadow .12s ease,transform .12s ease,filter .12s ease}
+.timetable__corner,.timetable__period-head{height:2rem;min-height:2rem;padding:.08rem .08rem;background:var(--color-surface-muted)}
+.timetable__corner{position:sticky;left:0;z-index:3;font-size:.5rem;font-weight:700;color:var(--color-ink-muted);text-transform:uppercase;letter-spacing:.02em}
+.timetable__period-head{display:flex;flex-direction:column;justify-content:center;gap:0;text-align:center}.timetable__period-head--break{background:var(--color-primary-soft)}
+.timetable__period{font-weight:800;font-size:.56rem;line-height:1}.timetable__clock{color:var(--color-ink-muted);font-size:.42rem;line-height:1;white-space:nowrap;transform:scale(.9);transform-origin:center}
+.timetable__day-row{display:grid;grid-column:1/-1;grid-template-columns:3.1rem minmax(0,var(--tt-columns));min-height:1.65rem;height:1.65rem}.timetable__day-label{position:sticky;left:0;z-index:2;display:flex;align-items:center;justify-content:center;padding:.05rem;background:var(--color-surface-muted);font-weight:800;font-size:.52rem;text-transform:none;white-space:nowrap}
+.timetable__cell{position:relative;min-height:1.65rem;height:1.65rem;padding:.03rem;overflow:hidden;background:var(--color-surface)}.timetable__cell--empty{background:var(--color-surface)}.timetable__cell--break{display:flex;align-items:center;justify-content:center;padding:0;background:var(--color-surface-muted)}
+.timetable__break-vertical{display:inline-flex;align-items:center;justify-content:center;width:.7rem;height:100%;min-height:1.4rem;font-size:.5rem;font-weight:800;letter-spacing:.02em;writing-mode:vertical-rl;transform:rotate(180deg);color:var(--color-primary)}
+.timetable__cell--now{box-shadow:inset 0 0 0 1px var(--color-primary)}.timetable__cell--target{background:var(--color-primary-soft)}
+.timetable__time-grid .lesson-card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:1.5rem;height:100%;width:100%;box-sizing:border-box;overflow:hidden;margin:0;padding:.03rem .02rem;gap:0;border:1px solid var(--subject-colour,#64748b);border-left:1px solid var(--subject-colour,#64748b);border-radius:.12rem;background:var(--subject-colour,#64748b)!important;box-shadow:none;transition:none}
 .timetable__time-grid .lesson-card:hover{transform:none;box-shadow:none;filter:brightness(.97)}
-.timetable__time-grid .lesson-card--selected{box-shadow:0 0 0 1px #fff,0 0 0 2px var(--subject-colour,#64748b)}
+.timetable__time-grid .lesson-card--selected{box-shadow:0 0 0 1px #fff,0 0 0 1px var(--subject-colour)}
 .timetable__time-grid .lesson-card--conflict{border-color:#9a2f24;border-left-color:#9a2f24;background:#9a2f24!important}
-.timetable__time-grid .lesson-card__subject{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.62rem;font-weight:900;line-height:1;text-align:center;letter-spacing:0;text-transform:uppercase;color:#fff!important}
-.timetable__time-grid .lesson-card__class{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.58rem;font-weight:900;line-height:1;text-align:center;color:#fff!important}
+.timetable__time-grid .lesson-card__subject{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.5rem;font-weight:900;line-height:.9;text-align:center;letter-spacing:0;text-transform:uppercase;color:#fff!important}
+.timetable__time-grid .lesson-card__class{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.48rem;font-weight:900;line-height:.9;text-align:center;color:#fff!important}
 .timetable__time-grid .lesson-card__line,.timetable__time-grid .lesson-card__room,.timetable__time-grid .lesson-card__badge{display:none}
-.timetable__time-grid .lesson-card__flag{display:block;margin-top:auto;font-size:.42rem;font-weight:800;text-transform:uppercase;color:#fff}
-.timetable__time-grid .lesson-card__lock{position:absolute;top:.12rem;right:.12rem}.timetable__time-grid .lesson-card__resize{position:absolute;right:0;bottom:0;left:0;height:.12rem;cursor:ns-resize}
+.timetable__time-grid .lesson-card__flag{display:none}.timetable__time-grid .lesson-card__lock{display:none}.timetable__time-grid .lesson-card__resize{position:absolute;right:0;bottom:0;left:0;height:.08rem;cursor:ns-resize}
 .timetable__agenda{display:none}
-@media(max-width:767px){.timetable__time-grid{display:none}.timetable__agenda{display:block}}
-@media print{.timetable__time-grid{min-width:0;grid-template-columns:4rem var(--tt-columns);border-color:#999}.timetable__day-row{grid-template-columns:4rem var(--tt-columns)}.timetable__agenda{display:none!important}.timetable__time-grid .lesson-card{box-shadow:none}}
+@media(max-width:767px){.timetable__time-grid{display:grid;width:100%;min-width:0}.timetable__agenda{display:none}}
+@media print{.timetable__time-grid{width:100%;min-width:0;grid-template-columns:3.1rem minmax(0,var(--tt-columns));border-color:#999}.timetable__day-row{grid-template-columns:3.1rem minmax(0,var(--tt-columns))}.timetable__agenda{display:none!important}.timetable__time-grid .lesson-card{box-shadow:none}}
