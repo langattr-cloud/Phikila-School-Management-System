@@ -24,7 +24,7 @@
 }
 .lesson-card:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(20, 35, 29, .16); filter: brightness(.97); }
 .lesson-card__subject { color: #fff !important; font-weight: 900; font-size: .72rem; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.lesson-card__class { color: #fff !important; font-size: .68rem; font-weight: 900; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.lesson-card__class { color: #000 !important; font-size: .68rem; font-weight: 900; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .lesson-card__line, .lesson-card__room, .lesson-card__badge { display: none; }
 .lesson-card__flag { position: absolute; top: .12rem; right: .12rem; padding: .05rem .18rem; border-radius: 999px; background: #fff; color: #9a2f24; font-size: .48rem; font-weight: 800; }
 .lesson-card__lock { position: absolute; right: .12rem; bottom: .12rem; display: inline-flex; padding: .1rem; border-radius: .2rem; background: rgba(255,255,255,.2); color: #fff; }
