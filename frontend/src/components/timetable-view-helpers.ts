@@ -5,8 +5,7 @@ export type TimetableViewKind = 'whole-school' | 'class' | 'teacher' | 'generic'
 export function timetableClassLabel(item: SchoolClass): string {
   const grade = item.grade?.trim()
   const stream = (item.stream ?? item.academic_stream)?.trim()
-  if (grade && stream) return `${grade} ${stream}`
-  return grade || item.name
+  return stream || grade || item.code?.trim() || item.name.trim()
 }
 
 export function inferTimetableView(
