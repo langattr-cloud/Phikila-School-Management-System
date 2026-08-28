@@ -15,9 +15,9 @@
   transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
   user-select: none;
 }
-
 .lesson-card:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(20, 35, 29, .12); }
 .lesson-card__subject { font-weight: 800; line-height: 1.15; }
+.lesson-card__class { color: #14231d; font-size: .82rem; font-weight: 800; line-height: 1.2; }
 .lesson-card__line { color: #4f5b55; font-size: .78rem; line-height: 1.2; }
 .lesson-card__room { color: #68736d; }
 .lesson-card__badge { align-self: flex-start; margin-top: .18rem; padding: .1rem .38rem; border-radius: 999px; background: #e8ecee; color: #263238; font-size: .66rem; font-weight: 700; }
@@ -29,3 +29,5 @@
 .lesson-card--conflict { border-color: #9a2f24; border-left-color: #9a2f24; background: #fbe8e5; }
 .lesson-card--compact { min-height: 4.2rem; padding: .4rem .5rem .4rem .58rem; }
 .lesson-card--compact .lesson-card__line, .lesson-card--compact .lesson-card__room { font-size: .7rem; }
+.lesson-card--compact .lesson-card__subject { font-size: .78rem; }
+.lesson-card--compact .lesson-card__class { font-size: .76rem; }
