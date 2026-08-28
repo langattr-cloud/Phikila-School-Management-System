@@ -3,31 +3,35 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: .12rem;
+  align-items: center;
+  justify-content: center;
+  gap: .18rem;
   min-height: 5.7rem;
-  padding: .55rem .6rem .55rem .72rem;
-  border: 1px solid color-mix(in srgb, var(--subject-colour) 35%, #c7ced1);
-  border-left: .35rem solid var(--subject-colour);
+  width: 100%;
+  box-sizing: border-box;
+  padding: .55rem .6rem;
+  border: 1px solid var(--subject-colour);
+  border-left: 1px solid var(--subject-colour);
   border-radius: .55rem;
-  background: color-mix(in srgb, var(--subject-colour) 10%, white);
-  color: #14231d;
-  box-shadow: 0 1px 2px rgba(20, 35, 29, .08);
+  background: var(--subject-colour);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(20, 35, 29, .16);
   transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
   user-select: none;
 }
-.lesson-card:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(20, 35, 29, .12); }
-.lesson-card__subject { font-weight: 800; line-height: 1.15; }
-.lesson-card__class { color: #14231d; font-size: .82rem; font-weight: 800; line-height: 1.2; }
-.lesson-card__line { color: #4f5b55; font-size: .78rem; line-height: 1.2; }
-.lesson-card__room { color: #68736d; }
-.lesson-card__badge { align-self: flex-start; margin-top: .18rem; padding: .1rem .38rem; border-radius: 999px; background: #e8ecee; color: #263238; font-size: .66rem; font-weight: 700; }
-.lesson-card__flag { position: absolute; top: .35rem; right: .35rem; padding: .1rem .35rem; border-radius: 999px; background: #fbe8e5; color: #9a2f24; font-size: .62rem; font-weight: 800; }
-.lesson-card__lock { position: absolute; right: .35rem; bottom: .35rem; display: inline-flex; padding: .18rem; border-radius: .3rem; background: #e8ecee; color: #263238; }
-.lesson-card__resize { position: absolute; right: .2rem; bottom: .08rem; width: 2.2rem; height: .35rem; cursor: ns-resize; border-radius: 999px; background: #9aa5aa; }
-.lesson-card--selected { outline: 3px solid #69757a; outline-offset: 1px; }
+.lesson-card:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(20, 35, 29, .18); filter: brightness(.97); }
+.lesson-card__subject { color: #fff !important; font-weight: 900; font-size: 1rem; line-height: 1.1; text-align: center; }
+.lesson-card__class { color: #fff; font-size: .9rem; font-weight: 900; line-height: 1.15; text-align: center; }
+.lesson-card__line { color: rgba(255,255,255,.92); font-size: .72rem; line-height: 1.2; text-align: center; }
+.lesson-card__room { color: rgba(255,255,255,.82); }
+.lesson-card__badge { align-self: center; margin-top: .18rem; padding: .1rem .38rem; border-radius: 999px; background: rgba(255,255,255,.2); color: #fff; font-size: .66rem; font-weight: 700; }
+.lesson-card__flag { position: absolute; top: .3rem; right: .3rem; padding: .1rem .35rem; border-radius: 999px; background: #fff; color: #9a2f24; font-size: .62rem; font-weight: 800; }
+.lesson-card__lock { position: absolute; right: .3rem; bottom: .3rem; display: inline-flex; padding: .18rem; border-radius: .3rem; background: rgba(255,255,255,.2); color: #fff; }
+.lesson-card__resize { position: absolute; right: .2rem; bottom: .08rem; width: 2.2rem; height: .35rem; cursor: ns-resize; border-radius: 999px; background: rgba(255,255,255,.55); }
+.lesson-card--selected { outline: 3px solid currentColor; outline-offset: 1px; }
 .lesson-card--carrying { opacity: .62; transform: rotate(1deg) scale(.99); }
-.lesson-card--conflict { border-color: #9a2f24; border-left-color: #9a2f24; background: #fbe8e5; }
-.lesson-card--compact { min-height: 4.2rem; padding: .4rem .5rem .4rem .58rem; }
-.lesson-card--compact .lesson-card__line, .lesson-card--compact .lesson-card__room { font-size: .7rem; }
-.lesson-card--compact .lesson-card__subject { font-size: .78rem; }
-.lesson-card--compact .lesson-card__class { font-size: .76rem; }
+.lesson-card--conflict { border-color: #9a2f24; border-left-color: #9a2f24; background: #9a2f24; }
+.lesson-card--compact { min-height: 4.2rem; padding: .45rem .5rem; }
+.lesson-card--compact .lesson-card__subject { font-size: .84rem; }
+.lesson-card--compact .lesson-card__class { font-size: .8rem; }
+.lesson-card--compact .lesson-card__line, .lesson-card--compact .lesson-card__room { font-size: .66rem; }
