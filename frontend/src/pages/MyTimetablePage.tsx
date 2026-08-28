@@ -12,12 +12,7 @@ import { scheduling, type Calendar, type Event, type SchoolClass, type Teacher, 
 type Scope = 'class' | 'teacher'
 type SubjectOption = { id: number; name: string; code?: string; colour?: string }
 
-function canReviewGeneratedDraft(role?: string) {
-  const order = ['viewer', 'student', 'teacher', 'scheduler', 'admin', 'super_admin']
-  const index = order.indexOf(String(role ?? '').toLowerCase())
-  return index >= order.indexOf('scheduler')
-}
-
+function canReviewGeneratedDraft(role?: string) { const order = ['viewer', 'student', 'teacher', 'scheduler', 'admin', 'super_admin']; const index = order.indexOf(String(role ?? '').toLowerCase()); return index >= order.indexOf('scheduler') }
 function validSubjectColour(value: string | undefined) { return value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value : undefined }
 
 function buildView(calendar: Calendar, version: NonNullable<TimetableView['version']>, lessons: Array<{ day_index: number; period_index: number; subject_id: number; teacher_id: number; class_id: number }>, subjects: SubjectOption[], teachers: Array<{ id: number; name: string; code?: string; staff_number?: string }>, classes: Array<{ id: number; name: string; code?: string }>, scope: Scope, targetId: number): TimetableView {
@@ -26,13 +21,7 @@ function buildView(calendar: Calendar, version: NonNullable<TimetableView['versi
   const teacherCode = new Map<number, string>(teachers.map((item): [number, string] => [item.id, item.code?.trim() || item.staff_number?.trim() || item.name]))
   const classCode = new Map<number, string>(classes.map((item): [number, string] => [item.id, item.code?.trim() || item.name]))
   const target = scope === 'teacher' ? teachers.find((item) => item.id === targetId)?.name : classes.find((item) => item.id === targetId)?.name
-  return {
-    version,
-    target_name: target,
-    days: calendar.days.filter((day) => day.is_active).map((day) => ({ index: day.index, name: day.name })),
-    periods: calendar.periods.map((period) => ({ index: period.index, name: period.name, start_time: period.start_time, end_time: period.end_time, is_teaching: period.is_teaching })),
-    lessons: lessons.map((lesson) => ({ day: lesson.day_index, period: lesson.period_index, subject: subjectCode.get(lesson.subject_id) ?? 'Unknown subject', subject_colour: subjectColour.get(lesson.subject_id), teacher: teacherCode.get(lesson.teacher_id) ?? null, class: classCode.get(lesson.class_id) ?? 'Unknown class' })),
-  }
+  return { version, target_name: target, days: calendar.days.filter((day) => day.is_active).map((day) => ({ index: day.index, name: day.name })), periods: calendar.periods.map((period) => ({ index: period.index, name: period.name, start_time: period.start_time, end_time: period.end_time, is_teaching: period.is_teaching })), lessons: lessons.map((lesson) => ({ day: lesson.day_index, period: lesson.period_index, subject: subjectCode.get(lesson.subject_id) ?? 'Unknown subject', subject_colour: subjectColour.get(lesson.subject_id), teacher: teacherCode.get(lesson.teacher_id) ?? null, class: classCode.get(lesson.class_id) ?? 'Unknown class' })) }
 }
 
 function normalisePublishedView(view: TimetableView, subjects: SubjectOption[], teachers: Teacher[], classes: SchoolClass[]): TimetableView {
@@ -42,61 +31,15 @@ function normalisePublishedView(view: TimetableView, subjects: SubjectOption[], 
   const teacherByCode = new Set(teachers.flatMap((item) => [item.code?.trim(), item.staff_number?.trim()]).filter(Boolean))
   const classByName = new Map<string, string>(classes.map((item): [string, string] => [item.name.trim().toLowerCase(), item.code?.trim() || item.name]))
   const classByCode = new Set(classes.map((item) => item.code?.trim()).filter(Boolean))
-  return {
-    ...view,
-    lessons: view.lessons.map((lesson) => {
-      const rawSubject = lesson.subject?.trim() ?? ''
-      const subject = subjectByCode.get(rawSubject.toLowerCase()) ?? subjectByName.get(rawSubject.toLowerCase())
-      return {
-        ...lesson,
-        subject: subject?.code?.trim() || subject?.name || lesson.subject,
-        subject_colour: validSubjectColour(subject?.colour) ?? validSubjectColour(lesson.subject_colour),
-        teacher: lesson.teacher ? (teacherByCode.has(lesson.teacher.trim()) ? lesson.teacher.trim() : teacherByName.get(lesson.teacher.trim().toLowerCase()) ?? lesson.teacher) : null,
-        class: classByCode.has(lesson.class.trim()) ? lesson.class.trim() : classByName.get(lesson.class.trim().toLowerCase()) ?? lesson.class,
-      }
-    }),
-  }
+  return { ...view, lessons: view.lessons.map((lesson) => { const rawSubject = lesson.subject?.trim() ?? ''; const subject = subjectByCode.get(rawSubject.toLowerCase()) ?? subjectByName.get(rawSubject.toLowerCase()); return { ...lesson, subject: subject?.code?.trim() || subject?.name || lesson.subject, subject_colour: validSubjectColour(subject?.colour) ?? validSubjectColour(lesson.subject_colour), teacher: lesson.teacher ? (teacherByCode.has(lesson.teacher.trim()) ? lesson.teacher.trim() : teacherByName.get(lesson.teacher.trim().toLowerCase()) ?? lesson.teacher) : null, class: classByCode.has(lesson.class.trim()) ? lesson.class.trim() : classByName.get(lesson.class.trim().toLowerCase()) ?? lesson.class } }) }
 }
 
 export function MyTimetablePage() {
-  const [scope, setScope] = useState<Scope>('class')
-  const [targetId, setTargetId] = useState<number | null>(null)
-  const [options, setOptions] = useState<{ classes: SchoolClass[]; teachers: Teacher[]; subjects: SubjectOption[] } | null>(null)
-  const [view, setView] = useState<TimetableView | null>(null)
-  const [events, setEvents] = useState<Event[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [stale, setStale] = useState<number | null>(null)
-  const [isTeacher, setIsTeacher] = useState(false)
-  const [canReviewDraft, setCanReviewDraft] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    cachedFetch('mytt:options', async () => {
-      const [classes, teachers, subjects, me] = await Promise.all([scheduling.classes(), scheduling.teachers(), scheduling.subjects(), scheduling.me()])
-      return { classes, teachers, subjects, me }
-    }).then((result) => {
-      if (!active) return
-      const { classes, teachers, subjects, me } = result.data
-      setOptions({ classes, teachers, subjects })
-      setIsTeacher(String(me.role ?? '').toLowerCase() === 'teacher')
-      setCanReviewDraft(canReviewGeneratedDraft(me.role))
-      setTargetId((current) => current ?? (me.role === 'teacher' ? teachers.find((teacher) => teacher.id === Number(me.id))?.id ?? null : classes[0]?.id ?? null))
-      setStale(result.staleAt)
-    }).catch((err) => { if (active) setError(friendlyApiError(err, 'load timetable options')) }).finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [])
-
-  useEffect(() => {
-    if (!targetId || !options) return
-    let active = true
-    setError(null)
-    Promise.all([scheduling.view(scope, targetId), scheduling.calendar(), scheduling.versions(), scheduling.lessons((options.classes[0] as any)?.version_id ?? 0)]).then(([serverView]) => { if (active) setView(normalisePublishedView(serverView, options.subjects, options.teachers, options.classes)) }).catch((err) => { if (active) setError(friendlyApiError(err, 'load timetable')) })
-    return () => { active = false }
-  }, [scope, targetId, options])
-
-  useEffect(() => { scheduling.events().then(setEvents).catch(() => undefined) }, [])
-
-  const selected = scope === 'teacher' ? options?.teachers.find((item) => item.id === targetId) : options?.classes.find((item) => item.id === targetId)
-  return <><PageHeader title="My timetable" description="View the published timetable for a class or teacher." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My timetable' }]} />{loading ? <LoadingBlock label="Loading timetable" rows={4} /> : error ? <ErrorState title="Timetable unavailable" message={error} /> : !view ? <EmptyState icon={<CalendarIcon width={22} height={22} />} title="No timetable published" message="There is no published timetable to display yet." /> : <section className="card section"><div className="panel__head"><div><h2 className="section__title">{selected?.name ?? view.target_name ?? 'Timetable'}</h2><p className="form__note">Published timetable</p></div><Badge tone="success">Published</Badge></div><PublishedTimetableGridWithEvents view={view} events={events} /></section>}</>
+  const [scope, setScope] = useState<Scope>('class'); const [targetId, setTargetId] = useState<number | null>(null); const [options, setOptions] = useState<{ classes: SchoolClass[]; teachers: Teacher[]; subjects: SubjectOption[] } | null>(null); const [view, setView] = useState<TimetableView | null>(null); const [events, setEvents] = useState<Event[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [stale, setStale] = useState<number | null>(null); const [isTeacher, setIsTeacher] = useState(false); const [canReviewDraft, setCanReviewDraft] = useState(false)
+  useEffect(() => { let active = true; cachedFetch('mytt:options', async () => { const [classes, teachers, subjects, me] = await Promise.all([scheduling.classes(), scheduling.teachers(), scheduling.subjects(), scheduling.me()]); return { classes, teachers, subjects, me } }).then((result) => { if (!active) return; const { classes, teachers, subjects, me } = result.data; setOptions({ classes, teachers, subjects }); setCanReviewDraft(canReviewGeneratedDraft(me.role)); if (me.teacher_id) { setIsTeacher(true); setScope('teacher'); setTargetId(me.teacher_id) } else if (me.class_id) { setScope('class'); setTargetId(me.class_id) } else setTargetId(classes[0]?.id ?? null) }).catch(() => { if (active) setError('Could not load your school data.') }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
+  useEffect(() => { if (!targetId || !options) return; let active = true; setLoading(true); setError(null); const load = async () => { if (!canReviewDraft) { const [result, eventRows] = await Promise.all([cachedFetch(`mytt:${scope}:${targetId}`, () => scheduling.view(scope, targetId)), scheduling.events()]); return { view: normalisePublishedView(result.data, options.subjects, options.teachers, options.classes), events: eventRows, savedAt: result.stale ? result.savedAt : null } } const [calendar, versions, subjects, teachers, classes, eventRows] = await Promise.all([scheduling.calendar(), scheduling.versions(), scheduling.subjects(), scheduling.teachers(), scheduling.classes(), scheduling.events()]); const version = [...versions].sort((a, b) => (b.number ?? b.id) - (a.number ?? a.id))[0]; if (!version) return { view: null, events: eventRows, savedAt: null }; const allLessons = await scheduling.lessons(version.id); const lessons = allLessons.filter((lesson) => scope === 'teacher' ? lesson.teacher_id === targetId : lesson.class_id === targetId); return { view: buildView(calendar, version, lessons, subjects, teachers, classes, scope, targetId), events: eventRows, savedAt: null } }; load().then((result) => { if (!active) return; setView(result.view); setEvents(result.events); setStale(result.savedAt) }).catch((err) => { if (active) setError(friendlyApiError(err, 'load the timetable')) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [scope, targetId, canReviewDraft, options])
+  const targets = scope === 'class' ? (options?.classes ?? []) : (options?.teachers ?? []); const isDraft = view?.version?.status === 'draft'
+  if (loading && !view) return <><PageHeader title="My timetable" description="Your personal school timetable." /><div className="card section"><LoadingBlock label="Loading your timetable" rows={6} /></div></>
+  if (error && !view) return <><PageHeader title="My timetable" /><ErrorState title="Timetable could not load" message={error} /></>
+  return <><PageHeader title={scope === 'teacher' ? `Teacher: ${view?.target_name ?? ''}` : 'My timetable'} description="Your current generated timetable." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My timetable' }]} actions={view?.version && canReviewDraft && isDraft ? <Link className="button button--secondary button--sm" to={`/timetable?version=${view.version.id}`}>Edit timetable</Link> : undefined} />{stale && <Alert tone="info" title="Offline copy">Saved on this device {formatSavedAt(stale)}. It will refresh when you reconnect.</Alert>}{view?.version && <section className="card section"><div className="toolbar"><div><h2 className="section__title">Timetable</h2><p className="section__description">Version {view.version.number ?? view.version.id}</p></div><Badge tone={isDraft ? 'neutral' : 'success'}>{isDraft ? 'Draft' : 'Published'}</Badge></div></section>}<section className="card section"><div className="toolbar"><div className="field field--inline"><label className="field__label" htmlFor="my-scope">Show</label><select id="my-scope" className="input input--select" value={scope} disabled={isTeacher} onChange={(event) => { const next = event.target.value as Scope; setScope(next); setTargetId(next === 'class' ? (options?.classes[0]?.id ?? null) : (options?.teachers[0]?.id ?? null)) }}><option value="teacher">My teacher timetable</option><option value="class">A class timetable</option></select></div>{!isTeacher && <div className="field field--inline"><label className="field__label" htmlFor="my-target">{scope === 'class' ? 'Class' : 'Teacher'}</label><select id="my-target" className="input input--select" value={targetId ?? ''} onChange={(event) => setTargetId(Number(event.target.value))}>{targets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>}</div></section>{view?.version ? <section className="card section"><PublishedTimetableGridWithEvents view={view} mode={scope} events={events} /></section> : <section className="card section"><EmptyState title="No timetable generated yet" description="Generate a timetable first. Once generated, it will appear here for review." icon={<CalendarIcon width={22} height={22} />} /></section>}</>
 }
