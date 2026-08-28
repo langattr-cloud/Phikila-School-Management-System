@@ -87,6 +87,7 @@ jobs:
 '''
           p.write_text(s[:start] + replacement + s[end:])
           PY
+      # Deliberate trigger: the previous repair ran against an older source snapshot.
       - name: Validate TypeScript source
         run: |
           cd frontend
