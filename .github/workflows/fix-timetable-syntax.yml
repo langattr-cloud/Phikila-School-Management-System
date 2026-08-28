@@ -1,103 +1,20 @@
-name: Repair timetable export syntax
+name: Timetable syntax validation
 
 on:
   push:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  repair:
+  validate:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair malformed export functions
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          p = Path('frontend/src/pages/TimetablePage.tsx')
-          s = p.read_text()
-          start = s.index('  function exportCsv()')
-          end = s.index('  async function exportPng()', start)
-
-          replacement = r'''  function exportCsv() {
-    if (!bundle) return
-    const rows = [
-      ['Day', 'Period', 'Start', 'Subject', 'Class', 'Teacher', 'Room', 'Duration', 'Locked'],
-      ...visible.map((lesson) => {
-        const period = bundle.calendar.periods.find((p) => p.index === lesson.period_index)
-        return [
-          DAY_NAMES[lesson.day_index] ?? String(lesson.day_index),
-          period?.name ?? String(lesson.period_index),
-          period?.start_time ?? '',
-          meta.subjects.get(lesson.subject_id)?.name ?? '',
-          meta.classes.get(lesson.class_id)?.name ?? '',
-          lesson.teacher_id ? (meta.teachers.get(lesson.teacher_id)?.name ?? '') : '',
-          lesson.room_id ? (meta.rooms.get(lesson.room_id)?.name ?? '') : '',
-          String(lesson.duration),
-          lesson.is_locked ? 'yes' : 'no',
-        ]
-      }),
-    ]
-    const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(','))
-      .join('\n')
-    downloadText(csv, 'timetable.csv', 'text/csv')
-  }
-
-  function exportIcs() {
-    if (!bundle) return
-    const nowDate = new Date()
-    const monday = new Date(nowDate)
-    monday.setDate(nowDate.getDate() - ((nowDate.getDay() + 6) % 7))
-    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Phikila//Timetable//EN']
-
-    for (const lesson of visible) {
-      const day = new Date(monday)
-      day.setDate(monday.getDate() + lesson.day_index)
-      const period = bundle.calendar.periods.find((p) => p.index === lesson.period_index)
-      if (!period) continue
-
-      const [sh, sm] = period.start_time.split(':').map(Number)
-      const [eh, em] = period.end_time.split(':').map(Number)
-      const start = new Date(day)
-      start.setHours(sh, sm, 0, 0)
-      const end = new Date(day)
-      end.setHours(eh, em, 0, 0)
-      const stamp = (value: Date) => value.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
-
-      lines.push(
-        'BEGIN:VEVENT',
-        `UID:phikila-${lesson.id}@school`,
-        `DTSTAMP:${stamp(new Date())}`,
-        `DTSTART:${stamp(start)}`,
-        `DTEND:${stamp(end)}`,
-        `SUMMARY:${meta.subjects.get(lesson.subject_id)?.name ?? 'Lesson'}`,
-        'END:VEVENT',
-      )
-    }
-
-    lines.push('END:VCALENDAR')
-    downloadText(lines.join('\r\n'), 'timetable.ics', 'text/calendar')
-  }
-
-'''
-          p.write_text(s[:start] + replacement + s[end:])
-          PY
-      # Deliberate trigger: the previous repair ran against an older source snapshot.
       - name: Validate TypeScript source
         run: |
           cd frontend
           npm ci
           npx tsc --noEmit
-      - name: Commit repaired source
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add frontend/src/pages/TimetablePage.tsx
-          git diff --cached --quiet && exit 0
-          git commit -m 'fix: repair timetable export syntax'
-          git push
