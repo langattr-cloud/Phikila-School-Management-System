@@ -34,7 +34,7 @@ const RouterContext = createContext<RouterContextValue | null>(null)
 
 function readLocation(): RouterLocation {
   return {
-    pathname: window.location.pathname || '/',
+    pathname: normalisePath(window.location.pathname || '/'),
     search: window.location.search,
     hash: window.location.hash,
   }
@@ -43,7 +43,7 @@ function readLocation(): RouterLocation {
 function resolveTarget(to: string): string {
   try {
     const url = new URL(to, window.location.href)
-    return `${url.pathname}${url.search}${url.hash}`
+    return `${normalisePath(url.pathname)}${url.search}${url.hash}`
   } catch {
     return to
   }
@@ -67,22 +67,29 @@ export function RouterProvider({ children }: { children: ReactNode }) {
 
   const navigate = useCallback((to: string, options: NavigateOptions = {}) => {
     const target = resolveTarget(to)
-    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    const current = `${normalisePath(window.location.pathname)}${window.location.search}${window.location.hash}`
 
     if (target === current) return
 
-    const targetUrl = new URL(target, window.location.href)
-    const hasHash = Boolean(targetUrl.hash)
+    let targetUrl: URL
+    try {
+      targetUrl = new URL(target, window.location.href)
+    } catch {
+      return
+    }
+
+    const targetPath = normalisePath(targetUrl.pathname)
+    const targetLocation = `${targetPath}${targetUrl.search}${targetUrl.hash}`
 
     if (options.replace) {
-      window.history.replaceState({}, '', target)
+      window.history.replaceState({}, '', targetLocation)
     } else {
-      window.history.pushState({}, '', target)
+      window.history.pushState({}, '', targetLocation)
     }
 
     setLocation(readLocation())
 
-    if (hasHash) {
+    if (targetUrl.hash) {
       window.setTimeout(() => {
         const id = decodeURIComponent(targetUrl.hash.slice(1))
         document.getElementById(id)?.scrollIntoView({ block: 'start' })
@@ -149,8 +156,9 @@ function shouldUseBrowserNavigation(event: MouseEvent<HTMLAnchorElement>, to: st
   try {
     const url = new URL(to, window.location.href)
     if (url.origin !== window.location.origin) return true
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return true
   } catch {
-    return false
+    return true
   }
 
   return false
