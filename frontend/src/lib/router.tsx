@@ -14,8 +14,8 @@ import {
  * Small history-API router used by the frontend.
  *
  * It intentionally has no routing dependency. Navigation stays client-side,
- * browser Back/Forward works, query strings are preserved, and normal links
- * can still open in a new tab or be handled by the browser when appropriate.
+ * browser Back/Forward works, query strings and hashes are preserved, and
+ * normal links can still be handled by the browser when appropriate.
  */
 
 type NavigateOptions = { replace?: boolean }
@@ -41,12 +41,9 @@ function readLocation(): RouterLocation {
 }
 
 function resolveTarget(to: string): string {
-  // Keep support for the same-origin absolute URLs while allowing callers to
-  // continue passing normal application paths such as /students?grade=8.
   try {
-    return new URL(to, window.location.href).pathname +
-      new URL(to, window.location.href).search +
-      new URL(to, window.location.href).hash
+    const url = new URL(to, window.location.href)
+    return `${url.pathname}${url.search}${url.hash}`
   } catch {
     return to
   }
@@ -74,6 +71,9 @@ export function RouterProvider({ children }: { children: ReactNode }) {
 
     if (target === current) return
 
+    const targetUrl = new URL(target, window.location.href)
+    const hasHash = Boolean(targetUrl.hash)
+
     if (options.replace) {
       window.history.replaceState({}, '', target)
     } else {
@@ -81,7 +81,15 @@ export function RouterProvider({ children }: { children: ReactNode }) {
     }
 
     setLocation(readLocation())
-    window.scrollTo({ top: 0, behavior: 'auto' })
+
+    if (hasHash) {
+      window.setTimeout(() => {
+        const id = decodeURIComponent(targetUrl.hash.slice(1))
+        document.getElementById(id)?.scrollIntoView({ block: 'start' })
+      }, 0)
+    } else {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
   }, [])
 
   const value = useMemo(
@@ -134,7 +142,6 @@ function shouldUseBrowserNavigation(event: MouseEvent<HTMLAnchorElement>, to: st
     return true
   }
 
-  // Preserve browser handling for downloads, targets, and external origins.
   const anchor = event.currentTarget
   if (anchor.target && anchor.target !== '_self') return true
   if (anchor.hasAttribute('download')) return true
