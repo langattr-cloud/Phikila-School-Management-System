@@ -50,7 +50,6 @@ const PlatformSchoolDetailPage = lazy(() => import('./pages/PlatformPage').then(
 const PlatformRequestsPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformRequestsPage })))
 const PlatformAdminsPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformAdminsPage })))
 const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then(m => ({ default: m.PlatformAuditPage })))
-const PlatformEmailPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformEmailPage })))
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then(m => ({ default: m.AwaitingApprovalPage })))
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
@@ -59,10 +58,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const { session, initialising } = useAuth()
   const { pathname, search, hash } = useRouter()
   const navigate = useNavigate()
-  useEffect(() => {
-    if (initialising || session) return
-    navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true })
-  }, [initialising, session, pathname, search, hash, navigate])
+  useEffect(() => { if (initialising || session) return; navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true }) }, [initialising, session, pathname, search, hash, navigate])
   if (initialising) return <FullPageLoader label="Restoring your session…" />
   if (!session) return <FullPageLoader label="Redirecting to sign in…" />
   return <>{children}</>
@@ -73,9 +69,7 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { pathname } = useRouter()
   const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'
-  useEffect(() => {
-    if (shouldRedirect) navigate('/', { replace: true })
-  }, [shouldRedirect, navigate])
+  useEffect(() => { if (shouldRedirect) navigate('/', { replace: true }) }, [shouldRedirect, navigate])
   if (initialising) return <FullPageLoader label="Checking your session…" />
   if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />
   return <>{children}</>
@@ -85,9 +79,7 @@ function AccessGate({ children }: { children: ReactNode }) {
   const { session, loading, error } = usePlatformSession()
   if (loading) return <FullPageLoader label="Checking your access…" />
   if (error) return <>{children}</>
-  if (session && !session.has_access) {
-    return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>
-  }
+  if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>
   return <>{children}</>
 }
 
@@ -132,33 +124,11 @@ function routeFor(pathname: string): ReactNode {
     case '/platform/requests': return <PlatformRequestsPage />
     case '/platform/admins': return <PlatformAdminsPage />
     case '/platform/audit': return <PlatformAuditPage />
-    case '/platform/email': return <PlatformEmailPage />
     default: return <NotFoundPage />
   }
 }
 
-function ProtectedRoutes({ pathname }: { pathname: string }) {
-  return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense></AppShell></AccessGate></RequireAuth>
-}
-
-function LandingRedirect() {
-  const { session, initialising } = useAuth()
-  if (initialising) return <FullPageLoader label="Checking your session…" />
-  if (!session) return <LandingPage />
-  return <ProtectedRoutes pathname="/" />
-}
-
-function Routes() {
-  const { pathname } = useRouter()
-  const path = normalisePath(pathname)
-  if (PUBLIC_ROUTES.has(path)) {
-    const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : path === '/reset-password' ? <ResetPasswordPage /> : <NotFoundPage />
-    return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn>
-  }
-  if (path === '/') return <LandingRedirect />
-  return <ProtectedRoutes pathname={path} />
-}
-
-export default function App() {
-  return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><Routes /></PlatformSessionProvider></AuthProvider></ToastProvider></RouterProvider>
-}
+function ProtectedRoutes({ pathname }: { pathname: string }) { return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense></AppShell></AccessGate></RequireAuth> }
+function LandingRedirect() { const { session, initialising } = useAuth(); if (initialising) return <FullPageLoader label="Checking your session…" />; if (!session) return <LandingPage />; return <ProtectedRoutes pathname="/" /> }
+function Routes() { const { pathname } = useRouter(); const path = normalisePath(pathname); if (PUBLIC_ROUTES.has(path)) { const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : path === '/reset-password' ? <ResetPasswordPage /> : <NotFoundPage />; return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn> } if (path === '/') return <LandingRedirect />; return <ProtectedRoutes pathname={path} /> }
+export default function App() { return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><Routes /></PlatformSessionProvider></AuthProvider></ToastProvider></RouterProvider> }
