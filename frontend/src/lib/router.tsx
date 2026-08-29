@@ -116,3 +116,6 @@ export function Link({ to, replace, onClick, ...rest }: LinkProps) {
     />
   )
 }
+
+// Keep routing changes isolated to the frontend history layer so Vercel's SPA build
+// always receives the same route semantics as local development.
