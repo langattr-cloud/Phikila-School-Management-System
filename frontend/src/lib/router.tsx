@@ -6,59 +6,87 @@ import {
   useMemo,
   useState,
   type AnchorHTMLAttributes,
+  type MouseEvent,
   type ReactNode,
 } from 'react'
 
 /**
- * Minimal history-API router.
+ * Small history-API router used by the frontend.
  *
- * The project intentionally avoids pulling in a routing dependency for the
- * handful of routes this application needs. The FastAPI SPA fallback already
- * serves index.html for extension-less browser paths, so real URLs work on
- * refresh and on Vercel without any routing configuration change.
+ * It intentionally has no routing dependency. Navigation stays client-side,
+ * browser Back/Forward works, query strings are preserved, and normal links
+ * can still open in a new tab or be handled by the browser when appropriate.
  */
 
 type NavigateOptions = { replace?: boolean }
 
-type RouterContextValue = {
+type RouterLocation = {
   pathname: string
   search: string
+  hash: string
+}
+
+type RouterContextValue = RouterLocation & {
   navigate: (to: string, options?: NavigateOptions) => void
 }
 
 const RouterContext = createContext<RouterContextValue | null>(null)
 
-function currentLocation() {
-  return { pathname: window.location.pathname, search: window.location.search }
+function readLocation(): RouterLocation {
+  return {
+    pathname: window.location.pathname || '/',
+    search: window.location.search,
+    hash: window.location.hash,
+  }
+}
+
+function resolveTarget(to: string): string {
+  // Keep support for the same-origin absolute URLs while allowing callers to
+  // continue passing normal application paths such as /students?grade=8.
+  try {
+    return new URL(to, window.location.href).pathname +
+      new URL(to, window.location.href).search +
+      new URL(to, window.location.href).hash
+  } catch {
+    return to
+  }
 }
 
 export function RouterProvider({ children }: { children: ReactNode }) {
-  const [location, setLocation] = useState(currentLocation)
+  const [location, setLocation] = useState<RouterLocation>(() => readLocation())
 
   useEffect(() => {
-    const onPopState = () => setLocation(currentLocation())
+    const onPopState = () => setLocation(readLocation())
+    const onHashChange = () => setLocation(readLocation())
+
     window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
+    window.addEventListener('hashchange', onHashChange)
+
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('hashchange', onHashChange)
+    }
   }, [])
 
   const navigate = useCallback((to: string, options: NavigateOptions = {}) => {
-    const [pathname, rawSearch = ''] = to.split('?')
-    const search = rawSearch ? `?${rawSearch}` : ''
-    const target = `${pathname}${search}`
-    if (target === `${window.location.pathname}${window.location.search}`) return
+    const target = resolveTarget(to)
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+    if (target === current) return
 
     if (options.replace) {
       window.history.replaceState({}, '', target)
     } else {
       window.history.pushState({}, '', target)
     }
-    setLocation({ pathname, search })
-    window.scrollTo({ top: 0 })
+
+    setLocation(readLocation())
+    window.scrollTo({ top: 0, behavior: 'auto' })
   }, [])
 
   const value = useMemo(
-    () => ({ pathname: location.pathname, search: location.search, navigate }),
-    [location.pathname, location.search, navigate],
+    () => ({ ...location, navigate }),
+    [location, navigate],
   )
 
   return <RouterContext.Provider value={value}>{children}</RouterContext.Provider>
@@ -84,8 +112,9 @@ export function useSearchParams(): URLSearchParams {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function normalisePath(pathname: string): string {
-  if (pathname.length > 1 && pathname.endsWith('/')) return pathname.slice(0, -1)
-  return pathname
+  const value = pathname || '/'
+  if (value.length > 1 && value.endsWith('/')) return value.slice(0, -1)
+  return value
 }
 
 type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
@@ -93,23 +122,43 @@ type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   replace?: boolean
 }
 
+function shouldUseBrowserNavigation(event: MouseEvent<HTMLAnchorElement>, to: string) {
+  if (
+    event.defaultPrevented ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    event.button !== 0
+  ) {
+    return true
+  }
+
+  // Preserve browser handling for downloads, targets, and external origins.
+  const anchor = event.currentTarget
+  if (anchor.target && anchor.target !== '_self') return true
+  if (anchor.hasAttribute('download')) return true
+
+  try {
+    const url = new URL(to, window.location.href)
+    if (url.origin !== window.location.origin) return true
+  } catch {
+    return false
+  }
+
+  return false
+}
+
 export function Link({ to, replace, onClick, ...rest }: LinkProps) {
   const navigate = useNavigate()
+
   return (
     <a
       href={to}
       onClick={(event) => {
         onClick?.(event)
-        if (
-          event.defaultPrevented ||
-          event.metaKey ||
-          event.ctrlKey ||
-          event.shiftKey ||
-          event.altKey ||
-          event.button !== 0
-        ) {
-          return
-        }
+        if (shouldUseBrowserNavigation(event, to)) return
+
         event.preventDefault()
         navigate(to, { replace })
       }}
