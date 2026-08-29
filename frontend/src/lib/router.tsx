@@ -10,42 +10,29 @@ import {
   type ReactNode,
 } from 'react'
 
-/**
- * Small history-API router used by the frontend.
- *
- * It intentionally has no routing dependency. Navigation stays client-side,
- * browser Back/Forward works, query strings and hashes are preserved, and
- * normal links can still be handled by the browser when appropriate.
- */
-
 type NavigateOptions = { replace?: boolean }
-
-type RouterLocation = {
-  pathname: string
-  search: string
-  hash: string
-}
-
-type RouterContextValue = RouterLocation & {
-  navigate: (to: string, options?: NavigateOptions) => void
-}
+type RouterLocation = { pathname: string; search: string; hash: string }
+type RouterContextValue = RouterLocation & { navigate: (to: string, options?: NavigateOptions) => void }
 
 const RouterContext = createContext<RouterContextValue | null>(null)
 
-function readLocation(): RouterLocation {
-  return {
-    pathname: normalisePath(window.location.pathname || '/'),
-    search: window.location.search,
-    hash: window.location.hash,
-  }
+export function normalisePath(pathname: string): string {
+  const value = pathname || '/'
+  return value.length > 1 && value.endsWith('/') ? value.slice(0, -1) : value
 }
 
-function resolveTarget(to: string): string {
+function readLocation(): RouterLocation {
+  return { pathname: normalisePath(window.location.pathname), search: window.location.search, hash: window.location.hash }
+}
+
+function resolveTarget(to: string): URL | null {
   try {
     const url = new URL(to, window.location.href)
-    return `${normalisePath(url.pathname)}${url.search}${url.hash}`
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    if (url.origin !== window.location.origin) return null
+    return url
   } catch {
-    return to
+    return null
   }
 }
 
@@ -53,45 +40,30 @@ export function RouterProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useState<RouterLocation>(() => readLocation())
 
   useEffect(() => {
-    const onPopState = () => setLocation(readLocation())
-    const onHashChange = () => setLocation(readLocation())
-
-    window.addEventListener('popstate', onPopState)
-    window.addEventListener('hashchange', onHashChange)
-
+    const sync = () => setLocation(readLocation())
+    window.addEventListener('popstate', sync)
+    window.addEventListener('hashchange', sync)
     return () => {
-      window.removeEventListener('popstate', onPopState)
-      window.removeEventListener('hashchange', onHashChange)
+      window.removeEventListener('popstate', sync)
+      window.removeEventListener('hashchange', sync)
     }
   }, [])
 
   const navigate = useCallback((to: string, options: NavigateOptions = {}) => {
-    const target = resolveTarget(to)
-    const current = `${normalisePath(window.location.pathname)}${window.location.search}${window.location.hash}`
+    const url = resolveTarget(to)
+    if (!url) return
 
+    const target = `${normalisePath(url.pathname)}${url.search}${url.hash}`
+    const current = `${normalisePath(window.location.pathname)}${window.location.search}${window.location.hash}`
     if (target === current) return
 
-    let targetUrl: URL
-    try {
-      targetUrl = new URL(target, window.location.href)
-    } catch {
-      return
-    }
-
-    const targetPath = normalisePath(targetUrl.pathname)
-    const targetLocation = `${targetPath}${targetUrl.search}${targetUrl.hash}`
-
-    if (options.replace) {
-      window.history.replaceState({}, '', targetLocation)
-    } else {
-      window.history.pushState({}, '', targetLocation)
-    }
-
+    if (options.replace) window.history.replaceState({}, '', target)
+    else window.history.pushState({}, '', target)
     setLocation(readLocation())
 
-    if (targetUrl.hash) {
+    if (url.hash) {
       window.setTimeout(() => {
-        const id = decodeURIComponent(targetUrl.hash.slice(1))
+        const id = decodeURIComponent(url.hash.slice(1))
         document.getElementById(id)?.scrollIntoView({ block: 'start' })
       }, 0)
     } else {
@@ -99,11 +71,7 @@ export function RouterProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const value = useMemo(
-    () => ({ ...location, navigate }),
-    [location, navigate],
-  )
-
+  const value = useMemo(() => ({ ...location, navigate }), [location, navigate])
   return <RouterContext.Provider value={value}>{children}</RouterContext.Provider>
 }
 
@@ -115,9 +83,7 @@ export function useRouter(): RouterContextValue {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function useNavigate() {
-  return useRouter().navigate
-}
+export function useNavigate() { return useRouter().navigate }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useSearchParams(): URLSearchParams {
@@ -125,55 +91,24 @@ export function useSearchParams(): URLSearchParams {
   return useMemo(() => new URLSearchParams(search), [search])
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function normalisePath(pathname: string): string {
-  const value = pathname || '/'
-  if (value.length > 1 && value.endsWith('/')) return value.slice(0, -1)
-  return value
-}
-
-type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
-  to: string
-  replace?: boolean
-}
+type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & { to: string; replace?: boolean }
 
 function shouldUseBrowserNavigation(event: MouseEvent<HTMLAnchorElement>, to: string) {
-  if (
-    event.defaultPrevented ||
-    event.metaKey ||
-    event.ctrlKey ||
-    event.shiftKey ||
-    event.altKey ||
-    event.button !== 0
-  ) {
-    return true
-  }
-
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return true
   const anchor = event.currentTarget
   if (anchor.target && anchor.target !== '_self') return true
   if (anchor.hasAttribute('download')) return true
-
-  try {
-    const url = new URL(to, window.location.href)
-    if (url.origin !== window.location.origin) return true
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return true
-  } catch {
-    return true
-  }
-
-  return false
+  return resolveTarget(to) === null
 }
 
 export function Link({ to, replace, onClick, ...rest }: LinkProps) {
   const navigate = useNavigate()
-
   return (
     <a
       href={to}
       onClick={(event) => {
         onClick?.(event)
         if (shouldUseBrowserNavigation(event, to)) return
-
         event.preventDefault()
         navigate(to, { replace })
       }}
