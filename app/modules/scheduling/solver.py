@@ -39,7 +39,7 @@ class SolverInput:
 @dataclass
 class Placement: requirement_id:int; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day:int; period:int; duration:int=1
 @dataclass
-class SolverOutput: 
+class SolverOutput:
     status:str; placements:list[Placement]; quality:dict; stats:dict; messages:list[str]
     @property
     def solved(self)->bool:return self.status in {"optimal","feasible"}
@@ -106,7 +106,10 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
             if v:model.Add(sum(v)<=spec.max_per_day)
     for r in data.requirements:
         subject=data.subjects.get(r.subject_id)
-        if subject and subject.spread_across_week and r.periods_per_week<=len(data.days):
+        # Subject appears at most once per day by default. A double lesson may
+        # occupy two periods on the same day. Allocations above 5 periods/week
+        # are exempt because they cannot be distributed one-per-day.
+        if subject and subject.spread_across_week and r.periods_per_week<=5:
             cap=2 if r.double_periods else 1
             for d in data.days:
                 v=[x[(r.id,d,p)] for p in data.teaching_periods if (r.id,d,p) in x]
