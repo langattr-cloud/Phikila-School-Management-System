@@ -1,760 +1,266 @@
-```tsx
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  type ReactNode,
-} from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, normalisePath, useNavigate, useRouter } from '../lib/router'
+import { displayName, useAuth } from '../lib/auth'
+import { usePlatformSession } from '../lib/session'
+import { useToast } from './Toast'
+import { Logo, LogoMark } from './Logo'
+import { PrintFooter } from './PrintFooter'
+import { CalendarIcon, CheckIcon, CloseIcon, DashboardIcon, GridIcon, InboxIcon, LayersIcon, LogOutIcon, MenuIcon, MoonIcon, SchoolIcon, SparkIcon, SunIcon, UserIcon } from './icons'
+import { scheduling, type Job } from '../lib/scheduling'
 
-import {
-  AuthProvider,
-  useAuth,
-} from './lib/auth'
+type NavItem = { to: string; label: string; icon?: ReactNode }
+type NavGroup = { label: string; items: NavItem[] }
 
-import {
-  PlatformSessionProvider,
-  usePlatformSession,
-} from './lib/session'
+const PLATFORM_NAV: NavGroup = { label: 'Platform administration', items: [
+  { to: '/platform', label: 'Dashboard', icon: <DashboardIcon /> },
+  { to: '/platform/schools', label: 'Schools', icon: <SchoolIcon /> },
+  { to: '/platform/requests', label: 'Access requests', icon: <InboxIcon /> },
+  { to: '/platform/admins', label: 'Platform administrators', icon: <UserIcon /> },
+  { to: '/platform/audit', label: 'Audit trail', icon: <LayersIcon /> },
+  { to: '/platform/email', label: 'Email & templates', icon: <InboxIcon /> },
+  { to: '/settings/ai-providers', label: 'AI providers', icon: <SparkIcon /> },
+] }
 
-import {
-  RouterProvider,
-  normalisePath,
-  useNavigate,
-  useRouter,
-} from './lib/router'
+const NAV: NavGroup[] = [
+  { label: 'Overview', items: [
+    { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
+    { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
+    { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> },
+  ] },
+  { label: 'School setup', items: [
+    { to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> },
+    { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> },
+    { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> },
+    { to: '/setup/grades', label: 'Grades', icon: <LayersIcon /> },
+    { to: '/setup/streams', label: 'Streams', icon: <LayersIcon /> },
+    { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> },
+  ] },
+  { label: 'People', items: [
+    { to: '/students', label: 'Students', icon: <UserIcon /> },
+    { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> },
+  ] },
+  { label: 'Operations', items: [
+    { to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> },
+    { to: '/setup/periods', label: 'Days & periods', icon: <CalendarIcon /> },
+    { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> },
+    { to: '/examinations', label: 'Examinations', icon: <LayersIcon /> },
+    { to: '/examinations/report-card', label: 'Student report cards', icon: <SchoolIcon /> },
+    { to: '/finance', label: 'Finance', icon: <GridIcon /> },
+  ] },
+  { label: 'Scheduling', items: [
+    { to: '/scheduling/requirements', label: 'Teaching Allocations', icon: <LayersIcon /> },
+    { to: '/scheduling/time-off', label: 'Time off', icon: <CalendarIcon /> },
+    { to: '/scheduling/constraints', label: 'Constraints', icon: <CheckIcon /> },
+    { to: '/scheduling/generate', label: 'Generate timetable', icon: <SparkIcon /> },
+    { to: '/scheduling/copilot', label: 'Copilot', icon: <SparkIcon /> },
+  ] },
+  { label: 'Tools & insights', items: [
+    { to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> },
+    { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> },
+    { to: '/versions', label: 'Versions', icon: <SchoolIcon /> },
+  ] },
+]
 
-import { ToastProvider } from './components/Toast'
-import { AppShell } from './components/AppShell'
-import { FullPageLoader } from './components/States'
+const BOTTOM_NAV: NavItem[] = [
+  { to: '/', label: 'Home', icon: <DashboardIcon /> },
+  { to: '/students', label: 'Students', icon: <UserIcon /> },
+  { to: '/setup/academic-years', label: 'Academics', icon: <LayersIcon /> },
+  { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> },
+  { to: '/my-timetable', label: 'Mine', icon: <UserIcon /> },
+]
 
-import { LandingPage } from './pages/LandingPage'
-import { LoginPage } from './pages/LoginPage'
-import { SignUpPage } from './pages/SignUpPage'
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
-import { ResetPasswordPage } from './pages/ResetPasswordPage'
-import { NotFoundPage } from './pages/StatusPages'
-
-/* -------------------------------------------------------------------------- */
-/* Lazy pages                                                                 */
-/* -------------------------------------------------------------------------- */
-
-const DashboardPage = lazy(() =>
-  import('./pages/DashboardPage').then((m) => ({
-    default: m.DashboardPage,
-  })),
-)
-
-const TimetablePage = lazy(() =>
-  import('./pages/TimetablePage').then((m) => ({
-    default: m.TimetablePage,
-  })),
-)
-
-const MyTimetablePage = lazy(() =>
-  import('./pages/MyTimetablePage').then((m) => ({
-    default: m.MyTimetablePage,
-  })),
-)
-
-const PeriodsPage = lazy(() =>
-  import('./pages/PeriodsPage').then((m) => ({
-    default: m.PeriodsPage,
-  })),
-)
-
-const TeachersPage = lazy(() =>
-  import('./pages/Teachers').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const SubjectsPage = lazy(() =>
-  import('./pages/Subjects').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const SetupPage = lazy(() =>
-  import('./pages/SetupPage').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const SchoolPage = lazy(() =>
-  import('./pages/SchoolPage').then((m) => ({
-    default: m.SchoolPage,
-  })),
-)
-
-const AcademicsPage = lazy(() =>
-  import('./pages/AcademicsPage').then((m) => ({
-    default: m.AcademicsPage,
-  })),
-)
-
-const LevelsPage = lazy(() =>
-  import('./pages/LevelsPage').then((m) => ({
-    default: m.LevelsPage,
-  })),
-)
-
-const GradesPage = lazy(() =>
-  import('./pages/GradesPage').then((m) => ({
-    default: m.GradesPage,
-  })),
-)
-
-const StreamsPage = lazy(() =>
-  import('./pages/StreamsPage').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const AcademicSetupWizardPage = lazy(() =>
-  import('./pages/AcademicSetupWizardPage').then((m) => ({
-    default: m.AcademicSetupWizardPage,
-  })),
-)
-
-const RequirementsPage = lazy(() =>
-  import('./pages/RequirementsPage').then((m) => ({
-    default: m.RequirementsPage,
-  })),
-)
-
-const ConstraintsPage = lazy(() =>
-  import('./pages/ConstraintsPage').then((m) => ({
-    default: m.ConstraintsPage,
-  })),
-)
-
-const TimeOffPage = lazy(() =>
-  import('./pages/TimeOffPage').then((m) => ({
-    default: m.TimeOffPage,
-  })),
-)
-
-const GeneratePage = lazy(() =>
-  import('./pages/GeneratePage').then((m) => ({
-    default: m.GeneratePage,
-  })),
-)
-
-const CopilotPage = lazy(() =>
-  import('./pages/CopilotPage').then((m) => ({
-    default: m.CopilotPage,
-  })),
-)
-
-const SchedulingAnalyticsPage = lazy(() =>
-  import('./pages/SchedulingAnalyticsPage').then((m) => ({
-    default: m.SchedulingAnalyticsPage,
-  })),
-)
-
-const VersionsPage = lazy(() =>
-  import('./pages/VersionsPage').then((m) => ({
-    default: m.VersionsPage,
-  })),
-)
-
-const ProfilePage = lazy(() =>
-  import('./pages/ProfilePage').then((m) => ({
-    default: m.ProfilePage,
-  })),
-)
-
-const LlmProvidersPage = lazy(() =>
-  import('./pages/LlmProvidersPage').then((m) => ({
-    default: m.LlmProvidersPage,
-  })),
-)
-
-const OcrScanPage = lazy(() =>
-  import('./pages/OcrScanPage').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const StudentsPage = lazy(() =>
-  import('./pages/Students').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const AttendancePage = lazy(() =>
-  import('./pages/Attendance').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const ExaminationsPage = lazy(() =>
-  import('./pages/Examinations').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const MarkAccessPage = lazy(() =>
-  import('./pages/MarkAccessPage').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const ReportCardPage = lazy(() =>
-  import('./pages/ReportCardPage').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const ClassResultsPage = lazy(() =>
-  import('./pages/ClassResultsPage').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const FinancePage = lazy(() =>
-  import('./pages/Finance').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const FinancePaymentInboxPage = lazy(() =>
-  import('./pages/FinancePaymentInbox').then((m) => ({
-    default: m.default,
-  })),
-)
-
-const PlatformDashboardPage = lazy(() =>
-  import('./pages/PlatformPage').then((m) => ({
-    default: m.PlatformDashboardPage,
-  })),
-)
-
-const PlatformSchoolsPage = lazy(() =>
-  import('./pages/PlatformPage').then((m) => ({
-    default: m.PlatformSchoolsPage,
-  })),
-)
-
-const PlatformSchoolDetailPage = lazy(() =>
-  import('./pages/PlatformPage').then((m) => ({
-    default: m.PlatformSchoolDetailPage,
-  })),
-)
-
-const PlatformRequestsPage = lazy(() =>
-  import('./pages/PlatformPage').then((m) => ({
-    default: m.PlatformRequestsPage,
-  })),
-)
-
-const PlatformAdminsPage = lazy(() =>
-  import('./pages/PlatformPage').then((m) => ({
-    default: m.PlatformAdminsPage,
-  })),
-)
-
-const PlatformAuditPage = lazy(() =>
-  import('./pages/PlatformAuditPage').then((m) => ({
-    default: m.PlatformAuditPage,
-  })),
-)
-
-const PlatformEmailPage = lazy(() =>
-  import('./pages/PlatformEmailPage').then((m) => ({
-    default: m.PlatformEmailPage,
-  })),
-)
-
-const AwaitingApprovalPage = lazy(() =>
-  import('./pages/AwaitingApprovalPage').then((m) => ({
-    default: m.AwaitingApprovalPage,
-  })),
-)
-
-/* -------------------------------------------------------------------------- */
-/* Route configuration                                                        */
-/* -------------------------------------------------------------------------- */
-
-const PUBLIC_ROUTES = new Set([
-  '/login',
-  '/signup',
-  '/forgot-password',
-  '/reset-password',
-])
-
-const PLATFORM_ROUTES = new Set([
-  '/platform',
-  '/platform/schools',
-  '/platform/schools/detail',
-  '/platform/requests',
-  '/platform/admins',
-  '/platform/audit',
-  '/platform/email',
-  '/settings/ai-providers',
-])
-
-/* -------------------------------------------------------------------------- */
-/* Loading                                                                    */
-/* -------------------------------------------------------------------------- */
-
-function PageLoader({
-  label = 'Loading page…',
-}: {
-  label?: string
-}) {
-  return <FullPageLoader label={label} />
+function isActive(pathname: string, to: string) {
+  const current = normalisePath(pathname)
+  return to === '/' ? current === '/' : current === to || current.startsWith(`${to}/`)
 }
 
-/* -------------------------------------------------------------------------- */
-/* Authentication guard                                                       */
-/* -------------------------------------------------------------------------- */
-
-function RequireAuth({
-  children,
-}: {
-  children: ReactNode
-}) {
-  const {
-    session,
-    initialising,
-  } = useAuth()
-
-  const {
-    pathname,
-    search,
-  } = useRouter()
-
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (initialising || session) return
-
-    const next = `${pathname}${search}`
-
-    navigate(
-      `/login?notice=session-expired&next=${encodeURIComponent(next)}`,
-      {
-        replace: true,
-      },
-    )
-  }, [
-    initialising,
-    session,
-    pathname,
-    search,
-    navigate,
-  ])
-
-  if (initialising) {
-    return (
-      <PageLoader label="Restoring your session…" />
-    )
-  }
-
-  if (!session) {
-    return (
-      <PageLoader label="Redirecting to sign in…" />
-    )
-  }
-
-  return <>{children}</>
-}
-
-/* -------------------------------------------------------------------------- */
-/* Public-route guard                                                         */
-/* -------------------------------------------------------------------------- */
-
-function RedirectIfSignedIn({
-  children,
-}: {
-  children: ReactNode
-}) {
-  const {
-    session,
-    initialising,
-    recoveryMode,
-  } = useAuth()
-
-  const navigate = useNavigate()
+export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useRouter()
-
-  const path = normalisePath(pathname)
-
-  const shouldRedirect =
-    !initialising &&
-    Boolean(session) &&
-    !recoveryMode &&
-    path !== '/reset-password'
-
-  useEffect(() => {
-    if (!shouldRedirect) return
-
-    navigate('/', {
-      replace: true,
-    })
-  }, [
-    shouldRedirect,
-    navigate,
-  ])
-
-  if (initialising) {
-    return (
-      <PageLoader label="Checking your session…" />
-    )
-  }
-
-  if (shouldRedirect) {
-    return (
-      <PageLoader label="Taking you to your dashboard…" />
-    )
-  }
-
-  return <>{children}</>
-}
-
-/* -------------------------------------------------------------------------- */
-/* Platform access guard                                                      */
-/* -------------------------------------------------------------------------- */
-
-function PlatformGuard({
-  children,
-}: {
-  children: ReactNode
-}) {
-  const {
-    session,
-    loading,
-    error,
-  } = usePlatformSession()
-
   const navigate = useNavigate()
+  const { user, signOut } = useAuth()
+  const { notify } = useToast()
+  const { session: platformSession } = usePlatformSession()
+  const isSuperAdmin = platformSession?.is_super_admin ?? false
+  const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV
+  const accountName = displayName(user)
+  const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [offline, setOffline] = useState(typeof navigator !== 'undefined' ? navigator.onLine === false : false)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => typeof window !== 'undefined' && window.localStorage.getItem('phikila.theme') === 'dark' ? 'dark' : 'light')
+  const [drawerJob, setDrawerJob] = useState<Job | null>(null)
+  const [completedJob, setCompletedJob] = useState<Job | null>(null)
+  const seenJobRef = useRef<number | null>(null)
+  const drawerRef = useRef<HTMLElement | null>(null)
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
-    if (loading) return
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem('phikila.theme', theme)
+  }, [theme])
 
-    /*
-     * A platform-session error must not silently grant
-     * access to platform administration.
-     */
-    if (error || !session?.is_super_admin) {
-      navigate('/', {
-        replace: true,
-      })
+  useEffect(() => { setDrawerOpen(false) }, [pathname])
+
+  useEffect(() => {
+    const goOnline = () => setOffline(false)
+    const goOffline = () => setOffline(true)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
     }
-  }, [
-    loading,
-    error,
-    session,
-    navigate,
-  ])
+  }, [])
 
-  if (loading) {
-    return (
-      <PageLoader label="Checking platform access…" />
-    )
-  }
-
-  if (error) {
-    return (
-      <PageLoader label="Unable to verify platform access…" />
-    )
-  }
-
-  if (!session?.is_super_admin) {
-    return (
-      <PageLoader label="Redirecting…" />
-    )
-  }
-
-  return <>{children}</>
-}
-
-/* -------------------------------------------------------------------------- */
-/* School access guard                                                        */
-/* -------------------------------------------------------------------------- */
-
-function AccessGate({
-  children,
-}: {
-  children: ReactNode
-}) {
-  const {
-    session,
-    loading,
-    error,
-  } = usePlatformSession()
-
-  if (loading) {
-    return (
-      <PageLoader label="Checking your access…" />
-    )
-  }
-
-  /*
-   * Authentication remains valid even if the optional
-   * platform lookup fails.
-   */
-  if (error) {
-    return <>{children}</>
-  }
-
-  if (
-    session &&
-    session.has_access === false
-  ) {
-    return (
-      <Suspense
-        fallback={
-          <PageLoader label="Loading approval status…" />
+  useEffect(() => {
+    let cancelled = false
+    let timer: number | undefined
+    const poll = async () => {
+      try {
+        const active = await scheduling.activeJob()
+        if (cancelled) return
+        if (active) {
+          if (seenJobRef.current !== active.id) seenJobRef.current = active.id
+          setDrawerJob(active)
+          setCompletedJob(null)
+          const final = await scheduling.job(active.id)
+          if (cancelled) return
+          if (['completed', 'failed', 'cancelled'].includes(final.status)) {
+            setDrawerJob(null)
+            setCompletedJob(final)
+            if (final.status === 'completed') notify('Timetable ready. You can now open the generated timetable.', 'success')
+            else if (final.status === 'failed') notify(final.message || 'Timetable generation failed.', 'error')
+          }
         }
-      >
-        <AwaitingApprovalPage />
-      </Suspense>
-    )
-  }
-
-  return <>{children}</>
-}
-
-/* -------------------------------------------------------------------------- */
-/* Page resolver                                                              */
-/* -------------------------------------------------------------------------- */
-
-function routeFor(
-  pathname: string,
-): ReactNode {
-  switch (pathname) {
-    case '/':
-      return <DashboardPage />
-
-    case '/timetable':
-      return <TimetablePage />
-
-    case '/my-timetable':
-      return <MyTimetablePage />
-
-    case '/setup/periods':
-      return <PeriodsPage />
-
-    case '/setup/teachers':
-      return <TeachersPage />
-
-    case '/setup/subjects':
-      return <SubjectsPage />
-
-    case '/setup/rooms':
-      return <SetupPage kind="rooms" />
-
-    case '/setup/school':
-      return <SchoolPage />
-
-    case '/setup/academic-years':
-      return <AcademicsPage />
-
-    case '/setup/levels':
-      return <LevelsPage />
-
-    case '/setup/grades':
-      return <GradesPage />
-
-    case '/setup/streams':
-      return <StreamsPage />
-
-    case '/setup/academic-setup':
-      return <AcademicSetupWizardPage />
-
-    case '/scheduling/requirements':
-      return <RequirementsPage />
-
-    case '/scheduling/constraints':
-      return <ConstraintsPage />
-
-    case '/scheduling/time-off':
-      return <TimeOffPage />
-
-    case '/scheduling/generate':
-      return <GeneratePage />
-
-    case '/scheduling/copilot':
-      return <CopilotPage />
-
-    case '/students':
-      return <StudentsPage />
-
-    case '/attendance':
-      return <AttendancePage />
-
-    case '/examinations':
-      return <ExaminationsPage />
-
-    case '/examinations/marks-access':
-      return <MarkAccessPage />
-
-    case '/examinations/report-card':
-      return <ReportCardPage />
-
-    case '/examinations/class-results':
-      return <ClassResultsPage />
-
-    case '/finance':
-      return <FinancePage />
-
-    case '/finance/payment-inbox':
-      return <FinancePaymentInboxPage />
-
-    case '/ocr':
-      return <OcrScanPage />
-
-    case '/analytics':
-      return <SchedulingAnalyticsPage />
-
-    case '/versions':
-      return <VersionsPage />
-
-    case '/profile':
-      return <ProfilePage />
-
-    case '/settings/ai-providers':
-      return <LlmProvidersPage />
-
-    case '/platform':
-      return <PlatformDashboardPage />
-
-    case '/platform/schools':
-      return <PlatformSchoolsPage />
-
-    case '/platform/schools/detail':
-      return <PlatformSchoolDetailPage />
-
-    case '/platform/requests':
-      return <PlatformRequestsPage />
-
-    case '/platform/admins':
-      return <PlatformAdminsPage />
-
-    case '/platform/audit':
-      return <PlatformAuditPage />
-
-    case '/platform/email':
-      return <PlatformEmailPage />
-
-    default:
-      return <NotFoundPage />
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Authenticated application                                                  */
-/* -------------------------------------------------------------------------- */
-
-function ProtectedRoute({
-  pathname,
-}: {
-  pathname: string
-}) {
-  const isPlatformRoute =
-    PLATFORM_ROUTES.has(pathname)
-
-  const page = (
-    <AppShell>
-      <Suspense
-        fallback={
-          <PageLoader label="Loading page…" />
-        }
-      >
-        {routeFor(pathname)}
-      </Suspense>
-    </AppShell>
-  )
-
-  return (
-    <RequireAuth>
-      {isPlatformRoute ? (
-        <PlatformGuard>
-          {page}
-        </PlatformGuard>
-      ) : (
-        <AccessGate>
-          {page}
-        </AccessGate>
-      )}
-    </RequireAuth>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/* Application routes                                                         */
-/* -------------------------------------------------------------------------- */
-
-function Routes() {
-  const {
-    pathname,
-  } = useRouter()
-
-  const path = normalisePath(pathname)
-
-  /* Public routes */
-  if (PUBLIC_ROUTES.has(path)) {
-    switch (path) {
-      case '/login':
-        return (
-          <RedirectIfSignedIn>
-            <LoginPage />
-          </RedirectIfSignedIn>
-        )
-
-      case '/signup':
-        return (
-          <RedirectIfSignedIn>
-            <SignUpPage />
-          </RedirectIfSignedIn>
-        )
-
-      case '/forgot-password':
-        return (
-          <RedirectIfSignedIn>
-            <ForgotPasswordPage />
-          </RedirectIfSignedIn>
-        )
-
-      case '/reset-password':
-        /*
-         * Reset password must remain available while
-         * recovery mode is active.
-         */
-        return (
-          <RedirectIfSignedIn>
-            <ResetPasswordPage />
-          </RedirectIfSignedIn>
-        )
-
-      default:
-        return <NotFoundPage />
+      } catch {
+        // Polling is best-effort; it must not break the application shell.
+      } finally {
+        if (!cancelled) timer = window.setTimeout(poll, 1200)
+      }
     }
+    void poll()
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [notify])
+
+  useEffect(() => {
+    if (!drawerOpen) return
+    document.body.classList.add('body--locked')
+    const firstLink = drawerRef.current?.querySelector<HTMLElement>('a, button')
+    firstLink?.focus()
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false)
+        menuButtonRef.current?.focus()
+        return
+      }
+      if (e.key !== 'Tab' || !drawerRef.current) return
+      const f = Array.from(drawerRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'))
+      if (!f.length) return
+      const first = f[0]
+      const last = f[f.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.classList.remove('body--locked')
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [drawerOpen])
+
+  async function handleSignOut() {
+    if (signingOut) return
+    setSigningOut(true)
+    const result = await signOut()
+    setSigningOut(false)
+    if (!result.ok) {
+      notify(result.message, 'error')
+      return
+    }
+    notify('You have been signed out.', 'success')
+    navigate('/login?notice=signed-out', { replace: true })
   }
 
-  /* Everything else is authenticated. */
+  const navigation = (
+    <nav className="sidebar__nav" aria-label="Main">
+      {groups.map((g) => (
+        <div className="sidebar__group" key={g.label}>
+          <p className="sidebar__group-label">{g.label}</p>
+          <ul className="sidebar__list">
+            {g.items.map((item) => {
+              const active = isActive(pathname, item.to)
+              return (
+                <li key={item.to}>
+                  <Link to={item.to} className={`sidebar__link ${active ? 'sidebar__link--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}>
+                    {item.icon && <span className="sidebar__icon" aria-hidden="true">{item.icon}</span>}
+                    {item.label}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  )
+
+  const accountBlock = (
+    <div className="sidebar__account">
+      <div className="sidebar__account-profile">
+        <span className="sidebar__account-avatar" aria-hidden="true">{accountInitial}</span>
+        <div>
+          <p className="sidebar__account-name" title={accountName}>{accountName}</p>
+          <p className="sidebar__account-email">{user?.email}</p>
+        </div>
+      </div>
+      <button type="button" className="button button--ghost button--block" onClick={handleSignOut} disabled={signingOut}>
+        <LogOutIcon width={18} height={18} />
+        {signingOut ? 'Signing out…' : 'Sign out'}
+      </button>
+    </div>
+  )
+
   return (
-    <ProtectedRoute pathname={path} />
+    <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <aside className="sidebar sidebar--desktop">
+        <div className="sidebar__brand"><Logo size={34} tone="dark" /></div>
+        {navigation}
+        {accountBlock}
+      </aside>
+      <div className="app-shell__main">
+        <header className="topbar">
+          <button ref={menuButtonRef} type="button" className="icon-button topbar__menu" onClick={() => setDrawerOpen(true)} aria-label="Open navigation menu" aria-expanded={drawerOpen} aria-controls="mobile-navigation"><MenuIcon /></button>
+          <span className="topbar__title"><LogoMark size={26} /><span>Phikila</span></span>
+          {drawerJob && <Link className="button button--secondary button--sm" to="/scheduling/generate" title={`${drawerJob.stage || 'Generating'} · ${drawerJob.progress}%`}>Generating… {drawerJob.progress}%</Link>}
+          {completedJob?.status === 'completed' && <Link className="button button--primary button--sm" to="/timetable" aria-label="Timetable ready, open timetable">Timetable ready →</Link>}
+          {offline && <span className="topbar__offline" role="status">Offline</span>}
+          <button type="button" className="icon-button topbar__theme" onClick={() => setTheme(x => x === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>{theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}</button>
+          <span className="topbar__user" title={user?.email ?? ''}><span className="topbar__avatar" aria-hidden="true">{accountInitial}</span><span className="topbar__user-email">{user?.email}</span></span>
+        </header>
+        {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} role="presentation" />}
+        <aside id="mobile-navigation" ref={drawerRef} className={`sidebar sidebar--drawer ${drawerOpen ? 'sidebar--open' : ''}`.trim()} role="dialog" aria-modal={drawerOpen || undefined} aria-label="Navigation menu" aria-hidden={!drawerOpen}>
+          <div className="sidebar__brand"><Logo size={32} tone="dark" /><button type="button" className="icon-button" onClick={() => { setDrawerOpen(false); menuButtonRef.current?.focus() }} aria-label="Close navigation menu"><CloseIcon /></button></div>
+          {navigation}
+          {accountBlock}
+        </aside>
+        <main className="app-shell__content" id="main-content">{children}</main>
+        <nav className="bottom-nav" aria-label="Quick navigation">
+          {BOTTOM_NAV.map(item => {
+            const active = isActive(pathname, item.to)
+            return <Link key={item.to} to={item.to} className={`bottom-nav__item ${active ? 'bottom-nav__item--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}><span className="bottom-nav__icon" aria-hidden="true">{item.icon}</span><span className="bottom-nav__label">{item.label}</span></Link>
+          })}
+        </nav>
+        <PrintFooter />
+      </div>
+    </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Root application                                                           */
-/* -------------------------------------------------------------------------- */
-
-export default function App() {
-  return (
-    <RouterProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <PlatformSessionProvider>
-            <Routes />
-          </PlatformSessionProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </RouterProvider>
-  )
-}
-```
