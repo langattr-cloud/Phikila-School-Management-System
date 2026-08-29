@@ -863,6 +863,7 @@ export function TimetablePage() {
                 periods={bundle!.calendar.periods}
                 lessons={visible}
                 meta={meta}
+                view={filter.scope === 'class' ? 'class' : filter.scope === 'teacher' ? 'teacher' : 'whole-school'}
                 conflicted={conflicted}
                 selectedId={selected?.id ?? null}
                 readOnly={readOnly || busy}
