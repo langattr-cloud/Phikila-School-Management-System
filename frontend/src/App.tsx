@@ -18,12 +18,12 @@ const MyTimetablePage = lazy(() => import('./pages/MyTimetablePage').then(m => (
 const PeriodsPage = lazy(() => import('./pages/PeriodsPage').then(m => ({ default: m.PeriodsPage })))
 const TeachersPage = lazy(() => import('./pages/Teachers').then(m => ({ default: m.default })))
 const SubjectsPage = lazy(() => import('./pages/Subjects').then(m => ({ default: m.default })))
-const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.default })))
-const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.default })))
-const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.default })))
-const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.default })))
-const GradesPage = lazy(() => import('./pages/GradesPage').then(m => ({ default: m.default })))
-const StreamsPage = lazy(() => import('./pages/StreamsPage').then(m => ({ default: m.default })))
+const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.SetupPage })))
+const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
+const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
+const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
+const GradesPage = lazy(() => import('./pages/GradesPage').then(m => ({ default: m.GradesPage })))
+const StreamsPage = lazy(() => import('./pages/StreamsPage').then(m => ({ default: m.StreamsPage })))
 const AcademicSetupWizardPage = lazy(() => import('./pages/AcademicSetupWizardPage').then(m => ({ default: m.AcademicSetupWizardPage })))
 const RequirementsPage = lazy(() => import('./pages/RequirementsPage').then(m => ({ default: m.RequirementsPage })))
 const ConstraintsPage = lazy(() => import('./pages/ConstraintsPage').then(m => ({ default: m.ConstraintsPage })))
@@ -38,7 +38,7 @@ const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ 
 const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.default })))
 const FinancePage = lazy(() => import('./pages/Finance').then(m => ({ default: m.default })))
 const FinancePaymentInboxPage = lazy(() => import('./pages/FinancePaymentInbox').then(m => ({ default: m.default })))
-const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.default })))
+const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.OcrScanPage })))
 const SchedulingAnalyticsPage = lazy(() => import('./pages/SchedulingAnalyticsPage').then(m => ({ default: m.SchedulingAnalyticsPage })))
 const VersionsPage = lazy(() => import('./pages/VersionsPage').then(m => ({ default: m.VersionsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
@@ -61,14 +61,12 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (initialising || session) return
-
     const next = `${pathname}${search}${hash}`
     navigate(`/login?notice=session-expired&next=${encodeURIComponent(next)}`, { replace: true })
   }, [initialising, session, pathname, search, hash, navigate])
 
   if (initialising) return <FullPageLoader label="Restoring your session…" />
   if (!session) return <FullPageLoader label="Redirecting to sign in…" />
-
   return <>{children}</>
 }
 
@@ -84,7 +82,6 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
 
   if (initialising) return <FullPageLoader label="Checking your session…" />
   if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />
-
   return <>{children}</>
 }
 
