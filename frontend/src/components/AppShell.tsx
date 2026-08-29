@@ -12,29 +12,266 @@ type NavItem = { to: string; label: string; icon?: ReactNode }
 type NavGroup = { label: string; items: NavItem[] }
 
 const PLATFORM_NAV: NavGroup = { label: 'Platform administration', items: [
-  { to: '/platform', label: 'Dashboard', icon: <DashboardIcon /> }, { to: '/platform/schools', label: 'Schools', icon: <SchoolIcon /> }, { to: '/platform/requests', label: 'Access requests', icon: <InboxIcon /> }, { to: '/platform/admins', label: 'Platform administrators', icon: <UserIcon /> }, { to: '/platform/audit', label: 'Audit trail', icon: <LayersIcon /> }, { to: '/platform/email', label: 'Email & templates', icon: <InboxIcon /> }, { to: '/settings/ai-providers', label: 'AI providers', icon: <SparkIcon /> },
+  { to: '/platform', label: 'Dashboard', icon: <DashboardIcon /> },
+  { to: '/platform/schools', label: 'Schools', icon: <SchoolIcon /> },
+  { to: '/platform/requests', label: 'Access requests', icon: <InboxIcon /> },
+  { to: '/platform/admins', label: 'Platform administrators', icon: <UserIcon /> },
+  { to: '/platform/audit', label: 'Audit trail', icon: <LayersIcon /> },
+  { to: '/platform/email', label: 'Email & templates', icon: <InboxIcon /> },
+  { to: '/settings/ai-providers', label: 'AI providers', icon: <SparkIcon /> },
 ] }
+
 const NAV: NavGroup[] = [
-  { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }, { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> }, { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> }] },
-  { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> }, { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> }, { to: '/setup/grades', label: 'Grades', icon: <LayersIcon /> }, { to: '/setup/streams', label: 'Streams', icon: <LayersIcon /> }, { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> }] },
-  { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> }] },
-  { label: 'Operations', items: [{ to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> }, { to: '/setup/periods', label: 'Days & periods', icon: <CalendarIcon /> }, { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
-  { label: 'Scheduling', items: [{ to: '/scheduling/requirements', label: 'Teaching Allocations', icon: <LayersIcon /> }, { to: '/scheduling/time-off', label: 'Time off', icon: <CalendarIcon /> }, { to: '/scheduling/constraints', label: 'Constraints', icon: <CheckIcon /> }, { to: '/scheduling/generate', label: 'Generate timetable', icon: <SparkIcon /> }, { to: '/scheduling/copilot', label: 'Copilot', icon: <SparkIcon /> }] },
-  { label: 'Tools & insights', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }, { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> }, { to: '/versions', label: 'Versions', icon: <SchoolIcon /> }] },
+  { label: 'Overview', items: [
+    { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
+    { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> },
+    { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> },
+  ] },
+  { label: 'School setup', items: [
+    { to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> },
+    { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> },
+    { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> },
+    { to: '/setup/grades', label: 'Grades', icon: <LayersIcon /> },
+    { to: '/setup/streams', label: 'Streams', icon: <LayersIcon /> },
+    { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> },
+  ] },
+  { label: 'People', items: [
+    { to: '/students', label: 'Students', icon: <UserIcon /> },
+    { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> },
+  ] },
+  { label: 'Operations', items: [
+    { to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> },
+    { to: '/setup/periods', label: 'Days & periods', icon: <CalendarIcon /> },
+    { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> },
+    { to: '/finance', label: 'Finance', icon: <GridIcon /> },
+  ] },
+  { label: 'Scheduling', items: [
+    { to: '/scheduling/requirements', label: 'Teaching Allocations', icon: <LayersIcon /> },
+    { to: '/scheduling/time-off', label: 'Time off', icon: <CalendarIcon /> },
+    { to: '/scheduling/constraints', label: 'Constraints', icon: <CheckIcon /> },
+    { to: '/scheduling/generate', label: 'Generate timetable', icon: <SparkIcon /> },
+    { to: '/scheduling/copilot', label: 'Copilot', icon: <SparkIcon /> },
+  ] },
+  { label: 'Tools & insights', items: [
+    { to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> },
+    { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> },
+    { to: '/versions', label: 'Versions', icon: <SchoolIcon /> },
+  ] },
 ]
-const BOTTOM_NAV: NavItem[] = [{ to: '/', label: 'Home', icon: <DashboardIcon /> }, { to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/academic-years', label: 'Academics', icon: <LayersIcon /> }, { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> }, { to: '/my-timetable', label: 'Mine', icon: <UserIcon /> }]
-function isActive(pathname: string, to: string) { const current = normalisePath(pathname); return to === '/' ? current === '/' : current === to || current.startsWith(`${to}/`) }
+
+const BOTTOM_NAV: NavItem[] = [
+  { to: '/', label: 'Home', icon: <DashboardIcon /> },
+  { to: '/students', label: 'Students', icon: <UserIcon /> },
+  { to: '/setup/academic-years', label: 'Academics', icon: <LayersIcon /> },
+  { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> },
+  { to: '/my-timetable', label: 'Mine', icon: <UserIcon /> },
+]
+
+function isActive(pathname: string, to: string) {
+  const current = normalisePath(pathname)
+  return to === '/' ? current === '/' : current === to || current.startsWith(`${to}/`)
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { pathname } = useRouter(); const navigate = useNavigate(); const { user, signOut } = useAuth(); const { notify } = useToast(); const { session: platformSession } = usePlatformSession(); const isSuperAdmin = platformSession?.is_super_admin ?? false; const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV; const accountName = displayName(user); const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'; const [drawerOpen, setDrawerOpen] = useState(false); const [signingOut, setSigningOut] = useState(false); const [offline, setOffline] = useState(typeof navigator !== 'undefined' ? navigator.onLine === false : false); const [theme, setTheme] = useState<'light' | 'dark'>(() => typeof window !== 'undefined' && window.localStorage.getItem('phikila.theme') === 'dark' ? 'dark' : 'light'); const [drawerJob, setDrawerJob] = useState<Job | null>(null); const [completedJob, setCompletedJob] = useState<Job | null>(null); const [examinationsOpen, setExaminationsOpen] = useState(() => normalisePath(window.location.pathname).startsWith('/examinations')); const seenJobRef = useRef<number | null>(null); const drawerRef = useRef<HTMLElement | null>(null); const menuButtonRef = useRef<HTMLButtonElement | null>(null)
-  useEffect(() => { document.documentElement.dataset.theme = theme; window.localStorage.setItem('phikila.theme', theme) }, [theme]); useEffect(() => { setDrawerOpen(false) }, [pathname]); useEffect(() => { if (normalisePath(pathname).startsWith('/examinations')) setExaminationsOpen(true) }, [pathname]); useEffect(() => { const goOnline = () => setOffline(false); const goOffline = () => setOffline(true); window.addEventListener('online', goOnline); window.addEventListener('offline', goOffline); return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline) } }, [])
-  useEffect(() => { let cancelled = false; let timer: number | undefined; const poll = async () => { try { const active = await scheduling.activeJob(); if (cancelled) return; if (active) { if (seenJobRef.current !== active.id) seenJobRef.current = active.id; setDrawerJob(active); setCompletedJob(null); const final = await scheduling.job(active.id); if (cancelled) return; if (['completed', 'failed', 'cancelled'].includes(final.status)) { setDrawerJob(null); setCompletedJob(final); if (final.status === 'completed') notify('Timetable ready. You can now open the generated timetable.', 'success'); else if (final.status === 'failed') notify(final.message || 'Timetable generation failed.', 'error') } } } catch { } finally { if (!cancelled) timer = window.setTimeout(poll, 1200) } }; void poll(); return () => { cancelled = true; if (timer) window.clearTimeout(timer) } }, [notify])
-  useEffect(() => { if (!drawerOpen) return; document.body.classList.add('body--locked'); const firstLink = drawerRef.current?.querySelector<HTMLElement>('a, button'); firstLink?.focus(); function onKeyDown(e: KeyboardEvent) { if (e.key === 'Escape') { setDrawerOpen(false); menuButtonRef.current?.focus(); return } if (e.key !== 'Tab' || !drawerRef.current) return; const f = Array.from(drawerRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')); if (!f.length) return; const first = f[0], last = f[f.length - 1]; if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() } } document.addEventListener('keydown', onKeyDown); return () => { document.body.classList.remove('body--locked'); document.removeEventListener('keydown', onKeyDown) } }, [drawerOpen])
-  async function handleSignOut() { if (signingOut) return; setSigningOut(true); const result = await signOut(); setSigningOut(false); if (!result.ok) { notify(result.message, 'error'); return } notify('You have been signed out.', 'success'); navigate('/login?notice=signed-out', { replace: true }) }
-  const renderNavItem = (item: NavItem) => { const active = isActive(pathname, item.to); return <li key={item.to}><Link to={item.to} className={`sidebar__link ${active ? 'sidebar__link--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}>{item.icon && <span className="sidebar__icon" aria-hidden="true">{item.icon}</span>}{item.label}</Link></li> }
-  const examinationNavigation = { parent: { to: '/examinations', label: 'Examinations', icon: <LayersIcon /> }, children: [{ to: '/examinations/setup', label: 'Examination Setup', icon: <GridIcon /> }, { to: '/examinations/levels', label: 'Levels', icon: <LayersIcon /> }, { to: '/examinations/marks-access', label: 'Assign Teachers', icon: <UserIcon /> }, { to: '/examinations/report-card', label: 'Results & Report Cards', icon: <SchoolIcon /> }] }
-  const examinationGroup = <div className="sidebar__group"><ul className="sidebar__list"><li><button type="button" className={`sidebar__link ${normalisePath(pathname).startsWith('/examinations') ? 'sidebar__link--active' : ''}`.trim()} aria-expanded={examinationsOpen} onClick={() => setExaminationsOpen(value => !value)}><span className="sidebar__icon" aria-hidden="true">{examinationNavigation.parent.icon}</span><span style={{ flex: 1, textAlign: 'left' }}>Examinations</span><span aria-hidden="true">{examinationsOpen ? '−' : '+'}</span></button>{examinationsOpen && <ul className="sidebar__list" style={{ paddingLeft: '1rem' }}>{examinationNavigation.children.map(renderNavItem)}</ul>}</li></ul></div>
-  const navigation = <nav className="sidebar__nav" aria-label="Main">{groups.map(g => <div className="sidebar__group" key={g.label}><p className="sidebar__group-label">{g.label}</p><ul className="sidebar__list">{g.items.map(renderNavItem)}</ul></div>)}{examinationGroup}</nav>
-  const accountBlock = <div className="sidebar__account"><div className="sidebar__account-profile"><span className="sidebar__account-avatar" aria-hidden="true">{accountInitial}</span><div><p className="sidebar__account-name" title={accountName}>{accountName}</p><p className="sidebar__account-email">{user?.email}</p></div></div><button type="button" className="button button--ghost button--block" onClick={handleSignOut} disabled={signingOut}><LogOutIcon width={18} height={18} />{signingOut ? 'Signing out…' : 'Sign out'}</button></div>
-  return <div className="app-shell"><a className="skip-link" href="#main-content">Skip to main content</a><aside className="sidebar sidebar--desktop"><div className="sidebar__brand"><Logo size={34} tone="dark" /></div>{navigation}{accountBlock}</aside><div className="app-shell__main"><header className="topbar"><button ref={menuButtonRef} type="button" className="icon-button topbar__menu" onClick={() => setDrawerOpen(true)} aria-label="Open navigation menu" aria-expanded={drawerOpen} aria-controls="mobile-navigation"><MenuIcon /></button><span className="topbar__title"><LogoMark size={26} /><span>Phikila</span></span>{drawerJob && <Link className="button button--secondary button--sm" to="/scheduling/generate" title={`${drawerJob.stage || 'Generating'} · ${drawerJob.progress}%`}>Generating… {drawerJob.progress}%</Link>}{completedJob?.status === 'completed' && <Link className="button button--primary button--sm" to="/timetable" aria-label="Timetable ready, open timetable">Timetable ready →</Link>}{offline && <span className="topbar__offline" role="status">Offline</span>}<button type="button" className="icon-button topbar__theme" onClick={() => setTheme(x => x === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>{theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}</button><span className="topbar__user" title={user?.email ?? ''}><span className="topbar__avatar" aria-hidden="true">{accountInitial}</span><span className="topbar__user-email">{user?.email}</span></span></header>{drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} role="presentation" />}<aside id="mobile-navigation" ref={drawerRef} className={`sidebar sidebar--drawer ${drawerOpen ? 'sidebar--open' : ''}`.trim()} role="dialog" aria-modal={drawerOpen || undefined} aria-label="Navigation menu" aria-hidden={!drawerOpen}><div className="sidebar__brand"><Logo size={32} tone="dark" /><button type="button" className="icon-button" onClick={() => { setDrawerOpen(false); menuButtonRef.current?.focus() }} aria-label="Close navigation menu"><CloseIcon /></button></div>{navigation}{accountBlock}</aside><main className="app-shell__content" id="main-content">{children}</main><nav className="bottom-nav" aria-label="Quick navigation">{BOTTOM_NAV.map(item => { const active = isActive(pathname, item.to); return <Link key={item.to} to={item.to} className={`bottom-nav__item ${active ? 'bottom-nav__item--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}><span className="bottom-nav__icon" aria-hidden="true">{item.icon}</span><span className="bottom-nav__label">{item.label}</span></Link> })}</nav><PrintFooter /></div></div>
+  const { pathname } = useRouter()
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
+  const { notify } = useToast()
+  const { session: platformSession } = usePlatformSession()
+  const isSuperAdmin = platformSession?.is_super_admin ?? false
+  const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV
+  const accountName = displayName(user)
+  const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [offline, setOffline] = useState(typeof navigator !== 'undefined' ? navigator.onLine === false : false)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => typeof window !== 'undefined' && window.localStorage.getItem('phikila.theme') === 'dark' ? 'dark' : 'light')
+  const [drawerJob, setDrawerJob] = useState<Job | null>(null)
+  const [completedJob, setCompletedJob] = useState<Job | null>(null)
+  const [examinationsOpen, setExaminationsOpen] = useState(() => normalisePath(window.location.pathname).startsWith('/examinations'))
+  const drawerJobRef = useRef<number | null>(null)
+  const drawerRef = useRef<HTMLElement | null>(null)
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem('phikila.theme', theme)
+  }, [theme])
+
+  useEffect(() => { setDrawerOpen(false) }, [pathname])
+
+  useEffect(() => {
+    if (normalisePath(pathname).startsWith('/examinations')) setExaminationsOpen(true)
+  }, [pathname])
+
+  useEffect(() => {
+    const goOnline = () => setOffline(false)
+    const goOffline = () => setOffline(true)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    let timer: number | undefined
+    const poll = async () => {
+      try {
+        const active = await scheduling.activeJob()
+        if (cancelled) return
+        if (active) {
+          if (drawerJobRef.current !== active.id) drawerJobRef.current = active.id
+          setDrawerJob(active)
+          setCompletedJob(null)
+          const final = await scheduling.job(active.id)
+          if (cancelled) return
+          if (['completed', 'failed', 'cancelled'].includes(final.status)) {
+            setDrawerJob(null)
+            setCompletedJob(final)
+            if (final.status === 'completed') notify('Timetable ready. You can now open the generated timetable.', 'success')
+            else if (final.status === 'failed') notify(final.message || 'Timetable generation failed.', 'error')
+          }
+        }
+      } catch { /* background polling is non-blocking */ }
+      finally {
+        if (!cancelled) timer = window.setTimeout(poll, 1200)
+      }
+    }
+    void poll()
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [notify])
+
+  useEffect(() => {
+    if (!drawerOpen) return
+    document.body.classList.add('body--locked')
+    const firstLink = drawerRef.current?.querySelector<HTMLElement>('a, button')
+    firstLink?.focus()
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false)
+        menuButtonRef.current?.focus()
+        return
+      }
+      if (e.key !== 'Tab' || !drawerRef.current) return
+      const focusable = Array.from(drawerRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'))
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.classList.remove('body--locked')
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [drawerOpen])
+
+  async function handleSignOut() {
+    if (signingOut) return
+    setSigningOut(true)
+    const result = await signOut()
+    setSigningOut(false)
+    if (!result.ok) { notify(result.message, 'error'); return }
+    notify('You have been signed out.', 'success')
+    navigate('/login?notice=signed-out', { replace: true })
+  }
+
+  const renderNavItem = (item: NavItem) => {
+    const active = isActive(pathname, item.to)
+    return <li key={item.to}>
+      <Link to={item.to} className={`sidebar__link ${active ? 'sidebar__link--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}>
+        {item.icon && <span className="sidebar__icon" aria-hidden="true">{item.icon}</span>}
+        {item.label}
+      </Link>
+    </li>
+  }
+
+  const examinationNavigation = [
+    { to: '/examinations/setup', label: 'Examination Setup', icon: <GridIcon /> },
+    { to: '/examinations/levels', label: 'Levels', icon: <LayersIcon /> },
+    { to: '/examinations/marks-access', label: 'Assign Teachers', icon: <UserIcon /> },
+    { to: '/examinations/report-card', label: 'Results & Report Cards', icon: <SchoolIcon /> },
+  ]
+
+  const examinationGroup = (
+    <div className="sidebar__group" key="Examinations">
+      <p className="sidebar__group-label">Examinations</p>
+      <ul className="sidebar__list">
+        <li>
+          <div className={`sidebar__link ${normalisePath(pathname).startsWith('/examinations') ? 'sidebar__link--active' : ''}`.trim()} style={{ padding: 0 }}>
+            <Link to="/examinations" aria-current={normalisePath(pathname) === '/examinations' ? 'page' : undefined} style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit', padding: 'inherit' }}>
+              <span className="sidebar__icon" aria-hidden="true"><LayersIcon /></span>
+              <span style={{ flex: 1, textAlign: 'left' }}>Examinations</span>
+            </Link>
+            <button type="button" className="icon-button" onClick={() => setExaminationsOpen(value => !value)} aria-label={examinationsOpen ? 'Collapse examinations menu' : 'Expand examinations menu'} aria-expanded={examinationsOpen} style={{ flex: '0 0 auto', marginRight: '.25rem' }}>
+              <span aria-hidden="true">{examinationsOpen ? '−' : '+'}</span>
+            </button>
+          </div>
+          {examinationsOpen && <ul className="sidebar__list" style={{ paddingLeft: '1rem' }}>{examinationNavigation.map(renderNavItem)}</ul>}
+        </li>
+      </ul>
+    </div>
+  )
+
+  const navigation = (
+    <nav className="sidebar__nav" aria-label="Main">
+      {groups.map(g => <div className="sidebar__group" key={g.label}>
+        <p className="sidebar__group-label">{g.label}</p>
+        <ul className="sidebar__list">{g.items.map(renderNavItem)}</ul>
+      </div>)}
+      {examinationGroup}
+    </nav>
+  )
+
+  const accountBlock = (
+    <div className="sidebar__account">
+      <div className="sidebar__account-profile">
+        <span className="sidebar__account-avatar" aria-hidden="true">{accountInitial}</span>
+        <div>
+          <p className="sidebar__account-name" title={accountName}>{accountName}</p>
+          <p className="sidebar__account-email">{user?.email}</p>
+        </div>
+      </div>
+      <button type="button" className="button button--ghost button--block" onClick={handleSignOut} disabled={signingOut}>
+        <LogOutIcon width={18} height={18} />
+        {signingOut ? 'Signing out…' : 'Sign out'}
+      </button>
+    </div>
+  )
+
+  return <div className="app-shell">
+    <a className="skip-link" href="#main-content">Skip to main content</a>
+    <aside className="sidebar sidebar--desktop">
+      <div className="sidebar__brand"><Logo size={34} tone="dark" /></div>
+      {navigation}
+      {accountBlock}
+    </aside>
+    <div className="app-shell__main">
+      <header className="topbar">
+        <button ref={menuButtonRef} type="button" className="icon-button topbar__menu" onClick={() => setDrawerOpen(true)} aria-label="Open navigation menu" aria-expanded={drawerOpen} aria-controls="mobile-navigation"><MenuIcon /></button>
+        <span className="topbar__title"><LogoMark size={26} /><span>Phikila</span></span>
+        {drawerJob && <Link className="button button--secondary button--sm" to="/scheduling/generate" title={`${drawerJob.stage || 'Generating'} · ${drawerJob.progress}%`}>Generating… {drawerJob.progress}%</Link>}
+        {completedJob?.status === 'completed' && <Link className="button button--primary button--sm" to="/timetable" aria-label="Timetable ready, open timetable">Timetable ready →</Link>}
+        {offline && <span className="topbar__offline" role="status">Offline</span>}
+        <button type="button" className="icon-button topbar__theme" onClick={() => setTheme(x => x === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>{theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}</button>
+        <span className="topbar__user" title={user?.email ?? ''}><span className="topbar__avatar" aria-hidden="true">{accountInitial}</span><span className="topbar__user-email">{user?.email}</span></span>
+      </header>
+      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} role="presentation" />}
+      <aside id="mobile-navigation" ref={drawerRef} className={`sidebar sidebar--drawer ${drawerOpen ? 'sidebar--open' : ''}`.trim()} role="dialog" aria-modal={drawerOpen || undefined} aria-label="Navigation menu" aria-hidden={!drawerOpen}>
+        <div className="sidebar__brand"><Logo size={32} tone="dark" /><button type="button" className="icon-button" onClick={() => { setDrawerOpen(false); menuButtonRef.current?.focus() }} aria-label="Close navigation menu"><CloseIcon /></button></div>
+        {navigation}
+        {accountBlock}
+      </aside>
+      <main className="app-shell__content" id="main-content">{children}</main>
+      <nav className="bottom-nav" aria-label="Quick navigation">{BOTTOM_NAV.map(item => { const active = isActive(pathname, item.to); return <Link key={item.to} to={item.to} className={`bottom-nav__item ${active ? 'bottom-nav__item--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}><span className="bottom-nav__icon" aria-hidden="true">{item.icon}</span><span className="bottom-nav__label">{item.label}</span></Link> })}</nav>
+      <PrintFooter />
+    </div>
+  </div>
 }
