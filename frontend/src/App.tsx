@@ -18,11 +18,11 @@ const MyTimetablePage = lazy(() => import('./pages/MyTimetablePage').then(m => (
 const PeriodsPage = lazy(() => import('./pages/PeriodsPage').then(m => ({ default: m.PeriodsPage })))
 const TeachersPage = lazy(() => import('./pages/Teachers').then(m => ({ default: m.default })))
 const SubjectsPage = lazy(() => import('./pages/Subjects').then(m => ({ default: m.default })))
-const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.SetupPage })))
-const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
-const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
-const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
-const GradesPage = lazy(() => import('./pages/GradesPage').then(m => ({ default: m.GradesPage })))
+const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.default })))
+const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.default })))
+const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.default })))
+const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.default })))
+const GradesPage = lazy(() => import('./pages/GradesPage').then(m => ({ default: m.default })))
 const StreamsPage = lazy(() => import('./pages/StreamsPage').then(m => ({ default: m.default })))
 const AcademicSetupWizardPage = lazy(() => import('./pages/AcademicSetupWizardPage').then(m => ({ default: m.AcademicSetupWizardPage })))
 const RequirementsPage = lazy(() => import('./pages/RequirementsPage').then(m => ({ default: m.RequirementsPage })))
@@ -52,35 +52,22 @@ const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then(m 
 const PlatformEmailPage = lazy(() => import('./pages/PlatformEmailPage').then(m => ({ default: m.PlatformEmailPage })))
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then(m => ({ default: m.AwaitingApprovalPage })))
 
-const PUBLIC_ROUTES = new Set([
-  '/login',
-  '/signup',
-  '/forgot-password',
-  '/reset-password',
-])
+const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, initialising } = useAuth()
-  const { pathname, search } = useRouter()
+  const { pathname, search, hash } = useRouter()
   const navigate = useNavigate()
 
   useEffect(() => {
     if (initialising || session) return
 
-    const next = `${pathname}${search}`
-    navigate(
-      `/login?notice=session-expired&next=${encodeURIComponent(next)}`,
-      { replace: true },
-    )
-  }, [initialising, session, pathname, search, navigate])
+    const next = `${pathname}${search}${hash}`
+    navigate(`/login?notice=session-expired&next=${encodeURIComponent(next)}`, { replace: true })
+  }, [initialising, session, pathname, search, hash, navigate])
 
-  if (initialising) {
-    return <FullPageLoader label="Restoring your session…" />
-  }
-
-  if (!session) {
-    return <FullPageLoader label="Redirecting to sign in…" />
-  }
+  if (initialising) return <FullPageLoader label="Restoring your session…" />
+  if (!session) return <FullPageLoader label="Redirecting to sign in…" />
 
   return <>{children}</>
 }
@@ -89,49 +76,25 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   const { session, initialising, recoveryMode } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useRouter()
-
-  const shouldRedirect =
-    !initialising &&
-    Boolean(session) &&
-    !recoveryMode &&
-    normalisePath(pathname) !== '/reset-password'
+  const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'
 
   useEffect(() => {
-    if (shouldRedirect) {
-      navigate('/', { replace: true })
-    }
+    if (shouldRedirect) navigate('/', { replace: true })
   }, [shouldRedirect, navigate])
 
-  if (initialising) {
-    return <FullPageLoader label="Checking your session…" />
-  }
-
-  if (shouldRedirect) {
-    return <FullPageLoader label="Taking you to your dashboard…" />
-  }
+  if (initialising) return <FullPageLoader label="Checking your session…" />
+  if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />
 
   return <>{children}</>
 }
 
 function AccessGate({ children }: { children: ReactNode }) {
   const { session, loading, error } = usePlatformSession()
-
-  if (loading) {
-    return <FullPageLoader label="Checking your access…" />
-  }
-
-  if (error) {
-    return <>{children}</>
-  }
-
+  if (loading) return <FullPageLoader label="Checking your access…" />
+  if (error) return <>{children}</>
   if (session && !session.has_access) {
-    return (
-      <Suspense fallback={<FullPageLoader label="Loading…" />}>
-        <AwaitingApprovalPage />
-      </Suspense>
-    )
+    return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>
   }
-
   return <>{children}</>
 }
 
@@ -195,15 +158,8 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
 
 function LandingRedirect() {
   const { session, initialising } = useAuth()
-
-  if (initialising) {
-    return <FullPageLoader label="Checking your session…" />
-  }
-
-  if (!session) {
-    return <LandingPage />
-  }
-
+  if (initialising) return <FullPageLoader label="Checking your session…" />
+  if (!session) return <LandingPage />
   return <ProtectedRoutes pathname="/" />
 }
 
@@ -212,24 +168,11 @@ function Routes() {
   const path = normalisePath(pathname)
 
   if (PUBLIC_ROUTES.has(path)) {
-    const publicPage =
-      path === '/login' ? <LoginPage /> :
-      path === '/signup' ? <SignUpPage /> :
-      path === '/forgot-password' ? <ForgotPasswordPage /> :
-      path === '/reset-password' ? <ResetPasswordPage /> :
-      <NotFoundPage />
-
-    return (
-      <RedirectIfSignedIn>
-        {publicPage}
-      </RedirectIfSignedIn>
-    )
+    const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : path === '/reset-password' ? <ResetPasswordPage /> : <NotFoundPage />
+    return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn>
   }
 
-  if (path === '/') {
-    return <LandingRedirect />
-  }
-
+  if (path === '/') return <LandingRedirect />
   return <ProtectedRoutes pathname={path} />
 }
 
