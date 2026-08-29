@@ -22,7 +22,7 @@ const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default:
 const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
 const GradesPage = lazy(() => import('./pages/GradesPage').then(m => ({ default: m.GradesPage })))
-const StreamsPage = lazy(() => import('./pages/StreamsPage').then(m => ({ default: m.default })))
+const StreamsPage = lazy(() => import('./pages/StreamsPage').then(m => ({ default: m.StreamsPage })))
 const AcademicSetupWizardPage = lazy(() => import('./pages/AcademicSetupWizardPage').then(m => ({ default: m.AcademicSetupWizardPage })))
 const RequirementsPage = lazy(() => import('./pages/RequirementsPage').then(m => ({ default: m.RequirementsPage })))
 const ConstraintsPage = lazy(() => import('./pages/ConstraintsPage').then(m => ({ default: m.ConstraintsPage })))
