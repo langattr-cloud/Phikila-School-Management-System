@@ -1,37 +1,196 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge } from '../components/States'
 import { useToast } from '../components/Toast'
-import { api, friendlyApiError, type AcademicYear, type Grade, type Level, type Stream } from '../lib/api'
-import { scheduling, type Room, type Subject, type Teacher } from '../lib/scheduling'
+import { api, friendlyApiError, type AcademicYear, type Grade, type Level } from '../lib/api'
+import { scheduling } from '../lib/scheduling'
 import { useNavigate } from '../lib/router'
 
-type Allocation={teacher_id:string;room_id:string;periods_per_week:number;double_periods:number}
-const steps=['Academic Year','Level','Grade','Stream','Learning Areas','Lessons per week','Review']
-const blank=():Allocation=>({teacher_id:'',room_id:'',periods_per_week:1,double_periods:0})
-export function AcademicSetupWizardPage(){
- const navigate=useNavigate();const{notify}=useToast();const[step,setStep]=useState(0);const[loading,setLoading]=useState(true);const[saving,setSaving]=useState(false);const[error,setError]=useState<string|null>(null)
- const[years,setYears]=useState<AcademicYear[]>([]);const[levels,setLevels]=useState<Level[]>([]);const[grades,setGrades]=useState<Grade[]>([]);const[streams,setStreams]=useState<Stream[]>([]);const[subjects,setSubjects]=useState<Subject[]>([]);const[teachers,setTeachers]=useState<Teacher[]>([]);const[rooms,setRooms]=useState<Room[]>([])
- const[year,setYear]=useState({id:'',name:'',start_date:'',end_date:''});const[level,setLevel]=useState({id:'',name:'',code:''});const[grade,setGrade]=useState({id:'',name:'',code:''});const[stream,setStream]=useState({id:'',name:'',code:''});const[selectedSubjects,setSelectedSubjects]=useState<string[]>([]);const[allocations,setAllocations]=useState<Record<string,Allocation>>({})
- async function load(){setLoading(true);setError(null);try{const[y,l,s,t,r]=await Promise.all([api.academicYears(),api.levels(),scheduling.subjects(),scheduling.teachers(),scheduling.rooms()]);setYears(y);setLevels(l);setSubjects(s);setTeachers(t);setRooms(r)}catch(e){setError(friendlyApiError(e,'load academic setup data'))}finally{setLoading(false)}}
- useEffect(()=>{void load()},[])
- useEffect(()=>{if(level.id)void api.grades(Number(level.id)).then(setGrades).catch(e=>setError(friendlyApiError(e,'load grades')))},[level.id])
- useEffect(()=>{if(year.id&&grade.id)void api.streams(Number(year.id),Number(grade.id)).then(setStreams).catch(()=>setStreams([]))},[year.id,grade.id])
- const chosen=useMemo(()=>selectedSubjects.map(id=>({id,subject:subjects.find(s=>String(s.id)===id),a:allocations[id]||blank()})).filter(x=>x.subject),[selectedSubjects,subjects,allocations])
- async function saveYear(){if(year.id)return;if(!year.name||!year.start_date||!year.end_date)throw Error('Enter the academic year and its dates.');const x=await api.createAcademicYear({name:year.name.trim(),start_date:year.start_date,end_date:year.end_date,is_current:false,status:'ACTIVE'});setYear({id:String(x.id),name:x.name,start_date:x.start_date,end_date:x.end_date});setYears(v=>[...v,x])}
- async function saveLevel(){if(level.id)return;if(!level.name||!level.code)throw Error('Enter the level name and code.');const x=await api.createLevel({name:level.name.trim(),code:level.code.trim(),display_order:levels.length+1,status:true});setLevel({id:String(x.id),name:x.name,code:x.code});setLevels(v=>[...v,x])}
- async function saveGrade(){if(grade.id)return;if(!level.id||!grade.name||!grade.code)throw Error('Select a level and enter the grade name and code.');const x=await api.createGrade({level_id:Number(level.id),name:grade.name.trim(),code:grade.code.trim(),status:true});setGrade({id:String(x.id),name:x.name,code:x.code});setGrades(v=>[...v,x])}
- async function saveStream(){if(stream.id)return;if(!year.id||!level.id||!grade.id||!stream.name)throw Error('Select the academic year, level and grade, then enter the stream name.');const x=await api.createStream({academic_year_id:Number(year.id),level_id:Number(level.id),grade_id:Number(grade.id),name:stream.name.trim(),code:stream.code.trim()||null});setStream({id:String(x.id),name:x.name,code:x.code||''});setStreams(v=>[...v,x])}
- async function next(){if(saving)return;setSaving(true);setError(null);try{if(step===0)await saveYear();if(step===1)await saveLevel();if(step===2)await saveGrade();if(step===3)await saveStream();if(step===4&&!selectedSubjects.length)throw Error('Select at least one learning area.');if(step===5)for(const x of chosen){if(!x.a.teacher_id)throw Error(`Assign a teacher for ${x.subject!.name}.`);if(x.a.periods_per_week<1)throw Error(`Set lessons per week for ${x.subject!.name}.`)}setStep(x=>Math.min(6,x+1))}catch(e){setError(e instanceof Error?e.message:friendlyApiError(e,'save this step'))}finally{setSaving(false)}}
- async function finish(){setSaving(true);setError(null);try{let c=(await scheduling.classes()).find(x=>x.grade===grade.name||x.grade===grade.code||x.name===grade.name);if(!c)c=await scheduling.createClass({name:grade.name,code:`GRADE-${grade.id}`,grade:grade.name});for(const x of chosen){const a=x.a;await scheduling.createRequirement({class_id:c.id,subject_id:Number(x.id),teacher_id:Number(a.teacher_id),room_id:a.room_id?Number(a.room_id):null,periods_per_week:Number(a.periods_per_week),double_periods:Number(a.double_periods)})}notify('Academic setup and timetable requirements saved.','success');navigate('/scheduling/requirements')}catch(e){setError(friendlyApiError(e,'save timetable requirements'))}finally{setSaving(false)}}
- const update=(id:string,a:Allocation)=>setAllocations(v=>({...v,[id]:a}));const title=steps[step]
- return <><PageHeader title="Academic setup" description="Academic Year → Level → Grade → Stream, then learning areas and weekly lessons." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Academic setup'}]}/>{error&&<Alert tone="error" title="Setup could not continue">{error}</Alert>}<section className="card section"><div className="chip-list" aria-label="Setup progress">{steps.map((x,i)=><Badge key={x} tone={i===step?'success':undefined}>{i+1}. {x}</Badge>)}</div>{loading?<p>Loading setup options…</p>:<form className="form" onSubmit={e=>{e.preventDefault();void next()}}><h2 className="section__title">Step {step+1}: {title}</h2>
- {step===0&&<><label className="label">Academic year</label><select className="input" value={year.id} onChange={e=>{const x=years.find(y=>String(y.id)===e.target.value);setYear(x?{id:String(x.id),name:x.name,start_date:x.start_date,end_date:x.end_date}:{id:'',name:'',start_date:'',end_date:''})}}><option value="">Create new…</option>{years.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>{!year.id&&<div className="form form--grid"><input className="input" placeholder="2026/2027" value={year.name} onChange={e=>setYear({...year,name:e.target.value})}/><input className="input" type="date" value={year.start_date} onChange={e=>setYear({...year,start_date:e.target.value})}/><input className="input" type="date" value={year.end_date} onChange={e=>setYear({...year,end_date:e.target.value})}/></div>}</>}
- {step===1&&<><label className="label">Level</label><select className="input" value={level.id} onChange={e=>{const x=levels.find(l=>String(l.id)===e.target.value);setLevel(x?{id:String(x.id),name:x.name,code:x.code}:{id:'',name:'',code:''})}}><option value="">Create new…</option>{levels.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>{!level.id&&<div className="form form--grid"><input className="input" placeholder="Primary" value={level.name} onChange={e=>setLevel({...level,name:e.target.value})}/><input className="input" placeholder="PRI" value={level.code} onChange={e=>setLevel({...level,code:e.target.value})}/></div>}</>}
- {step===2&&<><label className="label">Grade</label><select className="input" value={grade.id} onChange={e=>{const x=grades.find(g=>String(g.id)===e.target.value);setGrade(x?{id:String(x.id),name:x.name,code:x.code}:{id:'',name:'',code:''})}}><option value="">Create new…</option>{grades.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>{!grade.id&&<div className="form form--grid"><input className="input" placeholder="Grade 1" value={grade.name} onChange={e=>setGrade({...grade,name:e.target.value})}/><input className="input" placeholder="G1" value={grade.code} onChange={e=>setGrade({...grade,code:e.target.value})}/></div>}</>}
- {step===3&&<><label className="label">Stream</label><select className="input" value={stream.id} onChange={e=>{const x=streams.find(s=>String(s.id)===e.target.value);setStream(x?{id:String(x.id),name:x.name,code:x.code||''}:{id:'',name:'',code:''})}}><option value="">Create new…</option>{streams.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>{!stream.id&&<div className="form form--grid"><input className="input" placeholder="East" value={stream.name} onChange={e=>setStream({...stream,name:e.target.value})}/><input className="input" placeholder="E" value={stream.code} onChange={e=>setStream({...stream,code:e.target.value})}/></div>}</>}
- {step===4&&<div className="form form--grid">{subjects.map(s=><label className="card" style={{padding:'1rem'}} key={s.id}><input type="checkbox" checked={selectedSubjects.includes(String(s.id))} onChange={e=>setSelectedSubjects(v=>e.target.checked?[...v,String(s.id)]:v.filter(id=>id!==String(s.id)))}/> {s.name}</label>)}</div>}
- {step===5&&<div className="form">{chosen.map(x=><div className="card" style={{padding:'1rem'}} key={x.id}><strong>{x.subject!.name}</strong><div className="form form--grid"><select className="input" value={x.a.teacher_id} onChange={e=>update(x.id,{...x.a,teacher_id:e.target.value})}><option value="">Teacher…</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select><input className="input" type="number" min={1} max={40} value={x.a.periods_per_week} onChange={e=>update(x.id,{...x.a,periods_per_week:Number(e.target.value),double_periods:Math.min(x.a.double_periods,Math.floor(Number(e.target.value)/2))})}/><input className="input" type="number" min={0} max={Math.floor(x.a.periods_per_week/2)} value={x.a.double_periods} onChange={e=>update(x.id,{...x.a,double_periods:Number(e.target.value)})}/><select className="input" value={x.a.room_id} onChange={e=>update(x.id,{...x.a,room_id:e.target.value})}><option value="">Any room</option>{rooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></div><small>Teacher · Lessons/week · Double lessons/week · Room</small></div>)}</div>}
- {step===6&&<div className="card" style={{padding:'1rem'}}><p><strong>Academic year:</strong> {year.name}</p><p><strong>Level:</strong> {level.name}</p><p><strong>Grade:</strong> {grade.name}</p><p><strong>Stream:</strong> {stream.name}</p><p><strong>Learning areas:</strong> {chosen.map(x=>x.subject!.name).join(', ')}</p><p><strong>Total lessons/week:</strong> {chosen.reduce((n,x)=>n+x.a.periods_per_week,0)}</p></div>}
- <div className="form__row"><button type="button" className="button button--ghost" disabled={step===0||saving} onClick={()=>setStep(x=>Math.max(0,x-1))}>Previous</button>{step<6?<button className="button button--primary" disabled={saving}>{saving?'Saving…':'Save & Next'}</button>:<button type="button" className="button button--primary" disabled={saving} onClick={()=>void finish()}>{saving?'Saving…':'Save & continue to Timetable Requirements'}</button>}</div></form>}</section></>}
+const steps = ['Academic Year', 'Level', 'Class', 'Class Code']
+
+type FormState = {
+  yearId: string
+  yearName: string
+  startDate: string
+  endDate: string
+  levelId: string
+  className: string
+  classCode: string
+}
+
+const initialForm: FormState = { yearId: '', yearName: '', startDate: '', endDate: '', levelId: '', className: '', classCode: '' }
+
+export function AcademicSetupWizardPage() {
+  const navigate = useNavigate()
+  const { notify } = useToast()
+  const [step, setStep] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [years, setYears] = useState<AcademicYear[]>([])
+  const [levels, setLevels] = useState<Level[]>([])
+  const [grades, setGrades] = useState<Grade[]>([])
+  const [form, setForm] = useState<FormState>(initialForm)
+
+  async function load() {
+    setLoading(true)
+    setError(null)
+    try {
+      const [yearOptions, levelOptions] = await Promise.all([api.academicYears(), api.levels()])
+      setYears(yearOptions)
+      setLevels(levelOptions)
+    } catch (e) {
+      setError(friendlyApiError(e, 'load academic setup data'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void load() }, [])
+
+  useEffect(() => {
+    if (!form.levelId) {
+      setGrades([])
+      return
+    }
+    void api.grades(Number(form.levelId)).then(setGrades).catch(e => setError(friendlyApiError(e, 'load classes')))
+  }, [form.levelId])
+
+  function selectYear(id: string) {
+    const year = years.find(x => String(x.id) === id)
+    setForm(v => year
+      ? { ...v, yearId: String(year.id), yearName: year.name, startDate: year.start_date, endDate: year.end_date }
+      : { ...v, yearId: '', yearName: '', startDate: '', endDate: '' })
+  }
+
+  function selectLevel(id: string) {
+    const level = levels.find(x => String(x.id) === id)
+    setForm(v => ({ ...v, levelId: level ? String(level.id) : '', className: '', classCode: '' }))
+  }
+
+  function validateStep() {
+    if (step === 0 && (!form.yearId && (!form.yearName.trim() || !form.startDate || !form.endDate))) throw Error('Select an academic year or enter the year and its dates.')
+    if (step === 1 && !form.levelId) throw Error('Select a level.')
+    if (step === 2 && !form.className.trim()) throw Error('Enter the class name, for example Grade 5R.')
+    if (step === 3 && !form.classCode.trim()) throw Error('Enter the class code, for example 5R.')
+  }
+
+  async function saveYearIfNeeded() {
+    if (form.yearId) return
+    const year = await api.createAcademicYear({ name: form.yearName.trim(), start_date: form.startDate, end_date: form.endDate, is_current: false, status: 'ACTIVE' })
+    setYears(v => [...v, year])
+    setForm(v => ({ ...v, yearId: String(year.id) }))
+  }
+
+  async function finish() {
+    setSaving(true)
+    setError(null)
+    try {
+      await saveYearIfNeeded()
+      const yearId = Number(form.yearId || years.find(y => y.name === form.yearName.trim())?.id)
+      if (!yearId) throw Error('The academic year could not be resolved.')
+      const levelId = Number(form.levelId)
+      const className = form.className.trim()
+      const classCode = form.classCode.trim().toUpperCase()
+      const gradeCode = className.replace(/^grade\s*/i, '').match(/^[A-Za-z0-9-]+/)?.[0] || classCode
+
+      let grade = grades.find(g => g.name.trim().toLowerCase() === className.toLowerCase() || g.code.trim().toLowerCase() === gradeCode.toLowerCase())
+      if (!grade) grade = await api.createGrade({ level_id: levelId, name: className, code: gradeCode, status: true })
+
+      const existingStreams = await api.streams(yearId, grade.id)
+      const streamName = classCode
+      let stream = existingStreams.find(s => (s.code || '').toUpperCase() === classCode || s.name.toUpperCase() === streamName)
+      if (!stream) stream = await api.createStream({ academic_year_id: yearId, level_id: levelId, grade_id: grade.id, name: streamName, code: classCode, status: 'ACTIVE' })
+
+      const existingClasses = await scheduling.classes()
+      const existingClass = existingClasses.find(c => String(c.code || '').toUpperCase() === classCode && String(c.grade || '').toLowerCase() === className.toLowerCase())
+      if (!existingClass) await scheduling.createClass({ name: className, code: classCode, grade: className, stream: streamName })
+
+      notify('Academic setup saved.', 'success')
+      navigate('/academics')
+    } catch (e) {
+      setError(friendlyApiError(e, 'save academic setup'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function next() {
+    if (saving) return
+    setError(null)
+    try {
+      validateStep()
+      if (step < steps.length - 1) {
+        if (step === 0) await saveYearIfNeeded()
+        setStep(v => v + 1)
+      } else {
+        await finish()
+      }
+    } catch (e) {
+      setError(friendlyApiError(e, 'continue academic setup'))
+    }
+  }
+
+  const selectedYear = years.find(y => String(y.id) === form.yearId)
+  const selectedLevel = levels.find(l => String(l.id) === form.levelId)
+
+  return <>
+    <PageHeader title="Academic setup" description="Set up Academic Year → Level → Class → Class Code. The class code is the common business identifier used by downstream academic workflows." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Academic setup' }]} />
+    {error && <Alert tone="error" title="Setup could not continue">{error}</Alert>}
+    <section className="card section">
+      <div className="chip-list" aria-label="Setup progress">
+        {steps.map((label, i) => <Badge key={label} tone={i === step ? 'success' : undefined}>{i + 1}. {label}</Badge>)}
+      </div>
+      {loading ? <p>Loading setup options…</p> : <form className="form" onSubmit={e => { e.preventDefault(); void next() }}>
+        <h2 className="section__title">Step {step + 1}: {steps[step]}</h2>
+
+        {step === 0 && <>
+          <label className="label">Academic year</label>
+          <select className="input" value={form.yearId} onChange={e => selectYear(e.target.value)}>
+            <option value="">Create new…</option>
+            {years.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+          </select>
+          {!form.yearId && <div className="form form--grid">
+            <input className="input" placeholder="2026/2027" value={form.yearName} onChange={e => setForm(v => ({ ...v, yearName: e.target.value }))} />
+            <input className="input" type="date" value={form.startDate} onChange={e => setForm(v => ({ ...v, startDate: e.target.value }))} />
+            <input className="input" type="date" value={form.endDate} onChange={e => setForm(v => ({ ...v, endDate: e.target.value }))} />
+          </div>}
+        </>}
+
+        {step === 1 && <>
+          <label className="label">Level</label>
+          <select className="input" value={form.levelId} onChange={e => selectLevel(e.target.value)}>
+            <option value="">Select level…</option>
+            {levels.filter(l => l.name !== 'Primary').map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+          <small>Levels: Pre Primary, Primary School, Junior School, Senior School.</small>
+        </>}
+
+        {step === 2 && <>
+          <label className="label">Class</label>
+          <input className="input" placeholder="Grade 5R" value={form.className} onChange={e => setForm(v => ({ ...v, className: e.target.value }))} list="existing-classes" />
+          <datalist id="existing-classes">{grades.map(g => <option key={g.id} value={g.name}>{g.code}</option>)}</datalist>
+          <small>Use the name staff should see throughout Phikila.</small>
+        </>}
+
+        {step === 3 && <>
+          <label className="label">Class code</label>
+          <input className="input" placeholder="5R" value={form.classCode} onChange={e => setForm(v => ({ ...v, classCode: e.target.value.toUpperCase() }))} />
+          <small>This code is the class business identifier for timetabling, examinations, student enrollment and finance. Do not change it casually after transactions exist.</small>
+          <div className="card" style={{ padding: '1rem' }}>
+            <p><strong>Academic year:</strong> {selectedYear?.name || form.yearName}</p>
+            <p><strong>Level:</strong> {selectedLevel?.name}</p>
+            <p><strong>Class:</strong> {form.className}</p>
+            <p><strong>Class code:</strong> {form.classCode.toUpperCase()}</p>
+          </div>
+        </>}
+
+        <div className="form__row">
+          <button type="button" className="button button--ghost" disabled={step === 0 || saving} onClick={() => setStep(v => Math.max(0, v - 1))}>Previous</button>
+          <button className="button button--primary" disabled={saving}>{saving ? 'Saving…' : step === steps.length - 1 ? 'Save Academic Setup' : 'Save & Next'}</button>
+        </div>
+      </form>}
+    </section>
+  </>
+}
