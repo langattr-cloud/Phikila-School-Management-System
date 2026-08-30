@@ -19,3 +19,47 @@
 @media (max-width:900px) { .timetable-toolbar .field--inline { min-width:min(18rem, 100%); flex:1 1 12rem; } .timetable-toolbar__status { width:100%; } .timetable-toolbar--secondary { position:static; } }
 @media (max-width:640px) { .timetable-toolbar { align-items:stretch; } .timetable-toolbar .field--inline { width:100%; } .timetable-toolbar .toolbar__group { flex:1 1 100%; justify-content:flex-start; padding-left:0; border-left:0; } .day-chips { width:100%; overflow-x:auto; flex-wrap:nowrap; padding-bottom:.15rem; } .day-chip { flex:0 0 auto; } }
 @media print { .timetable-toolbar, .timetable-toolbar--secondary { display:none !important; } }
+
+/* Timetable workspace controls: collapse the existing two rows into one compact toolbar. */
+.timetable-controls-card {
+  position: sticky;
+  top: .75rem;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding: .55rem .7rem;
+  background: rgba(255,255,255,.97);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-md);
+}
+.timetable-controls-card .timetable-controls-row { display: contents; }
+.timetable-controls-card .toolbar__spacer { display: none; }
+.timetable-controls-card .timetable-control-group,
+.timetable-controls-card .toolbar__group { display: inline-flex; align-items: center; gap: .4rem; min-width: 0; }
+.timetable-controls-card .timetable-control-group:first-child { order: 1; }
+.timetable-controls-card .timetable-controls-row:first-child .timetable-control-group:nth-child(2) { order: 2; }
+.timetable-controls-card .timetable-controls-row--secondary .timetable-control-group { order: 3; }
+.timetable-controls-card .toolbar__group { order: 4; }
+.timetable-controls-card .timetable-controls-row--secondary .toolbar__group { order: 5; }
+.timetable-controls-card .field__label { margin: 0; white-space: nowrap; }
+.timetable-controls-card .input--select { width: auto; min-width: 9rem; min-height: 2.35rem; padding-top: .35rem; padding-bottom: .35rem; font-size: .875rem; }
+.timetable-controls-card .day-chips { flex-wrap: nowrap; }
+.timetable-controls-card .day-chip { min-height: 2.25rem; padding: .3rem .55rem; }
+.timetable-controls-card .toolbar__group { flex-wrap: nowrap; }
+.timetable-controls-card .toolbar__zoom-label { min-width: 2.8rem; }
+.timetable-controls-card .button--active { background: var(--color-primary-soft); border-color: var(--color-primary); color: var(--color-primary); }
+@media (max-width: 1100px) { .timetable-controls-card { position: relative; top: auto; } .timetable-controls-card .day-chips { overflow-x: auto; max-width: 100%; } }
+@media (max-width: 760px) {
+  .timetable-controls-card { align-items: stretch; }
+  .timetable-controls-card .timetable-control-group,
+  .timetable-controls-card .toolbar__group { width: 100%; }
+  .timetable-controls-card .timetable-control-group:first-child { order: 1; }
+  .timetable-controls-card .timetable-controls-row:first-child .timetable-control-group:nth-child(2) { order: 2; }
+  .timetable-controls-card .timetable-controls-row--secondary .timetable-control-group { order: 3; }
+  .timetable-controls-card .toolbar__group { order: 4; overflow-x: auto; }
+  .timetable-controls-card .timetable-controls-row--secondary .toolbar__group { order: 5; }
+  .timetable-controls-card .input--select { flex: 1; min-width: 0; }
+}
+@media print { .timetable-controls-card { display:none !important; } }
