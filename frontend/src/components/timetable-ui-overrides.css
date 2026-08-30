@@ -156,6 +156,62 @@
   }
 }
 
+/* Published/personal timetable uses the same visual language. */
+.entity-timetable-grid {
+  grid-auto-rows: clamp(3.5rem, 6.5vh, 4.75rem) !important;
+  border-radius: .45rem;
+}
+
+.entity-timetable-corner,
+.entity-timetable-period {
+  min-height: clamp(2.4rem, 4.5vh, 3.25rem);
+}
+
+.entity-timetable-period {
+  padding: .25rem .35rem;
+  font-size: clamp(.68rem, .82vw, .88rem);
+  line-height: 1.05;
+}
+
+.entity-timetable-period small {
+  font-size: clamp(.5rem, .6vw, .65rem);
+  line-height: 1.1;
+}
+
+.entity-timetable-day {
+  padding: .2rem .35rem;
+  font-size: clamp(.64rem, .76vw, .8rem);
+}
+
+.entity-timetable-cell {
+  min-height: clamp(3.5rem, 6.5vh, 4.75rem);
+  padding: .22rem .25rem;
+  background: var(--color-surface-muted);
+}
+
+.entity-lesson-card {
+  min-height: 0;
+  padding: .35rem .3rem;
+  gap: .22rem;
+  border-radius: .55rem;
+  box-shadow: 0 1px 3px rgb(20 35 29 / .10);
+  filter: saturate(.84) brightness(1.03);
+}
+
+.entity-lesson-card strong {
+  font-size: clamp(.78rem, 1.05vw, 1.05rem);
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: .01em;
+}
+
+.entity-lesson-card span {
+  font-size: clamp(.62rem, .78vw, .78rem);
+  line-height: 1;
+  font-weight: 700;
+  color: rgb(255 255 255 / .92);
+}
+
 /* Dense mode remains available as an intentional compact view. */
 .timetable--dense .timetable__time-grid,
 .timetable--dense .timetable__whole-school-grid {
@@ -176,4 +232,45 @@
 .timetable--dense .timetable__time-grid .lesson-card__class,
 .timetable--dense .timetable__whole-school-grid .lesson-card__class {
   font-size: .55rem;
+}
+
+@media (max-width: 767px) {
+  .entity-timetable-grid {
+    width: max-content;
+    min-width: 100%;
+    grid-template-columns: 5rem repeat(var(--tt-period-count, 1), minmax(4.75rem, 1fr)) !important;
+    grid-auto-rows: 4rem !important;
+  }
+
+  .entity-timetable-period {
+    min-height: 3.25rem;
+    font-size: .72rem;
+  }
+
+  .entity-timetable-period small {
+    font-size: .5rem;
+  }
+
+  .entity-timetable-day {
+    font-size: .68rem;
+  }
+
+  .entity-timetable-cell {
+    min-height: 4rem;
+    padding: .2rem;
+  }
+
+  .entity-lesson-card {
+    padding: .3rem .25rem;
+    gap: .18rem;
+    border-radius: .5rem;
+  }
+
+  .entity-lesson-card strong {
+    font-size: .9rem;
+  }
+
+  .entity-lesson-card span {
+    font-size: .68rem;
+  }
 }
