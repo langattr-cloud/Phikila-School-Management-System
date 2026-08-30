@@ -24,9 +24,9 @@ class RoomIn(BaseModel):
     name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); building:str|None=None; capacity:int=Field(default=40,ge=1,le=2000); room_type:str=Field(default='classroom',max_length=40); is_accessible:bool=True; unavailable:Slots=Field(default_factory=dict)
 class RoomOut(ORMModel,RoomIn): id:int
 class ClassIn(BaseModel):
-    name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); academic_year_id:int|None=None; level_id:int|None=None; student_count:int=Field(default=40,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
+    name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); academic_year_id:int|None=None; level_id:int|None=None; school_class_id:int|None=None; student_count:int=Field(default=40,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
 class ClassUpdateIn(BaseModel):
-    name:str|None=Field(default=None,min_length=1,max_length=120); code:str|None=Field(default=None,min_length=1,max_length=30); academic_year_id:int|None=None; level_id:int|None=None; student_count:int|None=Field(default=None,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots|None=None
+    name:str|None=Field(default=None,min_length=1,max_length=120); code:str|None=Field(default=None,min_length=1,max_length=30); academic_year_id:int|None=None; level_id:int|None=None; school_class_id:int|None=None; student_count:int|None=Field(default=None,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots|None=None
     @model_validator(mode='before')
     @classmethod
     def normalize_frontend_values(cls, value):
@@ -34,7 +34,7 @@ class ClassUpdateIn(BaseModel):
         data=dict(value)
         for key in ('name','code'):
             if key in data and data[key] is not None: data[key]=str(data[key]).strip()
-        for key in ('academic_year_id','level_id','student_count','home_room_id','class_teacher_id'):
+        for key in ('academic_year_id','level_id','school_class_id','student_count','home_room_id','class_teacher_id'):
             if key in data and data[key] is not None and data[key] != '':
                 try: data[key]=int(float(data[key]))
                 except (TypeError,ValueError): pass
@@ -72,11 +72,9 @@ class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=6); period_index:int=
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=6); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
 class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
 class UnassignedOut(BaseModel): requirement_id:int; subject_id:int; subject_name:str; subject_colour:str; class_id:int; class_name:str; teacher_id:int|None; teacher_name:str|None; room_id:int|None; room_name:str|None; periods_per_week:int; placed:int; remaining:int; requires_double:bool
-class VersionOut(ORMModel):
-    id:int; number:int; label:str|None; status:str; quality:dict[str,Any]=Field(default_factory=dict); stats:dict[str,Any]=Field(default_factory=dict); created_by:str|None=None; created_at:Any=None; published_at:Any=None; day_indexes:list[int]=Field(default_factory=list); day_names:list[str]=Field(default_factory=list)
-    @field_validator('created_by', mode='before')
-    @classmethod
-    def serialize_created_by(cls, value): return None if value is None else str(value)
+class ExplanationReason(BaseModel): code?: str
+class Alternative: day: int; period: int; day_name?: str; period_name?: str
+class Explanation: allowed: bool; reasons: list[ExplanationReason]; alternatives: list[Alternative]
 class ConflictOut(BaseModel): severity:str; kind:str; message:str; lesson_ids:list[int]; day:int|None=None; period:int|None=None
 class EventIn(BaseModel): name:str=Field(min_length=1,max_length=80); start_time:str=Field(pattern=r'^\d{2}:\d{2}$'); end_time:str=Field(pattern=r'^\d{2}:\d{2}$'); day_indexes:list[int]=Field(min_length=1,max_length=7); event_type:str=Field(default='break',min_length=1,max_length=40); note:str|None=None
 class EventOut(ORMModel,EventIn): id:int
