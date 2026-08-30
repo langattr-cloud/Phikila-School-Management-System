@@ -42,6 +42,9 @@ def upgrade():
         sc_cols = _columns(bind, "school_classes")
         required = {"school_id", "code", "academic_year_id", "level_id"}
         if required.issubset(sc_cols):
+            # Backfill only rows whose academic identity is not already occupied.
+            # Existing duplicate/null timetable rows are left intact rather than
+            # aborting the entire deployment on the unique identity constraint.
             bind.execute(sa.text("""
                 UPDATE tt_classes tc
                 SET academic_year_id = sc.academic_year_id,
@@ -50,6 +53,15 @@ def upgrade():
                 WHERE tc.school_id = sc.school_id
                   AND tc.code = sc.code
                   AND (tc.academic_year_id IS NULL OR tc.level_id IS NULL)
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM tt_classes existing
+                      WHERE existing.id <> tc.id
+                        AND existing.school_id = tc.school_id
+                        AND existing.academic_year_id = sc.academic_year_id
+                        AND existing.level_id = sc.level_id
+                        AND upper(trim(existing.code)) = upper(trim(sc.code))
+                  )
             """))
 
 
