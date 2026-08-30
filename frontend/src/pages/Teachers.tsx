@@ -13,8 +13,8 @@ const ROLES:Role[]=['HOI/Principal','Deputy head of Institution','Senior Teacher
 type Form={name:string;phone:string;email:string;code:string;department:string;role:Role;assignment:string}
 const emptyForm:Form={name:'',phone:'',email:'',code:'',department:'',role:'Teacher',assignment:''}
 const teacherName=(t:Teacher)=>t.name||[t.first_name,t.last_name].filter(Boolean).join(' ')||'Unnamed teacher'
-const classSortKey=(c:SchoolClass)=>{const level=String((c as any).grade??'').match(/\d+/)?.[0];return `${String(level??'999').padStart(3,'0')}\u0000${c.name.trim().toLocaleLowerCase()}\u0000${c.code.trim().toLocaleLowerCase()}`}
-const sortClasses=(items:SchoolClass[])=>Array.from(new Map(items.map(c=>[c.id,c])).values()).sort((a,b)=>classSortKey(a).localeCompare(classSortKey(b),undefined,{numeric:true}))
+const classSortKey=(c:SchoolClass)=>`${String(c.code??'').trim().toLowerCase()}\u0000${String(c.name??'').trim().toLowerCase()}`
+const sortClasses=(items:SchoolClass[])=>Array.from(new Map(items.filter(c=>String(c.code??'').trim()).map(c=>[c.id,c])).values()).sort((a,b)=>classSortKey(a).localeCompare(classSortKey(b),undefined,{numeric:true,sensitivity:'base'}))
 
 export default function Teachers(){
  const {notify}=useToast(); const [teachers,setTeachers]=useState<Teacher[]>([]); const [classes,setClasses]=useState<SchoolClass[]>([]); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [query,setQuery]=useState(''); const [modalOpen,setModalOpen]=useState(false); const [editing,setEditing]=useState<Teacher|null>(null); const [form,setForm]=useState<Form>(emptyForm); const [saving,setSaving]=useState(false)
