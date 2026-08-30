@@ -6,7 +6,7 @@ import { Badge, ErrorState, LoadingBlock } from '../components/States'
 import { AlertIcon, CheckIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { useNavigate } from '../lib/router'
-import { apiFetch, friendlyApiError } from '../lib/api'
+import { friendlyApiError } from '../lib/api'
 import { scheduling, type Dashboard, type Job, type SolverCheck, type Conflict, type Calendar, type Lesson, type Teacher, type Subject, type SchoolClass, type Room, type Requirement } from '../lib/scheduling'
 import { QualityBars } from '../components/QualityBars'
 
