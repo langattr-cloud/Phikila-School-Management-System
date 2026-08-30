@@ -25,13 +25,13 @@ export interface Requirement { id: number; class_id: number; class_name?: string
 export interface RequirementInput { class_id: number; subject_id: number; teacher_id: number | null; room_id?: number | null; periods_per_week: number; double_periods?: number }
 export interface Constraint extends Loose { id: number; kind?: string; scope?: string; target_id?: number | null; is_hard?: boolean; weight?: number | null; params?: Loose; enabled?: boolean; note?: string | null }
 export interface ConstraintInput extends Loose {}
-export interface Conflict extends Loose { id?: number; severity?: string; kind?: string; lesson_ids: number[]; message?: string; day_index?: number; period_index?: number; day?: number; period?: number }
+export interface GenerateIn extends Loose {}
+export interface GenerateProfileInput extends Loose {}
+export interface SolverCheck extends Loose { key: string; label: string; state: string }
 export interface JobCheck { key: string; label: string; state: string; group?: 'hard' | 'soft' | string }
 export interface JobQuality { overall?: number; breakdown?: Record<string, number> }
 export interface Quality { overall?: number; breakdown?: Record<string, number> }
 export interface Job extends Loose { id: number; status: string; stage?: string; progress: number; message?: string | null; checks: JobCheck[]; quality?: JobQuality; result_version_id?: number | null }
-export interface GenerateProfileInput extends Loose {}
-export interface SolverCheck extends Loose { key: string; label: string; state: string }
 export interface Version extends Loose { id: number; number?: number; status: string }
 export interface Lesson extends Loose { id: number; day_index: number; period_index: number; subject_id: number; teacher_id: number; room_id: number | null; class_id: number; version_id: number; duration: number; is_locked?: boolean }
 export interface LessonPatch extends Loose {}
@@ -54,11 +54,33 @@ export interface TimetableDisplayLesson { day: number; period: number; subject: 
 export interface TimetableView extends Loose { days: TimetableDisplayDay[]; periods: TimetableDisplayPeriod[]; lessons: TimetableDisplayLesson[]; target_name?: string; version?: Version | null }
 export interface CopilotCommand extends Loose {}
 
+const timetablingClassCode = (grade: unknown, stream: unknown): string | null => {
+  const gradeCode = String(grade ?? '').trim().replace(/^grade\s*/i, '').match(/^\d+/)?.[0] ?? ''
+  const streamCode = String(stream ?? '').trim().match(/[A-Za-z0-9]+/)?.[0]?.slice(0, 1).toUpperCase() ?? ''
+  if (!gradeCode) return null
+  return streamCode ? `${gradeCode}${streamCode}` : gradeCode
+}
+
+export function normalizeTimetablingClassIdentity(payload: Partial<SchoolClassInput> & Loose): { name: string; code: string; grade: string | null; stream: string | null } {
+  const grade = payload.grade == null || String(payload.grade).trim() === '' ? null : String(payload.grade).trim()
+  const stream = payload.stream == null || String(payload.stream).trim() === '' ? null : String(payload.stream).trim()
+  const generated = timetablingClassCode(grade, stream)
+  const suppliedName = String(payload.name ?? '').trim()
+  const suppliedCode = String(payload.code ?? '').trim()
+  return {
+    name: generated || suppliedName,
+    code: generated || suppliedCode,
+    grade,
+    stream,
+  }
+}
+
 const classPayload = (payload: Partial<SchoolClassInput> & Loose): SchoolClassInput => {
   const rawStudentCount = Number(payload.student_count)
   const studentCount = Number.isFinite(rawStudentCount) ? Math.max(0, Math.floor(rawStudentCount)) : 40
   const toNullableNumber = (value: unknown) => { if (value == null || String(value).trim() === '') return null; const n = Number(value); return Number.isFinite(n) ? n : null }
-  return { name: String(payload.name ?? '').trim(), code: String(payload.code ?? '').trim(), grade: payload.grade == null || String(payload.grade).trim() === '' ? null : String(payload.grade).trim(), stream: payload.stream == null || String(payload.stream).trim() === '' ? null : String(payload.stream).trim(), student_count: studentCount, home_room_id: toNullableNumber(payload.home_room_id), class_teacher_id: toNullableNumber(payload.class_teacher_id), unavailable: payload.unavailable && typeof payload.unavailable === 'object' ? payload.unavailable as Slots : {} }
+  const identity = normalizeTimetablingClassIdentity(payload)
+  return { name: identity.name, code: identity.code, grade: identity.grade, stream: identity.stream, student_count: studentCount, home_room_id: toNullableNumber(payload.home_room_id), class_teacher_id: toNullableNumber(payload.class_teacher_id), unavailable: payload.unavailable && typeof payload.unavailable === 'object' ? payload.unavailable as Slots : {} }
 }
 const classUpdatePayload = (payload: Partial<SchoolClassInput> & Loose): Loose => {
   const out: Loose = {}
