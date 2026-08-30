@@ -19,9 +19,7 @@ export function inferTimetableView(
   lessons: Lesson[],
   secondary?: (lesson: Lesson) => string | null | undefined,
 ): TimetableViewKind {
-  if (!lessons.length) return 'whole-school'
-  if (secondary && lessons.every((lesson) => secondary(lesson) == null)) return 'class'
-  const teacherIds = new Set(lessons.map((lesson) => lesson.teacher_id).filter((id): id is number => id != null))
-  if (teacherIds.size === 1) return 'teacher'
+  // A timetable page always opens at the whole-school level. Individual
+  // class/teacher views are selected explicitly by the user.
   return 'whole-school'
 }
