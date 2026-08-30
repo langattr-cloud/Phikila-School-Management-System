@@ -8,7 +8,6 @@ import { friendlyApiError } from '../lib/api'
 import { cachedFetch, formatSavedAt } from '../lib/offline'
 import { Link } from '../lib/router'
 import { scheduling, type Calendar, type Event, type SchoolClass, type Teacher, type TimetableView } from '../lib/scheduling'
-import '../components/timetable-ui-overrides.css'
 
 type Scope = 'class' | 'teacher'
 type SubjectOption = { id: number; name: string; code?: string; colour?: string }
