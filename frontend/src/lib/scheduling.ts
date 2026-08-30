@@ -25,6 +25,7 @@ export interface Requirement { id: number; class_id: number; class_name?: string
 export interface RequirementInput { class_id: number; subject_id: number; teacher_id: number | null; room_id?: number | null; periods_per_week: number; double_periods?: number }
 export interface Constraint extends Loose { id: number; kind?: string; scope?: string; target_id?: number | null; is_hard?: boolean; weight?: number | null; params?: Loose; enabled?: boolean; note?: string | null }
 export interface ConstraintInput extends Loose {}
+export interface Conflict extends Loose { id?: number; severity?: string; kind?: string; lesson_ids: number[]; message?: string; day_index?: number; period_index?: number; day?: number; period?: number }
 export interface GenerateIn extends Loose {}
 export interface GenerateProfileInput extends Loose {}
 export interface SolverCheck extends Loose { key: string; label: string; state: string }
@@ -67,12 +68,7 @@ export function normalizeTimetablingClassIdentity(payload: Partial<SchoolClassIn
   const generated = timetablingClassCode(grade, stream)
   const suppliedName = String(payload.name ?? '').trim()
   const suppliedCode = String(payload.code ?? '').trim()
-  return {
-    name: generated || suppliedName,
-    code: generated || suppliedCode,
-    grade,
-    stream,
-  }
+  return { name: generated || suppliedName, code: generated || suppliedCode, grade, stream }
 }
 
 const classPayload = (payload: Partial<SchoolClassInput> & Loose): SchoolClassInput => {
