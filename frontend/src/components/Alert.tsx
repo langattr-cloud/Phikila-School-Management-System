@@ -6,7 +6,7 @@ export function Alert({
   title,
   children,
 }: {
-  tone: 'success' | 'error' | 'info'
+  tone: 'success' | 'error' | 'info' | 'warning'
   title?: string
   children: ReactNode
 }) {
