@@ -39,8 +39,7 @@ const NAV: NavGroup[] = [
     { to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> },
     { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> },
     { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> },
-    { to: '/setup/grades', label: 'Grades', icon: <LayersIcon /> },
-    { to: '/setup/streams', label: 'Streams', icon: <LayersIcon /> },
+    { to: '/setup/academic-setup', label: 'Classes', icon: <LayersIcon /> },
     { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> },
   ] },
   { label: 'People', items: [
