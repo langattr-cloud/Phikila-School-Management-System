@@ -137,11 +137,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           }
         }
       } catch { /* background polling is non-blocking */ }
-      finally { if (!cancelled) timer = window.setTimeout(poll, 1200) }
+      finally { if (!cancelled) timer = window.setTimeout(poll, 5000) }
     }
-    void poll()
+    // GeneratePage owns its own fast job polling. Avoid duplicating that traffic there.
+    if (normalisePath(pathname) !== '/scheduling/generate') void poll()
     return () => { cancelled = true; if (timer) window.clearTimeout(timer) }
-  }, [notify])
+  }, [pathname, notify])
   useEffect(() => {
     if (!drawerOpen) return
     document.body.classList.add('body--locked')
@@ -218,36 +219,3 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const accountBlock = (
     <div className="sidebar__account">
-      <div className="sidebar__account-profile">
-        <span className="sidebar__account-avatar" aria-hidden="true">{accountInitial}</span>
-        <div><p className="sidebar__account-name" title={accountName}>{accountName}</p><p className="sidebar__account-email">{user?.email}</p></div>
-      </div>
-      <button type="button" className="button button--ghost button--block" onClick={handleSignOut} disabled={signingOut}><LogOutIcon width={18} height={18} />{signingOut ? 'Signing out…' : 'Sign out'}</button>
-    </div>
-  )
-
-  return <div className="app-shell">
-    <a className="skip-link" href="#main-content">Skip to main content</a>
-    <aside className="sidebar sidebar--desktop"><div className="sidebar__brand"><Logo size={34} tone="dark" /></div>{navigation}{accountBlock}</aside>
-    <div className="app-shell__main">
-      <header className="topbar">
-        <button ref={menuButtonRef} type="button" className="icon-button topbar__menu" onClick={() => setDrawerOpen(true)} aria-label="Open navigation menu" aria-expanded={drawerOpen} aria-controls="mobile-navigation"><MenuIcon /></button>
-        <span className="topbar__title"><LogoMark size={26} /><span>Phikila</span></span>
-        {drawerJob && <Link className="button button--secondary button--sm" to="/scheduling/generate" title={`${drawerJob.stage || 'Generating'} · ${drawerJob.progress}%`}>Generating… {drawerJob.progress}%</Link>}
-        {completedJob?.status === 'completed' && <Link className="button button--primary button--sm" to="/timetable" aria-label="Timetable ready, open timetable">Timetable ready →</Link>}
-        {offline && <span className="topbar__offline" role="status">Offline</span>}
-        <button type="button" className="icon-button topbar__theme" onClick={() => setTheme(x => x === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>{theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}</button>
-        <span className="topbar__user" title={user?.email ?? ''}><span className="topbar__avatar" aria-hidden="true">{accountInitial}</span><span className="topbar__user-email">{user?.email}</span></span>
-      </header>
-      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} role="presentation" />}
-      <aside id="mobile-navigation" ref={drawerRef} className={`sidebar sidebar--drawer ${drawerOpen ? 'sidebar--open' : ''}`.trim()} role="dialog" aria-modal={drawerOpen || undefined} aria-label="Navigation menu" aria-hidden={!drawerOpen}>
-        <div className="sidebar__brand"><Logo size={32} tone="dark" /><button type="button" className="icon-button" onClick={() => { setDrawerOpen(false); menuButtonRef.current?.focus() }} aria-label="Close navigation menu"><CloseIcon /></button></div>
-        {navigation}
-        {accountBlock}
-      </aside>
-      <main className="app-shell__content" id="main-content">{children}</main>
-      <nav className="bottom-nav" aria-label="Quick navigation">{BOTTOM_NAV.map(item => { const active = isActive(pathname, item.to); return <Link key={item.to} to={item.to} className={`bottom-nav__item ${active ? 'bottom-nav__item--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}><span className="bottom-nav__icon" aria-hidden="true">{item.icon}</span><span className="bottom-nav__label">{item.label}</span></Link> })}</nav>
-      <PrintFooter />
-    </div>
-  </div>
-}
