@@ -42,26 +42,38 @@ def upgrade():
         sc_cols = _columns(bind, "school_classes")
         required = {"school_id", "code", "academic_year_id", "level_id"}
         if required.issubset(sc_cols):
-            # Backfill only rows whose academic identity is not already occupied.
-            # Existing duplicate/null timetable rows are left intact rather than
-            # aborting the entire deployment on the unique identity constraint.
             bind.execute(sa.text("""
+                WITH candidates AS (
+                    SELECT tc.id, sc.academic_year_id, sc.level_id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY tc.school_id, sc.academic_year_id,
+                                            sc.level_id, upper(trim(sc.code))
+                               ORDER BY tc.id
+                           ) AS rn
+                    FROM tt_classes tc
+                    JOIN school_classes sc
+                      ON tc.school_id = sc.school_id
+                     AND upper(trim(tc.code)) = upper(trim(sc.code))
+                    WHERE (tc.academic_year_id IS NULL OR tc.level_id IS NULL)
+                      AND sc.academic_year_id IS NOT NULL
+                      AND sc.level_id IS NOT NULL
+                      AND NOT EXISTS (
+                          SELECT 1 FROM tt_classes existing
+                          WHERE existing.id <> tc.id
+                            AND existing.school_id = tc.school_id
+                            AND existing.academic_year_id = sc.academic_year_id
+                            AND existing.level_id = sc.level_id
+                            AND upper(trim(existing.code)) = upper(trim(sc.code))
+                      )
+                ), chosen AS (
+                    SELECT id, academic_year_id, level_id
+                    FROM candidates WHERE rn = 1
+                )
                 UPDATE tt_classes tc
-                SET academic_year_id = sc.academic_year_id,
-                    level_id = sc.level_id
-                FROM school_classes sc
-                WHERE tc.school_id = sc.school_id
-                  AND tc.code = sc.code
-                  AND (tc.academic_year_id IS NULL OR tc.level_id IS NULL)
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM tt_classes existing
-                      WHERE existing.id <> tc.id
-                        AND existing.school_id = tc.school_id
-                        AND existing.academic_year_id = sc.academic_year_id
-                        AND existing.level_id = sc.level_id
-                        AND upper(trim(existing.code)) = upper(trim(sc.code))
-                  )
+                SET academic_year_id = chosen.academic_year_id,
+                    level_id = chosen.level_id
+                FROM chosen
+                WHERE tc.id = chosen.id
             """))
 
 
