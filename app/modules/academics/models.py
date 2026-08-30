@@ -78,3 +78,21 @@ class Stream(Base):
     level = relationship("Level", back_populates="streams")
     grade = relationship("Grade", back_populates="streams")
     academic_year = relationship("AcademicYear", back_populates="streams")
+
+class SchoolClass(Base):
+    __tablename__ = "school_classes"
+    __table_args__ = {"extend_existing": True}
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, ForeignKey("school_info.id"), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    code = Column(String(30), nullable=False, index=True)
+    grade = Column(String(100), nullable=True)
+    student_count = Column(Integer, default=0, nullable=False)
+    capacity = Column(Integer, default=45, nullable=False)
+    level_id = Column(Integer, ForeignKey("levels.id"), nullable=True, index=True)
+    stream_id = Column(BigInteger, nullable=True, index=True)
+    class_teacher_id = Column(Integer, nullable=True)
+    academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=True, index=True)
+    status = Column(String, default="active", nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
