@@ -31,16 +31,19 @@ def upgrade() -> None:
         bind.execute(sa.text("""
             DELETE FROM tt_classes tc
             WHERE tc.school_class_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM tt_lesson_requirements r WHERE r.class_id = tc.id)
+              AND NOT EXISTS (SELECT 1 FROM tt_lessons l WHERE l.class_id = tc.id)
               AND EXISTS (
                 SELECT 1 FROM tt_classes keep
                 WHERE keep.id <> tc.id
                   AND keep.school_id = tc.school_id
                   AND keep.school_class_id = tc.school_class_id
-                  AND NOT EXISTS (SELECT 1 FROM tt_lesson_requirements r WHERE r.class_id = keep.id)
-                  AND NOT EXISTS (SELECT 1 FROM tt_lessons l WHERE l.class_id = keep.id)
+                  AND (
+                    EXISTS (SELECT 1 FROM tt_lesson_requirements r WHERE r.class_id = keep.id)
+                    OR EXISTS (SELECT 1 FROM tt_lessons l WHERE l.class_id = keep.id)
+                    OR keep.id < tc.id
+                  )
               )
-              AND NOT EXISTS (SELECT 1 FROM tt_lesson_requirements r WHERE r.class_id = tc.id)
-              AND NOT EXISTS (SELECT 1 FROM tt_lessons l WHERE l.class_id = tc.id)
         """))
 
 
