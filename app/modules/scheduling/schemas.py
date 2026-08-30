@@ -72,6 +72,21 @@ class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=6); period_index:int=
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=6); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
 class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
 class UnassignedOut(BaseModel): requirement_id:int; subject_id:int; subject_name:str; subject_colour:str; class_id:int; class_name:str; teacher_id:int|None; teacher_name:str|None; room_id:int|None; room_name:str|None; periods_per_week:int; placed:int; remaining:int; requires_double:bool
+class VersionOut(ORMModel):
+    id:int
+    number:int
+    label:str|None=None
+    status:str
+    quality:dict[str,Any]=Field(default_factory=dict)
+    stats:dict[str,Any]=Field(default_factory=dict)
+    created_by:str|None=None
+    created_at:Any=None
+    published_at:Any=None
+    day_indexes:list[int]=Field(default_factory=list)
+    day_names:list[str]=Field(default_factory=list)
+    @field_validator('created_by', mode='before')
+    @classmethod
+    def serialize_created_by(cls, value): return None if value is None else str(value)
 class ExplanationReason(BaseModel): code:str|None=None; message:str|None=None; text:str|None=None; factor:str|None=None; detail:str|None=None
 class Alternative(BaseModel): day:int; period:int; day_name:str|None=None; period_name:str|None=None
 class Explanation(BaseModel): allowed:bool; reasons:list[ExplanationReason]; alternatives:list[Alternative]
