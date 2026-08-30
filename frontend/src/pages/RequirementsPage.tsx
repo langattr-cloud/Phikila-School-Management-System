@@ -13,6 +13,8 @@ type Data = { requirements: Requirement[]; classes: SchoolClass[]; levels: Level
 type DraftAllocation = { id: string; teacher_id: string; level_id: string; class_id: string; subject_id: string; periods_per_week: number; double_periods: number }
 type TeacherSummary = { teacher_id: number; teacher_name: string; total_workload: number; allocations: Requirement[] }
 
+const WITHOUT_TEACHER = '__without_teacher__'
+
 const numericPrefix = (value: unknown) => {
   const match = String(value ?? '').match(/\d+/)
   return match ? Number(match[0]) : Number.MAX_SAFE_INTEGER
@@ -23,6 +25,11 @@ const naturalCompare = (a: unknown, b: unknown) => {
   const bn = numericPrefix(b)
   if (an !== bn) return an - bn
   return String(a ?? '').localeCompare(String(b ?? ''), undefined, { numeric: true, sensitivity: 'base' })
+}
+
+const normalizedTeacherId = (value: string | number | null | undefined) => {
+  if (value === WITHOUT_TEACHER || value == null || String(value).trim() === '') return null
+  return Number(value)
 }
 
 export function RequirementsPage() {
@@ -65,7 +72,7 @@ export function RequirementsPage() {
 
   useEffect(() => { void load() }, [load])
 
-  const ready = Boolean(data && data.levels.length && data.subjects.length && data.teachers.length && data.classes.length)
+  const ready = Boolean(data && data.levels.length && data.subjects.length && data.classes.length)
   const orderedLevels = useMemo(() => data?.levels.slice().sort((a, b) => naturalCompare(a.name, b.name)) ?? [], [data])
   const selectedLevelId = Number(form.level_id) || null
 
@@ -88,7 +95,7 @@ export function RequirementsPage() {
     const grouped = new Map<number, TeacherSummary>()
     filteredRequirements.forEach((row) => {
       const id = Number(row.teacher_id ?? 0)
-      if (!grouped.has(id)) grouped.set(id, { teacher_id: id, teacher_name: row.teacher_name ?? 'Unassigned', total_workload: 0, allocations: [] })
+      if (!grouped.has(id)) grouped.set(id, { teacher_id: id, teacher_name: row.teacher_name ?? 'Without Teacher', total_workload: 0, allocations: [] })
       const summary = grouped.get(id)!
       summary.total_workload += Number(row.periods_per_week || 0)
       summary.allocations.push(row)
@@ -100,7 +107,7 @@ export function RequirementsPage() {
     const classRow = data?.classes.find((item) => String(item.id) === draft.class_id)
     return {
       ...draft,
-      teacher_name: data?.teachers.find((item) => String(item.id) === draft.teacher_id)?.name ?? '—',
+      teacher_name: draft.teacher_id === WITHOUT_TEACHER ? 'Without Teacher' : data?.teachers.find((item) => String(item.id) === draft.teacher_id)?.name ?? '—',
       class_name: classRow ? `${classRow.name} (${classRow.code})` : '—',
       subject_name: data?.subjects.find((item) => String(item.id) === draft.subject_id)?.name ?? '—',
     }
@@ -117,8 +124,9 @@ export function RequirementsPage() {
   }
 
   function existingDuplicate(teacherId: string, classId: number, subjectId: string, ignoreId?: number) {
+    const targetTeacherId = normalizedTeacherId(teacherId)
     return (data?.requirements ?? []).find((row) =>
-      Number(row.teacher_id) === Number(teacherId) &&
+      normalizedTeacherId(row.teacher_id) === targetTeacherId &&
       Number(row.class_id) === Number(classId) &&
       Number(row.subject_id) === Number(subjectId) &&
       Number(row.id) !== Number(ignoreId ?? 0)
@@ -136,14 +144,14 @@ export function RequirementsPage() {
     const duplicateSaved = existingDuplicate(form.teacher_id, classId, form.subject_id, editingSavedId ?? undefined)
     const duplicateDraft = drafts.some((item) =>
       item.id !== editingDraftId &&
-      Number(item.teacher_id) === Number(form.teacher_id) &&
+      normalizedTeacherId(item.teacher_id) === normalizedTeacherId(form.teacher_id) &&
       Number(item.class_id) === classId &&
       Number(item.subject_id) === Number(form.subject_id)
     )
 
     if (duplicateSaved || duplicateDraft) {
       const subject = data?.subjects.find((item) => Number(item.id) === Number(form.subject_id))?.name ?? 'this subject'
-      const teacher = data?.teachers.find((item) => Number(item.id) === Number(form.teacher_id))?.name ?? 'this teacher'
+      const teacher = form.teacher_id === WITHOUT_TEACHER ? 'Without Teacher' : data?.teachers.find((item) => Number(item.id) === Number(form.teacher_id))?.name ?? 'this teacher'
       const schoolClass = data?.classes.find((item) => Number(item.id) === classId)
       notify(`${teacher} is already allocated ${subject} for ${schoolClass?.name ?? 'this class'}. The same details already exist.`, 'warning')
       return
@@ -181,8 +189,8 @@ export function RequirementsPage() {
     try {
       for (const draft of drafts) {
         const duplicate = existingDuplicate(draft.teacher_id, Number(draft.class_id), draft.subject_id)
-        if (duplicate) throw new Error(`The same allocation already exists for ${duplicate.teacher_name ?? 'this teacher'}, ${duplicate.class_name ?? 'this class'} and ${duplicate.subject_name ?? 'this subject'}.`)
-        await scheduling.createRequirement({ class_id: Number(draft.class_id), subject_id: Number(draft.subject_id), teacher_id: Number(draft.teacher_id), periods_per_week: draft.periods_per_week, double_periods: draft.double_periods })
+        if (duplicate) throw new Error(`The same allocation already exists for ${duplicate.teacher_name ?? 'Without Teacher'}, ${duplicate.class_name ?? 'this class'} and ${duplicate.subject_name ?? 'this subject'}.`)
+        await scheduling.createRequirement({ class_id: Number(draft.class_id), subject_id: Number(draft.subject_id), teacher_id: normalizedTeacherId(draft.teacher_id), periods_per_week: draft.periods_per_week, double_periods: draft.double_periods })
       }
       const count = drafts.length
       setDrafts([])
@@ -199,7 +207,7 @@ export function RequirementsPage() {
     const schoolClass = data?.classes.find((item) => Number(item.id) === Number(row.class_id))
     const levelId = schoolClass?.level_id ?? ''
     setEditingSavedId(Number(row.id))
-    setForm({ teacher_id: String(row.teacher_id ?? ''), level_id: String(levelId), class_id: String(row.class_id), subject_id: String(row.subject_id), periods_per_week: Number(row.periods_per_week ?? 4), double_lesson: Number(row.double_periods ?? 0) > 0 })
+    setForm({ teacher_id: row.teacher_id == null ? WITHOUT_TEACHER : String(row.teacher_id), level_id: String(levelId), class_id: String(row.class_id), subject_id: String(row.subject_id), periods_per_week: Number(row.periods_per_week ?? 4), double_lesson: Number(row.double_periods ?? 0) > 0 })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -217,7 +225,7 @@ export function RequirementsPage() {
     }
     try {
       await scheduling.deleteRequirement(editingSavedId)
-      await scheduling.createRequirement({ class_id: Number(form.class_id), subject_id: Number(form.subject_id), teacher_id: Number(form.teacher_id), periods_per_week: Number(form.periods_per_week), double_periods: form.double_lesson ? 1 : 0 })
+      await scheduling.createRequirement({ class_id: Number(form.class_id), subject_id: Number(form.subject_id), teacher_id: normalizedTeacherId(form.teacher_id), periods_per_week: Number(form.periods_per_week), double_periods: form.double_lesson ? 1 : 0 })
       notify('Teaching allocation updated.', 'success')
       resetForm()
       await load()
@@ -254,7 +262,7 @@ export function RequirementsPage() {
   return <>
     <PageHeader title="Teaching Allocations" breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Scheduling' }, { label: 'Teaching Allocations' }]} />
     {error ? <ErrorState title="Teaching allocations could not load" message={error} onRetry={load} /> : <>
-      {!ready && !loading && <Alert tone="info" title="Complete academic setup first">Teaching allocations require academic levels, classes, teachers and subjects.</Alert>}
+      {!ready && !loading && <Alert tone="info" title="Complete academic setup first">Teaching allocations require academic levels, classes and subjects.</Alert>}
 
       {ready && data && <section className="card section">
         <div className="toolbar">
@@ -262,7 +270,7 @@ export function RequirementsPage() {
           {(editingDraftId || editingSavedId) && <button type="button" className="button button--ghost" onClick={resetForm}>Cancel</button>}
         </div>
         <form className="form--grid" onSubmit={editingSavedId ? saveSavedEdit : addDraft}>
-          <label><span>Teacher</span><select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))}><option value="">Select teacher</option>{data.teachers.slice().sort((a, b) => a.name.localeCompare(b.name)).map((teacher: Teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
+          <label><span>Teacher</span><select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))}><option value="">Select teacher</option><option value={WITHOUT_TEACHER}>Without Teacher</option>{data.teachers.slice().sort((a, b) => a.name.localeCompare(b.name)).map((teacher: Teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
           <label><span>Level</span><select value={form.level_id} onChange={(event) => changeLevel(event.target.value)}><option value="">Select level</option>{orderedLevels.map((level: Level) => <option key={level.id} value={level.id}>{level.name}</option>)}</select></label>
           <label><span>Class code</span><select value={form.class_id} onChange={(event) => setForm((current) => ({ ...current, class_id: event.target.value }))} disabled={!form.level_id}><option value="">{form.level_id ? 'Select class code' : 'Select level first'}</option>{orderedClasses.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.code} — {schoolClass.name}</option>)}</select></label>
           <label><span>Subject</span><select value={form.subject_id} onChange={(event) => setForm((current) => ({ ...current, subject_id: event.target.value }))}><option value="">Select subject</option>{data.subjects.slice().sort((a, b) => a.name.localeCompare(b.name)).map((subject: Subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></label>
