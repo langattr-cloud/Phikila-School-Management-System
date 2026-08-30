@@ -23,18 +23,16 @@ class SubjectOut(ORMModel,SubjectIn): id:int
 class RoomIn(BaseModel):
     name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); building:str|None=None; capacity:int=Field(default=40,ge=1,le=2000); room_type:str=Field(default='classroom',max_length=40); is_accessible:bool=True; unavailable:Slots=Field(default_factory=dict)
 class RoomOut(ORMModel,RoomIn): id:int
-class ClassIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int=Field(default=40,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
+class ClassIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=30); student_count:int=Field(default=40,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots=Field(default_factory=dict)
 class ClassUpdateIn(BaseModel):
-    name:str|None=Field(default=None,min_length=1,max_length=120); code:str|None=Field(default=None,min_length=1,max_length=30); grade:str|None=None; stream:str|None=None; student_count:int|None=Field(default=None,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots|None=None
+    name:str|None=Field(default=None,min_length=1,max_length=120); code:str|None=Field(default=None,min_length=1,max_length=30); student_count:int|None=Field(default=None,ge=0,le=500); home_room_id:int|None=None; class_teacher_id:int|None=None; unavailable:Slots|None=None
     @model_validator(mode='before')
     @classmethod
     def normalize_frontend_values(cls, value):
         if not isinstance(value, dict): return value
         data=dict(value)
-        for key in ('name','code','grade','stream'):
-            if key in data and data[key] is not None:
-                data[key]=str(data[key]).strip()
-                if key in ('grade','stream') and data[key]=='': data[key]=None
+        for key in ('name','code'):
+            if key in data and data[key] is not None: data[key]=str(data[key]).strip()
         for key in ('student_count','home_room_id','class_teacher_id'):
             if key in data and data[key] is not None and data[key] != '':
                 try: data[key]=int(float(data[key]))
@@ -55,7 +53,7 @@ class ClassUpdateIn(BaseModel):
                     normalized[str(day)]=vals
                 data['unavailable']=normalized
         return data
-class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None; academic_stream:str|None=None
+class ClassOut(ORMModel,ClassIn): id:int; academic_stream:str|None=None
 class ClassTeacherAssignmentIn(BaseModel): teacher_id:int|None=None
 class TtLessonRequirementIn(BaseModel): pass
 class RequirementIn(BaseModel): class_id:int; subject_id:int; teacher_id:int|None=None; room_id:int|None=None; periods_per_week:int=Field(default=1,ge=1,le=40); double_periods:int=Field(default=0,ge=0,le=10)
