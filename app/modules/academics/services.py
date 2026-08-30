@@ -59,9 +59,15 @@ class LevelService:
             if duplicate and duplicate.id != level.id: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
         return self.repository.update_level(level, data)
     def delete_level(self, school_id, level_id):
+        # Grade/Stream are retired from the application and their database tables
+        # may no longer exist. Do not query those legacy tables from the Levels API.
         level = self.get_level_by_id(school_id, level_id)
-        if self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.level_id == level_id).count(): raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete a level that still contains grades. Move or delete its grades first.")
-        self.db.delete(level); self.db.commit()
+        try:
+            self.db.delete(level)
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this level because it is still referenced by existing school data.")
 
 class GradeService:
     def __init__(self, db: Session): self.repository = GradeRepository(db); self.db = db
