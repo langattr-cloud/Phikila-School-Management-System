@@ -72,9 +72,9 @@ class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=6); period_index:int=
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=6); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
 class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
 class UnassignedOut(BaseModel): requirement_id:int; subject_id:int; subject_name:str; subject_colour:str; class_id:int; class_name:str; teacher_id:int|None; teacher_name:str|None; room_id:int|None; room_name:str|None; periods_per_week:int; placed:int; remaining:int; requires_double:bool
-class ExplanationReason(BaseModel): code?: str
-class Alternative: day: int; period: int; day_name?: str; period_name?: str
-class Explanation: allowed: bool; reasons: list[ExplanationReason]; alternatives: list[Alternative]
+class ExplanationReason(BaseModel): code:str|None=None; message:str|None=None; text:str|None=None; factor:str|None=None; detail:str|None=None
+class Alternative(BaseModel): day:int; period:int; day_name:str|None=None; period_name:str|None=None
+class Explanation(BaseModel): allowed:bool; reasons:list[ExplanationReason]; alternatives:list[Alternative]
 class ConflictOut(BaseModel): severity:str; kind:str; message:str; lesson_ids:list[int]; day:int|None=None; period:int|None=None
 class EventIn(BaseModel): name:str=Field(min_length=1,max_length=80); start_time:str=Field(pattern=r'^\d{2}:\d{2}$'); end_time:str=Field(pattern=r'^\d{2}:\d{2}$'); day_indexes:list[int]=Field(min_length=1,max_length=7); event_type:str=Field(default='break',min_length=1,max_length=40); note:str|None=None
 class EventOut(ORMModel,EventIn): id:int
