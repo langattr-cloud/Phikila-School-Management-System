@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { AlertIcon, CheckIcon, CloseIcon } from './icons'
 
-type ToastTone = 'success' | 'error' | 'info'
+type ToastTone = 'success' | 'error' | 'info' | 'warning'
 
 type Toast = { id: number; tone: ToastTone; message: string }
 
@@ -23,6 +23,7 @@ const TONE_LABEL: Record<ToastTone, string> = {
   success: 'Success',
   error: 'Error',
   info: 'Notice',
+  warning: 'Warning',
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
