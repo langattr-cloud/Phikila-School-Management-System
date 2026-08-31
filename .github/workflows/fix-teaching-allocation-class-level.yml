@@ -1,0 +1,41 @@
+name: Fix teaching allocation class levels
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-class-level-mapping:
+    if: !contains(github.event.head_commit.message, 'fix: teaching allocation class level mapping')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch scheduling class mapping
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('app/modules/scheduling/router.py')
+          text = path.read_text()
+
+          old = '''    for row in rows:\n        item = s.ClassOut.model_validate(row)\n        stream = None\n        if row.code and row.code.upper().startswith("STREAM-"):\n            try: stream = streams.get(int(row.code.split("-", 1)[1]))\n            except ValueError: pass\n        if stream:\n            grade = stream.grade.code or stream.grade.name if stream.grade else ""\n            grade_num = ''.join(ch for ch in str(grade) if ch.isdigit())\n            stream_code = stream.code or stream.name or ""\n            item.academic_stream = f"{grade_num}{stream_code[-1].upper()}" if grade_num and stream_code else (stream.name or None)\n        out.append(item)'''
+
+          new = '''    for row in rows:\n        item = s.ClassOut.model_validate(row)\n        stream = None\n        if row.stream_id is not None:\n            try: stream = streams.get(int(row.stream_id))\n            except (TypeError, ValueError): pass\n        if stream is None and row.code and row.code.upper().startswith("STREAM-"):\n            try: stream = streams.get(int(row.code.split("-", 1)[1]))\n            except (TypeError, ValueError): pass\n        if stream:\n            # Academic Setup is the source of truth for a Class's Level.\n            # Keep the existing Class/Class Code, but expose the Level carried\n            # by its Academic Setup Stream so Teaching Allocations can show all\n            # Classes belonging to the selected Level.\n            item.level_id = int(stream.level_id) if stream.level_id is not None else item.level_id\n            grade = stream.grade.code or stream.grade.name if stream.grade else ""\n            grade_num = ''.join(ch for ch in str(grade) if ch.isdigit())\n            stream_code = stream.code or stream.name or ""\n            item.academic_stream = f"{grade_num}{stream_code[-1].upper()}" if grade_num and stream_code else (stream.name or None)\n        out.append(item)'''
+
+          if old not in text:
+              raise SystemExit('Expected active /classes mapping block was not found')
+          path.write_text(text.replace(old, new, 1))
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/modules/scheduling/router.py
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: teaching allocation class level mapping"
+          git push
