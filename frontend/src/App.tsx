@@ -37,19 +37,19 @@ const ExaminationsPage = lazy(() => import('./pages/Examinations').then(m => ({ 
 const ExaminationLevelsPage = lazy(() => import('./pages/ExaminationLevelsPage').then(m => ({ default: m.ExaminationLevelsPage })))
 const MarkAccessPage = lazy(() => import('./pages/MarkAccessPage').then(m => ({ default: m.default })))
 const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ default: m.default })))
-const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.default })))
+const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.ClassResultsPage })))
 const FinancePage = lazy(() => import('./pages/Finance').then(m => ({ default: m.default })))
 const FinancePaymentInboxPage = lazy(() => import('./pages/FinancePaymentInbox').then(m => ({ default: m.default })))
 const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.OcrScanPage })))
 const SchedulingAnalyticsPage = lazy(() => import('./pages/SchedulingAnalyticsPage').then(m => ({ default: m.SchedulingAnalyticsPage })))
 const VersionsPage = lazy(() => import('./pages/VersionsPage').then(m => ({ default: m.VersionsPage })))
-const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.default })))
 const LlmProvidersPage = lazy(() => import('./pages/LlmProvidersPage').then(m => ({ default: m.LlmProvidersPage })))
 const PlatformDashboardPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformDashboardPage })))
 const PlatformSchoolsPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformSchoolsPage })))
 const PlatformSchoolDetailPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformSchoolDetailPage })))
 const PlatformRequestsPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformRequestsPage })))
-const PlatformAdminsPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformAdminsPage })))
+const PlatformAdminsPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.default })))
 const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then(m => ({ default: m.PlatformAuditPage })))
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then(m => ({ default: m.AwaitingApprovalPage })))
 
@@ -58,27 +58,15 @@ function RequireAuth({ children }: { children: ReactNode }) { const { session, i
 function RedirectIfSignedIn({ children }: { children: ReactNode }) { const { session, initialising, recoveryMode } = useAuth(); const navigate = useNavigate(); const { pathname } = useRouter(); const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'; useEffect(() => { if (shouldRedirect) navigate('/', { replace: true }) }, [shouldRedirect, navigate]); if (initialising) return <FullPageLoader label="Checking your session…" />; if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />; return <>{children}</> }
 function AccessGate({ children }: { children: ReactNode }) { const { session, loading, error } = usePlatformSession(); if (loading) return <FullPageLoader label="Checking your access…" />; if (error) return <>{children}</>; if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>; return <>{children}</> }
 function TimetableAppearanceLauncher() {
- const { pathname } = useRouter(); const route = normalisePath(pathname); const isTimetable = route === '/timetable' || route === '/my-timetable';
- const [open, setOpen] = useState(false); const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
+ const { pathname } = useRouter(); const route = normalisePath(pathname); const isTimetable = route === '/timetable' || route === '/my-timetable'
+ const [open, setOpen] = useState(false); const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
  useEffect(() => {
-  if (!isTimetable) return;
-  const openCell = (detail: SelectedCell) => { if (!detail) return; setSelectedCell(detail); setOpen(true) };
-  const handleEvent = (event: Event) => openCell((event as CustomEvent<SelectedCell>).detail);
-  const handleClick = (event: MouseEvent) => {
-   const target = event.target as HTMLElement | null; if (!target) return;
-   if (target.closest('.timetable-appearance-modal, .timetable-appearance-launcher')) return;
-   const lesson = target.closest('.lesson-card') as HTMLElement | null;
-   if (lesson) { openCell({ type: 'lesson', label: lesson.getAttribute('aria-label')?.split(',')[0] || lesson.textContent?.trim() || 'Lesson' }); return }
-   const period = target.closest('.timetable__period-head, .timetable__whole-period-head') as HTMLElement | null;
-   if (period) { openCell({ type: 'period', label: period.textContent?.trim() || 'Period / Time' }); return }
-   const day = target.closest('.timetable__day-label, .timetable__whole-day-head') as HTMLElement | null;
-   if (day) { openCell({ type: 'day', label: day.textContent?.trim() || 'Day / Date' }); return }
-  };
-  window.addEventListener('phikila:timetable-cell-selected', handleEvent);
-  document.addEventListener('click', handleClick, true);
-  return () => { window.removeEventListener('phikila:timetable-cell-selected', handleEvent); document.removeEventListener('click', handleClick, true) };
- }, [isTimetable]);
- if (!isTimetable) return null;
+  if (!isTimetable) return
+  const handle = (event: Event) => { const detail = (event as CustomEvent<SelectedCell>).detail; if (detail) { setSelectedCell(detail); setOpen(true) } }
+  window.addEventListener('phikila:timetable-cell-selected', handle)
+  return () => window.removeEventListener('phikila:timetable-cell-selected', handle)
+ }, [isTimetable])
+ if (!isTimetable) return null
  return <><button type="button" className="timetable-appearance-launcher button button--secondary button--sm" onClick={() => setOpen(true)} aria-label="Open timetable appearance settings">Appearance</button><TimetableAppearanceEditor open={open} onClose={() => setOpen(false)} selectedCell={selectedCell} /></>
 }
 function routeFor(pathname: string): ReactNode { switch (pathname) {
