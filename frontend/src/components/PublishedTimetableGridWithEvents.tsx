@@ -1,6 +1,7 @@
 import type { Event, TimetableView } from '../lib/scheduling'
 import './timetable-time-grid.css'
 import './timetable-subject-colours.css'
+import './personal-timetable.css'
 
 function minutes(value:string){const [h,m]=value.split(':').map(Number);return h*60+m}
 function validColour(value:string|undefined){return value&&/^#[0-9A-Fa-f]{6}$/.test(value)?value:undefined}
