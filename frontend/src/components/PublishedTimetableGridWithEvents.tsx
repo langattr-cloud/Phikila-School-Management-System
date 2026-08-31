@@ -14,12 +14,12 @@ export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
  const periods=[...view.periods].sort((a,b)=>minutes(a.start_time)-minutes(b.start_time)||a.index-b.index)
  const days=view.days
  const periodCount=Math.max(1,periods.length)
- const columnTemplate=`7rem repeat(${periodCount}, minmax(4.3rem, 1fr))`
- const rowTemplate=`2.8rem repeat(${Math.max(1,days.length)}, minmax(5.25rem, 1fr))`
+ const dayCount=Math.max(1,days.length)
+ const rowTemplate=`2.8rem repeat(${dayCount}, minmax(5.25rem, 1fr))`
  const title=mode==='teacher' ? `Teacher ${view.target_name ?? ''}`.trim() : `${view.target_name ?? 'Class'} Timetable`
  return <div className="timetable timetable--published timetable--final timetable--entity timetable--personal">
   <div className="timetable__personal-title">{title}</div>
-  <div className="entity-timetable-grid" style={{gridTemplateColumns:columnTemplate,gridTemplateRows:rowTemplate}}>
+  <div className="entity-timetable-grid" style={{'--tt-period-count':periodCount,'--tt-day-count':dayCount,gridTemplateRows:rowTemplate} as React.CSSProperties}>
    <div className="entity-timetable-corner">Day / Date</div>
    {periods.map((p,column)=><div className={`entity-timetable-period ${!p.is_teaching?'entity-timetable-period--break':''}`} style={{gridColumn:column+2,gridRow:1}} key={p.index}><span>{p.name}</span><small>{p.start_time}–{p.end_time}</small></div>)}
    {days.map((day,row)=><div className="entity-timetable-day" style={{gridColumn:1,gridRow:row+2}} key={day.index}>{day.name}</div>)}
