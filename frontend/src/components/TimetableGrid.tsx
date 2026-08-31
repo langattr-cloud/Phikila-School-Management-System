@@ -18,45 +18,822 @@ type PrintLabelKind = 'subject' | 'teacher' | 'class'
 type PrintLabelPosition = 'top' | 'middle' | 'bottom' | 'inside'
 type PrintLabelSettings = { kind: PrintLabelKind; position: PrintLabelPosition; bold: boolean; italic: boolean; underline: boolean; fontSize: number; timeFormat: TimeFormat; timeLayout: TimeLayout }
 type Props = { days: Day[]; periods: Period[]; lessons: Lesson[]; meta: LessonMeta; view?: ViewKind; conflicted?: Set<number>; selectedId?: number | null; readOnly?: boolean; zoom?: number; dense?: boolean; currentSlot?: { day: number; period: number } | null; timeFormat?: TimeFormat; timeLayout?: TimeLayout; onSelect?: (lesson: Lesson) => void; onMove?: (lesson: Lesson, day: number, period: number) => void; onResize?: (lesson: Lesson, duration: number) => void; onDropUnassigned?: (unassignedId: number, day: number, period: number) => void; secondary?: (lesson: Lesson) => string | null | undefined; teacherInitials?: boolean }
+
 const PRINT_LABEL_KEY = 'phikila:timetable-print-label-settings:v2'
 const DEFAULT_PRINT_LABEL_SETTINGS: PrintLabelSettings = { kind: 'subject', position: 'middle', bold: true, italic: false, underline: false, fontSize: 10, timeFormat: '24h', timeLayout: 'split' }
-function minutes(value: string) { const [hour, minute] = value.split(':').map(Number); return hour * 60 + minute }
-const SUBJECT_COLOURS = ['#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#0891B2', '#0F766E', '#4F46E5']
-function colourFor(subject: Subject | undefined, index: number) { return subject?.colour && /^#[0-9A-Fa-f]{6}$/.test(subject.colour) ? subject.colour : SUBJECT_COLOURS[index % SUBJECT_COLOURS.length] }
-function dayLabel(day: Day) { const item = day as Day & { date?: string; date_label?: string }; return item.date_label || item.date || day.name }
-function formatTime(value: string, format: TimeFormat) { const [rawHour, minute] = value.split(':').map(Number); if (format === '24h') return `${String(rawHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`; const suffix = rawHour >= 12 ? 'PM' : 'AM'; const hour = rawHour % 12 || 12; return `${hour}:${String(minute).padStart(2, '0')} ${suffix}` }
-function generatedTimestamp() { return new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) }
-function loadPrintLabelSettings(): PrintLabelSettings { try { const saved = localStorage.getItem(PRINT_LABEL_KEY) || localStorage.getItem('phikila:timetable-print-label-settings:v1'); return saved ? { ...DEFAULT_PRINT_LABEL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_PRINT_LABEL_SETTINGS } catch { return DEFAULT_PRINT_LABEL_SETTINGS } }
 
-export function TimetableGrid({ days, periods, lessons, meta, view = 'whole-school', conflicted, selectedId, readOnly = false, zoom = 1, dense = false, currentSlot, timeFormat = '24h', timeLayout = 'split', onSelect, onMove, onResize, onDropUnassigned, secondary, teacherInitials = false }: Props) {
-  const [dragging, setDragging] = useState<Lesson | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [printSettings, setPrintSettings] = useState<PrintLabelSettings>(() => ({ ...DEFAULT_PRINT_LABEL_SETTINGS, timeFormat, timeLayout })); const [printSettingsOpen, setPrintSettingsOpen] = useState(false); const [printPreviewLessonId, setPrintPreviewLessonId] = useState<number | null>(null)
-  useEffect(() => { setPrintSettings((current) => ({ ...loadPrintLabelSettings(), timeFormat: current.timeFormat || timeFormat, timeLayout: current.timeLayout || timeLayout })) }, [timeFormat, timeLayout])
-  const orderedPeriods = useMemo(() => [...periods].sort((a, b) => minutes(a.start_time) - minutes(b.start_time) || a.index - b.index), [periods]); const activeDays = useMemo(() => days.filter((day) => day.is_active), [days]); const subjectIndexes = useMemo(() => new Map([...meta.subjects.values()].sort((a, b) => a.id - b.id).map((subject, index) => [subject.id, index])), [meta.subjects]); const bySlot = useMemo(() => { const result = new Map<string, Lesson[]>(); lessons.forEach((lesson) => { const key = `${lesson.day_index}:${lesson.period_index}`; result.set(key, [...(result.get(key) ?? []), lesson]) }); return result }, [lessons]); const wholeRows = useMemo(() => [...meta.classes.values()].sort((a, b) => { const ag = a.grade ?? ''; const bg = b.grade ?? ''; return ag.localeCompare(bg, undefined, { numeric: true }) || timetableClassLabel(a).localeCompare(timetableClassLabel(b), undefined, { numeric: true }) }), [meta.classes]); const effectiveView = view
-  const moveLesson = (lesson: Lesson, day: number, period: number) => { if (readOnly || lesson.is_locked) return; onMove?.(lesson, day, period); setDragging(null); setCarrying(null); setHovered(null) }
-  const handleCellKeyDown = (event: KeyboardEvent, day: number, period: number, cellLessons: Lesson[]) => { if (readOnly || (event.key !== 'Enter' && event.key !== ' ')) return; event.preventDefault(); if (carrying) return moveLesson(carrying, day, period); const lesson = cellLessons.find((item) => !item.is_locked) ?? cellLessons[0]; if (lesson) { onSelect?.(lesson); if (!lesson.is_locked) setCarrying(lesson) } }
-  const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => { window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } })) }
-  const openPrintSettings = (lesson?: Lesson) => { if (lesson) { onSelect?.(lesson); setPrintPreviewLessonId(lesson.id) } setPrintSettingsOpen(true) }
-  const savePrintSettings = () => { try { localStorage.setItem(PRINT_LABEL_KEY, JSON.stringify(printSettings)) } catch {} setPrintSettingsOpen(false) }
-  const getLabelValue = (lesson: Lesson) => { const subject = meta.subjects.get(lesson.subject_id); const assignedClass = meta.classes.get(lesson.class_id); const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : undefined; if (printSettings.kind === 'teacher') return teacher?.code || teacher?.staff_number || (teacherInitials && teacher ? teacher.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 4).toUpperCase() : '') || '—'; if (printSettings.kind === 'class') return assignedClass ? timetableClassLabel(assignedClass) : '—'; return subject?.code ?? subject?.name ?? 'Lesson' }
-  const renderCard = (lesson: Lesson, compact = false) => { const subject = meta.subjects.get(lesson.subject_id); const assignedClass = meta.classes.get(lesson.class_id); const assignedClassLabel = assignedClass ? timetableClassLabel(assignedClass) : ''; const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : undefined; const teacherCode = teacher?.code || teacher?.staff_number || (teacherInitials && teacher ? teacher.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 4).toUpperCase() : '') || '—'; const secondaryValue = effectiveView === 'class' ? teacherCode : effectiveView === 'teacher' ? assignedClassLabel : secondary?.(lesson) ?? teacherCode; const subjectColour = colourFor(subject, subjectIndexes.get(lesson.subject_id) ?? 0); const conflict = conflicted?.has(lesson.id) ?? false; const period = periods.find((item) => item.index === lesson.period_index); const style = { '--subject-colour': subjectColour, backgroundColor: conflict ? '#FBE8E5' : subjectColour, borderColor: conflict ? '#9A2F24' : subjectColour, '--print-font-size': `${printSettings.fontSize}px` } as CSSProperties; return <div key={lesson.id} className={['lesson-card', compact ? 'lesson-card--compact' : '', `lesson-card--print-${printSettings.position}`, `lesson-card--print-${printSettings.kind}`, printSettings.bold ? 'lesson-card--print-bold' : '', printSettings.italic ? 'lesson-card--print-italic' : '', printSettings.underline ? 'lesson-card--print-underline' : '', selectedId === lesson.id ? 'lesson-card--selected' : '', conflict ? 'lesson-card--conflict' : '', lesson.is_locked ? 'lesson-card--locked' : '', carrying?.id === lesson.id ? 'lesson-card--carrying' : ''].filter(Boolean).join(' ')} style={style} draggable={!readOnly && !lesson.is_locked} onDragStart={(event) => { if (lesson.is_locked) { event.preventDefault(); return }; setDragging(lesson); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(lesson.id)) }} onDragEnd={() => setDragging(null)} onClick={(event) => { event.stopPropagation(); selectAppearanceCell('lesson', subject?.name ?? 'Lesson', { day: lesson.day_index, period: lesson.period_index, lessonId: lesson.id }); openPrintSettings(lesson) }} role="button" tabIndex={-1} aria-label={`${subject?.name ?? 'Lesson'}${secondaryValue ? `, ${secondaryValue}` : ''}`}>
-    <span className="lesson-card__subject">{printSettings.kind === 'subject' ? subject?.code ?? subject?.name ?? 'Lesson' : printSettings.kind === 'teacher' ? teacherCode : assignedClassLabel}</span>
-    {printSettings.kind === 'subject' && secondaryValue && <span className="lesson-card__class">{secondaryValue}</span>}
-    {printSettings.timeLayout === 'single' && period && <span className="lesson-card__time">{formatTime(period.start_time, printSettings.timeFormat)}–{formatTime(period.end_time, printSettings.timeFormat)}</span>}
-    {printSettings.timeLayout === 'split' && period && <span className="lesson-card__time lesson-card__time--split"><span>{formatTime(period.start_time, printSettings.timeFormat)}</span><span>{formatTime(period.end_time, printSettings.timeFormat)}</span></span>}
-    {conflict && <span className="lesson-card__flag">Conflict</span>}
-    {lesson.is_locked && <span className="lesson-card__lock" title="Locked"><LockIcon width={12} height={12} /></span>}
-    {!readOnly && !lesson.is_locked && onResize && <button type="button" className="lesson-card__resize" title="Extend lesson" aria-label="Extend lesson" onClick={(event) => { event.stopPropagation(); onResize(lesson, Math.min(10, (lesson.duration ?? 1) + 1)) }} />}
-  </div> }
-  const wholeColumns = Math.max(1, activeDays.length * Math.max(1, orderedPeriods.length)); const wholeStyle = { '--tt-period-count': orderedPeriods.length || 1, '--tt-whole-columns': wholeColumns } as CSSProperties; const timeStyle = { '--tt-period-count': orderedPeriods.length || 1, gridTemplateColumns: `2.5rem repeat(${Math.max(1, orderedPeriods.length)}, minmax(0, 1fr))` } as CSSProperties; const periodTime = (period: Period) => printSettings.timeLayout === 'single' ? `${formatTime(period.start_time, printSettings.timeFormat)}–${formatTime(period.end_time, printSettings.timeFormat)}` : `${formatTime(period.start_time, printSettings.timeFormat)} / ${formatTime(period.end_time, printSettings.timeFormat)}`
-  const slotHandlers = (key: string, day: number, period: number, isBreak: boolean) => ({ onDragOver: (event: DragEvent) => { if (readOnly || isBreak || !dragging) return; event.preventDefault(); setHovered(key) }, onDragLeave: () => setHovered((value) => value === key ? null : value), onDrop: (event: DragEvent) => { event.preventDefault(); if (!isBreak && dragging) moveLesson(dragging, day, period) } })
-  const wholeSchoolGrid = <div className="timetable__whole-school-grid" style={wholeStyle}><div className="timetable__whole-corner">Grade / Stream</div>{activeDays.map((day) => <div key={`head-${day.index}`} className="timetable__whole-day-head" style={{ gridColumn: `span ${Math.max(1, orderedPeriods.length)}` }} onClick={() => selectAppearanceCell('day', dayLabel(day), { day: day.index })}>{dayLabel(day)}</div>)}<div className="timetable__whole-corner timetable__whole-period-row-label">Period / Time</div>{activeDays.flatMap((day) => orderedPeriods.map((period) => <div key={`period-${day.index}-${period.index}`} className={`timetable__whole-period-head ${!period.is_teaching ? 'timetable__period-head--break' : ''}`} onClick={() => period.is_teaching && selectAppearanceCell('period', `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index })}>{period.is_teaching && <><span className="timetable__period">{period.name}</span><span className={`timetable__clock timetable__clock--${printSettings.timeLayout}`}>{periodTime(period)}</span></>}</div>))}{wholeRows.map((row) => <div key={row.id} className="timetable__whole-row"><div className="timetable__whole-class-label">{timetableClassLabel(row)}</div>{activeDays.flatMap((day) => orderedPeriods.map((period) => { const key = `whole:${row.id}:${day.index}:${period.index}`; const cellLessons = lessons.filter((lesson) => lesson.class_id === row.id && lesson.day_index === day.index && lesson.period_index === period.index); const isBreak = !period.is_teaching; const isTarget = hovered === key && Boolean(dragging || carrying); return <div key={`${row.id}-${day.index}-${period.index}`} className={['timetable__whole-slot', isBreak ? 'timetable__whole-slot--break' : '', currentSlot?.day === day.index && currentSlot.period === period.index ? 'timetable__whole-slot--now' : '', isTarget ? 'timetable__cell--target' : ''].filter(Boolean).join(' ')} aria-label={`${timetableClassLabel(row)}, ${dayLabel(day)}, ${period.name}`} {...slotHandlers(key, day.index, period.index, isBreak)}>{cellLessons.map((lesson) => renderCard(lesson, true))}</div> }))}</div>)}</div>
-  const dayPeriodGrid = <><div className="timetable__time-grid" style={timeStyle}><div className="timetable__corner">Day / Date</div>{orderedPeriods.map((period) => <div key={period.index} className={`timetable__period-head ${!period.is_teaching ? 'timetable__period-head--break' : ''}`} onClick={() => period.is_teaching && selectAppearanceCell('period', `${period.name} ${periodTime(period)}`, { period: period.index })}>{period.is_teaching && <><span className="timetable__period">{period.name}</span><span className={`timetable__clock timetable__clock--${printSettings.timeLayout}`}>{periodTime(period)}</span></>}</div>)}{activeDays.map((day) => <div key={day.index} className="timetable__day-row"><div className="timetable__day-label" onClick={() => selectAppearanceCell('day', dayLabel(day), { day: day.index })}>{dayLabel(day)}</div>{orderedPeriods.map((period) => { const key = `${day.index}:${period.index}`; const cellLessons = bySlot.get(key) ?? []; const isBreak = !period.is_teaching; const isTarget = hovered === key && Boolean(dragging || carrying); return <div key={period.index} className={['timetable__cell', isBreak ? 'timetable__cell--break' : '', currentSlot?.day === day.index && currentSlot.period === period.index ? 'timetable__cell--now' : '', isTarget ? 'timetable__cell--target' : '', cellLessons.length === 0 ? 'timetable__cell--empty' : ''].filter(Boolean).join(' ')} tabIndex={readOnly ? -1 : 0} aria-label={`${dayLabel(day)}, ${period.name}`} onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)} {...slotHandlers(key, day.index, period.index, isBreak)}>{cellLessons.map((lesson) => renderCard(lesson))}</div> })}</div>)}</div></>
-  const previewLesson = printPreviewLessonId == null ? null : lessons.find((lesson) => lesson.id === printPreviewLessonId) ?? null
-  const previewPeriod = previewLesson ? periods.find((period) => period.index === previewLesson.period_index) : undefined
-  const previewSubject = previewLesson ? meta.subjects.get(previewLesson.subject_id) : undefined
-  const previewColour = previewLesson ? colourFor(previewSubject, subjectIndexes.get(previewLesson.subject_id) ?? 0) : 'var(--color-primary)'
-  const previewLabel = previewLesson ? getLabelValue(previewLesson) : 'Select a period block'
-  const previewSecondary = previewLesson && printSettings.kind === 'subject' ? (() => { const teacher = previewLesson.teacher_id ? meta.teachers.get(previewLesson.teacher_id) : undefined; return teacher?.code || teacher?.staff_number || '—' })() : ''
-  const previewStyle = { '--subject-colour': previewColour, backgroundColor: previewColour, borderColor: previewColour, '--print-font-size': `${printSettings.fontSize}px` } as CSSProperties
-  return <div className={['timetable', `timetable--zoom-${zoom === 0.75 ? '75' : zoom === 1.25 ? '125' : '100'}`, dense ? 'timetable--dense' : '', `timetable--${effectiveView}-view`, `timetable--time-${printSettings.timeLayout}`].join(' ')} data-generated-at={generatedTimestamp()}><div className="timetable__format-hint">Click a lesson, period/time, or day/date cell to format its appearance.</div>{effectiveView === 'whole-school' ? wholeSchoolGrid : dayPeriodGrid}<div className="timetable__print-footer"><span className="timetable__print-generated">Timetable generated: {generatedTimestamp()}</span><span className="timetable__print-brand">@Phikila Timetables</span></div>{printSettingsOpen && <div className="timetable__format-backdrop" role="presentation" onClick={() => setPrintSettingsOpen(false)}><section className="timetable__format-modal" role="dialog" aria-modal="true" aria-labelledby="timetable-format-title" onClick={(event) => event.stopPropagation()}><div className="timetable__format-header"><div><h2 id="timetable-format-title">Print label formatting</h2><p>Format the selected period and see the exact cell preview before applying it.</p></div><button type="button" className="timetable__format-close" onClick={() => setPrintSettingsOpen(false)} aria-label="Close">×</button></div><div className="timetable__format-fields"><label>Print name<select value={printSettings.kind} onChange={(event) => setPrintSettings((value) => ({ ...value, kind: event.target.value as PrintLabelKind }))}><option value="subject">Subject</option><option value="teacher">Teacher code</option><option value="class">Class code</option></select></label><label>Position<select value={printSettings.position} onChange={(event) => setPrintSettings((value) => ({ ...value, position: event.target.value as PrintLabelPosition }))}><option value="top">Top</option><option value="middle">Middle</option><option value="bottom">Bottom</option><option value="inside">Inside</option></select></label><label>Font size<input type="number" min="6" max="24" step="1" value={printSettings.fontSize} onChange={(event) => setPrintSettings((value) => ({ ...value, fontSize: Math.max(6, Math.min(24, Number(event.target.value) || 10)) }))}/></label><label>Time format<select value={printSettings.timeFormat} onChange={(event) => setPrintSettings((value) => ({ ...value, timeFormat: event.target.value as TimeFormat }))}><option value="24h">24-hour</option><option value="12h">12-hour</option></select></label><label>Time layout<select value={printSettings.timeLayout} onChange={(event) => setPrintSettings((value) => ({ ...value, timeLayout: event.target.value as TimeLayout }))}><option value="split">Split start / end</option><option value="single">Single line</option></select></label></div><div className="timetable__format-toggles"><label><input type="checkbox" checked={printSettings.bold} onChange={(event) => setPrintSettings((value) => ({ ...value, bold: event.target.checked }))}/> Bold</label><label><input type="checkbox" checked={printSettings.italic} onChange={(event) => setPrintSettings((value) => ({ ...value, italic: event.target.checked }))}/> Italic</label><label><input type="checkbox" checked={printSettings.underline} onChange={(event) => setPrintSettings((value) => ({ ...value, underline: event.target.checked }))}/> Underline</label></div><div className="timetable__format-preview"><div className="timetable__format-preview-heading"><span>Live preview — exact clicked period</span>{previewLesson && <small>{days.find((day) => day.index === previewLesson.day_index)?.name ?? 'Day'} · {previewPeriod?.name ?? `Period ${previewLesson.period_index}`} · {previewPeriod ? periodTime(previewPeriod) : ''}</small>}</div><div className="timetable__format-preview-cell"><div className={['timetable__format-preview-card','lesson-card',`lesson-card--print-${printSettings.position}`,`lesson-card--print-${printSettings.kind}`,printSettings.bold ? 'lesson-card--print-bold' : '',printSettings.italic ? 'lesson-card--print-italic' : '',printSettings.underline ? 'lesson-card--print-underline' : ''].filter(Boolean).join(' ')} style={previewStyle}><span className="lesson-card__subject">{previewLabel}</span>{previewSecondary && <span className="lesson-card__class">{previewSecondary}</span>}{previewPeriod && printSettings.timeLayout === 'single' && <span className="lesson-card__time">{formatTime(previewPeriod.start_time, printSettings.timeFormat)}–{formatTime(previewPeriod.end_time, printSettings.timeFormat)}</span>}{previewPeriod && printSettings.timeLayout === 'split' && <span className="lesson-card__time lesson-card__time--split"><span>{formatTime(previewPeriod.start_time, printSettings.timeFormat)}</span><span>{formatTime(previewPeriod.end_time, printSettings.timeFormat)}</span></span>}</div></div></div><div className="timetable__format-actions"><button type="button" className="timetable__format-cancel" onClick={() => setPrintSettingsOpen(false)}>Cancel</button><button type="button" className="timetable__format-save" onClick={savePrintSettings}>Apply to all & Save</button></div></section></div>}</div>
+function minutes(value: string) {
+  const [hour, minute] = value.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+const SUBJECT_COLOURS = ['#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#0891B2', '#0F766E', '#4F46E5']
+
+function colourFor(subject: Subject | undefined, index: number) {
+  return subject?.colour && /^#[0-9A-Fa-f]{6}$/.test(subject.colour)
+    ? subject.colour
+    : SUBJECT_COLOURS[index % SUBJECT_COLOURS.length]
+}
+
+function dayLabel(day: Day) {
+  const item = day as Day & { date?: string; date_label?: string }
+  return item.date_label || item.date || day.name
+}
+
+function formatTime(value: string, format: TimeFormat) {
+  const [rawHour, minute] = value.split(':').map(Number)
+  if (format === '24h') return `${String(rawHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  const suffix = rawHour >= 12 ? 'PM' : 'AM'
+  const hour = rawHour % 12 || 12
+  return `${hour}:${String(minute).padStart(2, '0')} ${suffix}`
+}
+
+function generatedTimestamp() {
+  return new Date().toLocaleString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
+function loadPrintLabelSettings(): PrintLabelSettings {
+  try {
+    const saved = localStorage.getItem(PRINT_LABEL_KEY) || localStorage.getItem('phikila:timetable-print-label-settings:v1')
+    return saved ? { ...DEFAULT_PRINT_LABEL_SETTINGS, ...JSON.parse(saved) } : DEFAULT_PRINT_LABEL_SETTINGS
+  } catch {
+    return DEFAULT_PRINT_LABEL_SETTINGS
+  }
+}
+
+export function TimetableGrid({
+  days,
+  periods,
+  lessons,
+  meta,
+  view = 'whole-school',
+  conflicted,
+  selectedId,
+  readOnly = false,
+  zoom = 1,
+  dense = false,
+  currentSlot,
+  timeFormat = '24h',
+  timeLayout = 'split',
+  onSelect,
+  onMove,
+  onResize,
+  onDropUnassigned,
+  secondary,
+  teacherInitials = false
+}: Props) {
+  const [dragging, setDragging] = useState<Lesson | null>(null)
+  const [carrying, setCarrying] = useState<Lesson | null>(null)
+  const [hovered, setHovered] = useState<string | null>(null)
+  const [printSettings, setPrintSettings] = useState<PrintLabelSettings>(() => ({
+    ...DEFAULT_PRINT_LABEL_SETTINGS,
+    timeFormat,
+    timeLayout
+  }))
+  const [printSettingsOpen, setPrintSettingsOpen] = useState(false)
+  const [printPreviewLessonId, setPrintPreviewLessonId] = useState<number | null>(null)
+
+  useEffect(() => {
+    setPrintSettings((current) => ({
+      ...loadPrintLabelSettings(),
+      timeFormat: current.timeFormat || timeFormat,
+      timeLayout: current.timeLayout || timeLayout
+    }))
+  }, [timeFormat, timeLayout])
+
+  const orderedPeriods = useMemo(
+    () => [...periods].sort((a, b) => minutes(a.start_time) - minutes(b.start_time) || a.index - b.index),
+    [periods]
+  )
+
+  const activeDays = useMemo(() => days.filter((day) => day.is_active), [days])
+
+  const subjectIndexes = useMemo(
+    () => new Map([...meta.subjects.values()].sort((a, b) => a.id - b.id).map((subject, index) => [subject.id, index])),
+    [meta.subjects]
+  )
+
+  const bySlot = useMemo(() => {
+    const result = new Map<string, Lesson[]>()
+    lessons.forEach((lesson) => {
+      const key = `${lesson.day_index}:${lesson.period_index}`
+      result.set(key, [...(result.get(key) ?? []), lesson])
+    })
+    return result
+  }, [lessons])
+
+  const wholeRows = useMemo(
+    () =>
+      [...meta.classes.values()].sort((a, b) => {
+        const ag = a.grade ?? ''
+        const bg = b.grade ?? ''
+        return ag.localeCompare(bg, undefined, { numeric: true }) ||
+          timetableClassLabel(a).localeCompare(timetableClassLabel(b), undefined, { numeric: true })
+      }),
+    [meta.classes]
+  )
+
+  const effectiveView = view
+
+  const moveLesson = (lesson: Lesson, day: number, period: number) => {
+    if (readOnly || lesson.is_locked) return
+    onMove?.(lesson, day, period)
+    setDragging(null)
+    setCarrying(null)
+    setHovered(null)
+  }
+
+  const handleCellKeyDown = (
+    event: KeyboardEvent,
+    day: number,
+    period: number,
+    cellLessons: Lesson[]
+  ) => {
+    if (readOnly || (event.key !== 'Enter' && event.key !== ' ')) return
+    event.preventDefault()
+    if (carrying) return moveLesson(carrying, day, period)
+
+    const lesson = cellLessons.find((item) => !item.is_locked) ?? cellLessons[0]
+
+    if (lesson) {
+      onSelect?.(lesson)
+      if (!lesson.is_locked) setCarrying(lesson)
+    }
+  }
+
+  const selectAppearanceCell = (
+    type: 'lesson' | 'period' | 'day',
+    label: string,
+    details: { day?: number; period?: number; lessonId?: number } = {}
+  ) => {
+    window.dispatchEvent(
+      new CustomEvent('phikila:timetable-cell-selected', {
+        detail: { type, label, ...details }
+      })
+    )
+  }
+
+  const openPrintSettings = (lesson?: Lesson) => {
+    if (lesson) {
+      onSelect?.(lesson)
+      setPrintPreviewLessonId(lesson.id)
+    }
+    setPrintSettingsOpen(true)
+  }
+
+  const savePrintSettings = () => {
+    try {
+      localStorage.setItem(PRINT_LABEL_KEY, JSON.stringify(printSettings))
+    } catch {}
+    setPrintSettingsOpen(false)
+  }
+
+  const getLabelValue = (lesson: Lesson) => {
+    const subject = meta.subjects.get(lesson.subject_id)
+    const assignedClass = meta.classes.get(lesson.class_id)
+    const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : undefined
+
+    if (printSettings.kind === 'teacher') {
+      return teacher?.code ||
+        teacher?.staff_number ||
+        (teacherInitials && teacher
+          ? teacher.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 4).toUpperCase()
+          : '') ||
+        '—'
+    }
+
+    if (printSettings.kind === 'class') {
+      return assignedClass ? timetableClassLabel(assignedClass) : '—'
+    }
+
+    return subject?.code ?? subject?.name ?? 'Lesson'
+  }
+
+  const renderCard = (lesson: Lesson, compact = false) => {
+    const subject = meta.subjects.get(lesson.subject_id)
+    const assignedClass = meta.classes.get(lesson.class_id)
+    const assignedClassLabel = assignedClass ? timetableClassLabel(assignedClass) : ''
+    const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : undefined
+    const teacherCode =
+      teacher?.code ||
+      teacher?.staff_number ||
+      (teacherInitials && teacher
+        ? teacher.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 4).toUpperCase()
+        : '') ||
+      '—'
+
+    const secondaryValue =
+      effectiveView === 'class'
+        ? teacherCode
+        : effectiveView === 'teacher'
+          ? assignedClassLabel
+          : secondary?.(lesson) ?? teacherCode
+
+    const subjectColour = colourFor(subject, subjectIndexes.get(lesson.subject_id) ?? 0)
+    const conflict = conflicted?.has(lesson.id) ?? false
+    const period = periods.find((item) => item.index === lesson.period_index)
+
+    const style = {
+      '--subject-colour': subjectColour,
+      backgroundColor: conflict ? '#FBE8E5' : subjectColour,
+      borderColor: conflict ? '#9A2F24' : subjectColour,
+      '--print-font-size': `${printSettings.fontSize}px`
+    } as CSSProperties
+
+    return (
+      <div
+        key={lesson.id}
+        className={[
+          'lesson-card',
+          compact ? 'lesson-card--compact' : '',
+          `lesson-card--print-${printSettings.position}`,
+          `lesson-card--print-${printSettings.kind}`,
+          printSettings.bold ? 'lesson-card--print-bold' : '',
+          printSettings.italic ? 'lesson-card--print-italic' : '',
+          printSettings.underline ? 'lesson-card--print-underline' : '',
+          selectedId === lesson.id ? 'lesson-card--selected' : '',
+          conflict ? 'lesson-card--conflict' : '',
+          lesson.is_locked ? 'lesson-card--locked' : '',
+          carrying?.id === lesson.id ? 'lesson-card--carrying' : ''
+        ].filter(Boolean).join(' ')}
+        style={style}
+        draggable={!readOnly && !lesson.is_locked}
+        onDragStart={(event) => {
+          if (lesson.is_locked) {
+            event.preventDefault()
+            return
+          }
+
+          setDragging(lesson)
+          event.dataTransfer.effectAllowed = 'move'
+          event.dataTransfer.setData('text/plain', String(lesson.id))
+        }}
+        onDragEnd={() => setDragging(null)}
+        onClick={(event) => {
+          event.stopPropagation()
+          selectAppearanceCell('lesson', subject?.name ?? 'Lesson', {
+            day: lesson.day_index,
+            period: lesson.period_index,
+            lessonId: lesson.id
+          })
+        }}
+        role="button"
+        tabIndex={-1}
+        aria-label={`${subject?.name ?? 'Lesson'}${secondaryValue ? `, ${secondaryValue}` : ''}`}
+      >
+        <span className="lesson-card__subject">
+          {printSettings.kind === 'subject'
+            ? subject?.code ?? subject?.name ?? 'Lesson'
+            : printSettings.kind === 'teacher'
+              ? teacherCode
+              : assignedClassLabel}
+        </span>
+
+        {printSettings.kind === 'subject' && secondaryValue && (
+          <span className="lesson-card__class">{secondaryValue}</span>
+        )}
+
+        {printSettings.timeLayout === 'single' && period && (
+          <span className="lesson-card__time">
+            {formatTime(period.start_time, printSettings.timeFormat)}–
+            {formatTime(period.end_time, printSettings.timeFormat)}
+          </span>
+        )}
+
+        {printSettings.timeLayout === 'split' && period && (
+          <span className="lesson-card__time lesson-card__time--split">
+            <span>{formatTime(period.start_time, printSettings.timeFormat)}</span>
+            <span>{formatTime(period.end_time, printSettings.timeFormat)}</span>
+          </span>
+        )}
+
+        {conflict && <span className="lesson-card__flag">Conflict</span>}
+
+        {lesson.is_locked && (
+          <span className="lesson-card__lock" title="Locked">
+            <LockIcon width={12} height={12} />
+          </span>
+        )}
+
+        {!readOnly && !lesson.is_locked && onResize && (
+          <button
+            type="button"
+            className="lesson-card__resize"
+            title="Extend lesson"
+            aria-label="Extend lesson"
+            onClick={(event) => {
+              event.stopPropagation()
+              onResize(lesson, Math.min(10, (lesson.duration ?? 1) + 1))
+            }}
+          />
+        )}
+      </div>
+    )
+  }
+
+  const wholeColumns = Math.max(1, activeDays.length * Math.max(1, orderedPeriods.length))
+
+  const wholeStyle = {
+    '--tt-period-count': orderedPeriods.length || 1,
+    '--tt-whole-columns': wholeColumns
+  } as CSSProperties
+
+  const timeStyle = {
+    '--tt-period-count': orderedPeriods.length || 1,
+    gridTemplateColumns: `2.5rem repeat(${Math.max(1, orderedPeriods.length)}, minmax(0, 1fr))`
+  } as CSSProperties
+
+  const periodTime = (period: Period) =>
+    printSettings.timeLayout === 'single'
+      ? `${formatTime(period.start_time, printSettings.timeFormat)}–${formatTime(period.end_time, printSettings.timeFormat)}`
+      : `${formatTime(period.start_time, printSettings.timeFormat)} / ${formatTime(period.end_time, printSettings.timeFormat)}`
+
+  const slotHandlers = (
+    key: string,
+    day: number,
+    period: number,
+    isBreak: boolean
+  ) => ({
+    onDragOver: (event: DragEvent) => {
+      if (readOnly || isBreak || !dragging) return
+      event.preventDefault()
+      setHovered(key)
+    },
+    onDragLeave: () => setHovered((value) => value === key ? null : value),
+    onDrop: (event: DragEvent) => {
+      event.preventDefault()
+      if (!isBreak && dragging) moveLesson(dragging, day, period)
+    }
+  })
+
+  const wholeSchoolGrid = (
+    <div className="timetable__whole-school-grid" style={wholeStyle}>
+      <div className="timetable__whole-corner">Grade / Stream</div>
+
+      {activeDays.map((day) => (
+        <div
+          key={`head-${day.index}`}
+          className="timetable__whole-day-head"
+          style={{ gridColumn: `span ${Math.max(1, orderedPeriods.length)}` }}
+          onClick={() => selectAppearanceCell('day', dayLabel(day), { day: day.index })}
+        >
+          {dayLabel(day)}
+        </div>
+      ))}
+
+      <div className="timetable__whole-corner timetable__whole-period-row-label">
+        Period / Time
+      </div>
+
+      {activeDays.flatMap((day) =>
+        orderedPeriods.map((period) => (
+          <div
+            key={`period-${day.index}-${period.index}`}
+            className={`timetable__whole-period-head ${!period.is_teaching ? 'timetable__period-head--break' : ''}`}
+            onClick={() =>
+              period.is_teaching &&
+              selectAppearanceCell(
+                'period',
+                `${period.name} ${periodTime(period)}`,
+                { day: day.index, period: period.index }
+              )
+            }
+          >
+            {period.is_teaching && (
+              <>
+                <span className="timetable__period">{period.name}</span>
+                <span className={`timetable__clock timetable__clock--${printSettings.timeLayout}`}>
+                  {periodTime(period)}
+                </span>
+              </>
+            )}
+          </div>
+        ))
+      )}
+
+      {wholeRows.map((row) => (
+        <div key={row.id} className="timetable__whole-row">
+          <div className="timetable__whole-class-label">
+            {timetableClassLabel(row)}
+          </div>
+
+          {activeDays.flatMap((day) =>
+            orderedPeriods.map((period) => {
+              const key = `whole:${row.id}:${day.index}:${period.index}`
+              const cellLessons = lessons.filter(
+                (lesson) =>
+                  lesson.class_id === row.id &&
+                  lesson.day_index === day.index &&
+                  lesson.period_index === period.index
+              )
+              const isBreak = !period.is_teaching
+              const isTarget = hovered === key && Boolean(dragging || carrying)
+
+              return (
+                <div
+                  key={`${row.id}-${day.index}-${period.index}`}
+                  className={[
+                    'timetable__whole-slot',
+                    isBreak ? 'timetable__whole-slot--break' : '',
+                    currentSlot?.day === day.index && currentSlot.period === period.index
+                      ? 'timetable__whole-slot--now'
+                      : '',
+                    isTarget ? 'timetable__cell--target' : ''
+                  ].filter(Boolean).join(' ')}
+                  aria-label={`${timetableClassLabel(row)}, ${dayLabel(day)}, ${period.name}`}
+                  {...slotHandlers(key, day.index, period.index, isBreak)}
+                >
+                  {cellLessons.map((lesson) => renderCard(lesson, true))}
+                </div>
+              )
+            })
+          )}
+        </div>
+      ))}
+    </div>
+  )
+
+  const dayPeriodGrid = (
+    <>
+      <div className="timetable__time-grid" style={timeStyle}>
+        <div className="timetable__corner">Day / Date</div>
+
+        {orderedPeriods.map((period) => (
+          <div
+            key={period.index}
+            className={`timetable__period-head ${!period.is_teaching ? 'timetable__period-head--break' : ''}`}
+            onClick={() =>
+              period.is_teaching &&
+              selectAppearanceCell(
+                'period',
+                `${period.name} ${periodTime(period)}`,
+                { period: period.index }
+              )
+            }
+          >
+            {period.is_teaching && (
+              <>
+                <span className="timetable__period">{period.name}</span>
+                <span className={`timetable__clock timetable__clock--${printSettings.timeLayout}`}>
+                  {periodTime(period)}
+                </span>
+              </>
+            )}
+          </div>
+        ))}
+
+        {activeDays.map((day) => (
+          <div key={day.index} className="timetable__day-row">
+            <div
+              className="timetable__day-label"
+              onClick={() => selectAppearanceCell('day', dayLabel(day), { day: day.index })}
+            >
+              {dayLabel(day)}
+            </div>
+
+            {orderedPeriods.map((period) => {
+              const key = `${day.index}:${period.index}`
+              const cellLessons = bySlot.get(key) ?? []
+              const isBreak = !period.is_teaching
+              const isTarget = hovered === key && Boolean(dragging || carrying)
+
+              return (
+                <div
+                  key={period.index}
+                  className={[
+                    'timetable__cell',
+                    isBreak ? 'timetable__cell--break' : '',
+                    currentSlot?.day === day.index && currentSlot.period === period.index
+                      ? 'timetable__cell--now'
+                      : '',
+                    isTarget ? 'timetable__cell--target' : '',
+                    cellLessons.length === 0 ? 'timetable__cell--empty' : ''
+                  ].filter(Boolean).join(' ')}
+                  tabIndex={readOnly ? -1 : 0}
+                  aria-label={`${dayLabel(day)}, ${period.name}`}
+                  onKeyDown={(event) =>
+                    handleCellKeyDown(event, day.index, period.index, cellLessons)
+                  }
+                  {...slotHandlers(key, day.index, period.index, isBreak)}
+                >
+                  {cellLessons.map((lesson) => renderCard(lesson))}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </>
+  )
+
+  const previewLesson =
+    printPreviewLessonId == null
+      ? null
+      : lessons.find((lesson) => lesson.id === printPreviewLessonId) ?? null
+
+  const previewPeriod = previewLesson
+    ? periods.find((period) => period.index === previewLesson.period_index)
+    : undefined
+
+  const previewSubject = previewLesson
+    ? meta.subjects.get(previewLesson.subject_id)
+    : undefined
+
+  const previewColour = previewLesson
+    ? colourFor(previewSubject, subjectIndexes.get(previewLesson.subject_id) ?? 0)
+    : 'var(--color-primary)'
+
+  const previewLabel = previewLesson
+    ? getLabelValue(previewLesson)
+    : 'Select a period block'
+
+  const previewSecondary =
+    previewLesson && printSettings.kind === 'subject'
+      ? (() => {
+          const teacher = previewLesson.teacher_id
+            ? meta.teachers.get(previewLesson.teacher_id)
+            : undefined
+          return teacher?.code || teacher?.staff_number || '—'
+        })()
+      : ''
+
+  const previewStyle = {
+    '--subject-colour': previewColour,
+    backgroundColor: previewColour,
+    borderColor: previewColour,
+    '--print-font-size': `${printSettings.fontSize}px`
+  } as CSSProperties
+
+  return (
+    <div
+      className={[
+        'timetable',
+        `timetable--zoom-${zoom === 0.75 ? '75' : zoom === 1.25 ? '125' : '100'}`,
+        dense ? 'timetable--dense' : '',
+        `timetable--${effectiveView}-view`,
+        `timetable--time-${printSettings.timeLayout}`
+      ].join(' ')}
+      data-generated-at={generatedTimestamp()}
+    >
+      <div className="timetable__format-hint">
+        Click a lesson, period/time, or day/date cell to format its appearance.
+      </div>
+
+      {effectiveView === 'whole-school' ? wholeSchoolGrid : dayPeriodGrid}
+
+      <div className="timetable__print-footer">
+        <span className="timetable__print-generated">
+          Timetable generated: {generatedTimestamp()}
+        </span>
+        <span className="timetable__print-brand">@Phikila Timetables</span>
+      </div>
+
+      {printSettingsOpen && (
+        <div
+          className="timetable__format-backdrop"
+          role="presentation"
+          onClick={() => setPrintSettingsOpen(false)}
+        >
+          <section
+            className="timetable__format-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="timetable-format-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="timetable__format-header">
+              <div>
+                <h2 id="timetable-format-title">Print label formatting</h2>
+                <p>
+                  Format the selected period and see the exact cell preview before applying it.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="timetable__format-close"
+                onClick={() => setPrintSettingsOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="timetable__format-fields">
+              <label>
+                Print name
+                <select
+                  value={printSettings.kind}
+                  onChange={(event) =>
+                    setPrintSettings((value) => ({
+                      ...value,
+                      kind: event.target.value as PrintLabelKind
+                    }))
+                  }
+                >
+                  <option value="subject">Subject</option>
+                  <option value="teacher">Teacher code</option>
+                  <option value="class">Class code</option>
+                </select>
+              </label>
+
+              <label>
+                Position
+                <select
+                  value={printSettings.position}
+                  onChange={(event) =>
+                    setPrintSettings((value) => ({
+                      ...value,
+                      position: event.target.value as PrintLabelPosition
+                    }))
+                  }
+                >
+                  <option value="top">Top</option>
+                  <option value="middle">Middle</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="inside">Inside</option>
+                </select>
+              </label>
+
+              <label>
+                Font size
+                <input
+                  type="number"
+                  min="6"
+                  max="24"
+                  step="1"
+                  value={printSettings.fontSize}
+                  onChange={(event) =>
+                    setPrintSettings((value) => ({
+                      ...value,
+                      fontSize: Math.max(
+                        6,
+                        Math.min(24, Number(event.target.value) || 10)
+                      )
+                    }))
+                  }
+                />
+              </label>
+
+              <label>
+                Time format
+                <select
+                  value={printSettings.timeFormat}
+                  onChange={(event) =>
+                    setPrintSettings((value) => ({
+                      ...value,
+                      timeFormat: event.target.value as TimeFormat
+                    }))
+                  }
+                >
+                  <option value="24h">24-hour</option>
+                  <option value="12h">12-hour</option>
+                </select>
+              </label>
+
+              <label>
+                Time layout
+                <select
+                  value={printSettings.timeLayout}
+                  onChange={(event) =>
+                    setPrintSettings((value) => ({
+                      ...value,
+                      timeLayout: event.target.value as TimeLayout
+                    }))
+                  }
+                >
+                  <option value="split">Split start / end</option>
+                  <option value="single">Single line</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="timetable__format-toggles">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={printSettings.bold}
+                  onChange={(event) =>
+                    setPrintSettings((value) => ({
+                      ...value,
+                      bold: event.target.checked
+                    }))
+                  }
+                />
+                Bold
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={printSettings.italic}
+                  onChange={(event) =>
+                    setPrintSettings((value) => ({
+                      ...value,
+                      italic: event.target.checked
+                    }))
+                  }
+                />
+                Italic
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={printSettings.underline}
+                  onChange={(event) =>
+                    setPrintSettings((value) => ({
+                      ...value,
+                      underline: event.target.checked
+                    }))
+                  }
+                />
+                Underline
+              </label>
+            </div>
+
+            <div className="timetable__format-preview">
+              <div className="timetable__format-preview-heading">
+                <span>Live preview — exact clicked period</span>
+
+                {previewLesson && (
+                  <small>
+                    {days.find((day) => day.index === previewLesson.day_index)?.name ?? 'Day'}
+                    {' · '}
+                    {previewPeriod?.name ?? `Period ${previewLesson.period_index}`}
+                    {' · '}
+                    {previewPeriod ? periodTime(previewPeriod) : ''}
+                  </small>
+                )}
+              </div>
+
+              <div className="timetable__format-preview-cell">
+                <div
+                  className={[
+                    'timetable__format-preview-card',
+                    'lesson-card',
+                    `lesson-card--print-${printSettings.position}`,
+                    `lesson-card--print-${printSettings.kind}`,
+                    printSettings.bold ? 'lesson-card--print-bold' : '',
+                    printSettings.italic ? 'lesson-card--print-italic' : '',
+                    printSettings.underline ? 'lesson-card--print-underline' : ''
+                  ].filter(Boolean).join(' ')}
+                  style={previewStyle}
+                >
+                  <span className="lesson-card__subject">{previewLabel}</span>
+
+                  {previewSecondary && (
+                    <span className="lesson-card__class">{previewSecondary}</span>
+                  )}
+
+                  {previewPeriod && printSettings.timeLayout === 'single' && (
+                    <span className="lesson-card__time">
+                      {formatTime(previewPeriod.start_time, printSettings.timeFormat)}–
+                      {formatTime(previewPeriod.end_time, printSettings.timeFormat)}
+                    </span>
+                  )}
+
+                  {previewPeriod && printSettings.timeLayout === 'split' && (
+                    <span className="lesson-card__time lesson-card__time--split">
+                      <span>
+                        {formatTime(previewPeriod.start_time, printSettings.timeFormat)}
+                      </span>
+                      <span>
+                        {formatTime(previewPeriod.end_time, printSettings.timeFormat)}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="timetable__format-actions">
+              <button
+                type="button"
+                className="timetable__format-cancel"
+                onClick={() => setPrintSettingsOpen(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="timetable__format-save"
+                onClick={savePrintSettings}
+              >
+                Apply to all & Save
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  )
 }
