@@ -18,18 +18,37 @@ function load(): Appearance { try { const parsed = JSON.parse(localStorage.getIt
 function applyCss(appearance: Appearance) { const root = document.documentElement; for (const type of Object.keys(BEST_DEFAULT) as CellType[]) { const s = appearance[type]; root.style.setProperty(`--tt-${type}-font`, s.font); root.style.setProperty(`--tt-${type}-size`, `${s.size}px`); root.style.setProperty(`--tt-${type}-color`, s.color); root.style.setProperty(`--tt-${type}-background`, s.background); root.style.setProperty(`--tt-${type}-align`, s.horizontal); root.style.setProperty(`--tt-${type}-vertical`, s.vertical === 'middle' ? 'center' : s.vertical); root.style.setProperty(`--tt-${type}-weight`, s.bold ? '700' : '400'); root.style.setProperty(`--tt-${type}-style`, s.italic ? 'italic' : 'normal'); root.style.setProperty(`--tt-${type}-wrap`, s.wrap ? 'normal' : 'nowrap') } }
 
 export function TimetableAppearanceEditor({ open, onClose, selectedCell = null }: { open: boolean; onClose: () => void; selectedCell?: SelectedCell | null }) {
-  const [appearance, setAppearance] = useState<Appearance>(() => load()); const [cellType, setCellType] = useState<CellType>('lesson'); const [selected, setSelected] = useState<SelectedCell | null>(selectedCell); const [advanced, setAdvanced] = useState(false)
+  const [appearance, setAppearance] = useState<Appearance>(() => load())
+  const [cellType, setCellType] = useState<CellType>('lesson')
+  const [selected, setSelected] = useState<SelectedCell | null>(selectedCell)
+  const [advanced, setAdvanced] = useState(false)
+  const [eventOpen, setEventOpen] = useState(false)
+
   useEffect(() => { applyCss(appearance) }, [appearance])
   useEffect(() => { if (!selectedCell) return; setSelected(selectedCell); setCellType(selectedCell.type) }, [selectedCell])
-  useEffect(() => { const handle = (event: Event) => { const detail = (event as CustomEvent<SelectedCell>).detail; if (!detail) return; setSelected(detail); setCellType(detail.type) }; window.addEventListener('phikila:timetable-cell-selected', handle); return () => window.removeEventListener('phikila:timetable-cell-selected', handle) }, [])
-  const current = appearance[cellType]; const update = (patch: Partial<CellStyle>) => setAppearance(value => ({ ...value, [cellType]: { ...value[cellType], ...patch } })); const previewStyle = (type: CellType) => { const s = appearance[type]; return { fontFamily: s.font, fontSize: `${s.size}px`, fontWeight: s.bold ? 700 : 400, fontStyle: s.italic ? 'italic' : 'normal', color: s.color, background: s.background, textAlign: s.horizontal, justifyContent: s.vertical === 'top' ? 'flex-start' : s.vertical === 'bottom' ? 'flex-end' : 'center', whiteSpace: s.wrap ? 'normal' : 'nowrap' } as const }
+  useEffect(() => {
+    const handle = (event: Event) => {
+      const detail = (event as CustomEvent<SelectedCell>).detail
+      if (!detail) return
+      setSelected(detail)
+      setCellType(detail.type)
+      setEventOpen(true)
+    }
+    window.addEventListener('phikila:timetable-cell-selected', handle)
+    return () => window.removeEventListener('phikila:timetable-cell-selected', handle)
+  }, [])
+
+  const close = () => { setEventOpen(false); onClose() }
+  const current = appearance[cellType]
+  const update = (patch: Partial<CellStyle>) => setAppearance(value => ({ ...value, [cellType]: { ...value[cellType], ...patch } }))
+  const previewStyle = (type: CellType) => { const s = appearance[type]; return { fontFamily: s.font, fontSize: `${s.size}px`, fontWeight: s.bold ? 700 : 400, fontStyle: s.italic ? 'italic' : 'normal', color: s.color, background: s.background, textAlign: s.horizontal, justifyContent: s.vertical === 'top' ? 'flex-start' : s.vertical === 'bottom' ? 'flex-end' : 'center', whiteSpace: s.wrap ? 'normal' : 'nowrap' } as const }
   const previewValue = (type: CellType) => { if (!selected) return null; if (type !== selected.type) return null; if (type === 'day') return { primary: selected.label, secondary: selected.date || '' }; if (type === 'period') return { primary: selected.periodName || selected.label, secondary: selected.startTime && selected.endTime ? `${selected.startTime}–${selected.endTime}` : '' }; return { primary: selected.label, secondary: selected.secondary || '' } }
-  if (!open) return null
+  if (!open && !eventOpen) return null
   function restoreDefault() { setAppearance(value => ({ ...value, [cellType]: { ...BEST_DEFAULT[cellType] } })) }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(appearance)) } catch {}; applyCss(appearance); window.dispatchEvent(new CustomEvent('phikila:timetable-appearance-changed', { detail: appearance })); onClose() }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(appearance)) } catch {}; applyCss(appearance); window.dispatchEvent(new CustomEvent('phikila:timetable-appearance-changed', { detail: appearance })); close() }
   const labels: Record<CellType, string> = { day: 'DAY / DATE', period: 'PERIOD / TIME', lesson: 'LESSON / SUBJECT' }
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="card modal timetable-appearance-modal" role="dialog" aria-modal="true" aria-labelledby="timetable-appearance-title" onClick={event => event.stopPropagation()}>
-    <div className="timetable-appearance-head"><div><h2 id="timetable-appearance-title">Timetable Appearance</h2><p>Select a real timetable cell first. The preview shows only the selected category; adjustments remain independent.</p></div><button type="button" className="button button--ghost" onClick={onClose} aria-label="Close">×</button></div>
+  return <div className="modal-backdrop" role="presentation" onClick={close}><div className="card modal timetable-appearance-modal" role="dialog" aria-modal="true" aria-labelledby="timetable-appearance-title" onClick={event => event.stopPropagation()}>
+    <div className="timetable-appearance-head"><div><h2 id="timetable-appearance-title">Timetable Appearance</h2><p>Select a real timetable cell first. The preview shows only the selected category; adjustments remain independent.</p></div><button type="button" className="button button--ghost" onClick={close} aria-label="Close">×</button></div>
     <label className="form__label" htmlFor="appearance-cell-type">Cell to format</label><select id="appearance-cell-type" className="input" value={cellType} onChange={event => setCellType(event.target.value as CellType)} disabled={!selected}><option value="lesson">Lesson / Subject</option><option value="period">Period / Time</option><option value="day">Day / Date</option></select>
     {selected ? <div className="timetable-appearance-selected">Selected timetable cell: <strong>{selected.label}</strong>. Formatting changes apply only to <strong>{labels[cellType]}</strong>.</div> : <div className="timetable-appearance-selected">No timetable cell selected. Click a Day, Period / Time, or Lesson / Subject cell on the timetable to begin.</div>}
     <div className="timetable-appearance-layout"><div className="timetable-appearance-controls">
@@ -42,6 +61,6 @@ export function TimetableAppearanceEditor({ open, onClose, selectedCell = null }
       <button type="button" className="button button--ghost timetable-appearance-advanced" onClick={() => setAdvanced(value => !value)}>{advanced ? 'Hide more settings' : 'More settings'} ▾</button>{advanced && <div className="timetable-appearance-more"><span>Selected type: <strong>{cellType}</strong></span><span>Best Default restores only the currently selected category.</span></div>}
     </div>
     <div className="timetable-appearance-preview-wrap"><span className="timetable-appearance-preview-label">Preview — selected cell</span><div className="timetable-appearance-preview-grid">{selected ? (() => { const value = previewValue(cellType); return <div className="timetable-appearance-preview-box" key={cellType}><span>{labels[cellType]}</span><div className={`preview-${cellType}`} style={previewStyle(cellType)}>{value?.primary}{value?.secondary && <><br /><small>{value.secondary}</small></>}</div></div> })() : <div className="timetable-appearance-preview-box"><span>PREVIEW</span><div className="preview-placeholder">Select a timetable cell</div></div>}</div></div></div>
-    <div className="timetable-appearance-footer"><button type="button" className="button button--ghost timetable-appearance-advanced" onClick={restoreDefault} disabled={!selected}>Best Default</button><span className="timetable-appearance-scope">Independent category settings · saved locally on this device</span><div><button type="button" className="button button--ghost" onClick={onClose}>Cancel</button><button type="button" className="button button--primary" onClick={save} disabled={!selected}>Save Appearance</button></div></div>
+    <div className="timetable-appearance-footer"><button type="button" className="button button--ghost timetable-appearance-advanced" onClick={restoreDefault} disabled={!selected}>Best Default</button><span className="timetable-appearance-scope">Independent category settings · saved locally on this device</span><div><button type="button" className="button button--ghost" onClick={close}>Cancel</button><button type="button" className="button button--primary" onClick={save} disabled={!selected}>Save Appearance</button></div></div>
   </div></div>
 }
