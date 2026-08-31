@@ -1,0 +1,50 @@
+name: Fix timetable grid cell selection
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !startsWith(github.event.head_commit.message, 'fix: apply timetable grid cell selection') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch timetable grid
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/components/TimetableGrid.tsx')
+          s = p.read_text()
+          old = """const [dragging, setDragging] = useState<Lesson | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [printSettings, setPrintSettings] = useState<PrintLabelSettings>(() => ({ ...DEFAULT_PRINT_LABEL_SETTINGS, timeFormat, timeLayout })); const [printSettingsOpen, setPrintSettingsOpen] = useState(false)"""
+          new = """const [dragging, setDragging] = useState<Lesson | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [selectedAppearanceKey, setSelectedAppearanceKey] = useState<string | null>(null); const [printSettings, setPrintSettings] = useState<PrintLabelSettings>(() => ({ ...DEFAULT_PRINT_LABEL_SETTINGS, timeFormat, timeLayout })); const [printSettingsOpen, setPrintSettingsOpen] = useState(false)"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = """const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => { window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } })) }"""
+          new = """const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => { const key = `${type}:${details.day ?? ''}:${details.period ?? ''}:${details.lessonId ?? ''}`; setSelectedAppearanceKey(key); window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } })) }"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = """onClick={() => period.is_teaching && selectAppearanceCell('period', `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index })} {...slotHandlers(key, day.index, period.index, isBreak)}>{cellLessons.map((lesson) => renderCard(lesson, true))}</div>"""
+          new = """onClick={() => period.is_teaching && selectAppearanceCell(cellLessons.length ? 'lesson' : 'period', cellLessons.length ? (cellLessons[0] ? (meta.subjects.get(cellLessons[0].subject_id)?.name ?? 'Lesson') : 'Lesson') : `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index, lessonId: cellLessons[0]?.id })} {...slotHandlers(key, day.index, period.index, isBreak)}>{cellLessons.map((lesson) => renderCard(lesson, true))}</div>"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = """currentSlot?.day === day.index && currentSlot.period === period.index ? 'timetable__cell--now' : '', isTarget ? 'timetable__cell--target' : '', cellLessons.length === 0 ? 'timetable__cell--empty' : ''].filter(Boolean).join(' ')} tabIndex={readOnly ? -1 : 0} aria-label={`${dayLabel(day)}, ${period.name}`} onClick={() => period.is_teaching && selectAppearanceCell('period', `${period.name} ${periodTime(period)}`, { period: period.index })} onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)}"""
+          new = """currentSlot?.day === day.index && currentSlot.period === period.index ? 'timetable__cell--now' : '', isTarget ? 'timetable__cell--target' : '', cellLessons.length === 0 ? 'timetable__cell--empty' : '', selectedAppearanceKey === `lesson:${day.index}:${period.index}:${cellLessons[0]?.id ?? ''}` || selectedAppearanceKey === `period:${day.index}:${period.index}:` ? 'timetable__cell--appearance-selected' : ''].filter(Boolean).join(' ')} tabIndex={readOnly ? -1 : 0} aria-label={`${dayLabel(day)}, ${period.name}`} onClick={() => period.is_teaching && selectAppearanceCell(cellLessons.length ? 'lesson' : 'period', cellLessons.length ? (cellLessons[0] ? (meta.subjects.get(cellLessons[0].subject_id)?.name ?? 'Lesson') : 'Lesson') : `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index, lessonId: cellLessons[0]?.id })} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (period.is_teaching) selectAppearanceCell(cellLessons.length ? 'lesson' : 'period', cellLessons.length ? (meta.subjects.get(cellLessons[0].subject_id)?.name ?? 'Lesson') : `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index, lessonId: cellLessons[0]?.id }); return } handleCellKeyDown(event, day.index, period.index, cellLessons) }}"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          cat >> frontend/src/components/timetable.css <<'CSS'
+          .timetable__cell--appearance-selected,.timetable__whole-slot--appearance-selected{box-shadow:inset 0 0 0 2px var(--color-primary);position:relative;z-index:2}
+          CSS
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add frontend/src/components/TimetableGrid.tsx frontend/src/components/timetable.css
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: apply timetable grid cell selection"
+          git push
