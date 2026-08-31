@@ -19,13 +19,10 @@ from sqlalchemy.orm import Session
 from app.core.database import Base, get_db
 from app.modules.authentication.supabase import get_supabase_claims
 
-# Role hierarchy. A role inherits every capability below it.
 ROLE_ORDER = ["viewer", "student", "teacher", "scheduler", "admin", "super_admin"]
 
 
 class TtSchool(Base):
-    """A tenant."""
-
     __tablename__ = "tt_schools"
 
     id = Column(Integer, primary_key=True)
@@ -33,25 +30,19 @@ class TtSchool(Base):
     slug = Column(String(80), unique=True, index=True)
     timezone = Column(String(60), default="Africa/Nairobi")
     academic_year = Column(String(40))
-    # active | inactive. Deactivation is reversible and retains all data.
     status = Column(String(20), default="active", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class TtMembership(Base):
-    """Links a Supabase user to a school with a role."""
-
     __tablename__ = "tt_memberships"
-    __table_args__ = (
-        UniqueConstraint("user_id", "school_id", name="uq_tt_membership"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "school_id", name="uq_tt_membership"),)
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(String(64), nullable=False, index=True)  # Supabase auth uid
+    user_id = Column(String(64), nullable=False, index=True)
     school_id = Column(Integer, nullable=False, index=True)
     role = Column(String(20), default="viewer", nullable=False)
     email = Column(String(160))
-    # Links a teacher/student account to their own timetable row.
     teacher_id = Column(Integer)
     class_id = Column(Integer)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -66,6 +57,7 @@ class Principal:
     role: str
     teacher_id: int | None = None
     class_id: int | None = None
+    class_teacher_class_id: int | None = None
 
     def at_least(self, role: str) -> bool:
         try:
@@ -78,7 +70,6 @@ def resolve_principal(
     claims: dict[str, Any] = Depends(get_supabase_claims),
     db: Session = Depends(get_db),
 ) -> Principal:
-    """Resolve the caller's tenant and role from their verified token."""
     user_id = claims.get("sub")
     if not user_id:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid access token.")
@@ -92,9 +83,6 @@ def resolve_principal(
     )
 
     if membership is None:
-        # First authenticated user of a fresh deployment bootstraps the school.
-        # Everyone after that must be invited by an administrator, so a public
-        # sign-up can never silently escalate to admin.
         has_any = db.query(TtMembership.id).first() is not None
         if has_any:
             raise HTTPException(
@@ -104,12 +92,25 @@ def resolve_principal(
         school = TtSchool(name="My School", slug="my-school")
         db.add(school)
         db.flush()
-        membership = TtMembership(
-            user_id=user_id, school_id=school.id, role="admin", email=email
-        )
+        membership = TtMembership(user_id=user_id, school_id=school.id, role="admin", email=email)
         db.add(membership)
         db.commit()
         db.refresh(membership)
+
+    class_teacher_class_id = None
+    # Class-teacher status is derived from the authoritative class assignment,
+    # not from a client-selectable class_id on the membership record.
+    if membership.teacher_id is not None:
+        from .models import TtClass
+        class_teacher_class_id = (
+            db.query(TtClass.id)
+            .filter(
+                TtClass.school_id == membership.school_id,
+                TtClass.class_teacher_id == membership.teacher_id,
+            )
+            .order_by(TtClass.id)
+            .scalar()
+        )
 
     return Principal(
         user_id=user_id,
@@ -118,19 +119,16 @@ def resolve_principal(
         role=membership.role,
         teacher_id=membership.teacher_id,
         class_id=membership.class_id,
+        class_teacher_class_id=class_teacher_class_id,
     )
 
 
 def require_role(*roles: str) -> Callable[[Principal], Principal]:
-    """Dependency factory enforcing a minimum role for write operations."""
     minimum = min(roles, key=lambda role: ROLE_ORDER.index(role))
 
     def dependency(principal: Principal = Depends(resolve_principal)) -> Principal:
         if not principal.at_least(minimum):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "You do not have permission to make this change.",
-            )
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have permission to make this change.")
         return principal
 
     return dependency
