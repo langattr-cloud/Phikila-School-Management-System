@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { PlatformSessionProvider, usePlatformSession } from './lib/session'
 import { RouterProvider, normalisePath, useNavigate, useRouter } from './lib/router'
@@ -36,8 +36,8 @@ const AttendancePage = lazy(() => import('./pages/Attendance').then(m => ({ defa
 const ExaminationsPage = lazy(() => import('./pages/Examinations').then(m => ({ default: m.default })))
 const ExaminationLevelsPage = lazy(() => import('./pages/ExaminationLevelsPage').then(m => ({ default: m.ExaminationLevelsPage })))
 const MarkAccessPage = lazy(() => import('./pages/MarkAccessPage').then(m => ({ default: m.default })))
-const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ default: m.default })))
-const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.default })))
+const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ default: m.ReportCardPage })))
+const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.ClassResultsPage })))
 const FinancePage = lazy(() => import('./pages/Finance').then(m => ({ default: m.default })))
 const FinancePaymentInboxPage = lazy(() => import('./pages/FinancePaymentInbox').then(m => ({ default: m.default })))
 const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.OcrScanPage })))
@@ -54,82 +54,12 @@ const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then(m 
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then(m => ({ default: m.AwaitingApprovalPage })))
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
-
-function RequireAuth({ children }: { children: ReactNode }) {
-  const { session, initialising } = useAuth()
-  const { pathname, search, hash } = useRouter()
-  const navigate = useNavigate()
-  useEffect(() => { if (initialising || session) return; navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true }) }, [initialising, session, pathname, search, hash, navigate])
-  if (initialising) return <FullPageLoader label="Restoring your session…" />
-  if (!session) return <FullPageLoader label="Redirecting to sign in…" />
-  return <>{children}</>
-}
-
-function RedirectIfSignedIn({ children }: { children: ReactNode }) {
-  const { session, initialising, recoveryMode } = useAuth()
-  const navigate = useNavigate()
-  const { pathname } = useRouter()
-  const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'
-  useEffect(() => { if (shouldRedirect) navigate('/', { replace: true }) }, [shouldRedirect, navigate])
-  if (initialising) return <FullPageLoader label="Checking your session…" />
-  if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />
-  return <>{children}</>
-}
-
+function RequireAuth({ children }: { children: ReactNode }) { const { session, initialising } = useAuth(); const { pathname, search, hash } = useRouter(); const navigate = useNavigate(); useEffect(() => { if (initialising || session) return; navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true }) }, [initialising, session, pathname, search, hash, navigate]); if (initialising) return <FullPageLoader label="Restoring your session…" />; if (!session) return <FullPageLoader label="Redirecting to sign in…" />; return <>{children}</> }
+function RedirectIfSignedIn({ children }: { children: ReactNode }) { const { session, initialising, recoveryMode } = useAuth(); const navigate = useNavigate(); const { pathname } = useRouter(); const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'; useEffect(() => { if (shouldRedirect) navigate('/', { replace: true }) }, [shouldRedirect, navigate]); if (initialising) return <FullPageLoader label="Checking your session…" />; if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />; return <>{children}</> }
 function AccessGate({ children }: { children: ReactNode }) { const { session, loading, error } = usePlatformSession(); if (loading) return <FullPageLoader label="Checking your access…" />; if (error) return <>{children}</>; if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>; return <>{children}</> }
-
-function TimetableAppearanceLauncher() {
-  const { pathname } = useRouter()
-  const [open, setOpen] = useState(false)
-  if (pathname !== '/timetable' && pathname !== '/my-timetable') return null
-  return <><button type="button" className="timetable-appearance-launcher button button--secondary button--sm" onClick={() => setOpen(true)} aria-label="Open timetable appearance settings">Appearance</button><TimetableAppearanceEditor open={open} onClose={() => setOpen(false)} /></>
-}
-
-function routeFor(pathname: string): ReactNode {
-  switch (pathname) {
-    case '/': return <DashboardPage />
-    case '/timetable': return <TimetablePage />
-    case '/my-timetable': return <MyTimetablePage />
-    case '/setup/periods': return <PeriodsPage />
-    case '/setup/teachers': return <TeachersPage />
-    case '/setup/subjects': return <SubjectsPage />
-    case '/setup/rooms': return <SetupPage kind="rooms" />
-    case '/setup/school': return <SchoolPage />
-    case '/setup/academic-years': return <AcademicsPage />
-    case '/setup/levels': return <LevelsPage />
-    case '/setup/grades': return <GradesPage />
-    case '/setup/streams': return <StreamsPage />
-    case '/setup/academic-setup': return <AcademicSetupWizardPage />
-    case '/scheduling/requirements': return <RequirementsPage />
-    case '/scheduling/constraints': return <ConstraintsPage />
-    case '/scheduling/time-off': return <TimeOffPage />
-    case '/scheduling/generate': return <GeneratePage />
-    case '/scheduling/copilot': return <CopilotPage />
-    case '/students': return <StudentsPage />
-    case '/attendance': return <AttendancePage />
-    case '/examinations': return <ExaminationsPage />
-    case '/examinations/setup': return <ExaminationsPage />
-    case '/examinations/levels': return <ExaminationLevelsPage />
-    case '/examinations/marks-access': return <MarkAccessPage />
-    case '/examinations/report-card': return <ReportCardPage />
-    case '/examinations/class-results': return <ClassResultsPage />
-    case '/finance': return <FinancePage />
-    case '/finance/payment-inbox': return <FinancePaymentInboxPage />
-    case '/ocr': return <OcrScanPage />
-    case '/analytics': return <SchedulingAnalyticsPage />
-    case '/versions': return <VersionsPage />
-    case '/profile': return <ProfilePage />
-    case '/settings/ai-providers': return <LlmProvidersPage />
-    case '/platform': return <PlatformDashboardPage />
-    case '/platform/schools': return <PlatformSchoolsPage />
-    case '/platform/schools/detail': return <PlatformSchoolDetailPage />
-    case '/platform/requests': return <PlatformRequestsPage />
-    case '/platform/admins': return <PlatformAdminsPage />
-    case '/platform/audit': return <PlatformAuditPage />
-    default: return <NotFoundPage />
-  }
-}
-
+function TimetableAppearanceLauncher() { const { pathname } = useRouter(); const [open, setOpen] = useState(false); if (pathname !== '/timetable' && pathname !== '/my-timetable') return null; return <><button type="button" className="timetable-appearance-launcher button button--secondary button--sm" onClick={() => setOpen(true)} aria-label="Open timetable appearance settings">Appearance</button><TimetableAppearanceEditor open={open} onClose={() => setOpen(false)} /></> }
+function routeFor(pathname: string): ReactNode { switch (pathname) {
+case '/': return <DashboardPage />; case '/timetable': return <TimetablePage />; case '/my-timetable': return <MyTimetablePage />; case '/setup/periods': return <PeriodsPage />; case '/setup/teachers': return <TeachersPage />; case '/setup/subjects': return <SubjectsPage />; case '/setup/rooms': return <SetupPage kind="rooms" />; case '/setup/school': return <SchoolPage />; case '/setup/academic-years': return <AcademicsPage />; case '/setup/levels': return <LevelsPage />; case '/setup/grades': return <GradesPage />; case '/setup/streams': return <StreamsPage />; case '/setup/academic-setup': return <AcademicSetupWizardPage />; case '/scheduling/requirements': return <RequirementsPage />; case '/scheduling/constraints': return <ConstraintsPage />; case '/scheduling/time-off': return <TimeOffPage />; case '/scheduling/generate': return <GeneratePage />; case '/scheduling/copilot': return <CopilotPage />; case '/students': return <StudentsPage />; case '/attendance': return <AttendancePage />; case '/examinations': return <ExaminationsPage />; case '/examinations/setup': return <ExaminationsPage />; case '/examinations/levels': return <ExaminationLevelsPage />; case '/examinations/marks-access': return <MarkAccessPage />; case '/examinations/report-card': return <ReportCardPage />; case '/examinations/class-results': return <ClassResultsPage />; case '/finance': return <FinancePage />; case '/finance/payment-inbox': return <FinancePaymentInboxPage />; case '/ocr': return <OcrScanPage />; case '/analytics': return <SchedulingAnalyticsPage />; case '/versions': return <VersionsPage />; case '/profile': return <ProfilePage />; case '/settings/ai-providers': return <LlmProvidersPage />; case '/platform': return <PlatformDashboardPage />; case '/platform/schools': return <PlatformSchoolsPage />; case '/platform/schools/detail': return <PlatformSchoolDetailPage />; case '/platform/requests': return <PlatformRequestsPage />; case '/platform/admins': return <PlatformAdminsPage />; case '/platform/audit': return <PlatformAuditPage />; default: return <NotFoundPage /> } }
 function ProtectedRoutes({ pathname }: { pathname: string }) { return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense><TimetableAppearanceLauncher /></AppShell></AccessGate></RequireAuth> }
 function LandingRedirect() { const { session, initialising } = useAuth(); if (initialising) return <FullPageLoader label="Checking your session…" />; if (!session) return <LandingPage />; return <ProtectedRoutes pathname="/" /> }
 function Routes() { const { pathname } = useRouter(); const path = normalisePath(pathname); if (PUBLIC_ROUTES.has(path)) { const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : path === '/reset-password' ? <ResetPasswordPage /> : <NotFoundPage />; return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn> } if (path === '/') return <LandingRedirect />; return <ProtectedRoutes pathname={path} /> }
