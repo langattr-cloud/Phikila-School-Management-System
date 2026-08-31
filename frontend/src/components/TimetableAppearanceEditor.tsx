@@ -27,15 +27,24 @@ export function TimetableAppearanceEditor({ open, onClose, selectedCell = null }
   useEffect(() => { applyCss(appearance) }, [appearance])
   useEffect(() => { if (!selectedCell) return; setSelected(selectedCell); setCellType(selectedCell.type) }, [selectedCell])
   useEffect(() => {
-    const handle = (event: Event) => {
-      const detail = (event as CustomEvent<SelectedCell>).detail
-      if (!detail) return
-      setSelected(detail)
-      setCellType(detail.type)
-      setEventOpen(true)
+    const openForCell = (detail: SelectedCell) => { if (!detail) return; setSelected(detail); setCellType(detail.type); setEventOpen(true) }
+    const handleEvent = (event: Event) => openForCell((event as CustomEvent<SelectedCell>).detail)
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('.timetable-appearance-modal, .timetable-appearance-launcher')) return
+      const lesson = target.closest('.lesson-card') as HTMLElement | null
+      if (lesson) { const label = lesson.getAttribute('aria-label')?.split(',')[0] || lesson.textContent?.trim() || 'Lesson'; openForCell({ type: 'lesson', label }); return }
+      const period = target.closest('.timetable__period-head, .timetable__whole-period-head') as HTMLElement | null
+      if (period) { openForCell({ type: 'period', label: period.textContent?.trim() || 'Period / Time' }); return }
+      const day = target.closest('.timetable__day-label, .timetable__whole-day-head') as HTMLElement | null
+      if (day) { openForCell({ type: 'day', label: day.textContent?.trim() || 'Day / Date' }); return }
+      const cell = target.closest('.timetable__cell, .timetable__whole-slot') as HTMLElement | null
+      if (cell) { openForCell({ type: 'period', label: cell.getAttribute('aria-label') || 'Period / Time' }) }
     }
-    window.addEventListener('phikila:timetable-cell-selected', handle)
-    return () => window.removeEventListener('phikila:timetable-cell-selected', handle)
+    window.addEventListener('phikila:timetable-cell-selected', handleEvent)
+    document.addEventListener('click', handleDocumentClick, true)
+    return () => { window.removeEventListener('phikila:timetable-cell-selected', handleEvent); document.removeEventListener('click', handleDocumentClick, true) }
   }, [])
 
   const close = () => { setEventOpen(false); onClose() }
