@@ -1,0 +1,36 @@
+name: Restore and fix scheduling router
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  restore:
+    if: !contains(github.event.head_commit.message, 'restore scheduling router and fix academic class mapping')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore router from pre-broken commit
+        shell: bash
+        run: git checkout 60869a83871e4b02b947f1ffbe0b4785a4b5f535 -- app/modules/scheduling/router.py
+      - name: Apply academic class mapping fix
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('app/modules/scheduling/router.py')
+          t = p.read_text()
+          old = '''@router.get("/classes", response_model=list[s.ClassOut], name="list_class_with_academic_stream")\ndef list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):\n    from app.modules.academics.models import Stream\n    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()\n    streams = {int(r.id): r for r in db.query(Stream).filter(Stream.school_id == principal.school_id).all()}\n    out = []\n    for row in rows:\n        item = s.ClassOut.model_validate(row)\n        stream = None\n        if row.code and row.code.upper().startswith("STREAM-"):\n            try: stream = streams.get(int(row.code.split("-", 1)[1]))\n            except ValueError: pass\n        if stream:\n            grade = stream.grade.code or stream.grade.name if stream.grade else ""\n            grade_num = ''.join(ch for ch in str(grade) if ch.isdigit())\n            stream_code = stream.code or stream.name or ""\n            item.academic_stream = f"{grade_num}{stream_code[-1].upper()}" if grade_num and stream_code else (stream.name or None)\n        out.append(item)\n    return out'''
+          new = '''@router.get("/classes", response_model=list[s.ClassOut], name="list_class_with_academic_stream")\ndef list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):\n    # Academic Setup (school_classes) is authoritative for Level/Class placement.\n    # Timetable classes are retained for scheduling references and are hydrated\n    # from the matching Academic Setup record before Teaching Allocations filters.\n    from app.modules.academics.models import SchoolClass\n    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()\n    setup_rows = db.query(SchoolClass).filter(SchoolClass.school_id == principal.school_id).order_by(SchoolClass.id).all()\n    by_id = {int(r.id): r for r in setup_rows}\n    by_key = {}\n    for r in setup_rows:\n        code = str(r.code or '').strip().upper()\n        year = int(r.academic_year_id) if r.academic_year_id is not None else None\n        by_key.setdefault((code, year), r)\n        by_key.setdefault((code, None), r)\n    out = []\n    for row in rows:\n        item = s.ClassOut.model_validate(row)\n        setup = by_id.get(int(row.school_class_id)) if row.school_class_id is not None else None\n        if setup is None:\n            code = str(row.code or '').strip().upper()\n            year = int(row.academic_year_id) if row.academic_year_id is not None else None\n            setup = by_key.get((code, year)) or by_key.get((code, None))\n        if setup is not None:\n            if setup.level_id is not None:\n                item.level_id = int(setup.level_id)\n            if setup.academic_year_id is not None:\n                item.academic_year_id = int(setup.academic_year_id)\n        out.append(item)\n    return out'''
+          if old not in t:
+              raise SystemExit('Expected classes route was not found')
+          p.write_text(t.replace(old, new, 1))
+      - name: Commit and push
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/modules/scheduling/router.py
+          git commit -m "restore scheduling router and fix academic class mapping"
+          git push
