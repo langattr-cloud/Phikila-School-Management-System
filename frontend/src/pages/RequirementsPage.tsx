@@ -32,6 +32,8 @@ const normalizedTeacherId = (value: string | number | null | undefined) => {
   return Number(value)
 }
 
+const isActiveLevel = (level: Level) => level.status === true || String(level.status ?? '').toUpperCase() === 'ACTIVE'
+
 export function RequirementsPage() {
   const { notify } = useToast()
   const [data, setData] = useState<Data | null>(null)
@@ -59,7 +61,7 @@ export function RequirementsPage() {
       setData({
         requirements,
         classes,
-        levels: levels.filter((level) => level.status !== false),
+        levels: levels.filter(isActiveLevel),
         subjects,
         teachers,
       })
@@ -272,7 +274,7 @@ export function RequirementsPage() {
         <form className="form--grid" onSubmit={editingSavedId ? saveSavedEdit : addDraft}>
           <label><span>Teacher</span><select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))}><option value="">Select teacher</option><option value={WITHOUT_TEACHER}>Without Teacher</option>{data.teachers.slice().sort((a, b) => a.name.localeCompare(b.name)).map((teacher: Teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
           <label><span>Level</span><select value={form.level_id} onChange={(event) => changeLevel(event.target.value)}><option value="">Select level</option>{orderedLevels.map((level: Level) => <option key={level.id} value={level.id}>{level.name}</option>)}</select></label>
-          <label><span>Class code</span><select value={form.class_id} onChange={(event) => setForm((current) => ({ ...current, class_id: event.target.value }))} disabled={!form.level_id}><option value="">{form.level_id ? 'Select class code' : 'Select level first'}</option>{orderedClasses.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.code} — {schoolClass.name}</option>)}</select></label>
+          <label><span>Class code</span><select value={form.class_id} onChange={(event) => setForm((current) => ({ ...current, class_id: event.target.value }))} disabled={!form.level_id}><option value="">{form.level_id ? (orderedClasses.length ? 'Select class code' : 'No class codes available') : 'Select level first'}</option>{orderedClasses.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.code} — {schoolClass.name}</option>)}</select></label>
           <label><span>Subject</span><select value={form.subject_id} onChange={(event) => setForm((current) => ({ ...current, subject_id: event.target.value }))}><option value="">Select subject</option>{data.subjects.slice().sort((a, b) => a.name.localeCompare(b.name)).map((subject: Subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></label>
           <label><span>Lessons per week</span><select value={form.periods_per_week} onChange={(event) => setForm((current) => ({ ...current, periods_per_week: Number(event.target.value) }))}>{Array.from({ length: 20 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
           <label><span>Double lesson</span><select value={form.double_lesson ? 'yes' : 'no'} onChange={(event) => setForm((current) => ({ ...current, double_lesson: event.target.value === 'yes' }))}><option value="no">No</option><option value="yes">Yes</option></select></label>
