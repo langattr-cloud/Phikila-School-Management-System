@@ -5,6 +5,7 @@ import { RouterProvider, normalisePath, useNavigate, useRouter } from './lib/rou
 import { ToastProvider } from './components/Toast'
 import { AppShell } from './components/AppShell'
 import { FullPageLoader } from './components/States'
+import { TimetableAppearanceEditor } from './components/TimetableAppearanceEditor'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { SignUpPage } from './pages/SignUpPage'
@@ -75,12 +76,13 @@ function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
-function AccessGate({ children }: { children: ReactNode }) {
-  const { session, loading, error } = usePlatformSession()
-  if (loading) return <FullPageLoader label="Checking your access…" />
-  if (error) return <>{children}</>
-  if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>
-  return <>{children}</>
+function AccessGate({ children }: { children: ReactNode }) { const { session, loading, error } = usePlatformSession(); if (loading) return <FullPageLoader label="Checking your access…" />; if (error) return <>{children}</>; if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>; return <>{children}</> }
+
+function TimetableAppearanceLauncher() {
+  const { pathname } = useRouter()
+  const [open, setOpen] = useState(false)
+  if (pathname !== '/timetable' && pathname !== '/my-timetable') return null
+  return <><button type="button" className="timetable-appearance-launcher button button--secondary button--sm" onClick={() => setOpen(true)} aria-label="Open timetable appearance settings">Appearance</button><TimetableAppearanceEditor open={open} onClose={() => setOpen(false)} /></>
 }
 
 function routeFor(pathname: string): ReactNode {
@@ -128,7 +130,7 @@ function routeFor(pathname: string): ReactNode {
   }
 }
 
-function ProtectedRoutes({ pathname }: { pathname: string }) { return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense></AppShell></AccessGate></RequireAuth> }
+function ProtectedRoutes({ pathname }: { pathname: string }) { return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense><TimetableAppearanceLauncher /></AppShell></AccessGate></RequireAuth> }
 function LandingRedirect() { const { session, initialising } = useAuth(); if (initialising) return <FullPageLoader label="Checking your session…" />; if (!session) return <LandingPage />; return <ProtectedRoutes pathname="/" /> }
 function Routes() { const { pathname } = useRouter(); const path = normalisePath(pathname); if (PUBLIC_ROUTES.has(path)) { const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : path === '/reset-password' ? <ResetPasswordPage /> : <NotFoundPage />; return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn> } if (path === '/') return <LandingRedirect />; return <ProtectedRoutes pathname={path} /> }
 export default function App() { return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><Routes /></PlatformSessionProvider></AuthProvider></ToastProvider></RouterProvider> }
