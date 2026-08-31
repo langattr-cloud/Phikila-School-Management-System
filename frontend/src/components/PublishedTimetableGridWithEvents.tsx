@@ -19,7 +19,6 @@ export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
  const title=mode==='teacher' ? `Teacher ${view.target_name ?? ''}`.trim() : `${view.target_name ?? 'Class'} Timetable`
  return <div className="timetable timetable--published timetable--final timetable--entity timetable--personal">
   <div className="timetable__personal-title">{title}</div>
-  <div className="timetable__personal-subtitle">Personal timetable</div>
   <div className="entity-timetable-grid" style={{gridTemplateColumns:columnTemplate,gridTemplateRows:rowTemplate}}>
    <div className="entity-timetable-corner">Day / Date</div>
    {periods.map((p,column)=><div className={`entity-timetable-period ${!p.is_teaching?'entity-timetable-period--break':''}`} style={{gridColumn:column+2,gridRow:1}} key={p.index}><span>{p.name}</span><small>{p.start_time}–{p.end_time}</small></div>)}
