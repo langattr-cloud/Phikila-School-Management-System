@@ -6,7 +6,7 @@ type Align = 'left' | 'center' | 'right'
 type Vertical = 'top' | 'middle' | 'bottom'
 type CellStyle = { font: string; size: number; bold: boolean; italic: boolean; color: string; background: string; horizontal: Align; vertical: Vertical; wrap: boolean }
 type Appearance = Record<CellType, CellStyle>
-type SelectedCell = { type: CellType; label: string; day?: number; period?: number; lessonId?: number }
+export type SelectedCell = { type: CellType; label: string; day?: number; period?: number; lessonId?: number }
 
 const KEY = 'phikila:timetable-appearance:v2'
 export const BEST_DEFAULT: Appearance = {
@@ -38,13 +38,14 @@ function applyCss(appearance: Appearance) {
   }
 }
 
-export function TimetableAppearanceEditor({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function TimetableAppearanceEditor({ open, onClose, selectedCell }: { open: boolean; onClose: () => void; selectedCell?: SelectedCell | null }) {
   const [appearance, setAppearance] = useState<Appearance>(() => load())
   const [cellType, setCellType] = useState<CellType>('lesson')
-  const [selected, setSelected] = useState<SelectedCell | null>(null)
+  const [selected, setSelected] = useState<SelectedCell | null>(selectedCell ?? null)
   const [advanced, setAdvanced] = useState(false)
 
   useEffect(() => { applyCss(appearance) }, [appearance])
+  useEffect(() => { if (selectedCell) { setSelected(selectedCell); setCellType(selectedCell.type) } }, [selectedCell])
   useEffect(() => {
     const handle = (event: Event) => {
       const detail = (event as CustomEvent<SelectedCell>).detail
