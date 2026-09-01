@@ -34,8 +34,7 @@ class Weights:
 @dataclass
 class AvoidRule: scope:str; target_id:int; slots:set[tuple[int,int]]; is_hard:bool=False; weight:int=25; note:str=""
 @dataclass
-class SolverInput:
-    days:list[int]; periods:list[int]; teaching_periods:list[int]; morning_periods:list[int]; teachers:dict[int,TeacherSpec]; rooms:dict[int,RoomSpec]; classes:dict[int,ClassSpec]; subjects:dict[int,SubjectSpec]; requirements:list[RequirementSpec]; weights:Weights=field(default_factory=Weights); avoid_rules:list[AvoidRule]=field(default_factory=list); locked:dict[int,list[tuple[int,int]]]=field(default_factory=dict); max_seconds:float=30.0; workers:int=1
+class SolverInput: days:list[int]; periods:list[int]; teaching_periods:list[int]; morning_periods:list[int]; teachers:dict[int,TeacherSpec]; rooms:dict[int,RoomSpec]; classes:dict[int,ClassSpec]; subjects:dict[int,SubjectSpec]; requirements:list[RequirementSpec]; weights:Weights=field(default_factory=Weights); avoid_rules:list[AvoidRule]=field(default_factory=list); locked:dict[int,list[tuple[int,int]]]=field(default_factory=dict); max_seconds:float=30.0; workers:int=1
 @dataclass
 class Placement: requirement_id:int; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day:int; period:int; duration:int=1
 @dataclass
@@ -64,6 +63,10 @@ def preflight(data:SolverInput)->list[str]:
         if s:
             limit=min(capacity-len(set(s.unavailable)|ht.get(tid,set())),s.max_per_day*len(data.days))
             if total>limit:problems.append(f"{s.name} is assigned {total} lessons a week but can only teach {limit} given availability and daily limits.")
+    for r in data.requirements:
+        doubles=max(0,r.double_periods)
+        if doubles>r.periods_per_week//2:
+            problems.append(f"Requirement {r.id} requests {doubles} double lesson(s), but only {r.periods_per_week} weekly teaching periods are configured. Each double lesson uses two separate consecutive periods.")
     return problems
 def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should_cancel:Callable[[],bool]|None=None)->SolverOutput:
     if not ORTOOLS_AVAILABLE:return SolverOutput("error",[],{}, {},["OR-Tools is not installed on the server."])
@@ -84,6 +87,21 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
         vals=[x[(r.id,d,p)] for d,p in slots if (r.id,d,p) in x]
         if len(vals)<r.periods_per_week:return SolverOutput("infeasible",[],{}, {},[f"Requirement {r.id} cannot fit its weekly lessons into the available timetable slots."])
         model.Add(sum(vals)==r.periods_per_week)
+        required_doubles=max(0,r.double_periods)
+        if required_doubles:
+            pairs=[]
+            for d in data.days:
+                for left_index in range(len(data.teaching_periods)-1):
+                    left=data.teaching_periods[left_index];right=data.teaching_periods[left_index+1]
+                    a=x.get((r.id,d,left));b=x.get((r.id,d,right))
+                    if a is None or b is None:continue
+                    pair=model.NewBoolVar(f"double_{r.id}_{d}_{left}_{right}")
+                    model.Add(pair<=a);model.Add(pair<=b);model.Add(pair>=a+b-1)
+                    pairs.append((pair,a,b))
+            model.Add(sum(pair for pair,_,_ in pairs)==required_doubles)
+            for slot_var in vals:
+                touching=[pair for pair,a,b in pairs if a is slot_var or b is slot_var]
+                if touching:model.Add(sum(touching)<=1)
     for cid in data.classes:
         rs=[r for r in data.requirements if r.class_id==cid]
         for d,p in slots:
