@@ -82,6 +82,7 @@ class VersionOut(ORMModel):
     created_by:str|None=None
     created_at:Any=None
     published_at:Any=None
+    effective_from:Any=None
     day_indexes:list[int]=Field(default_factory=list)
     day_names:list[str]=Field(default_factory=list)
     @field_validator('created_by', mode='before')
