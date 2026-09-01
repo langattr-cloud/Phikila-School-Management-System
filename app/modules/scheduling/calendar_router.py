@@ -33,8 +33,8 @@ def _validate_times(periods:dict[int,s.PeriodIn])->None:
         previous_end=end
 @router.get('/calendar')
 def calendar(db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
-    days=db.query(m.TtDay).filter(m.TtDay.school_id==principal.school_id).order_by(m.TtDay.index).all(); periods=db.query(m.TtPeriod).filter(m.TtPeriod.school_id==principal.school_id).order_by(m.TtPeriod.index).all()
-    mode='date' if days and all(d.date_value is not None for d in days) else 'day'
+    days=db.query(m.TtDay).filter(m.TtDay.school_id==principal.school_id).order_by(m.TtDay.index).all(); periods=db.query(m.TtPeriod).filter(m.TtPeriod.school_id==principal.school_id).order_by(m.TtPeriod.index).all(); config=db.query(m.TtCalendarConfig).filter(m.TtCalendarConfig.school_id==principal.school_id).first()
+    mode=config.display_mode if config else 'day'
     return {'days':[s.DayOut.model_validate(d).model_dump() for d in days],'periods':[s.PeriodOut.model_validate(p).model_dump() for p in periods],'display_mode':mode}
 @router.put('/calendar')
 def set_calendar(payload:CalendarIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
@@ -49,6 +49,9 @@ def set_calendar(payload:CalendarIn,db:Session=Depends(get_db),principal:Princip
         if set(existing_days)!=set(incoming_days) or set(existing_periods)!=set(incoming_periods): raise HTTPException(status.HTTP_409_CONFLICT,'Existing timetable lessons require the same day and period indexes. Rename labels instead.')
         for index,day in incoming_days.items():
             if existing_days[index].is_active!=day.is_active: raise HTTPException(status.HTTP_409_CONFLICT,'Existing timetable lessons require the current active days. Rename labels instead.')
+    config=db.query(m.TtCalendarConfig).filter(m.TtCalendarConfig.school_id==principal.school_id).first()
+    if config is None: db.add(m.TtCalendarConfig(school_id=principal.school_id,display_mode=payload.display_mode))
+    else: config.display_mode=payload.display_mode
     for index,day in incoming_days.items():
         current=existing_days.get(index); parsed=_parse_date(day.date_value or day.name) if payload.display_mode=='date' else None
         if current is None: db.add(m.TtDay(school_id=principal.school_id,index=index,day_of_week=index,name=day.name,short_form=day.short_form,date_value=parsed,is_active=day.is_active))
