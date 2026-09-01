@@ -9,7 +9,10 @@ const isProductionHost = typeof window !== 'undefined' && (
   window.location.hostname === 'www.phikila.com' ||
   window.location.hostname.endsWith('.vercel.app')
 )
-const apiUrl = isProductionHost ? productionApiUrl : (configuredApiUrl || sameOriginApiUrl)
+// Production uses Vercel's same-origin /api rewrite. This avoids browser CORS,
+// stale cross-origin configuration, and differences between custom/preview hosts.
+// The rewrite forwards /api/* to the Render API while preserving Authorization.
+const apiUrl = isProductionHost ? sameOriginApiUrl : (configuredApiUrl || sameOriginApiUrl)
 
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number, public readonly detail?: unknown) {
