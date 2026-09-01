@@ -6,13 +6,7 @@ from .solver import Placement, SolverInput
 
 
 def apply_lesson_durations(data: SolverInput, placements: list[Placement]) -> list[str]:
-    """Convert configured consecutive lesson periods into duration-aware placements.
-
-    ``periods_per_week`` remains the amount of teaching time required, while
-    ``double_periods`` controls how many two-period blocks that requirement must
-    contain. The actual wall-clock duration is therefore inherited from the
-    configured calendar periods; no minute value is introduced here.
-    """
+    """Convert configured consecutive lesson periods into duration-aware placements."""
     by_req: dict[int, list[Placement]] = defaultdict(list)
     for placement in placements:
         by_req[placement.requirement_id].append(placement)
@@ -39,38 +33,30 @@ def apply_lesson_durations(data: SolverInput, placements: list[Placement]) -> li
                 if first_pos is not None and second_pos == first_pos + 1:
                     pairs.append((first, second))
 
-        if len(pairs) < required:
-            subject = data.subjects.get(req.subject_id)
-            klass = data.classes.get(req.class_id)
-            problems.append(
-                f"{subject.name if subject else 'A subject'} for {klass.name if klass else 'a class'} "
-                f"requires {required} double lesson(s), but the generated timetable only contains "
-                f"{len(pairs)} consecutive double block(s). Relax a constraint or add teaching periods."
-            )
-            continue
-
-        selected_second_ids: set[int] = set()
-        selected_first_ids: set[int] = set()
+        selected_second: set[int] = set()
+        selected_first: set[int] = set()
         for first, second in pairs:
-            if len(selected_first_ids) >= required:
+            if len(selected_first) >= required:
                 break
-            if first.id in selected_second_ids or second.id in selected_first_ids:
+            first_key = id(first)
+            second_key = id(second)
+            if first_key in selected_second or second_key in selected_first:
                 continue
             first.duration = 2
-            selected_first_ids.add(first.id)
-            selected_second_ids.add(second.id)
+            selected_first.add(first_key)
+            selected_second.add(second_key)
 
-        if len(selected_first_ids) < required:
+        if len(selected_first) < required:
             subject = data.subjects.get(req.subject_id)
             klass = data.classes.get(req.class_id)
             problems.append(
                 f"{subject.name if subject else 'A subject'} for {klass.name if klass else 'a class'} "
                 f"requires {required} double lesson(s), but the generated timetable could not "
-                "form enough non-overlapping consecutive blocks."
+                "form enough non-overlapping consecutive blocks. Relax a constraint or add teaching periods."
             )
             continue
 
-        placements[:] = [p for p in placements if p.id not in selected_second_ids]
+        placements[:] = [p for p in placements if id(p) not in selected_second]
 
     return problems
 
