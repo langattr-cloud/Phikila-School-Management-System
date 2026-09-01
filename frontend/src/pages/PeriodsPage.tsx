@@ -4,18 +4,18 @@ import { Alert } from '../components/Alert'
 import { Badge, ErrorState, LoadingBlock } from '../components/States'
 import { useToast } from '../components/Toast'
 import { friendlyApiError } from '../lib/api'
-import { scheduling, type Day, type Period } from '../lib/scheduling'
+import { scheduling, type Day, type DayInput, type Period, type PeriodInput } from '../lib/scheduling'
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 function addMinutes(time: string, minutes: number) { const [h,m]=time.split(':').map(Number); const total=h*60+m+minutes; return `${String(Math.floor(total/60)%24).padStart(2,'0')}:${String(total%60).padStart(2,'0')}` }
-function makeDays(count:number): Omit<Day,'id'>[] { return Array.from({length:count},(_,index)=>({index,name:WEEKDAYS[index] ?? `Day ${index+1}`,short_form:WEEKDAYS[index]?.slice(0,3) ?? `D${index+1}`,date_value:null,is_active:true})) }
-function makePeriods(count:number): Omit<Period,'id'>[] { const rows:Omit<Period,'id'>[]=[]; let start='08:20'; for(let i=0;i<count;i++){const end=addMinutes(start,40); rows.push({index:i,name:`Period ${i+1}`,short_form:`P${i+1}`,start_time:start,end_time:end,is_teaching:true}); start=end} return rows }
+function makeDays(count:number): DayInput[] { return Array.from({length:count},(_,index)=>({index,name:WEEKDAYS[index] ?? `Day ${index+1}`,short_form:WEEKDAYS[index]?.slice(0,3) ?? `D${index+1}`,date_value:null,is_active:true})) }
+function makePeriods(count:number): PeriodInput[] { const rows:PeriodInput[]=[]; let start='08:20'; for(let i=0;i<count;i++){const end=addMinutes(start,40); rows.push({index:i,name:`Period ${i+1}`,short_form:`P${i+1}`,start_time:start,end_time:end,is_teaching:true}); start=end} return rows }
 export function PeriodsPage() {
-  const { notify } = useToast(); const [days,setDays]=useState<Omit<Day,'id'>[]>([]); const [periods,setPeriods]=useState<Omit<Period,'id'>[]>([]); const [mode,setMode]=useState<'day'|'date'>('day'); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [saving,setSaving]=useState(false); const [locked,setLocked]=useState(false)
+  const { notify } = useToast(); const [days,setDays]=useState<DayInput[]>([]); const [periods,setPeriods]=useState<PeriodInput[]>([]); const [mode,setMode]=useState<'day'|'date'>('day'); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [saving,setSaving]=useState(false); const [locked,setLocked]=useState(false)
   const load=useCallback(async()=>{setLoading(true);setError(null);try{const c=await scheduling.calendar();setMode(c.display_mode==='date'?'date':'day');setDays(c.days.length?c.days.map(({index,name,short_form,date_value,is_active})=>({index,name,short_form:short_form??'',date_value:date_value??null,is_active})):makeDays(5));setPeriods(c.periods.length?c.periods.map(({index,name,short_form,start_time,end_time,is_teaching})=>({index,name,short_form:short_form??'',start_time,end_time,is_teaching})):makePeriods(8))}catch(e){setError(friendlyApiError(e,'load the school calendar'))}finally{setLoading(false)}},[])
   useEffect(()=>{void load()},[load])
-  const updateDay=(index:number,patch:Partial<Day>)=>setDays(current=>current.map(day=>day.index===index?{...day,...patch}:day))
-  const updatePeriod=(index:number,patch:Partial<Period>)=>setPeriods(current=>current.map(period=>period.index===index?{...period,...patch}:period))
+  const updateDay=(index:number,patch:Partial<DayInput>)=>setDays(current=>current.map(day=>day.index===index?{...day,...patch}:day))
+  const updatePeriod=(index:number,patch:Partial<PeriodInput>)=>setPeriods(current=>current.map(period=>period.index===index?{...period,...patch}:period))
   const changeDayCount=(count:number)=>setDays(current=>Array.from({length:count},(_,i)=>current[i]??makeDays(count)[i]))
   const changePeriodCount=(count:number)=>setPeriods(current=>Array.from({length:count},(_,i)=>current[i]??makePeriods(count)[i]))
   const teachingCount=periods.filter(p=>p.is_teaching).length; const activeDays=days.filter(d=>d.is_active).length; const dayCount=days.length; const periodCount=periods.length
