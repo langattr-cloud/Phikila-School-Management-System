@@ -1,15 +1,15 @@
 """Multi-tenant timetable scheduling models."""
 from __future__ import annotations
 from datetime import datetime
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text, Time, UniqueConstraint, Index
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, JSON, String, Text, Time, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 class TenantMixin:
     school_id=Column(Integer,nullable=False,index=True); created_at=Column(DateTime,default=datetime.utcnow,nullable=False); updated_at=Column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow)
 class TtPeriod(TenantMixin,Base):
-    __tablename__='tt_periods'; __table_args__=(UniqueConstraint('school_id','index',name='uq_tt_period_slot'),); id=Column(Integer,primary_key=True); index=Column(Integer,nullable=False); name=Column(String(40),nullable=False); start_time=Column(Time,nullable=False); end_time=Column(Time,nullable=False); is_teaching=Column(Boolean,default=True,nullable=False)
+    __tablename__='tt_periods'; __table_args__=(UniqueConstraint('school_id','index',name='uq_tt_period_slot'),); id=Column(Integer,primary_key=True); index=Column(Integer,nullable=False); name=Column(String(40),nullable=False); short_form=Column(String(20),nullable=False,default=''); start_time=Column(Time,nullable=False); end_time=Column(Time,nullable=False); is_teaching=Column(Boolean,default=True,nullable=False)
 class TtDay(TenantMixin,Base):
-    __tablename__='tt_days'; __table_args__=(UniqueConstraint('school_id','index',name='uq_tt_day'),); id=Column(Integer,primary_key=True); index=Column(Integer,nullable=False); day_of_week=Column(Integer,nullable=False); name=Column(String(20),nullable=False); is_active=Column(Boolean,default=True,nullable=False)
+    __tablename__='tt_days'; __table_args__=(UniqueConstraint('school_id','index',name='uq_tt_day'),); id=Column(Integer,primary_key=True); index=Column(Integer,nullable=False); day_of_week=Column(Integer,nullable=False); name=Column(String(80),nullable=False); short_form=Column(String(20),nullable=False,default=''); date_value=Column(Date,nullable=True); is_active=Column(Boolean,default=True,nullable=False)
 class TtTeacher(TenantMixin,Base):
     __tablename__='tt_teachers'; __table_args__=(UniqueConstraint('school_id','code',name='uq_tt_teacher_code'),); id=Column(Integer,primary_key=True); code=Column(String(30),nullable=False); name=Column(String(120),nullable=False); phone=Column(String(40)); email=Column(String(160)); department=Column(String(80)); role=Column(String(80),default='Teacher',nullable=False); role_assignment=Column(JSON,default=dict,nullable=False); max_lessons_per_day=Column(Integer,default=7,nullable=False); max_consecutive=Column(Integer,default=4,nullable=False); workload_target=Column(Integer); unavailable=Column(JSON,default=dict,nullable=False); is_active=Column(Boolean,default=True,nullable=False)
 class TtSubject(TenantMixin,Base):
