@@ -19,7 +19,9 @@ def scheduling_dashboard(db: Session = Depends(get_db), principal: Principal = D
     required = sum(max(0, int(row.periods_per_week or 0)) for row in requirements)
     teachers = db.query(m.TtTeacher).filter(m.TtTeacher.school_id == school_id, m.TtTeacher.is_active.is_(True)).count()
     classes = db.query(m.TtClass).filter(m.TtClass.school_id == school_id).count()
-    rooms = db.query(m.TtRoom).filter(m.TtRoom.school_id == school_id).count()
+    # Count only the primary key so legacy production databases without the
+    # ORM's optional `index` room column can still serve the dashboard.
+    rooms = db.query(func.count(m.TtRoom.id)).filter(m.TtRoom.school_id == school_id).scalar() or 0
     version = db.query(m.TtVersion).filter(m.TtVersion.school_id == school_id, m.TtVersion.status == "published").order_by(m.TtVersion.number.desc()).first()
     if version is None and principal.at_least("scheduler"):
         version = db.query(m.TtVersion).filter(m.TtVersion.school_id == school_id).order_by(m.TtVersion.number.desc()).first()
