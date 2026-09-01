@@ -4,137 +4,35 @@ import { Alert } from '../components/Alert'
 import { Badge, LoadingBlock } from '../components/States'
 import { useToast } from '../components/Toast'
 import { friendlyApiError } from '../lib/api'
-import { scheduling, type Calendar, type Day, type Job, type Period, type TimetableType } from '../lib/scheduling'
+import { scheduling, type Calendar, type Job, type TimetableType } from '../lib/scheduling'
 
-const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-const RUNNING = ['queued', 'running', 'optimizing', 'validating']
-
-export function GeneratePage() {
-  const { notify } = useToast()
-  const [calendar, setCalendar] = useState<Calendar | null>(null)
-  const [types, setTypes] = useState<TimetableType[]>([])
-  const [periods, setPeriods] = useState<Period[]>([])
-  const [typeId, setTypeId] = useState<number | null>(null)
-  const [dayIndexes, setDayIndexes] = useState<number[]>([])
-  const [dayLabels, setDayLabels] = useState<Record<number, string>>({})
-  const [periodIndexes, setPeriodIndexes] = useState<number[]>([])
-  const [label, setLabel] = useState('Weekdays Timetable')
-  const [job, setJob] = useState<Job | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [starting, setStarting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [typeEditor, setTypeEditor] = useState<'closed' | 'new' | 'edit'>('closed')
-  const [typeName, setTypeName] = useState('')
-  const [typeCode, setTypeCode] = useState('')
-  const [typeDays, setTypeDays] = useState<number[]>([])
-
-  async function load() {
-    setLoading(true); setError(null)
-    try {
-      const [cal, timetableTypes] = await Promise.all([scheduling.calendar(), scheduling.timetableTypes()])
-      setCalendar(cal); setTypes(timetableTypes); setPeriods(cal.periods)
-      const labels = Object.fromEntries(Array.from({ length: 7 }, (_, index) => [index, cal.days.find(d => d.index === index)?.name ?? WEEKDAY_NAMES[index]]))
-      setDayLabels(labels)
-      const first = timetableTypes[0]
-      if (first) { setTypeId(first.id); setLabel(first.name); setDayIndexes(first.day_indexes); setTypeDays(first.day_indexes); setPeriodIndexes(cal.periods.filter(p => p.is_teaching).map(p => p.index)) }
-    } catch (e) { setError(friendlyApiError(e, 'load timetable generation setup')) }
-    finally { setLoading(false) }
-  }
-  useEffect(() => { void load() }, [])
-
-  const allDays = useMemo(() => Array.from({ length: 7 }, (_, index) => calendar?.days.find(d => d.index === index) ?? ({ id: index, index, name: WEEKDAY_NAMES[index], is_active: true } as Day)), [calendar])
-  const teachingPeriods = periods.filter(p => p.is_teaching)
-  const selectedPeriods = periodIndexes.length ? periodIndexes : teachingPeriods.map(p => p.index)
-  const running = !!job && RUNNING.includes(job.status)
-  const selectedDayCount = dayIndexes.length
-  const selectedPeriodCount = selectedPeriods.length
-
-  function toggle(list: number[], value: number, setter: (v: number[]) => void) { setter(list.includes(value) ? list.filter(x => x !== value) : [...list, value].sort((a, b) => a - b)) }
-  function selectAllDays() { setDayIndexes(allDays.map(d => d.index)) }
-  function selectWeekdays() { setDayIndexes([0, 1, 2, 3, 4]) }
-  function selectNoDays() { setDayIndexes([]) }
-  function selectAllPeriods() { setPeriodIndexes(teachingPeriods.map(p => p.index)) }
-  function selectType(id: number) {
-    const type = types.find(t => t.id === id); if (!type) return
-    setTypeId(id); setLabel(type.name); setDayIndexes(type.day_indexes); setTypeDays(type.day_indexes); setPeriodIndexes(teachingPeriods.map(p => p.index))
-  }
-  function openNewType() { setTypeName(''); setTypeCode(''); setTypeDays(dayIndexes.length ? dayIndexes : [0, 1, 2, 3, 4]); setTypeEditor('new') }
-  function openEditType() { const type = types.find(t => t.id === typeId); if (!type) return; setTypeName(type.name); setTypeCode(type.code); setTypeDays(type.day_indexes); setTypeEditor('edit') }
-  function updateDayLabel(index: number, value: string) { setDayLabels(current => ({ ...current, [index]: value })) }
-
-  async function saveType() {
-    const current = types.find(t => t.id === typeId); if (!current || !typeName.trim() || !typeCode.trim() || !typeDays.length) return
-    try {
-      const updated = await scheduling.updateTimetableType(current.id, { ...current, name: typeName.trim(), code: typeCode.trim(), day_indexes: typeDays })
-      setTypes(v => v.map(t => t.id === updated.id ? updated : t)); selectType(updated.id); setTypeEditor('closed'); notify('Timetable type updated.', 'success')
-    } catch (e) { notify(friendlyApiError(e, 'update timetable type'), 'error') }
-  }
-  async function createType() {
-    if (!typeName.trim() || !typeCode.trim() || !typeDays.length) return
-    try {
-      const created = await scheduling.createTimetableType({ name: typeName.trim(), code: typeCode.trim(), day_indexes: typeDays, is_active: true, is_system: false })
-      setTypes(v => [...v, created]); selectType(created.id); setTypeEditor('closed'); notify('Timetable type created.', 'success')
-    } catch (e) { notify(friendlyApiError(e, 'create timetable type'), 'error') }
-  }
-  async function generate() {
-    if (!typeId || running || starting || !dayIndexes.length || !selectedPeriods.length) return
-    setStarting(true)
-    try {
-      const next = await scheduling.generateProfile({ label: label.trim() || types.find(t => t.id === typeId)?.name || 'Timetable', timetable_type_id: typeId, period_indexes: selectedPeriods, day_indexes: dayIndexes, day_names: Object.fromEntries(dayIndexes.map(index => [index, dayLabels[index] || WEEKDAY_NAMES[index]])), max_seconds: 30 })
-      setJob(next); notify('Timetable generation started.', 'success')
-    } catch (e) { notify(friendlyApiError(e, 'generate the timetable'), 'error') }
-    finally { setStarting(false) }
-  }
-  useEffect(() => { if (!job || !running) return; const timer = window.setInterval(() => void scheduling.job(job.id).then(setJob).catch(() => undefined), 900); return () => window.clearInterval(timer) }, [job?.id, job?.status, running])
-
-  if (loading) return <><PageHeader title="Generate timetable" description="Build a timetable from the school's existing teaching data." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Generate' }]} /><div className="card section"><LoadingBlock label="Loading timetable setup" rows={6} /></div></>
-  if (error) return <><PageHeader title="Generate timetable" description="Build a timetable from the school's existing teaching data." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Generate' }]} /><Alert tone="error" title="Setup could not load">{error}</Alert></>
-
-  return <>
-    <PageHeader title="Generate timetable" description="Configure the schedule, review the inputs, then generate a draft for review." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Generate' }]} />
-
-    {job && <section className="card section" aria-live="polite" style={{ marginBottom: 18 }}>
-      <div className="panel__head"><div><h2 className="section__title">Generation {running ? 'in progress' : 'result'}</h2><p className="form__note">{job.message || job.stage || 'The timetable generator has completed.'}</p></div><Badge tone={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : 'neutral'}>{job.status}</Badge></div>
-      <div className="progress" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}><div className="progress__bar" style={{ width: `${job.progress}%` }} /></div>
-      {job.status === 'completed' && <Alert tone="success" title="Draft timetable generated">Review the result before putting it into force. Members will continue using the current official timetable until you publish the new one.</Alert>}
-      {job.status === 'failed' && <Alert tone="error" title="Generation failed">{job.message || 'The timetable could not be generated.'}</Alert>}
-    </section>}
-
-    <section className="card section" style={{ overflow: 'hidden' }}>
-      <div className="panel__head" style={{ alignItems: 'flex-start' }}>
-        <div><p className="form__note" style={{ marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 700 }}>Timetable configuration</p><h2 className="section__title">Build a new timetable</h2><p className="form__note">Classes and teachers remain independent management areas. The generator uses the school's existing teaching allocations automatically.</p></div>
-        <Badge tone="neutral">Draft until Put Into Force</Badge>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(260px, .34fr)', gap: 24, alignItems: 'start' }}>
-        <div>
-          <section style={{ padding: '18px 0', borderTop: '1px solid var(--border, #e5e7eb)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 14 }}><div><h3 style={{ margin: 0 }}>1. Timetable type</h3><p className="form__note">Choose a reusable configuration or create your own.</p></div><button className="button button--secondary button--sm" type="button" onClick={openNewType}>New type</button></div>
-            <div className="form__row" style={{ alignItems: 'stretch' }}><select id="tt-type" aria-label="Timetable type" className="input input--select" value={typeId ?? ''} onChange={e => selectType(Number(e.target.value))}><option value="">Choose type…</option>{types.map(t => <option key={t.id} value={t.id}>{t.name} · {t.code}</option>)}</select><button className="button button--secondary" type="button" disabled={!typeId} onClick={openEditType}>Edit</button></div>
-          </section>
-
-          <section style={{ padding: '18px 0', borderTop: '1px solid var(--border, #e5e7eb)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 14 }}><div><h3 style={{ margin: 0 }}>2. Schedule days</h3><p className="form__note">All seven days are available. The label can be a weekday, date, or custom text.</p></div><div className="form__row"><button className="button button--ghost button--sm" type="button" onClick={selectWeekdays}>Weekdays</button><button className="button button--ghost button--sm" type="button" onClick={selectAllDays}>All 7</button><button className="button button--ghost button--sm" type="button" onClick={selectNoDays}>Clear</button></div></div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(90px, 1fr))', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-              {allDays.map(d => { const selected = dayIndexes.includes(d.index); return <button key={d.index} type="button" onClick={() => toggle(dayIndexes, d.index, setDayIndexes)} aria-pressed={selected} style={{ textAlign: 'left', padding: 12, minHeight: 76, borderRadius: 10, border: `1px solid ${selected ? 'var(--accent, #1d4ed8)' : 'var(--border, #e5e7eb)'}`, background: selected ? 'var(--surface-selected, #eff6ff)' : 'var(--surface, #fff)', cursor: 'pointer' }}><strong style={{ display: 'block', fontSize: 12 }}>{WEEKDAY_NAMES[d.index]}</strong><span style={{ display: 'block', marginTop: 7, fontSize: 13, fontWeight: selected ? 700 : 500 }}>{dayLabels[d.index] || WEEKDAY_NAMES[d.index]}</span></button> })}
-            </div>
-            <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>{allDays.map(d => <div className="field" key={d.index}><label className="field__label" htmlFor={`day-label-${d.index}`}>{WEEKDAY_NAMES[d.index]} label</label><input id={`day-label-${d.index}`} className="input" value={dayLabels[d.index] ?? WEEKDAY_NAMES[d.index]} onChange={e => updateDayLabel(d.index, e.target.value)} placeholder={WEEKDAY_NAMES[d.index]} /></div>)}</div>
-          </section>
-
-          <section style={{ padding: '18px 0', borderTop: '1px solid var(--border, #e5e7eb)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 14 }}><div><h3 style={{ margin: 0 }}>3. Teaching periods</h3><p className="form__note">Choose the teaching periods the solver may use. Non-teaching periods are excluded.</p></div><button className="button button--ghost button--sm" type="button" onClick={selectAllPeriods}>All teaching periods</button></div>
-            <select multiple className="input" style={{ minHeight: 170 }} aria-label="Teaching periods" value={selectedPeriods.map(String)} onChange={e => setPeriodIndexes(Array.from(e.target.selectedOptions).map(o => Number(o.value)))}>{teachingPeriods.map(p => <option key={p.index} value={p.index}>{p.name} — {p.start_time}–{p.end_time}</option>)}</select>
-          </section>
-        </div>
-
-        <aside style={{ position: 'sticky', top: 18, border: '1px solid var(--border, #e5e7eb)', borderRadius: 12, padding: 18, background: 'var(--surface-subtle, #f8fafc)' }}>
-          <p className="form__note" style={{ marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 700 }}>Review</p><h3 style={{ margin: '0 0 14px' }}>Generation summary</h3>
-          <dl style={{ margin: 0, display: 'grid', gap: 12 }}><div><dt className="form__note">Timetable type</dt><dd style={{ margin: 2, fontWeight: 700 }}>{types.find(t => t.id === typeId)?.name || 'Not selected'}</dd></div><div><dt className="form__note">Days</dt><dd style={{ margin: 2, fontWeight: 700 }}>{selectedDayCount} of 7 selected</dd></div><div><dt className="form__note">Periods</dt><dd style={{ margin: 2, fontWeight: 700 }}>{selectedPeriodCount} teaching periods</dd></div><div><dt className="form__note">Output</dt><dd style={{ margin: 2, fontWeight: 700 }}>Draft timetable</dd></div></dl>
-          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border, #e5e7eb)' }}><p className="form__note">After generation, review conflicts and quality before putting the timetable into force.</p><button className="button button--primary button--block" type="button" disabled={!typeId || !dayIndexes.length || !selectedPeriods.length || running || starting} onClick={() => void generate()}>{starting ? 'Starting…' : running ? `Generating… ${job?.progress ?? 0}%` : 'Generate Timetable'}</button></div>
-        </aside>
-      </div>
-    </section>
-
-    {typeEditor !== 'closed' && <section className="card section" style={{ marginTop: 18 }}><div className="panel__head"><div><h2 className="section__title">{typeEditor === 'new' ? 'Create timetable type' : 'Edit timetable type'}</h2><p className="form__note">Reusable defaults only. Changing a type does not alter existing generated timetables.</p></div><button className="button button--ghost button--sm" type="button" onClick={() => setTypeEditor('closed')}>Close</button></div><div className="form form--grid"><div className="field"><label className="field__label">Name</label><input className="input" value={typeName} onChange={e => setTypeName(e.target.value)} placeholder="Weekend" /></div><div className="field"><label className="field__label">Code</label><input className="input" value={typeCode} onChange={e => setTypeCode(e.target.value.toUpperCase())} placeholder="WEEKEND" /></div><div className="field form--grid__full"><label className="field__label">Default days</label><div className="chip-toggles">{allDays.map(d => <label key={d.index} className={`chip-toggle ${typeDays.includes(d.index) ? 'chip-toggle--on' : ''}`}><input type="checkbox" checked={typeDays.includes(d.index)} onChange={() => toggle(typeDays, d.index, setTypeDays)} />{WEEKDAY_NAMES[d.index]}</label>)}</div></div></div><div className="form__row" style={{ marginTop: 16 }}><button className="button button--primary" type="button" disabled={!typeName.trim() || !typeCode.trim() || !typeDays.length} onClick={() => void (typeEditor === 'new' ? createType() : saveType())}>{typeEditor === 'new' ? 'Create type' : 'Save changes'}</button></div></section>}
-  </>
+const RUNNING = new Set(['queued','running','optimizing','validating'])
+export function GeneratePage(){
+ const {notify}=useToast(); const [calendar,setCalendar]=useState<Calendar|null>(null); const [types,setTypes]=useState<TimetableType[]>([]); const [typeId,setTypeId]=useState<number|null>(null); const [days,setDays]=useState<number[]>([]); const [labels,setLabels]=useState<Record<number,string>>({}); const [periods,setPeriods]=useState<number[]>([]); const [job,setJob]=useState<Job|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [starting,setStarting]=useState(false); const [editor,setEditor]=useState(false); const [name,setName]=useState(''); const [code,setCode]=useState(''); const [mode,setMode]=useState<'day'|'date'>('day'); const [typeDays,setTypeDays]=useState<number[]>([])
+ async function load(){setLoading(true);setError(null);try{const [cal,tt]=await Promise.all([scheduling.calendar(),scheduling.timetableTypes()]);setCalendar(cal);setTypes(tt);setLabels(Object.fromEntries(cal.days.map(d=>[d.index,d.name])));if(tt[0]){setTypeId(tt[0].id);setMode(tt[0].display_mode);setDays(tt[0].day_indexes);setPeriods(cal.periods.filter(p=>p.is_teaching).map(p=>p.index))}}catch(e){setError(friendlyApiError(e,'load timetable configuration'))}finally{setLoading(false)}}
+ useEffect(()=>{void load()},[])
+ const configuredDays=useMemo(()=>calendar?.days.slice().sort((a,b)=>a.index-b.index)??[],[calendar]); const teachingPeriods=useMemo(()=>calendar?.periods.filter(p=>p.is_teaching).slice().sort((a,b)=>a.index-b.index)??[],[calendar]); const selectedType=types.find(t=>t.id===typeId); const running=!!job&&RUNNING.has(job.status)
+ function toggle(list:number[],value:number,setter:(v:number[])=>void){setter(list.includes(value)?list.filter(v=>v!==value):[...list,value].sort((a,b)=>a-b))}
+ function selectType(id:number){const t=types.find(x=>x.id===id);if(!t)return;setTypeId(id);setMode(t.display_mode);setDays(t.day_indexes);setPeriods(teachingPeriods.map(p=>p.index))}
+ function beginNew(){setName('');setCode('');setMode('day');setTypeDays(configuredDays.map(d=>d.index));setEditor(true)}
+ function beginEdit(){if(!selectedType)return;setName(selectedType.name);setCode(selectedType.code);setMode(selectedType.display_mode);setTypeDays(selectedType.day_indexes);setEditor(true)}
+ async function saveType(){if(!name.trim()||!code.trim()||!typeDays.length)return;try{const payload={name:name.trim(),code:code.trim(),display_mode:mode,day_indexes:typeDays,is_active:true,is_system:false};const saved=selectedType?await scheduling.updateTimetableType(selectedType.id,payload):await scheduling.createTimetableType(payload);setTypes(v=>selectedType?v.map(t=>t.id===saved.id?saved:t):[...v,saved]);selectType(saved.id);setEditor(false);notify(selectedType?'Timetable type updated.':'Timetable type created.','success')}catch(e){notify(friendlyApiError(e,'save timetable type'),'error')}}
+ async function generate(){if(!typeId||!days.length||!periods.length||running||starting)return;setStarting(true);try{const next=await scheduling.generateProfile({timetable_type_id:typeId,period_indexes:periods,day_indexes:days,day_names:Object.fromEntries(days.map(i=>[i,labels[i]||configuredDays.find(d=>d.index===i)?.name||String(i)])),max_seconds:30});setJob(next);notify('Timetable generation started.','success')}catch(e){notify(friendlyApiError(e,'generate timetable'),'error')}finally{setStarting(false)}}
+ useEffect(()=>{if(!job||!running)return;const timer=window.setInterval(()=>void scheduling.job(job.id).then(setJob).catch(()=>undefined),900);return()=>window.clearInterval(timer)},[job?.id,job?.status,running])
+ if(loading)return <><PageHeader title="Generate timetable" description="Generate a draft from configured scheduling data." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable',to:'/timetable'},{label:'Generate'}]}/><div className="card section"><LoadingBlock label="Loading timetable configuration" rows={5}/></div></>
+ if(error)return <><PageHeader title="Generate timetable" description="Generate a draft from configured scheduling data." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable',to:'/timetable'},{label:'Generate'}]}/><Alert tone="error" title="Configuration unavailable">{error}</Alert></>
+ return <><PageHeader title="Generate timetable" description="Select a configured timetable type, schedule positions and teaching periods, then generate a draft." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable',to:'/timetable'},{label:'Generate'}]}/>
+  {job&&<section className="card section"><div className="panel__head"><div><h2 className="section__title">Generation {running?'in progress':'result'}</h2><p className="form__note">{job.message||job.stage}</p></div><Badge tone={job.status==='completed'?'success':job.status==='failed'?'danger':'neutral'}>{job.status}</Badge></div><div className="progress" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}><div className="progress__bar" style={{width:`${job.progress}%`}}/></div></section>}
+  <section className="card section"><div className="panel__head"><div><p className="form__note">TIMETABLE CONFIGURATION</p><h2 className="section__title">Build a timetable</h2><p className="form__note">Nothing on this form is a fixed school assumption. Options come from the school's scheduling configuration.</p></div><Badge tone="neutral">Draft</Badge></div>
+   <div className="form form--grid">
+    <div className="field form--grid__full"><label className="field__label">Timetable type</label><div className="form__row"><select className="input input--select" value={typeId??''} onChange={e=>selectType(Number(e.target.value))}><option value="">Select a configured type</option>{types.map(t=><option key={t.id} value={t.id}>{t.name} · {t.code}</option>)}</select><button className="button button--secondary" type="button" disabled={!selectedType} onClick={beginEdit}>Edit</button><button className="button button--secondary" type="button" onClick={beginNew}>New type</button></div></div>
+    {selectedType&&<div className="field form--grid__full"><label className="field__label">Display basis</label><span className="badge">{selectedType.display_mode==='day'?'Day based':'Date based'}</span></div>}
+    {selectedType&&<div className="field form--grid__full"><label className="field__label">{selectedType.display_mode==='day'?'Schedule days':'Schedule dates'}</label><div className="chip-toggles">{configuredDays.filter(d=>selectedType.day_indexes.includes(d.index)).map(d=><label key={d.index} className={`chip-toggle ${days.includes(d.index)?'chip-toggle--on':''}`}><input type="checkbox" checked={days.includes(d.index)} onChange={()=>toggle(days,d.index,setDays)}/><span>{labels[d.index]||d.name}</span></label>)}</div></div>}
+    {selectedType&&<div className="field form--grid__full"><label className="field__label">{selectedType.display_mode==='day'?'Display labels':'Dates'}</label><div className="form form--grid">{configuredDays.filter(d=>selectedType.day_indexes.includes(d.index)).map(d=><div className="field" key={d.index}><label className="field__label" htmlFor={`schedule-label-${d.index}`}>{d.name}</label><input id={`schedule-label-${d.index}`} type={selectedType.display_mode==='date'?'date':'text'} className="input" value={labels[d.index]??d.name} onChange={e=>setLabels(v=>({...v,[d.index]:e.target.value}))}/></div>)}</div></div>}
+    <div className="field form--grid__full"><label className="field__label">Teaching periods</label><div className="chip-toggles">{teachingPeriods.map(p=><label key={p.index} className={`chip-toggle ${periods.includes(p.index)?'chip-toggle--on':''}`}><input type="checkbox" checked={periods.includes(p.index)} onChange={()=>toggle(periods,p.index,setPeriods)}/><span>{p.name} · {p.start_time}–{p.end_time}</span></label>)}</div>{!teachingPeriods.length&&<p className="form__note">No teaching periods are configured.</p>}</div>
+   </div>
+   <div className="form__row" style={{marginTop:20}}><button className="button button--primary" type="button" disabled={!typeId||!days.length||!periods.length||running||starting} onClick={()=>void generate()}>{starting?'Starting…':running?`Generating… ${job?.progress??0}%`:'Generate timetable'}</button></div>
+  </section>
+  {editor&&<section className="card section"><div className="panel__head"><div><h2 className="section__title">{selectedType?'Edit timetable type':'Create timetable type'}</h2><p className="form__note">The type stores reusable display and schedule configuration only.</p></div></div><div className="form form--grid"><div className="field"><label className="field__label">Name</label><input className="input" value={name} onChange={e=>setName(e.target.value)}/></div><div className="field"><label className="field__label">Code</label><input className="input" value={code} onChange={e=>setCode(e.target.value)}/></div><div className="field"><label className="field__label">Display basis</label><select className="input input--select" value={mode} onChange={e=>setMode(e.target.value as 'day'|'date')}><option value="day">Day based</option><option value="date">Date based</option></select></div><div className="field form--grid__full"><label className="field__label">Default schedule positions</label><div className="chip-toggles">{configuredDays.map(d=><label key={d.index} className={`chip-toggle ${typeDays.includes(d.index)?'chip-toggle--on':''}`}><input type="checkbox" checked={typeDays.includes(d.index)} onChange={()=>toggle(typeDays,d.index,setTypeDays)}/><span>{d.name}</span></label>)}</div></div></div><div className="form__row" style={{marginTop:16}}><button className="button button--primary" type="button" disabled={!name.trim()||!code.trim()||!typeDays.length} onClick={()=>void saveType()}>Save type</button><button className="button button--secondary" type="button" onClick={()=>setEditor(false)}>Cancel</button></div></section>}
+ </>
 }
