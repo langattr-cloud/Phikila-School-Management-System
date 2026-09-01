@@ -11,7 +11,7 @@ class PeriodOut(ORMModel,PeriodIn):
     @field_validator('start_time','end_time',mode='before')
     @classmethod
     def serialize_time(cls,value): return value.strftime('%H:%M') if isinstance(value,time) else value
-class DayIn(BaseModel): index:int=Field(ge=0,le=6); name:str=Field(min_length=1,max_length=20); is_active:bool=True
+class DayIn(BaseModel): index:int=Field(ge=0,le=6); name:str=Field(min_length=1,max_length=40); is_active:bool=True
 class DayOut(ORMModel,DayIn): id:int
 class CalendarIn(BaseModel): days:list[DayIn]; periods:list[PeriodIn]
 class TeacherIn(BaseModel):
@@ -67,7 +67,10 @@ class ConstraintOut(ORMModel,ConstraintIn): id:int
 class TimetableTypeIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=40); day_indexes:list[int]=Field(min_length=1,max_length=7); is_active:bool=True; is_system:bool=False
 class TimetableTypeOut(ORMModel,TimetableTypeIn): id:int
 class GenerateIn(BaseModel): max_seconds:float=Field(default=30.0,ge=1.0,le=180.0); timetable_type_id:int|None=None; class_ids:list[int]|None=None; teacher_ids:list[int]|None=None; period_indexes:list[int]|None=None
-class GenerateProfileIn(GenerateIn): label:str=Field(default='New timetable',min_length=1,max_length=120); day_indexes:list[int]|None=None
+class GenerateProfileIn(GenerateIn):
+    label:str=Field(default='New timetable',min_length=1,max_length=120)
+    day_indexes:list[int]|None=None
+    day_names:dict[int,str]|None=None
 class JobOut(ORMModel): id:int; status:str; progress:int; stage:str|None; checks:list[dict[str,Any]]=Field(default_factory=list); result_version_id:int|None; quality:dict[str,Any]=Field(default_factory=dict); message:str|None
 class LessonOut(ORMModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
 class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=6); period_index:int=Field(ge=0,le=30); room_id:int|None=None
