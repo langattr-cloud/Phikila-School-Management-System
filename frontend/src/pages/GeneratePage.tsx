@@ -118,6 +118,7 @@ export function GeneratePage() {
   }
 
   function resizePeriods(count: number) {
+    if (!Number.isInteger(count) || count < 1) return
     const current = [...draftPeriods].sort((a, b) => a.index - b.index)
     const next = Array.from({ length: count }, (_, index) => current[index] ?? {
       id: -Date.now() - index,
@@ -362,9 +363,8 @@ export function GeneratePage() {
         </div>
         <div className="field">
           <label className="field__label">Schedule rows</label>
-          <select className="input input--select" disabled={!editing} value={draftPeriods.length} onChange={e => resizePeriods(Number(e.target.value))}>
-            {Array.from({ length: 30 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} {n === 1 ? 'row' : 'rows'}</option>)}
-          </select>
+          <input className="input" type="number" min="1" step="1" disabled={!editing} value={draftPeriods.length || ''} onChange={e => resizePeriods(Number(e.target.value))} onBlur={e => { if (!Number.isInteger(Number(e.target.value)) || Number(e.target.value) < 1) e.currentTarget.value = String(Math.max(1, draftPeriods.length)) }} aria-label="Number of periods and breaks" />
+          <div className="form__note">Enter the exact number of periods and breaks needed for this timetable.</div>
         </div>
       </div>
 
