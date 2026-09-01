@@ -70,8 +70,6 @@
 .type-editor::before { content:'TIMETABLE TYPE SETTINGS'; display:block; color:var(--color-ink-muted); font-size:.64rem; font-weight:800; letter-spacing:.1em; margin-bottom:.35rem; }
 .structure-editor::before { content:'SCHEDULE STRUCTURE SETTINGS'; display:block; color:var(--color-ink-muted); font-size:.64rem; font-weight:800; letter-spacing:.1em; margin-bottom:.35rem; }
 .type-editor .section__title,.structure-editor .section__title { font-size:1rem; }
-
-/* One-page timetable builder */
 .builder-page { width:min(100%, 900px); margin-inline:auto; }
 .builder-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1.25rem; padding-bottom:1rem; border-bottom:1px solid var(--color-line); }
 .builder-header .section__title { margin-bottom:.2rem; }
@@ -93,9 +91,14 @@
 .builder-period-table th:nth-child(2) { width:110px; }
 .builder-period-table th:nth-child(4) { width:105px; }
 .builder-period-table th:nth-child(5),.builder-period-table th:nth-child(6) { width:125px; }
-.builder-footer { display:flex; justify-content:flex-end; gap:.6rem; padding-top:1rem; }
-.builder-generate { margin-left:.5rem; }
+.builder-footer { display:flex; justify-content:flex-end; align-items:center; gap:.65rem; padding-top:1rem; }
+.builder-footer .button { min-width:150px; }
+.builder-save { order:1; }
+.builder-generate { order:2; min-width:210px !important; }
 .builder-status { width:min(100%,900px); margin:1rem auto 0; border-left:4px solid var(--color-primary); }
+.builder-generated-actions { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-top:1rem; padding-top:1rem; border-top:1px solid var(--color-line); }
+.builder-generated-actions .form__row { display:flex; gap:.6rem; flex-wrap:wrap; justify-content:flex-end; }
+.builder-save-generated { min-width:210px; }
 
 @media (max-width:720px) {
  .lesson-preview .panel__head,.generate-controls { align-items:stretch; flex-direction:column; }
@@ -117,7 +120,10 @@
  .builder-actions { width:100%; flex-wrap:wrap; }
  .builder-actions .input { flex:1; min-width:160px; }
  .builder-fields { grid-template-columns:1fr 1fr; }
- .builder-footer { flex-direction:column; }
- .builder-footer .button { width:100%; margin-left:0; }
- .builder-generate { margin-left:0; }
+ .builder-footer { flex-direction:column; align-items:stretch; }
+ .builder-footer .button { width:100%; min-width:0; }
+ .builder-generated-actions { flex-direction:column; align-items:stretch; }
+ .builder-generated-actions .form__row { flex-direction:column; }
+ .builder-generated-actions .button { width:100%; }
+ .builder-save-generated { min-width:0; }
 }
