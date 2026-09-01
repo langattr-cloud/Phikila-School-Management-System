@@ -21,4 +21,47 @@
 .lesson-preview__summary strong { font-size: 1.05rem; }
 .lesson-preview__summary span { color: var(--color-ink-muted); font-size: .72rem; }
 .generate-controls { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
-@media (max-width: 720px) { .lesson-preview .panel__head, .generate-controls { align-items: stretch; flex-direction: column; } .lesson-preview__summary { grid-template-columns: 1fr; } .lesson-preview__grid { min-width: 650px; } }
+
+.generate-card { max-width: 900px; margin-inline: auto; border-radius: 18px; box-shadow: 0 12px 34px rgba(15,42,71,.07); }
+.generate-hero { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1.15rem; border-bottom: 1px solid var(--color-line); }
+.eyebrow { color: var(--color-primary); font-size: .68rem; font-weight: 800; letter-spacing: .12em; margin-bottom: .2rem; }
+.generate-section { padding: 1.15rem 0; border-bottom: 1px solid var(--color-line); }
+.generate-section:last-of-type { border-bottom: 0; }
+.type-picker { display: flex; gap: .5rem; align-items: center; }
+.type-picker .input { flex: 1; min-width: 0; }
+.section-line { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .7rem; }
+.section-line h3 { margin: 0; font-size: .95rem; color: var(--color-ink); }
+.section-line p { margin: .12rem 0 0; color: var(--color-ink-muted); font-size: .76rem; }
+.count-pill { flex: 0 0 auto; padding: .28rem .55rem; border-radius: 999px; background: var(--color-surface-muted); color: var(--color-ink-muted); font-size: .7rem; font-weight: 700; }
+.day-list, .period-list { display: grid; gap: .45rem; }
+.day-row, .period-row { display: grid; align-items: center; gap: .65rem; min-height: 46px; padding: .42rem .55rem; border: 1px solid var(--color-line); border-radius: 11px; background: var(--color-surface); transition: border-color .15s ease, background .15s ease, box-shadow .15s ease; }
+.day-row { grid-template-columns: 22px minmax(90px, .55fr) 20px minmax(120px, 1fr); }
+.period-row { grid-template-columns: 22px minmax(80px, 1fr) auto; cursor: pointer; }
+.day-row--selected, .period-row--selected { border-color: rgba(15,42,71,.2); background: #f8fbff; box-shadow: 0 3px 10px rgba(15,42,71,.04); }
+.day-check, .period-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-primary); }
+.day-original { color: var(--color-ink-muted); font-size: .82rem; }
+.arrow { color: var(--color-ink-muted); text-align: center; }
+.day-name-input { width: 100%; border: 1px solid transparent; border-radius: 8px; background: transparent; padding: .45rem .55rem; color: var(--color-ink); font: inherit; font-size: .84rem; }
+.day-name-input:focus { outline: 2px solid rgba(59,130,246,.2); border-color: var(--color-line); background: #fff; }
+.period-name { font-size: .84rem; font-weight: 700; }
+.period-time { color: var(--color-ink-muted); font-size: .76rem; font-variant-numeric: tabular-nums; }
+.link-button { border: 0; background: transparent; color: var(--color-primary); padding: .25rem .1rem; font-size: .76rem; font-weight: 700; cursor: pointer; }
+.link-button:hover { text-decoration: underline; }
+.generate-footer { display: flex; justify-content: flex-end; align-items: center; gap: .6rem; padding-top: 1.15rem; }
+.generate-action { min-width: 175px; }
+.generation-status { max-width: 900px; margin-inline: auto; }
+.type-editor { max-width: 900px; margin-inline: auto; }
+
+@media (max-width: 720px) {
+ .lesson-preview .panel__head, .generate-controls { align-items: stretch; flex-direction: column; }
+ .lesson-preview__summary { grid-template-columns: 1fr; }
+ .lesson-preview__grid { min-width: 650px; }
+ .generate-card { border-radius: 14px; }
+ .type-picker { flex-wrap: wrap; }
+ .type-picker .input { flex-basis: 100%; }
+ .day-row { grid-template-columns: 20px minmax(70px, .5fr) 16px minmax(100px, 1fr); gap: .4rem; }
+ .period-row { grid-template-columns: 20px 1fr; }
+ .period-time { grid-column: 2; margin-top: -.35rem; }
+ .generate-footer { flex-direction: column-reverse; align-items: stretch; }
+ .generate-footer .button { width: 100%; }
+}
