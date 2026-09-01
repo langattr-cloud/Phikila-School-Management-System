@@ -17,25 +17,40 @@ class Settings:
         self.database_url = self._database_url(os.getenv("DATABASE_URL"))
 
         # Keep production browser requests working when the frontend and API are
-        # deployed as separate origins. An explicit CORS_ORIGINS value still
-        # overrides this default so deployments can restrict it further.
+        # deployed as separate origins. Always retain the known Phikila production
+        # origins even when a deployment provides a custom CORS_ORIGINS value.
+        production_origins = ["https://www.phikila.com", "https://phikila.com"]
         default_cors_origins = (
-            "https://www.phikila.com,https://phikila.com"
+            ",".join(production_origins)
             if self.is_production
             else "http://localhost:5173,http://127.0.0.1:5173"
         )
-        self.cors_origins = self._csv(
+        configured_origins = self._csv(
             os.getenv("CORS_ORIGINS", default_cors_origins)
         )
+        if self.is_production:
+            configured_origins = list(dict.fromkeys([*configured_origins, *production_origins]))
+        self.cors_origins = configured_origins
         if "*" in self.cors_origins:
             raise RuntimeError(
                 "CORS_ORIGINS must list exact trusted origins; wildcard CORS is not allowed"
             )
-        self.cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX") or (
+
+        # Keep Vercel preview/production deployments trusted as well. A custom
+        # regex may narrow or extend access, but it must not accidentally remove
+        # the application's own Vercel/Phikila origins.
+        built_in_production_regex = (
             r"https://([a-z0-9-]+\.)*phikila\.com|https://[a-z0-9-]+\.vercel\.app"
-            if self.is_production
-            else None
         )
+        configured_regex = os.getenv("CORS_ORIGIN_REGEX")
+        if self.is_production:
+            self.cors_origin_regex = (
+                f"(?:{configured_regex})|(?:{built_in_production_regex})"
+                if configured_regex
+                else built_in_production_regex
+            )
+        else:
+            self.cors_origin_regex = configured_regex or None
 
         # VITE_SUPABASE_URL is already required by the browser build. Accept it
         # as a compatibility fallback so a Vercel deployment cannot accidentally
