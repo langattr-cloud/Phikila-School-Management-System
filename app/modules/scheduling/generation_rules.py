@@ -5,8 +5,15 @@ from collections import defaultdict
 from .solver import Placement, SolverInput
 
 
-def apply_lesson_durations(data: SolverInput, placements: list[Placement]) -> list[str]:
-    """Convert configured consecutive lesson periods into duration-aware placements."""
+def enforce_double_lessons(data: SolverInput, placements: list[Placement]) -> list[str]:
+    """Apply and validate configured double-period lesson durations.
+
+    A double lesson is represented by one lesson row with ``duration=2`` and
+    consumes two consecutive configured teaching periods. The second solver
+    placement is removed so weekly teaching-period allocation is preserved.
+    No clock duration is hardcoded; the calendar period rows determine the
+    actual start/end times.
+    """
     by_req: dict[int, list[Placement]] = defaultdict(list)
     for placement in placements:
         by_req[placement.requirement_id].append(placement)
@@ -33,8 +40,8 @@ def apply_lesson_durations(data: SolverInput, placements: list[Placement]) -> li
                 if first_pos is not None and second_pos == first_pos + 1:
                     pairs.append((first, second))
 
-        selected_second: set[int] = set()
         selected_first: set[int] = set()
+        selected_second: set[int] = set()
         for first, second in pairs:
             if len(selected_first) >= required:
                 break
@@ -57,27 +64,16 @@ def apply_lesson_durations(data: SolverInput, placements: list[Placement]) -> li
             continue
 
         placements[:] = [p for p in placements if id(p) not in selected_second]
+        by_req[req.id] = [p for p in current if id(p) not in selected_second]
 
-    return problems
-
-
-def enforce_double_lessons(data: SolverInput, placements: list[Placement]) -> list[str]:
-    """Validate configured double lessons after duration conversion."""
-    problems: list[str] = []
-    for req in data.requirements:
-        required = max(0, req.double_periods)
-        if not required:
-            continue
-        current = [p for p in placements if p.requirement_id == req.id]
-        double_blocks = sum(1 for p in current if p.duration >= 2)
-        allocated_periods = sum(max(1, p.duration) for p in current)
-        if double_blocks < required or allocated_periods != req.periods_per_week:
+        allocated_periods = sum(max(1, p.duration) for p in by_req[req.id])
+        if allocated_periods != req.periods_per_week:
             subject = data.subjects.get(req.subject_id)
             klass = data.classes.get(req.class_id)
             problems.append(
                 f"{subject.name if subject else 'A subject'} for {klass.name if klass else 'a class'} "
-                f"requires {required} double lesson(s) and {req.periods_per_week} teaching period(s), "
-                f"but the generated timetable allocated {allocated_periods} period(s) across "
-                f"{double_blocks} double block(s)."
+                f"requires {req.periods_per_week} teaching period(s), but duration-aware generation "
+                f"allocated {allocated_periods}."
             )
+
     return problems
