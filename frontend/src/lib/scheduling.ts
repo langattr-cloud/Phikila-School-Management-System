@@ -28,7 +28,7 @@ export interface ConstraintInput extends Loose {}
 export interface Conflict extends Loose { id?: number; kind?: string; severity?: string; message?: string; detail?: string; day_index?: number | null; period_index?: number | null; teacher_id?: number | null; class_id?: number | null; room_id?: number | null }
 export interface TimetableType { id: number; name: string; code: string; day_indexes: number[]; is_active: boolean; is_system: boolean }
 export interface GenerateIn extends Loose { max_seconds?: number; timetable_type_id?: number | null; class_ids?: number[] | null; teacher_ids?: number[] | null; period_indexes?: number[] | null }
-export interface GenerateProfileInput extends GenerateIn { label?: string; day_indexes?: number[] | null }
+export interface GenerateProfileInput extends GenerateIn { label?: string; day_indexes?: number[] | null; day_names?: Record<number, string> | null }
 export interface SolverCheck { key: string; label: string; state: string }
 export interface JobCheck { key: string; label: string; state: string; group?: 'hard' | 'soft' | string }
 export interface JobQuality { overall?: number; breakdown?: Record<string, number> }
