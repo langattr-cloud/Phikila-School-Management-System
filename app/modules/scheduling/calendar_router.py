@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from . import models as m
 from . import schemas as s
-from .router import get_calendar
 from .tenancy import Principal, require_role
 router = APIRouter()
 class CalendarDayIn(BaseModel):
@@ -33,7 +32,9 @@ def _validate_times(periods:dict[int,s.PeriodIn])->None:
         previous_end=end
 @router.get('/calendar')
 def calendar(db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
-    days=db.query(m.TtDay).filter(m.TtDay.school_id==principal.school_id).order_by(m.TtDay.index).all(); periods=db.query(m.TtPeriod).filter(m.TtPeriod.school_id==principal.school_id).order_by(m.TtPeriod.index).all(); config=db.query(m.TtCalendarConfig).filter(m.TtCalendarConfig.school_id==principal.school_id).first()
+    days=db.query(m.TtDay).filter(m.TtDay.school_id==principal.school_id).order_by(m.TtDay.index).all()
+    periods=db.query(m.TtPeriod).filter(m.TtPeriod.school_id==principal.school_id).order_by(m.TtPeriod.index).all()
+    config=db.query(m.TtCalendarConfig).filter(m.TtCalendarConfig.school_id==principal.school_id).first()
     mode=config.display_mode if config else 'day'
     return {'days':[s.DayOut.model_validate(d).model_dump() for d in days],'periods':[s.PeriodOut.model_validate(p).model_dump() for p in periods],'display_mode':mode}
 @router.put('/calendar')
