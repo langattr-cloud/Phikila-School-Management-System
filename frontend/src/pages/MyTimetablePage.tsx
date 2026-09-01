@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, EmptyState, ErrorState, LoadingBlock } from '../components/States'
 import { PublishedTimetableGridWithEvents } from '../components/PublishedTimetableGridWithEvents'
 import { CalendarIcon } from '../components/icons'
 import { friendlyApiError } from '../lib/api'
-import { cachedFetch, formatSavedAt } from '../lib/offline'
-import { Link } from '../lib/router'
+import { formatSavedAt } from '../lib/offline'
 import { scheduling, type Calendar, type Event, type SchoolClass, type Teacher, type TimetableType, type TimetableView, type TimetableAmendment, type Version } from '../lib/scheduling'
 
 type Scope = 'teacher' | 'class'
@@ -84,31 +83,12 @@ export function MyTimetablePage() {
 
   return <>
     <PageHeader title="My timetable" description="Your timetable and, when you are a Class Teacher, your assigned class timetable." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My timetable' }]} />
-
-    <section className="card section timetable-type-selector">
-      <div className="toolbar">
-        <div><p className="eyebrow">Timetable Type</p><h2 className="section__title">{selectedType?.name ?? 'Timetable'}</h2></div>
-        <select aria-label="Timetable Type" className="input input--select" value={typeId ?? ''} onChange={event => setTypeId(Number(event.target.value))}>
-          {types.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
-        </select>
-      </div>
-    </section>
-
-    <section className="card section timetable-view-tabs" aria-label="Timetable view">
-      <div className="timetable-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={scope === 'teacher'} className={`button ${scope === 'teacher' ? 'button--primary' : 'button--secondary'}`} onClick={() => { setScope('teacher'); setTeacherId(teacherId) }}>My Timetable</button>
-        {canViewAssignedClass && <button type="button" role="tab" aria-selected={scope === 'class'} className={`button ${scope === 'class' ? 'button--primary' : 'button--secondary'}`} onClick={() => setScope('class')}>My Class</button>}
-      </div>
-    </section>
-
+    <section className="card section timetable-type-selector"><div className="toolbar"><div><p className="eyebrow">Timetable Type</p><h2 className="section__title">{selectedType?.name ?? 'Timetable'}</h2></div><select aria-label="Timetable Type" className="input input--select" value={typeId ?? ''} onChange={event => setTypeId(Number(event.target.value))}>{types.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}</select></div></section>
+    <section className="card section timetable-view-tabs" aria-label="Timetable view"><div className="timetable-tabs" role="tablist"><button type="button" role="tab" aria-selected={scope === 'teacher'} className={`button ${scope === 'teacher' ? 'button--primary' : 'button--secondary'}`} onClick={() => setScope('teacher')}>My Timetable</button>{canViewAssignedClass && <button type="button" role="tab" aria-selected={scope === 'class'} className={`button ${scope === 'class' ? 'button--primary' : 'button--secondary'}`} onClick={() => setScope('class')}>My Class</button>}</div></section>
     {isOfficial && <section className="card section timetable-official-indicator" aria-label="Official timetable status"><div className="toolbar"><div><p className="eyebrow">Official timetable</p><h2 className="section__title">✓ This timetable is officially in force</h2><p className="section__description">Effective from {view?.version?.effective_from ? new Date(view.version.effective_from).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : 'the published date'}.</p></div><Badge tone="success">IN FORCE</Badge></div></section>}
-
     {amendments.length > 0 && <section className="card section timetable-amendments" aria-label="Timetable amendments"><div className="toolbar"><div><h2 className="section__title">Timetable amendments</h2><p className="section__description">Official timetable changes are shown here.</p></div><Badge tone="info">{amendments.length} new</Badge></div><div className="amendment-list">{amendments.map(amendment => <div className="amendment-item" key={amendment.id}><div><strong>{amendment.title}</strong><p>{amendment.message}</p></div><span className="amendment-meta">{amendment.at ? new Date(amendment.at).toLocaleString() : ''}</span></div>)}</div></section>}
-
     {stale && <Alert tone="info" title="Offline copy">Saved on this device {formatSavedAt(stale)}. It will refresh when you reconnect.</Alert>}
-
     {view?.version && <section className="card section"><div className="toolbar"><div><h2 className="section__title">{scope === 'teacher' ? 'My Timetable' : 'My Class'}</h2><p className="section__description">{selectedType?.name ?? 'Timetable'}{view.target_name ? ` · ${view.target_name}` : ''}</p></div><Badge tone={isDraft ? 'neutral' : 'success'}>{isDraft ? 'Draft' : 'Published'}</Badge></div></section>}
-
     {view?.version ? <section className="card section"><PublishedTimetableGridWithEvents view={view} mode={scope} events={events} /></section> : <section className="card section"><EmptyState title={`No ${selectedType?.name ?? 'timetable'} available`} description="There is no timetable of this type in force yet." icon={<CalendarIcon width={22} height={22} />} /></section>}
   </>
 }
