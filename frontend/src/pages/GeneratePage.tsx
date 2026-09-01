@@ -19,7 +19,7 @@ export function GeneratePage(){
    const [cal,tt,active]=await Promise.all([scheduling.calendar(),scheduling.timetableTypes(),scheduling.activeJob().catch(()=>null)])
    setCalendar(cal); setTypes(tt); setJob(active)
    const dayTypes=tt.filter(t=>t.is_active&&t.display_mode==='day')
-   const first=dayTypes[0]??tt.find(t=>t.is_active)??tt[0]??null
+   const first=dayTypes[0]??null
    if(first){
     setTypeId(first.id); setDays(first.day_indexes); setPeriods(cal.periods.filter(p=>p.is_teaching).map(p=>p.index))
     setLabels(Object.fromEntries(cal.days.map(d=>[d.index,d.name])))
@@ -34,8 +34,19 @@ export function GeneratePage(){
  function beginNew(){setEditingTypeId(null);setName('');setCode('');setTypeDays(configuredDays.map(d=>d.index));setEditor(true)}
  function beginEdit(){if(!selectedType||selectedType.is_system||selectedType.display_mode!=='day')return;setEditingTypeId(selectedType.id);setName(selectedType.name);setCode(selectedType.code);setTypeDays(selectedType.day_indexes);setEditor(true)}
  async function saveType(){if(!name.trim()||!code.trim()||!typeDays.length)return;try{const payload={name:name.trim(),code:code.trim(),display_mode:'day' as const,day_indexes:typeDays,is_active:true,is_system:false};const saved=editingTypeId!==null?await scheduling.updateTimetableType(editingTypeId,payload):await scheduling.createTimetableType(payload);setTypes(v=>editingTypeId!==null?v.map(t=>t.id===saved.id?saved:t):[...v,saved]);setTypeId(saved.id);setDays(saved.day_indexes);setPeriods(teachingPeriods.map(p=>p.index));setLabels(Object.fromEntries(configuredDays.map(d=>[d.index,d.name])));setEditor(false);setEditingTypeId(null);notify(editingType?'Timetable type updated.':'Timetable type created.','success')}catch(e){notify(friendlyApiError(e,'save timetable type'),'error')}}
- async function generate(){if(!typeId||!days.length||!periods.length||running||starting)return;setStarting(true);try{const next=await scheduling.generateProfile({timetable_type_id:typeId,period_indexes:periods,day_indexes:days,day_names:Object.fromEntries(days.map(i=>[i,(labels[i]??configuredDays.find(d=>d.index===i)?.name??String(i)).trim()])),max_seconds:30});setJob(next);notify('Timetable generation started.','success')}catch(e){notify(friendlyApiError(e,'generate timetable'),'error')}finally{setStarting(false)}}
- useEffect(()=>{if(!job||!RUNNING.has(job.status))return;const timer=window.setInterval(()=>void scheduling.job(job.id).then(setJob).catch(()=>undefined),1000);return()=>window.clearInterval(timer)},[job?.id,job?.status])
+ async function generate(){if(!typeId||!days.length||!periods.length||running||starting)return;setStarting(true);try{const selectedPeriodIndexes=periods.filter(index=>teachingPeriods.some(p=>p.index===index));const next=await scheduling.generateProfile({timetable_type_id:typeId,period_indexes:selectedPeriodIndexes,day_indexes:days,day_names:Object.fromEntries(days.map(i=>[i,(labels[i]??configuredDays.find(d=>d.index===i)?.name??String(i)).trim()])),max_seconds:30});setJob(next);notify('Timetable generation started.','success')}catch(e){notify(friendlyApiError(e,'generate timetable'),'error')}finally{setStarting(false)}}
+ useEffect(()=>{
+  if(!job||!RUNNING.has(job.status))return
+  let timer:number|undefined
+  let stopped=false
+  const poll=async()=>{
+   if(stopped||document.visibilityState==='hidden')return
+   try{const next=await scheduling.job(job.id);if(!stopped)setJob(next)}catch{/* transient polling failures should not terminate the job UI */}
+  }
+  const schedule=()=>{if(!stopped){timer=window.setTimeout(async()=>{await poll();schedule()},2000)}}
+  schedule()
+  return()=>{stopped=true;if(timer)window.clearTimeout(timer)}
+ },[job?.id,job?.status])
 
  if(loading)return <><PageHeader title="Generate timetable" description="Generate a draft from configured scheduling data." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable',to:'/timetable'},{label:'Generate'}]}/><div className="card section"><LoadingBlock label="Loading timetable configuration" rows={5}/></div></>
  if(error)return <><PageHeader title="Generate timetable" description="Generate a draft from configured scheduling data." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable',to:'/timetable'},{label:'Generate'}]}/><Alert tone="error" title="Configuration unavailable">{error}</Alert></>
