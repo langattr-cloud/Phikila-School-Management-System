@@ -32,7 +32,7 @@ def _config(db,school_id,payload):
     if not day_indexes:raise HTTPException(status.HTTP_400_BAD_REQUEST,'Select at least one schedule day.')
     configured_days={d.index for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all()}
     if not set(day_indexes).issubset(configured_days):raise HTTPException(status.HTTP_400_BAD_REQUEST,'One or more selected days are not configured.')
-    configured_periods={p.index for p in db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id,p.is_teaching.is_(True)).all()}
+    configured_periods={p.index for p in db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id,m.TtPeriod.is_teaching.is_(True)).all()}
     period_indexes=sorted(set(int(i) for i in (payload.period_indexes or [])))
     if not period_indexes:raise HTTPException(status.HTTP_400_BAD_REQUEST,'Select at least one teaching period.')
     if not set(period_indexes).issubset(configured_periods):raise HTTPException(status.HTTP_400_BAD_REQUEST,'One or more selected teaching periods are not configured or are not teaching periods.')
