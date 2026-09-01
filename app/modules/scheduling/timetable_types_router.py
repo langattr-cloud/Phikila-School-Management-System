@@ -6,17 +6,9 @@ from . import schemas as s
 from .tenancy import Principal, require_role, resolve_principal
 router = APIRouter()
 
-def _ensure_system_types(db: Session, school_id: int):
-    days = db.query(m.TtDay).filter(m.TtDay.school_id == school_id).order_by(m.TtDay.index).all(); configured = {d.index for d in days}; active = sorted(d.index for d in days if d.is_active)
-    defaults = [('WEEKDAYS','Weekdays',[i for i in active if i <= 4]),('WEEKEND','Weekend',[i for i in active if i >= 5])]
-    for code,name,day_indexes in defaults:
-        if day_indexes and not db.query(m.TtTimetableType).filter(m.TtTimetableType.school_id==school_id,m.TtTimetableType.code==code).first(): db.add(m.TtTimetableType(school_id=school_id,name=name,code=code,day_indexes=day_indexes,is_active=True,is_system=True))
-    db.commit()
-
 @router.get('/timetable-types', response_model=list[s.TimetableTypeOut])
 def list_timetable_types(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
-    _ensure_system_types(db, principal.school_id)
-    return db.query(m.TtTimetableType).filter(m.TtTimetableType.school_id == principal.school_id, m.TtTimetableType.is_active.is_(True)).order_by(m.TtTimetableType.is_system.desc(), m.TtTimetableType.name).all()
+    return db.query(m.TtTimetableType).filter(m.TtTimetableType.school_id == principal.school_id, m.TtTimetableType.is_active.is_(True)).order_by(m.TtTimetableType.name).all()
 
 @router.post('/timetable-types', response_model=s.TimetableTypeOut, status_code=201)
 def create_timetable_type(payload: s.TimetableTypeIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin','scheduler'))):
@@ -24,18 +16,21 @@ def create_timetable_type(payload: s.TimetableTypeIn, db: Session = Depends(get_
     if db.query(m.TtTimetableType).filter(m.TtTimetableType.school_id == principal.school_id, m.TtTimetableType.code == code).first(): raise HTTPException(status.HTTP_409_CONFLICT, 'A timetable type with that code already exists.')
     configured = {d.index for d in db.query(m.TtDay).filter(m.TtDay.school_id == principal.school_id).all()}
     if not set(payload.day_indexes).issubset(configured): raise HTTPException(status.HTTP_400_BAD_REQUEST, 'One or more selected days are not configured for this school.')
-    row = m.TtTimetableType(school_id=principal.school_id, name=payload.name.strip(), code=code, day_indexes=sorted(set(payload.day_indexes)), is_active=payload.is_active, is_system=payload.is_system); db.add(row); db.commit(); db.refresh(row); return row
+    row = m.TtTimetableType(school_id=principal.school_id,name=payload.name.strip(),code=code,display_mode=payload.display_mode,day_indexes=sorted(set(payload.day_indexes)),is_active=payload.is_active,is_system=False); db.add(row); db.commit(); db.refresh(row); return row
 
 @router.put('/timetable-types/{ident}', response_model=s.TimetableTypeOut)
-def update_timetable_type(ident: int, payload: s.TimetableTypeIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin','scheduler'))):
-    row = db.query(m.TtTimetableType).filter(m.TtTimetableType.id == ident, m.TtTimetableType.school_id == principal.school_id).first()
-    if not row: raise HTTPException(status.HTTP_404_NOT_FOUND, 'Timetable type not found.')
-    if row.is_system and payload.code.strip().upper().replace(' ','_') != row.code: raise HTTPException(status.HTTP_400_BAD_REQUEST, 'System timetable types cannot be renamed.')
-    row.name = payload.name.strip(); row.code = payload.code.strip().upper().replace(' ','_'); row.day_indexes = sorted(set(payload.day_indexes)); row.is_active = payload.is_active; db.commit(); db.refresh(row); return row
+def update_timetable_type(ident:int,payload:s.TimetableTypeIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
+    row=db.query(m.TtTimetableType).filter(m.TtTimetableType.id==ident,m.TtTimetableType.school_id==principal.school_id).first()
+    if not row: raise HTTPException(status.HTTP_404_NOT_FOUND,'Timetable type not found.')
+    code=payload.code.strip().upper().replace(' ','_')
+    duplicate=db.query(m.TtTimetableType).filter(m.TtTimetableType.school_id==principal.school_id,m.TtTimetableType.code==code,m.TtTimetableType.id!=ident).first()
+    if duplicate: raise HTTPException(status.HTTP_409_CONFLICT,'A timetable type with that code already exists.')
+    configured={d.index for d in db.query(m.TtDay).filter(m.TtDay.school_id==principal.school_id).all()}
+    if not set(payload.day_indexes).issubset(configured): raise HTTPException(status.HTTP_400_BAD_REQUEST,'One or more selected days are not configured for this school.')
+    row.name=payload.name.strip();row.code=code;row.display_mode=payload.display_mode;row.day_indexes=sorted(set(payload.day_indexes));row.is_active=payload.is_active;db.commit();db.refresh(row);return row
 
-@router.delete('/timetable-types/{ident}', status_code=204)
+@router.delete('/timetable-types/{ident}',status_code=204)
 def delete_timetable_type(ident:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
     row=db.query(m.TtTimetableType).filter(m.TtTimetableType.id==ident,m.TtTimetableType.school_id==principal.school_id).first()
     if not row: raise HTTPException(status.HTTP_404_NOT_FOUND,'Timetable type not found.')
-    if row.is_system: raise HTTPException(status.HTTP_400_BAD_REQUEST,'System timetable types cannot be deleted.')
-    row.is_active=False; db.commit()
+    row.is_active=False;row.is_system=False;db.commit()
