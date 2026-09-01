@@ -10,19 +10,316 @@ import './GeneratePage.css'
 
 const RUNNING = new Set(['queued', 'running', 'optimizing', 'validating'])
 type DraftDay = Day & { display_name: string }
-export function GeneratePage(){
- const {notify}=useToast(); const navigate=useNavigate(); const [calendar,setCalendar]=useState<Calendar|null>(null); const [types,setTypes]=useState<TimetableType[]>([]); const [typeId,setTypeId]=useState<number|null>(null); const [days,setDays]=useState<number[]>([]); const [periods,setPeriods]=useState<number[]>([]); const [labels,setLabels]=useState<Record<number,string>>({}); const [job,setJob]=useState<Job|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [starting,setStarting]=useState(false); const [editor,setEditor]=useState(false); const [editingTypeId,setEditingTypeId]=useState<number|null>(null); const [name,setName]=useState(''); const [code,setCode]=useState(''); const [typeDays,setTypeDays]=useState<number[]>([]); const [editingStructure,setEditingStructure]=useState(false); const [draftDays,setDraftDays]=useState<DraftDay[]>([]); const [draftPeriods,setDraftPeriods]=useState<Period[]>([]); const [savingStructure,setSavingStructure]=useState(false)
- async function load(){setLoading(true);setError(null);try{const [cal,tt,active]=await Promise.all([scheduling.calendar(),scheduling.timetableTypes(),scheduling.activeJob().catch(()=>null)]);setCalendar(cal);setTypes(tt);setJob(active);setLabels(Object.fromEntries(cal.days.map(d=>[d.index,d.name])));const first=tt.find(t=>t.is_active&&t.display_mode==='day');if(first){setTypeId(first.id);setDays(first.day_indexes);setPeriods(cal.periods.filter(p=>p.is_teaching).map(p=>p.index))}}catch(e){setError(friendlyApiError(e,'load timetable configuration'))}finally{setLoading(false)}}
- useEffect(()=>{void load()},[])
- const configuredDays=useMemo(()=>calendar?.days.filter(d=>d.is_active).slice().sort((a,b)=>a.index-b.index)??[],[calendar]); const teachingPeriods=useMemo(()=>calendar?.periods.filter(p=>p.is_teaching).slice().sort((a,b)=>a.index-b.index)??[],[calendar]); const selectedType=types.find(t=>t.id===typeId); const editingType=types.find(t=>t.id===editingTypeId); const running=!!job&&RUNNING.has(job.status); const toggle=(list:number[],value:number,setter:(v:number[])=>void)=>setter(list.includes(value)?list.filter(v=>v!==value):[...list,value].sort((a,b)=>a-b))
- function selectType(id:number){const t=types.find(x=>x.id===id);if(!t||t.display_mode!=='day')return;setTypeId(id);setDays(t.day_indexes);setPeriods(teachingPeriods.map(p=>p.index));setLabels(Object.fromEntries(configuredDays.map(d=>[d.index,d.name])))}
- function beginNew(){setEditingTypeId(null);setName('');setCode('');setTypeDays(configuredDays.map(d=>d.index));setEditor(true)} function beginEdit(){if(!selectedType||selectedType.is_system||selectedType.display_mode!=='day')return;setEditingTypeId(selectedType.id);setName(selectedType.name);setCode(selectedType.code);setTypeDays(selectedType.day_indexes);setEditor(true)}
- async function saveType(){if(!name.trim()||!code.trim()||!typeDays.length)return;try{const payload={name:name.trim(),code:code.trim(),display_mode:'day' as const,day_indexes:typeDays,is_active:true,is_system:false};const saved=editingTypeId!==null?await scheduling.updateTimetableType(editingTypeId,payload):await scheduling.createTimetableType(payload);setTypes(v=>editingTypeId!==null?v.map(t=>t.id===saved.id?saved:t):[...v,saved]);setTypeId(saved.id);setDays(saved.day_indexes);setPeriods(teachingPeriods.map(p=>p.index));setEditor(false);setEditingTypeId(null);notify(editingType?'Timetable type updated.':'Timetable type created.','success')}catch(e){notify(friendlyApiError(e,'save timetable type'),'error')}}
- function beginStructureEdit(){setDraftDays(calendar?.days.map(d=>({...d,display_name:d.name}))??[]);setDraftPeriods(calendar?.periods.map(p=>({...p}))??[]);setEditingStructure(true)} function updateDay(index:number,patch:Partial<DraftDay>){setDraftDays(v=>v.map(d=>d.index===index?{...d,...patch}:d))} function updatePeriod(index:number,patch:Partial<Period>){setDraftPeriods(v=>v.map(p=>p.index===index?{...p,...patch}:p))} function addDay(){const index=Math.max(-1,...draftDays.map(d=>d.index))+1;const label=`Day ${index+1}`;setDraftDays(v=>[...v,{id:-Date.now(),index,name:label,display_name:label,short_form:`D${index+1}`,date_value:null,is_active:true}])} function addPeriod(){const index=Math.max(0,...draftPeriods.map(p=>p.index))+1;setDraftPeriods(v=>[...v,{id:-Date.now(),index,name:`P${index}`,short_form:`P${index}`,start_time:'15:20',end_time:'16:00',is_teaching:true}])}
- async function saveStructure(){if(!calendar)return;setSavingStructure(true);try{const payload={days:draftDays.map(({display_name,...d})=>({...d,name:display_name.trim()||d.name})),periods:draftPeriods.map(p=>({...p,name:p.name.trim()||`P${p.index}`,short_form:p.short_form.trim()||`P${p.index}`})),display_mode:calendar.display_mode==='date'?'date' as const:'day' as const};const saved=await scheduling.saveCalendar(payload);setCalendar(saved);setLabels(Object.fromEntries(saved.days.map(d=>[d.index,d.name])));setDays(v=>v.filter(i=>saved.days.some(d=>d.index===i&&d.is_active)));setPeriods(v=>v.filter(i=>saved.periods.some(p=>p.index===i&&p.is_teaching)));setEditingStructure(false);notify('Days and periods saved.','success')}catch(e){notify(friendlyApiError(e,'save days and periods'),'error')}finally{setSavingStructure(false)}}
- async function generate(){if(!typeId||!days.length||!periods.length||running||starting)return;setStarting(true);try{const selected=periods.filter(i=>teachingPeriods.some(p=>p.index===i));const next=await scheduling.generateProfile({timetable_type_id:typeId,period_indexes:selected,day_indexes:days,day_names:Object.fromEntries(days.map(i=>[i,(labels[i]??String(i)).trim()])),max_seconds:30});setJob(next);notify('Timetable generation started.','success')}catch(e){notify(friendlyApiError(e,'generate timetable'),'error')}finally{setStarting(false)}}
- useEffect(()=>{if(!job||!RUNNING.has(job.status))return;const timer=window.setInterval(async()=>{if(document.visibilityState==='hidden')return;try{setJob(await scheduling.job(job.id))}catch{}} ,2000);return()=>window.clearInterval(timer)},[job?.id,job?.status])
- if(loading)return <><PageHeader title="Generate timetable" description="Create a timetable from your configured days and periods." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable',to:'/timetable'},{label:'Generate'}]}/><div className="card section"><LoadingBlock label="Loading timetable configuration" rows={5}/></div></>
- if(error)return <><PageHeader title="Generate timetable" description="Create a timetable from your configured days and periods." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable',to:'/timetable'},{label:'Generate'}]}/><Alert tone="error" title="Configuration unavailable">{error}</Alert></>
- return <><PageHeader title="Generate timetable" description="Choose a type, days and periods, then generate." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable',to:'/timetable'},{label:'Generate'}]}/><section className="card section generate-card"><div className="generate-hero"><div><div className="eyebrow">TIMETABLE</div><h2 className="section__title">Build your timetable</h2></div><Badge tone="neutral">Draft</Badge></div><div className="generate-section"><label className="field__label">Timetable type</label><div className="type-picker"><select className="input input--select" value={typeId??''} onChange={e=>selectType(Number(e.target.value))}><option value="">Choose a timetable type</option>{types.filter(t=>t.is_active&&t.display_mode==='day').map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select><button className="button button--secondary" type="button" disabled={!selectedType||selectedType.is_system} onClick={beginEdit}>Edit</button><button className="button button--secondary" type="button" onClick={beginNew}>New</button></div></div>{selectedType&&<><div className="generate-section"><div className="section-line"><div><h3>Days</h3><p>Rename or choose days.</p></div><span className="count-pill">{days.length} selected</span></div><div className="day-list">{configuredDays.filter(d=>selectedType.day_indexes.includes(d.index)).map(d=><div className={`day-row ${days.includes(d.index)?'day-row--selected':''}`} key={d.index}><input className="day-check" type="checkbox" checked={days.includes(d.index)} onChange={()=>toggle(days,d.index,setDays)} aria-label={`Use ${d.name}`}/><span className="day-original">{d.name}</span><span className="arrow">→</span><input className="day-name-input" type="text" value={labels[d.index]??d.name} onChange={e=>setLabels(v=>({...v,[d.index]:e.target.value}))} aria-label={`Display name for ${d.name}`}/></div>)}</div><button className="link-button" type="button" onClick={beginStructureEdit}>Edit days &amp; periods</button></div><div className="generate-section"><div className="section-line"><div><h3>Periods</h3><p>Choose configured teaching periods.</p></div><span className="count-pill">{periods.length} selected</span></div><div className="period-list">{teachingPeriods.map(p=><div className={`period-row ${periods.includes(p.index)?'period-row--selected':''}`} key={p.index}><input type="checkbox" checked={periods.includes(p.index)} onChange={()=>toggle(periods,p.index,setPeriods)} aria-label={`Use ${p.name}`}/><span className="period-name">{p.name}</span><span className="period-time">{p.start_time}–{p.end_time}</span></div>)}</div><button className="link-button" type="button" onClick={beginStructureEdit}>+ Add / edit periods</button></div></> }<div className="generate-footer"><button className="button button--secondary" type="button" onClick={()=>navigate('/timetable')}>Cancel</button><button className="button button--primary generate-action" type="button" disabled={!typeId||!days.length||!periods.length||running||starting} onClick={()=>void generate()}>{starting?'Starting…':running?`Generating… ${job?.progress??0}%`:'Generate timetable →'}</button></div></section>{editor&&<section className="card section type-editor"><div className="panel__head"><h2 className="section__title">{editingType?'Edit timetable type':'New timetable type'}</h2></div><div className="form form--grid"><div className="field"><label className="field__label">Name</label><input className="input" value={name} onChange={e=>setName(e.target.value)}/></div><div className="field"><label className="field__label">Code</label><input className="input" value={code} onChange={e=>setCode(e.target.value)}/></div><div className="field form--grid__full"><label className="field__label">Days</label><div className="chip-toggles">{configuredDays.map(d=><label key={d.index} className={`chip-toggle ${typeDays.includes(d.index)?'chip-toggle--on':''}`}><input type="checkbox" checked={typeDays.includes(d.index)} onChange={()=>toggle(typeDays,d.index,setTypeDays)}/><span>{d.name}</span></label>)}</div></div></div><div className="form__row" style={{marginTop:16}}><button className="button button--primary" type="button" disabled={!name.trim()||!code.trim()||!typeDays.length} onClick={()=>void saveType()}>Save type</button><button className="button button--secondary" type="button" onClick={()=>{setEditor(false);setEditingTypeId(null)}}>Cancel</button></div></section>}{editingStructure&&<section className="card section type-editor structure-editor"><div className="panel__head"><div><h2 className="section__title">Edit days &amp; periods</h2><p className="form__note">Rename or add items, then save once.</p></div></div><div className="structure-group"><div className="section-line"><h3>Days</h3><button className="link-button" type="button" onClick={addDay}>+ Add day</button></div><div className="structure-list">{draftDays.map(d=><div className="structure-row" key={d.id}><input type="checkbox" checked={d.is_active} onChange={e=>updateDay(d.index,{is_active:e.target.checked})}/><input className="input" value={d.display_name} onChange={e=>updateDay(d.index,{display_name:e.target.value})}/><input className="input input--short" value={d.short_form} onChange={e=>updateDay(d.index,{short_form:e.target.value})}/></div>)}</div></div><div className="structure-group"><div className="section-line"><h3>Periods</h3><button className="link-button" type="button" onClick={addPeriod}>+ Add period</button></div><div className="structure-list">{draftPeriods.map(p=><div className="structure-row period-structure-row" key={p.id}><input type="checkbox" checked={p.is_teaching} onChange={e=>updatePeriod(p.index,{is_teaching:e.target.checked})} aria-label={`Teaching period ${p.name}`}/><input className="input" value={p.name} onChange={e=>updatePeriod(p.index,{name:e.target.value})}/><input className="input input--time" type="time" value={p.start_time} onChange={e=>updatePeriod(p.index,{start_time:e.target.value})}/><input className="input input--time" type="time" value={p.end_time} onChange={e=>updatePeriod(p.index,{end_time:e.target.value})}/></div>)}</div><div className="form__row" style={{marginTop:16}}><button className="button button--primary" type="button" disabled={savingStructure} onClick={()=>void saveStructure()}>{savingStructure?'Saving…':'Save changes'}</button><button className="button button--secondary" type="button" onClick={()=>setEditingStructure(false)}>Cancel</button></div></section>}</>
+
+export function GeneratePage() {
+  const { notify } = useToast()
+  const navigate = useNavigate()
+  const [calendar, setCalendar] = useState<Calendar | null>(null)
+  const [types, setTypes] = useState<TimetableType[]>([])
+  const [typeId, setTypeId] = useState<number | null>(null)
+  const [days, setDays] = useState<number[]>([])
+  const [periods, setPeriods] = useState<number[]>([])
+  const [labels, setLabels] = useState<Record<number, string>>({})
+  const [job, setJob] = useState<Job | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [editor, setEditor] = useState(false)
+  const [editingTypeId, setEditingTypeId] = useState<number | null>(null)
+  const [name, setName] = useState('')
+  const [code, setCode] = useState('')
+  const [typeDays, setTypeDays] = useState<number[]>([])
+  const [editingStructure, setEditingStructure] = useState(false)
+  const [draftDays, setDraftDays] = useState<DraftDay[]>([])
+  const [draftPeriods, setDraftPeriods] = useState<Period[]>([])
+  const [savingStructure, setSavingStructure] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    setError(null)
+    try {
+      const [cal, tt, active] = await Promise.all([
+        scheduling.calendar(),
+        scheduling.timetableTypes(),
+        scheduling.activeJob().catch(() => null),
+      ])
+      setCalendar(cal)
+      setTypes(tt)
+      setJob(active)
+      setLabels(Object.fromEntries(cal.days.map(d => [d.index, d.name])))
+      const first = tt.find(t => t.is_active && t.display_mode === 'day')
+      if (first) {
+        setTypeId(first.id)
+        setDays(first.day_indexes)
+        setPeriods(cal.periods.filter(p => p.is_teaching).map(p => p.index))
+      }
+    } catch (e) {
+      setError(friendlyApiError(e, 'load timetable configuration'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void load() }, [])
+
+  const configuredDays = useMemo(
+    () => calendar?.days.filter(d => d.is_active).slice().sort((a, b) => a.index - b.index) ?? [],
+    [calendar],
+  )
+  const teachingPeriods = useMemo(
+    () => calendar?.periods.filter(p => p.is_teaching).slice().sort((a, b) => a.index - b.index) ?? [],
+    [calendar],
+  )
+  const selectedType = types.find(t => t.id === typeId)
+  const editingType = types.find(t => t.id === editingTypeId)
+  const running = !!job && RUNNING.has(job.status)
+
+  function toggle(list: number[], value: number, setter: (value: number[]) => void) {
+    setter(list.includes(value) ? list.filter(v => v !== value) : [...list, value].sort((a, b) => a - b))
+  }
+
+  function selectType(id: number) {
+    const type = types.find(t => t.id === id)
+    if (!type || type.display_mode !== 'day') return
+    setTypeId(id)
+    setDays(type.day_indexes)
+    setPeriods(teachingPeriods.map(p => p.index))
+    setLabels(Object.fromEntries(configuredDays.map(d => [d.index, d.name])))
+  }
+
+  function beginNew() {
+    setEditingTypeId(null)
+    setName('')
+    setCode('')
+    setTypeDays(configuredDays.map(d => d.index))
+    setEditor(true)
+  }
+
+  function beginEdit() {
+    if (!selectedType || selectedType.is_system || selectedType.display_mode !== 'day') return
+    setEditingTypeId(selectedType.id)
+    setName(selectedType.name)
+    setCode(selectedType.code)
+    setTypeDays(selectedType.day_indexes)
+    setEditor(true)
+  }
+
+  async function saveType() {
+    if (!name.trim() || !code.trim() || !typeDays.length) return
+    try {
+      const payload = {
+        name: name.trim(),
+        code: code.trim(),
+        display_mode: 'day' as const,
+        day_indexes: typeDays,
+        is_active: true,
+        is_system: false,
+      }
+      const saved = editingTypeId !== null
+        ? await scheduling.updateTimetableType(editingTypeId, payload)
+        : await scheduling.createTimetableType(payload)
+      setTypes(value => editingTypeId !== null ? value.map(t => t.id === saved.id ? saved : t) : [...value, saved])
+      setTypeId(saved.id)
+      setDays(saved.day_indexes)
+      setPeriods(teachingPeriods.map(p => p.index))
+      setEditor(false)
+      setEditingTypeId(null)
+      notify(editingType ? 'Timetable type updated.' : 'Timetable type created.', 'success')
+    } catch (e) {
+      notify(friendlyApiError(e, 'save timetable type'), 'error')
+    }
+  }
+
+  function beginStructureEdit() {
+    setDraftDays(calendar?.days.map(d => ({ ...d, display_name: d.name })) ?? [])
+    setDraftPeriods(calendar?.periods.map(p => ({ ...p })) ?? [])
+    setEditingStructure(true)
+  }
+
+  function updateDay(index: number, patch: Partial<DraftDay>) {
+    setDraftDays(value => value.map(d => d.index === index ? { ...d, ...patch } : d))
+  }
+
+  function updatePeriod(index: number, patch: Partial<Period>) {
+    setDraftPeriods(value => value.map(p => p.index === index ? { ...p, ...patch } : p))
+  }
+
+  function addDay() {
+    const index = Math.max(-1, ...draftDays.map(d => d.index)) + 1
+    const label = `Day ${index + 1}`
+    setDraftDays(value => [...value, {
+      id: -Date.now(), index, name: label, display_name: label, short_form: `D${index + 1}`,
+      date_value: null, is_active: true,
+    }])
+  }
+
+  function addPeriod() {
+    const index = Math.max(0, ...draftPeriods.map(p => p.index)) + 1
+    setDraftPeriods(value => [...value, {
+      id: -Date.now(), index, name: `P${index}`, short_form: `P${index}`,
+      start_time: '15:20', end_time: '16:00', is_teaching: true,
+    }])
+  }
+
+  async function saveStructure() {
+    if (!calendar) return
+    setSavingStructure(true)
+    try {
+      const payload = {
+        days: draftDays.map(({ display_name, ...day }) => ({ ...day, name: display_name.trim() || day.name })),
+        periods: draftPeriods.map(period => ({
+          ...period,
+          name: period.name.trim() || `P${period.index}`,
+          short_form: period.short_form.trim() || `P${period.index}`,
+        })),
+        display_mode: calendar.display_mode === 'date' ? 'date' as const : 'day' as const,
+      }
+      const saved = await scheduling.saveCalendar(payload)
+      setCalendar(saved)
+      setLabels(Object.fromEntries(saved.days.map(d => [d.index, d.name])))
+      setDays(value => value.filter(i => saved.days.some(d => d.index === i && d.is_active)))
+      setPeriods(value => value.filter(i => saved.periods.some(p => p.index === i && p.is_teaching)))
+      setEditingStructure(false)
+      notify('Days and periods saved.', 'success')
+    } catch (e) {
+      notify(friendlyApiError(e, 'save days and periods'), 'error')
+    } finally {
+      setSavingStructure(false)
+    }
+  }
+
+  async function generate() {
+    if (!typeId || !days.length || !periods.length || running || starting) return
+    setStarting(true)
+    try {
+      const selected = periods.filter(i => teachingPeriods.some(p => p.index === i))
+      const next = await scheduling.generateProfile({
+        timetable_type_id: typeId,
+        period_indexes: selected,
+        day_indexes: days,
+        day_names: Object.fromEntries(days.map(i => [i, (labels[i] ?? String(i)).trim()])),
+        max_seconds: 30,
+      })
+      setJob(next)
+      notify('Timetable generation started.', 'success')
+    } catch (e) {
+      notify(friendlyApiError(e, 'generate timetable'), 'error')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!job || !RUNNING.has(job.status)) return
+    const timer = window.setInterval(async () => {
+      if (document.visibilityState === 'hidden') return
+      try { setJob(await scheduling.job(job.id)) } catch { /* keep polling */ }
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [job?.id, job?.status])
+
+  if (loading) return <>
+    <PageHeader title="Generate timetable" description="Create a timetable from your configured days and periods." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Generate' }]} />
+    <div className="card section"><LoadingBlock label="Loading timetable configuration" rows={5} /></div>
+  </>
+
+  if (error) return <>
+    <PageHeader title="Generate timetable" description="Create a timetable from your configured days and periods." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Generate' }]} />
+    <Alert tone="error" title="Configuration unavailable">{error}</Alert>
+  </>
+
+  return <>
+    <PageHeader title="Generate timetable" description="Choose a type, days and periods, then generate." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Generate' }]} />
+
+    {job && <section className="card section generation-status">
+      <div className="panel__head">
+        <div>
+          <h2 className="section__title">{running ? 'Generating timetable' : 'Generation complete'}</h2>
+          <p className="form__note">{job.message || job.stage || 'Timetable generation'}</p>
+        </div>
+        <Badge tone={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : 'neutral'}>{job.status}</Badge>
+      </div>
+      <div className="progress" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}>
+        <div className="progress__bar" style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} />
+      </div>
+      {job.result_version_id && job.status === 'completed' && <div className="form__row" style={{ marginTop: 10 }}>
+        <p className="form__note">Draft version #{job.result_version_id}</p>
+        <button className="button button--secondary" type="button" onClick={() => navigate(`/timetable?version=${job.result_version_id}`)}>Review draft</button>
+      </div>}
+    </section>}
+
+    <section className="card section generate-card">
+      <div className="generate-hero">
+        <div><div className="eyebrow">TIMETABLE</div><h2 className="section__title">Build your timetable</h2></div>
+        <Badge tone="neutral">Draft</Badge>
+      </div>
+
+      <div className="generate-section">
+        <label className="field__label">Timetable type</label>
+        <div className="type-picker">
+          <select className="input input--select" value={typeId ?? ''} onChange={e => selectType(Number(e.target.value))}>
+            <option value="">Choose a timetable type</option>
+            {types.filter(t => t.is_active && t.display_mode === 'day').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <button className="button button--secondary" type="button" disabled={!selectedType || selectedType.is_system} onClick={beginEdit}>Edit</button>
+          <button className="button button--secondary" type="button" onClick={beginNew}>New</button>
+        </div>
+      </div>
+
+      {selectedType && <>
+        <div className="generate-section">
+          <div className="section-line"><div><h3>Days</h3><p>Rename or choose days.</p></div><span className="count-pill">{days.length} selected</span></div>
+          <div className="day-list">
+            {configuredDays.filter(d => selectedType.day_indexes.includes(d.index)).map(d => <div className={`day-row ${days.includes(d.index) ? 'day-row--selected' : ''}`} key={d.index}>
+              <input className="day-check" type="checkbox" checked={days.includes(d.index)} onChange={() => toggle(days, d.index, setDays)} aria-label={`Use ${d.name}`} />
+              <span className="day-original">{d.name}</span><span className="arrow">→</span>
+              <input className="day-name-input" type="text" value={labels[d.index] ?? d.name} onChange={e => setLabels(value => ({ ...value, [d.index]: e.target.value }))} aria-label={`Display name for ${d.name}`} />
+            </div>)}
+          </div>
+          <button className="link-button" type="button" onClick={beginStructureEdit}>Edit days &amp; periods</button>
+        </div>
+
+        <div className="generate-section">
+          <div className="section-line"><div><h3>Periods</h3><p>Choose configured teaching periods.</p></div><span className="count-pill">{periods.length} selected</span></div>
+          <div className="period-list">
+            {teachingPeriods.map(p => <div className={`period-row ${periods.includes(p.index) ? 'period-row--selected' : ''}`} key={p.index}>
+              <input type="checkbox" checked={periods.includes(p.index)} onChange={() => toggle(periods, p.index, setPeriods)} aria-label={`Use ${p.name}`} />
+              <span className="period-name">{p.name}</span><span className="period-time">{p.start_time}–{p.end_time}</span>
+            </div>)}
+          </div>
+          <button className="link-button" type="button" onClick={beginStructureEdit}>+ Add / edit periods</button>
+        </div>
+      </>}
+
+      <div className="generate-footer">
+        <button className="button button--secondary" type="button" onClick={() => navigate('/timetable')}>Cancel</button>
+        <button className="button button--primary generate-action" type="button" disabled={!typeId || !days.length || !periods.length || running || starting} onClick={() => void generate()}>
+          {starting ? 'Starting…' : running ? `Generating… ${job?.progress ?? 0}%` : 'Generate timetable →'}
+        </button>
+      </div>
+    </section>
+
+    {editor && <section className="card section type-editor">
+      <div className="panel__head"><h2 className="section__title">{editingType ? 'Edit timetable type' : 'New timetable type'}</h2></div>
+      <div className="form form--grid">
+        <div className="field"><label className="field__label">Name</label><input className="input" value={name} onChange={e => setName(e.target.value)} /></div>
+        <div className="field"><label className="field__label">Code</label><input className="input" value={code} onChange={e => setCode(e.target.value)} /></div>
+        <div className="field form--grid__full"><label className="field__label">Days</label><div className="chip-toggles">
+          {configuredDays.map(d => <label key={d.index} className={`chip-toggle ${typeDays.includes(d.index) ? 'chip-toggle--on' : ''}`}><input type="checkbox" checked={typeDays.includes(d.index)} onChange={() => toggle(typeDays, d.index, setTypeDays)} /><span>{d.name}</span></label>)}
+        </div></div>
+      </div>
+      <div className="form__row" style={{ marginTop: 16 }}><button className="button button--primary" type="button" disabled={!name.trim() || !code.trim() || !typeDays.length} onClick={() => void saveType()}>Save type</button><button className="button button--secondary" type="button" onClick={() => { setEditor(false); setEditingTypeId(null) }}>Cancel</button></div>
+    </section>}
+
+    {editingStructure && <section className="card section type-editor structure-editor">
+      <div className="panel__head"><div><h2 className="section__title">Edit days &amp; periods</h2><p className="form__note">Rename or add items, then save once.</p></div></div>
+      <div className="structure-group"><div className="section-line"><h3>Days</h3><button className="link-button" type="button" onClick={addDay}>+ Add day</button></div>
+        <div className="structure-list">{draftDays.map(d => <div className="structure-row" key={d.id}><input type="checkbox" checked={d.is_active} onChange={e => updateDay(d.index, { is_active: e.target.checked })} /><input className="input" value={d.display_name} onChange={e => updateDay(d.index, { display_name: e.target.value })} /><input className="input input--short" value={d.short_form} onChange={e => updateDay(d.index, { short_form: e.target.value })} /></div>)}</div>
+      </div>
+      <div className="structure-group"><div className="section-line"><h3>Periods</h3><button className="link-button" type="button" onClick={addPeriod}>+ Add period</button></div>
+        <div className="structure-list">{draftPeriods.map(p => <div className="structure-row period-structure-row" key={p.id}><input type="checkbox" checked={p.is_teaching} onChange={e => updatePeriod(p.index, { is_teaching: e.target.checked })} aria-label={`Teaching period ${p.name}`} /><input className="input" value={p.name} onChange={e => updatePeriod(p.index, { name: e.target.value })} /><input className="input input--time" type="time" value={p.start_time} onChange={e => updatePeriod(p.index, { start_time: e.target.value })} /><input className="input input--time" type="time" value={p.end_time} onChange={e => updatePeriod(p.index, { end_time: e.target.value })} /></div>)}</div>
+      </div>
+      <div className="form__row" style={{ marginTop: 16 }}><button className="button button--primary" type="button" disabled={savingStructure} onClick={() => void saveStructure()}>{savingStructure ? 'Saving…' : 'Save changes'}</button><button className="button button--secondary" type="button" onClick={() => setEditingStructure(false)}>Cancel</button></div>
+    </section>}
+  </>
 }
