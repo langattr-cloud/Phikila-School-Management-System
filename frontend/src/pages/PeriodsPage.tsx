@@ -2,18 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, ErrorState, LoadingBlock } from '../components/States'
-import { CloseIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { friendlyApiError } from '../lib/api'
 import { scheduling, type Day, type Period } from '../lib/scheduling'
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-const DEFAULT_PERIODS: Omit<Period, 'id'>[] = [
-  { index: 0, name: 'Period 1', short_form: 'P1', start_time: '08:20', end_time: '09:00', is_teaching: true },
-  { index: 1, name: 'Period 2', short_form: 'P2', start_time: '09:00', end_time: '09:40', is_teaching: true },
-  { index: 2, name: 'Period 3', short_form: 'P3', start_time: '09:40', end_time: '10:20', is_teaching: true },
-  { index: 3, name: 'Period 4', short_form: 'P4', start_time: '10:20', end_time: '11:00', is_teaching: true },
-]
 function addMinutes(time: string, minutes: number) { const [h,m]=time.split(':').map(Number); const total=h*60+m+minutes; return `${String(Math.floor(total/60)%24).padStart(2,'0')}:${String(total%60).padStart(2,'0')}` }
 function makeDays(count:number): Omit<Day,'id'>[] { return Array.from({length:count},(_,index)=>({index,name:WEEKDAYS[index] ?? `Day ${index+1}`,short_form:WEEKDAYS[index]?.slice(0,3) ?? `D${index+1}`,date_value:null,is_active:true})) }
 function makePeriods(count:number): Omit<Period,'id'>[] { const rows:Omit<Period,'id'>[]=[]; let start='08:20'; for(let i=0;i<count;i++){const end=addMinutes(start,40); rows.push({index:i,name:`Period ${i+1}`,short_form:`P${i+1}`,start_time:start,end_time:end,is_teaching:true}); start=end} return rows }
