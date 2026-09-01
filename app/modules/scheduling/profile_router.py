@@ -17,7 +17,7 @@ def _utc(value):
 def _active_job(db,school_id):
     job=db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==school_id,func.lower(m.TtSolverJob.status).in_(ACTIVE_STATUSES)).order_by(m.TtSolverJob.id.desc()).first()
     if not job:return None
-    heartbeat=_utc(job.updated_at or job.started_at); stale=job.finished_at is not None or (job.progress or 0)>=99 or job.stage=="Completed" or bool(heartbeat and datetime.now(timezone.utc)-heartbeat>STALE_AFTER)
+    heartbeat=_utc(job.updated_at or job.started_at); stale=bool(heartbeat and datetime.now(timezone.utc)-heartbeat>STALE_AFTER)
     if stale:
         job.status="completed" if job.result_version_id else "failed";job.stage="Completed" if job.result_version_id else "Failed";job.finished_at=job.finished_at or datetime.now(timezone.utc);db.commit();return None
     return job
