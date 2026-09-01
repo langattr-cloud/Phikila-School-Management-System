@@ -41,10 +41,13 @@ def _config(db:Session, school_id:int, payload:s.GenerateProfileIn)->dict:
         type_row=db.query(m.TtTimetableType).filter(m.TtTimetableType.id==payload.timetable_type_id,m.TtTimetableType.school_id==school_id,m.TtTimetableType.is_active.is_(True)).first()
         if not type_row: raise HTTPException(status.HTTP_404_NOT_FOUND,'Timetable type not found.')
     day_indexes=sorted(set(payload.day_indexes if payload.day_indexes else (type_row.day_indexes if type_row else [])))
-    if not day_indexes: day_indexes=[d.index for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id,m.TtDay.is_active.is_(True)).order_by(m.TtDay.index).all()]
+    if not day_indexes: day_indexes=[d.index for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id).order_by(m.TtDay.index).all()]
     configured={d.index for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all()}
     if not set(day_indexes).issubset(configured): raise HTTPException(status.HTTP_400_BAD_REQUEST,'One or more selected days are not configured.')
-    return {'label':payload.label,'timetable_type_id':payload.timetable_type_id,'day_indexes':day_indexes,'class_ids':payload.class_ids,'teacher_ids':payload.teacher_ids,'period_indexes':payload.period_indexes}
+    day_names={str(k):str(v).strip() for k,v in (payload.day_names or {}).items() if str(v).strip()}
+    invalid=set(int(k) for k in day_names if str(k).lstrip('-').isdigit())-set(range(7))
+    if invalid: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,'Day labels must use day indexes from Monday (0) through Sunday (6).')
+    return {'label':payload.label,'timetable_type_id':payload.timetable_type_id,'day_indexes':day_indexes,'day_names':day_names,'class_ids':payload.class_ids,'teacher_ids':payload.teacher_ids,'period_indexes':payload.period_indexes}
 
 @router.post('/solver/generate-profile',response_model=s.JobOut,status_code=202)
 def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
