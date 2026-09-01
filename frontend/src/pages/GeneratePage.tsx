@@ -33,61 +33,25 @@ export function GeneratePage() {
   const [editing, setEditing] = useState(true)
 
   async function load() {
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     try {
-      const [cal, tt, active, current] = await Promise.all([
-        scheduling.calendar(),
-        scheduling.timetableTypes(),
-        scheduling.activeJob().catch(() => null),
-        scheduling.currentVersion().catch(() => null),
-      ])
-      setCalendar(cal)
-      setTypes(tt)
-      setJob(active)
-      setCurrentVersion(current)
+      const [cal, tt, active, current] = await Promise.all([scheduling.calendar(), scheduling.timetableTypes(), scheduling.activeJob().catch(() => null), scheduling.currentVersion().catch(() => null)])
+      setCalendar(cal); setTypes(tt); setJob(active); setCurrentVersion(current)
       const first = tt.find(t => t.is_active && t.display_mode === 'day')
-      if (first) {
-        setTypeId(first.id); setTypeName(first.name); setTypeCode(first.code); setDays(first.day_indexes)
-      }
-      setDraftDays(cal.days.map(d => ({ ...d })))
-      setDraftPeriods(cal.periods.map(p => ({ ...p })))
-      setLabels(Object.fromEntries(cal.days.map(d => [d.index, d.name])))
-      setPeriods(cal.periods.filter(p => p.is_teaching).map(p => p.index))
-    } catch (e) { setError(friendlyApiError(e, 'load timetable configuration')) }
-    finally { setLoading(false) }
+      if (first) { setTypeId(first.id); setTypeName(first.name); setTypeCode(first.code); setDays(first.day_indexes) }
+      setDraftDays(cal.days.map(d => ({ ...d }))); setDraftPeriods(cal.periods.map(p => ({ ...p })))
+      setLabels(Object.fromEntries(cal.days.map(d => [d.index, d.name]))); setPeriods(cal.periods.filter(p => p.is_teaching).map(p => p.index))
+    } catch (e) { setError(friendlyApiError(e, 'load timetable configuration')) } finally { setLoading(false) }
   }
-
   useEffect(() => { void load() }, [])
   const activeDays = useMemo(() => draftDays.filter(d => d.is_active).sort((a, b) => a.index - b.index), [draftDays])
-  const selectedType = types.find(t => t.id === typeId)
-  const running = !!job && RUNNING.has(job.status)
-  const generatedCandidate = !!job?.result_version_id && job.status === 'completed'
-
-  function selectSaved(id: number) {
-    const type = types.find(t => t.id === id); if (!type) return
-    setTypeId(type.id); setTypeName(type.name); setTypeCode(type.code); setDays(type.day_indexes); setEditing(true)
-  }
+  const selectedType = types.find(t => t.id === typeId); const running = !!job && RUNNING.has(job.status); const generatedCandidate = !!job?.result_version_id && job.status === 'completed'
+  function selectSaved(id: number) { const type = types.find(t => t.id === id); if (!type) return; setTypeId(type.id); setTypeName(type.name); setTypeCode(type.code); setDays(type.day_indexes); setEditing(true) }
   function newTimetable() { setTypeId(null); setTypeName(''); setTypeCode(''); setDays(activeDays.map(d => d.index)); setEditing(true) }
-  function resizeDays(count: number) {
-    const current = [...draftDays].sort((a, b) => a.index - b.index)
-    const next = Array.from({ length: count }, (_, index) => current[index] ?? { id: -Date.now() - index, index, name: `Day ${index + 1}`, short_form: `D${index + 1}`, date_value: null, is_active: true })
-    setDraftDays(next); setDays(next.map(d => d.index))
-  }
-  function resizePeriods(count: number) {
-    const current = [...draftPeriods].sort((a, b) => a.index - b.index)
-    const next = Array.from({ length: count }, (_, index) => current[index] ?? { id: -Date.now() - index, index, name: `Period ${index + 1}`, short_form: `P${index + 1}`, start_time: '08:00', end_time: '08:40', is_teaching: true })
-    setDraftPeriods(next); setPeriods(next.filter(p => p.is_teaching).map(p => p.index))
-  }
-  function updateDay(index: number, patch: Partial<Day>) {
-    setDraftDays(value => value.map(d => d.index === index ? { ...d, ...patch } : d))
-    if (patch.name !== undefined) setLabels(value => ({ ...value, [index]: patch.name ?? '' }))
-  }
-  function updatePeriod(index: number, patch: Partial<Period>) {
-    setDraftPeriods(value => value.map(p => p.index === index ? { ...p, ...patch } : p))
-    if (patch.is_teaching !== undefined) setPeriods(value => patch.is_teaching ? [...new Set([...value, index])] : value.filter(i => i !== index))
-  }
-
+  function resizeDays(count: number) { const current = [...draftDays].sort((a, b) => a.index - b.index); const next = Array.from({ length: count }, (_, index) => current[index] ?? { id: -Date.now() - index, index, name: `Day ${index + 1}`, short_form: `D${index + 1}`, date_value: null, is_active: true }); setDraftDays(next); setDays(next.map(d => d.index)) }
+  function resizePeriods(count: number) { const current = [...draftPeriods].sort((a, b) => a.index - b.index); const next = Array.from({ length: count }, (_, index) => current[index] ?? { id: -Date.now() - index, index, name: `Period ${index + 1}`, short_form: `P${index + 1}`, start_time: '08:00', end_time: '08:40', is_teaching: true }); setDraftPeriods(next); setPeriods(next.filter(p => p.is_teaching).map(p => p.index)) }
+  function updateDay(index: number, patch: Partial<Day>) { setDraftDays(value => value.map(d => d.index === index ? { ...d, ...patch } : d)); if (patch.name !== undefined) setLabels(value => ({ ...value, [index]: patch.name ?? '' })) }
+  function updatePeriod(index: number, patch: Partial<Period>) { setDraftPeriods(value => value.map(p => p.index === index ? { ...p, ...patch } : p)); if (patch.is_teaching !== undefined) setPeriods(value => patch.is_teaching ? [...new Set([...value, index])] : value.filter(i => i !== index)) }
   async function saveTimetable() {
     if (!calendar || !typeName.trim() || !draftDays.length || !draftPeriods.length) return
     setSaving(true)
@@ -96,49 +60,25 @@ export function GeneratePage() {
       const existing = types.find(t => t.id === typeId) ?? types.find(t => t.name.trim().toLowerCase() === typeName.trim().toLowerCase())
       const payload = { name: typeName.trim(), code, display_mode: 'day' as const, day_indexes: draftDays.map(d => d.index), is_active: true, is_system: existing?.is_system ?? false }
       const savedType = existing ? await scheduling.updateTimetableType(existing.id, payload) : await scheduling.createTimetableType(payload)
-      const savedCalendar = await scheduling.saveCalendar({
-        days: draftDays.map(d => ({ index: d.index, name: d.name.trim() || `Day ${d.index + 1}`, short_form: d.short_form.trim() || `D${d.index + 1}`, date_value: d.date_value ?? null, is_active: true })),
-        periods: draftPeriods.map(p => ({ index: p.index, name: p.name.trim() || `Period ${p.index + 1}`, short_form: p.short_form.trim() || `P${p.index + 1}`, start_time: p.start_time, end_time: p.end_time, is_teaching: p.is_teaching })), display_mode: 'day' as const,
-      })
-      setTypes(value => existing ? value.map(t => t.id === savedType.id ? savedType : t) : [...value, savedType])
-      setTypeId(savedType.id); setTypeCode(savedType.code); setCalendar(savedCalendar); setDraftDays(savedCalendar.days.map(d => ({ ...d }))); setDraftPeriods(savedCalendar.periods.map(p => ({ ...p }))); setDays(savedType.day_indexes); setLabels(Object.fromEntries(savedCalendar.days.map(d => [d.index, d.name]))); setPeriods(savedCalendar.periods.filter(p => p.is_teaching).map(p => p.index))
+      const savedCalendar = await scheduling.saveCalendar({ days: draftDays.map(d => ({ index: d.index, name: d.name.trim() || `Day ${d.index + 1}`, short_form: d.short_form.trim() || `D${d.index + 1}`, date_value: d.date_value ?? null, is_active: true })), periods: draftPeriods.map(p => ({ index: p.index, name: p.name.trim() || `Period ${p.index + 1}`, short_form: p.short_form.trim() || `P${p.index + 1}`, start_time: p.start_time, end_time: p.end_time, is_teaching: p.is_teaching })), display_mode: 'day' as const })
+      setTypes(value => existing ? value.map(t => t.id === savedType.id ? savedType : t) : [...value, savedType]); setTypeId(savedType.id); setTypeCode(savedType.code); setCalendar(savedCalendar); setDraftDays(savedCalendar.days.map(d => ({ ...d }))); setDraftPeriods(savedCalendar.periods.map(p => ({ ...p }))); setDays(savedType.day_indexes); setLabels(Object.fromEntries(savedCalendar.days.map(d => [d.index, d.name]))); setPeriods(savedCalendar.periods.filter(p => p.is_teaching).map(p => p.index))
       notify(existing ? 'Timetable saved. The previous timetable type was replaced.' : 'Timetable saved and is available for use.', 'success'); setEditing(false)
-    } catch (e) { notify(friendlyApiError(e, 'save timetable'), 'error') }
-    finally { setSaving(false) }
+    } catch (e) { notify(friendlyApiError(e, 'save timetable'), 'error') } finally { setSaving(false) }
   }
-
   async function generate() {
     if (!typeId || !days.length || !periods.length || running || starting) return
     setStarting(true)
-    try {
-      const next = await scheduling.generateProfile({ timetable_type_id: typeId, period_indexes: periods, day_indexes: days, day_names: Object.fromEntries(days.map(i => [i, (labels[i] ?? String(i)).trim()])), max_seconds: 30 })
-      setJob(next); notify('New timetable generated. It is not in force until you save it.', 'success')
-    } catch (e) { notify(friendlyApiError(e, 'generate timetable'), 'error') }
-    finally { setStarting(false) }
+    try { const next = await scheduling.generateProfile({ timetable_type_id: typeId, period_indexes: periods, day_indexes: days, day_names: Object.fromEntries(days.map(i => [i, (labels[i] ?? String(i)).trim()])), max_seconds: 30 }); setJob(next); notify('New timetable generated. It is not in force until you save it.', 'success') }
+    catch (e) { notify(friendlyApiError(e, 'generate timetable'), 'error') } finally { setStarting(false) }
   }
-
   async function saveGenerated() {
-    const versionId = job?.result_version_id
-    if (!versionId || savingGenerated) return
-    setSavingGenerated(true)
-    try {
-      const saved = await scheduling.publish(versionId)
-      setCurrentVersion(saved)
-      notify('Generated timetable saved and is now in force.', 'success')
-      setJob(value => value ? { ...value, message: 'This generated timetable is now in force.' } : value)
-    } catch (e) { notify(friendlyApiError(e, 'save generated timetable'), 'error') }
-    finally { setSavingGenerated(false) }
+    const versionId = job?.result_version_id; if (!versionId || savingGenerated) return; setSavingGenerated(true)
+    try { const saved = await scheduling.publish(versionId); setCurrentVersion(saved); notify('Generated timetable saved and is now in force.', 'success'); setJob(value => value ? { ...value, message: 'This generated timetable is now in force.' } : value) }
+    catch (e) { notify(friendlyApiError(e, 'save generated timetable'), 'error') } finally { setSavingGenerated(false) }
   }
-
-  useEffect(() => {
-    if (!job || !RUNNING.has(job.status)) return
-    const timer = window.setInterval(async () => { if (document.visibilityState !== 'hidden') { try { setJob(await scheduling.job(job.id)) } catch { /* keep polling */ } } }, 2000)
-    return () => window.clearInterval(timer)
-  }, [job?.id, job?.status])
-
+  useEffect(() => { if (!job || !RUNNING.has(job.status)) return; const timer = window.setInterval(async () => { if (document.visibilityState !== 'hidden') { try { setJob(await scheduling.job(job.id)) } catch { /* keep polling */ } } }, 2000); return () => window.clearInterval(timer) }, [job?.id, job?.status])
   if (loading) return <><PageHeader title="Build timetable" description="Define the timetable structure in one place." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Build' }]} /><div className="card section builder-page"><LoadingBlock label="Loading timetable configuration" rows={5} /></div></>
   if (error) return <><PageHeader title="Build timetable" description="Define the timetable structure in one place." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Build' }]} /><Alert tone="error" title="Configuration unavailable">{error}</Alert></>
-
   return <>
     <PageHeader title="Build timetable" description="Create or edit the timetable structure, then save it for use." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetable', to: '/timetable' }, { label: 'Build' }]} />
     <section className="card section builder-page">
@@ -146,9 +86,8 @@ export function GeneratePage() {
       <div className="builder-section builder-details"><div className="builder-fields"><div className="field"><label className="field__label">Name</label><input className="input" value={typeName} disabled={!editing} onChange={e => setTypeName(e.target.value)} placeholder="e.g. 2026 Academic Timetable" /></div><div className="field"><label className="field__label">Type of timetable</label><select className="input input--select" disabled={!editing} value="Weekly" onChange={() => undefined}><option>Weekly</option><option>Daily</option></select></div><div className="field"><label className="field__label">Periods per day</label><select className="input input--select" disabled={!editing} value={draftPeriods.length} onChange={e => resizePeriods(Number(e.target.value))}>{Array.from({ length: 30 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}</select></div><div className="field"><label className="field__label">Number of days</label><select className="input input--select" disabled={!editing} value={draftDays.length} onChange={e => resizeDays(Number(e.target.value))}>{Array.from({ length: 7 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}</select></div></div></div>
       <div className="builder-section"><div className="section-line"><div><h3>Days</h3><p>Rename each day and give it a short form.</p></div></div><div className="builder-table-wrap"><table className="builder-table"><thead><tr><th>#</th><th>Name</th><th>Short form</th></tr></thead><tbody>{draftDays.map(d => <tr key={d.index}><td>{d.index + 1}</td><td><input className="input" disabled={!editing} value={d.name} onChange={e => updateDay(d.index, { name: e.target.value })} /></td><td><input className="input builder-short" disabled={!editing} value={d.short_form} onChange={e => updateDay(d.index, { short_form: e.target.value })} /></td></tr>)}</tbody></table></div></div>
       <div className="builder-section"><div className="section-line"><div><h3>Periods & breaks</h3><p>Teaching periods and named breaks share the same structure. There is no fixed 15-period limit.</p></div></div><div className="builder-table-wrap"><table className="builder-table builder-period-table"><thead><tr><th>#</th><th>Type</th><th>Name</th><th>Short</th><th>Start</th><th>End</th></tr></thead><tbody>{draftPeriods.map(p => <tr key={p.index}><td>{p.index + 1}</td><td><select className="input input--select" disabled={!editing} value={p.is_teaching ? 'Period' : 'Break'} onChange={e => updatePeriod(p.index, { is_teaching: e.target.value === 'Period' })}><option>Period</option><option>Break</option></select></td><td><input className="input" disabled={!editing} value={p.name} onChange={e => updatePeriod(p.index, { name: e.target.value })} /></td><td><input className="input builder-short" disabled={!editing} value={p.short_form} onChange={e => updatePeriod(p.index, { short_form: e.target.value })} /></td><td><input className="input input--time" disabled={!editing} type="time" value={p.start_time} onChange={e => updatePeriod(p.index, { start_time: e.target.value })} /></td><td><input className="input input--time" disabled={!editing} type="time" value={p.end_time} onChange={e => updatePeriod(p.index, { end_time: e.target.value })} /></td></tr>)}</tbody></table></div></div>
-      <div className="builder-footer">{editing ? <button className="button button--primary" type="button" disabled={saving || !typeName.trim()} onClick={() => void saveTimetable()}>{saving ? 'Saving…' : 'Save timetable'}</button> : <button className="button button--secondary" type="button" onClick={() => setEditing(true)}>Edit timetable</button>}<button className="button button--primary builder-generate" type="button" disabled={!typeId || !days.length || !periods.length || running || starting} onClick={() => void generate()}>{starting ? 'Starting…' : running ? `Generating… ${job?.progress ?? 0}%` : 'Generate timetable'}</button></div>
+      <div className="builder-footer">{editing ? <button className="button button--primary builder-save" type="button" disabled={saving || !typeName.trim()} onClick={() => void saveTimetable()}>{saving ? 'Saving…' : 'Save changes'}</button> : <button className="button button--secondary" type="button" onClick={() => setEditing(true)}>Edit timetable</button>}<button className="button button--primary builder-generate" type="button" disabled={!typeId || !days.length || !periods.length || running || starting} onClick={() => void generate()}>{starting ? 'Starting…' : running ? `Generating… ${job?.progress ?? 0}%` : 'Generate timetable'}</button></div>
     </section>
-
-    {job && <section className="card section builder-status"><div className="panel__head"><div><h2 className="section__title">{running ? 'Generation in progress' : generatedCandidate ? 'Generated timetable' : job.status === 'failed' ? 'Generation failed' : 'Generation status'}</h2><p className="form__note">{job.message || job.stage || 'Timetable generation'}</p></div><Badge tone={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : 'neutral'}>{job.status}</Badge></div><div className="progress" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}><div className="progress__bar" style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} /></div>{generatedCandidate && <div className="builder-generated-actions"><div><strong>{currentVersion ? 'Timetable currently in force' : 'No timetable is currently in force'}</strong><p className="form__note">Generating another timetable will not change this saved timetable.</p></div><div className="form__row"><button className="button button--secondary" type="button" onClick={() => navigate(`/timetable?version=${job.result_version_id}`)}>View generated</button><button className="button button--primary" type="button" disabled={savingGenerated || job.result_version_id === currentVersion?.id} onClick={() => void saveGenerated()}>{savingGenerated ? 'Saving…' : job.result_version_id === currentVersion?.id ? 'Saved & in force' : 'Save generated timetable'}</button></div></div>}</section>}
+    {job && <section className="card section builder-status"><div className="panel__head"><div><h2 className="section__title">{running ? 'Generation in progress' : generatedCandidate ? 'Generated timetable' : job.status === 'failed' ? 'Generation failed' : 'Generation status'}</h2><p className="form__note">{job.message || job.stage || 'Timetable generation'}</p></div><Badge tone={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : 'neutral'}>{job.status}</Badge></div><div className="progress" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}><div className="progress__bar" style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} /></div>{generatedCandidate && <div className="builder-generated-actions"><div><strong>{currentVersion ? 'Timetable currently in force' : 'No timetable is currently in force'}</strong><p className="form__note">Generating another timetable will not change this saved timetable.</p></div><div className="form__row"><button className="button button--secondary" type="button" onClick={() => navigate(`/timetable?version=${job.result_version_id}`)}>View generated</button><button className="button button--primary builder-save-generated" type="button" disabled={savingGenerated || job.result_version_id === currentVersion?.id} onClick={() => void saveGenerated()}>{savingGenerated ? 'Saving…' : job.result_version_id === currentVersion?.id ? 'Saved & in force' : 'Save as current timetable'}</button></div></div>}</section>}
   </>
 }
