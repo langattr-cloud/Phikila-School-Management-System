@@ -64,13 +64,11 @@ class TeacherAssignmentSaveIn(BaseModel): teacher_id:int; assignments:list[Teach
 class TeacherAssignmentOut(BaseModel): teacher_id:int; assignments:list[TeacherAssignmentIn]; class_teacher_class_ids:list[int]
 class ConstraintIn(BaseModel): kind:str=Field(min_length=1,max_length=60); scope:Literal['school','teacher','class','subject','room']='school'; target_id:int|None=None; is_hard:bool=False; weight:int=Field(default=10,ge=0,le=100); params:dict[str,Any]=Field(default_factory=dict); enabled:bool=True; note:str|None=None
 class ConstraintOut(ORMModel,ConstraintIn): id:int
-class TimetableTypeIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=40); day_indexes:list[int]=Field(min_length=1,max_length=7); is_active:bool=True; is_system:bool=False
+class TimetableTypeIn(BaseModel): name:str=Field(min_length=1,max_length=120); code:str=Field(min_length=1,max_length=40); display_mode:Literal['day','date']='day'; day_indexes:list[int]=Field(min_length=1,max_length=7); is_active:bool=True; is_system:bool=False
 class TimetableTypeOut(ORMModel,TimetableTypeIn): id:int
 class GenerateIn(BaseModel): max_seconds:float=Field(default=30.0,ge=1.0,le=180.0); timetable_type_id:int|None=None; class_ids:list[int]|None=None; teacher_ids:list[int]|None=None; period_indexes:list[int]|None=None
 class GenerateProfileIn(GenerateIn):
-    label:str=Field(default='New timetable',min_length=1,max_length=120)
-    day_indexes:list[int]|None=None
-    day_names:dict[int,str]|None=None
+    label:str=Field(default='New timetable',min_length=1,max_length=120); day_indexes:list[int]|None=None; day_names:dict[int,str]|None=None
 class JobOut(ORMModel): id:int; status:str; progress:int; stage:str|None; checks:list[dict[str,Any]]=Field(default_factory=list); result_version_id:int|None; quality:dict[str,Any]=Field(default_factory=dict); message:str|None
 class LessonOut(ORMModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
 class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=6); period_index:int=Field(ge=0,le=30); room_id:int|None=None
@@ -78,7 +76,7 @@ class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=6); 
 class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
 class UnassignedOut(BaseModel): requirement_id:int; subject_id:int; subject_name:str; subject_colour:str; class_id:int; class_name:str; teacher_id:int|None; teacher_name:str|None; room_id:int|None; room_name:str|None; periods_per_week:int; placed:int; remaining:int; requires_double:bool
 class VersionOut(ORMModel):
-    id:int; number:int; label:str|None=None; status:str; quality:dict[str,Any]=Field(default_factory=dict); stats:dict[str,Any]=Field(default_factory=dict); created_by:str|None=None; created_at:Any=None; published_at:Any=None; effective_from:Any=None; day_indexes:list[int]=Field(default_factory=list); day_names:list[str]=Field(default_factory=list); timetable_type_id:int|None=None; timetable_type_name:str|None=None
+    id:int; number:int; label:str|None=None; status:str; quality:dict[str,Any]=Field(default_factory=dict); stats:dict[str,Any]=Field(default_factory=dict); created_by:str|None=None; created_at:Any=None; published_at:Any=None; effective_from:Any=None; day_indexes:list[int]=Field(default_factory=list); day_names:list[str]=Field(default_factory=list); display_mode:Literal['day','date']='day'; timetable_type_id:int|None=None; timetable_type_name:str|None=None
     @field_validator('created_by', mode='before')
     @classmethod
     def serialize_created_by(cls, value): return None if value is None else str(value)
