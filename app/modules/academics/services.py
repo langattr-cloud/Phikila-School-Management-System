@@ -30,16 +30,43 @@ class TermService:
         term = self.repository.get_term_by_id(school_id, term_id)
         if not term: raise HTTPException(status.HTTP_404_NOT_FOUND, "Term not found")
         return term
-    def create_term(self, school_id, data): return self.repository.create_term(school_id, data)
+    def create_term(self, school_id, data):
+        year = self.db.query(models.AcademicYear).filter(
+            models.AcademicYear.id == data.academic_year_id,
+            models.AcademicYear.school_id == school_id,
+        ).first()
+        if not year:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Term name cannot be empty.")
+        if self.repository.get_term_by_name(school_id, data.academic_year_id, name):
+            raise HTTPException(status.HTTP_409_CONFLICT, "A term with this name already exists in this academic year.")
+        try:
+            return self.repository.create_term(school_id, data.model_copy(update={"name": name}))
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, "A term with this name already exists in this academic year.")
     def update_term(self, school_id, term_id, data):
         term = self.get_term_by_id(school_id, term_id); values = data.model_dump(exclude_unset=True)
         start = values.get("start_date", term.start_date); end = values.get("end_date", term.end_date)
         if start is not None and end is not None and start > end: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Term start date must be before its end date.")
-        if "academic_year_id" in values:
-            year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == values["academic_year_id"], models.AcademicYear.school_id == school_id).first()
-            if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
+        target_year_id = values.get("academic_year_id", term.academic_year_id)
+        year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == target_year_id, models.AcademicYear.school_id == school_id).first()
+        if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
+        if "name" in values:
+            values["name"] = values["name"].strip()
+            if not values["name"]: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Term name cannot be empty.")
+        candidate_name = values.get("name", term.name)
+        duplicate = self.repository.get_term_by_name(school_id, target_year_id, candidate_name)
+        if duplicate and duplicate.id != term.id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "A term with this name already exists in this academic year.")
         if values.get("is_current") is True: self.db.query(models.Term).filter(models.Term.school_id == school_id, models.Term.id != term_id).update({models.Term.is_current: False})
-        return self.repository.update_term(term, data)
+        try:
+            return self.repository.update_term(term, data.model_copy(update={"name": values["name"]}) if "name" in values else data)
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, "A term with this name already exists in this academic year.")
 
 class LevelService:
     def __init__(self, db: Session): self.repository = LevelRepository(db); self.db = db
