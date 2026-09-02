@@ -56,24 +56,9 @@ def _validate_times(periods: dict[int, s.PeriodIn]) -> None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'{period.name}: time overlaps another configured period/event.')
         previous_end = end
 
-def _rank_map(existing: dict[int, object], incoming: dict[int, object], kind: str) -> dict[int, int]:
-    """Map old slot indexes to new indexes by their configured order.
-
-    Indexes are scheduling coordinates, not database identities. When the calendar
-    is edited, the ordered slots retain their identity while their coordinates may
-    change. Existing lessons therefore follow the slot's position rather than
-    becoming orphaned just because an index was renumbered.
-    """
-    old_indexes = sorted(existing)
-    new_indexes = sorted(incoming)
-    if len(new_indexes) < len(old_indexes):
-        dropped = set(old_indexes[len(new_indexes):])
-        if dropped:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f'Cannot remove {kind} slots that may contain timetable lessons. Move those lessons first.'
-            )
-    return dict(zip(old_indexes, new_indexes))
+def _rank_map(existing: dict[int, object], incoming: dict[int, object]) -> dict[int, int]:
+    """Map persisted slots to incoming coordinates by configured order."""
+    return dict(zip(sorted(existing), sorted(incoming)))
 
 def _remap_json_slots(value, day_map: dict[int, int], period_map: dict[int, int]):
     if not isinstance(value, dict):
@@ -86,15 +71,19 @@ def _remap_json_slots(value, day_map: dict[int, int], period_map: dict[int, int]
             old_day = None
         new_day = day_map.get(old_day, old_day) if old_day is not None else day
         if isinstance(periods, (list, tuple, set)):
-            result[str(new_day)] = [period_map.get(int(p), int(p)) for p in periods]
+            mapped = []
+            for period in periods:
+                try:
+                    old_period = int(period)
+                except (TypeError, ValueError):
+                    continue
+                mapped.append(period_map.get(old_period, old_period))
+            result[str(new_day)] = mapped
         else:
             result[str(new_day)] = periods
     return result
 
 def _remap_calendar_references(db: Session, school_id: int, day_map: dict[int, int], period_map: dict[int, int]) -> None:
-    if not day_map and not period_map:
-        return
-
     for lesson in db.query(m.TtLesson).filter(m.TtLesson.school_id == school_id).all():
         if lesson.day_index in day_map:
             lesson.day_index = day_map[lesson.day_index]
@@ -147,8 +136,24 @@ def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: 
         elif day.date_value:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'Dates are not allowed when Days mode is selected.')
 
-    day_map = _rank_map(existing_days, incoming_days, 'day')
-    period_map = _rank_map(existing_periods, incoming_periods, 'period')
+    old_days_by_order = sorted(existing_days.values(), key=lambda row: row.index)
+    old_periods_by_order = sorted(existing_periods.values(), key=lambda row: row.index)
+    new_day_values = [incoming_days[index] for index in sorted(incoming_days)]
+    new_period_values = [incoming_periods[index] for index in sorted(incoming_periods)]
+
+    dropped_days = old_days_by_order[len(new_day_values):]
+    dropped_periods = old_periods_by_order[len(new_period_values):]
+    if dropped_days:
+        dropped_indexes = {row.index for row in dropped_days}
+        if db.query(m.TtLesson).filter(m.TtLesson.school_id == principal.school_id, m.TtLesson.day_index.in_(dropped_indexes)).first():
+            raise HTTPException(status.HTTP_409_CONFLICT, 'Cannot remove a day that contains timetable lessons. Move those lessons first.')
+    if dropped_periods:
+        dropped_indexes = {row.index for row in dropped_periods}
+        if db.query(m.TtLesson).filter(m.TtLesson.school_id == principal.school_id, m.TtLesson.period_index.in_(dropped_indexes)).first():
+            raise HTTPException(status.HTTP_409_CONFLICT, 'Cannot remove a period that contains timetable lessons. Move those lessons first.')
+
+    day_map = _rank_map(existing_days, incoming_days)
+    period_map = _rank_map(existing_periods, incoming_periods)
     _remap_calendar_references(db, principal.school_id, day_map, period_map)
 
     config = db.query(m.TtCalendarConfig).filter(m.TtCalendarConfig.school_id == principal.school_id).first()
@@ -157,19 +162,16 @@ def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: 
     else:
         config.display_mode = payload.display_mode
 
-    # Update existing rows using temporary indexes first so reordering/swapping
-    # cannot violate the unique (school_id, index) constraints.
+    # Temporary coordinates prevent unique-index collisions during reordering/swaps.
     temporary_base = 1000
-    for offset, current in enumerate(sorted(existing_days.values(), key=lambda row: row.index)):
+    for offset, current in enumerate(old_days_by_order):
         current.index = temporary_base + offset
-    for offset, current in enumerate(sorted(existing_periods.values(), key=lambda row: row.index)):
+    for offset, current in enumerate(old_periods_by_order):
         current.index = temporary_base + offset
     db.flush()
 
-    old_days_by_order = sorted(existing_days.values(), key=lambda row: row.index)
-    old_periods_by_order = sorted(existing_periods.values(), key=lambda row: row.index)
-    new_day_values = [incoming_days[index] for index in sorted(incoming_days)]
-    new_period_values = [incoming_periods[index] for index in sorted(incoming_periods)]
+    for current in dropped_days + dropped_periods:
+        db.delete(current)
 
     for position, day in enumerate(new_day_values):
         current = old_days_by_order[position] if position < len(old_days_by_order) else None
