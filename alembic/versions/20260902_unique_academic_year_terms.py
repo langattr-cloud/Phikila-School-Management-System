@@ -3,7 +3,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "20260902termuniq"
-down_revision = "20260821finalmerge"
+down_revision = "20260901tt_calendar_config"
 branch_labels = None
 depends_on = None
 
