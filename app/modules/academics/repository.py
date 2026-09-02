@@ -15,10 +15,17 @@ class AcademicYearRepository:
 
 class TermRepository:
     def __init__(self, db: Session): self.db = db
-    def get_terms(self, school_id: int): return self.db.query(models.Term).filter(models.Term.school_id == school_id).order_by(models.Term.start_date, models.Term.name).all()
+    def get_terms(self, school_id: int): return self.db.query(models.Term).filter(models.Term.school_id == school_id).order_by(models.Term.academic_year_id, models.Term.start_date, models.Term.name).all()
     def get_term_by_id(self, school_id: int, term_id: int): return self.db.query(models.Term).filter(models.Term.school_id == school_id, models.Term.id == term_id).first()
+    def get_term_by_name(self, school_id: int, academic_year_id: int, name: str):
+        normalized = name.strip().casefold()
+        return self.db.query(models.Term).filter(
+            models.Term.school_id == school_id,
+            models.Term.academic_year_id == academic_year_id,
+            func.lower(func.trim(models.Term.name)) == normalized,
+        ).first()
     def create_term(self, school_id: int, data: schemas.TermCreate):
-        db_term = models.Term(name=data.name, start_date=data.start_date, end_date=data.end_date, is_current=data.is_current, academic_year_id=data.academic_year_id, school_id=school_id); self.db.add(db_term); self.db.commit(); self.db.refresh(db_term); return db_term
+        db_term = models.Term(name=data.name.strip(), start_date=data.start_date, end_date=data.end_date, is_current=data.is_current, academic_year_id=data.academic_year_id, school_id=school_id); self.db.add(db_term); self.db.commit(); self.db.refresh(db_term); return db_term
     def update_term(self, term: models.Term, data: schemas.TermUpdate):
         for key, value in data.model_dump(exclude_unset=True).items(): setattr(term, key, value.strip() if isinstance(value, str) else value)
         self.db.commit(); self.db.refresh(term); return term
