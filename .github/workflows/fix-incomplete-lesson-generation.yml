@@ -1,0 +1,39 @@
+name: Fix incomplete lesson generation
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make incomplete lesson loads a warning
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/modules/scheduling/solver.py')
+          s = p.read_text()
+          old = '    if not data.requirements:problems.append("No lesson requirements have been defined yet.")\n'
+          new = '    # An incomplete lesson load is valid. Generate the currently loaded lessons;\n    # the UI can surface the missing lesson data as a warning.\n'
+          if old not in s:
+              raise SystemExit('expected preflight line not found')
+          s = s.replace(old, new, 1)
+          old2 = '    if problems:return SolverOutput("infeasible",[],{}, {},problems)\n    model=cp_model.CpModel();slots=[(d,p) for d in data.days for p in data.teaching_periods];x={}\n'
+          new2 = '    if problems:return SolverOutput("infeasible",[],{}, {},problems)\n    warning_messages=[]\n    if not data.requirements:\n        warning_messages.append("Not all lessons are loaded. The timetable was generated from the lessons currently configured.")\n    model=cp_model.CpModel();slots=[(d,p) for d in data.days for p in data.teaching_periods];x={}\n'
+          if old2 not in s:
+              raise SystemExit('expected solve block not found')
+          s = s.replace(old2, new2, 1)
+          old3 = 'quality=score(data,placements);stats={"placed":len(placements),"required":sum(r.periods_per_week for r in data.requirements),"conflicts":0,"penalty":int(solver.ObjectiveValue()) if penalties else 0,"wall_time":round(solver.WallTime(),2),"status":label};report(100,"Completed");return SolverOutput(label,placements,quality,stats,[])\n'
+          new3 = 'quality=score(data,placements);stats={"placed":len(placements),"required":sum(r.periods_per_week for r in data.requirements),"conflicts":0,"penalty":int(solver.ObjectiveValue()) if penalties else 0,"wall_time":round(solver.WallTime(),2),"status":label};report(100,"Completed");return SolverOutput(label,placements,quality,stats,warning_messages)\n'
+          if old3 not in s:
+              raise SystemExit('expected result block not found')
+          p.write_text(s.replace(old3, new3, 1))
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app/modules/scheduling/solver.py
+          git diff --cached --quiet || git commit -m "Allow timetable generation with incomplete lesson loads"
+          git push
