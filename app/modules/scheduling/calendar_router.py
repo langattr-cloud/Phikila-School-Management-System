@@ -56,6 +56,68 @@ def _validate_times(periods: dict[int, s.PeriodIn]) -> None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'{period.name}: time overlaps another configured period/event.')
         previous_end = end
 
+def _rank_map(existing: dict[int, object], incoming: dict[int, object], kind: str) -> dict[int, int]:
+    """Map old slot indexes to new indexes by their configured order.
+
+    Indexes are scheduling coordinates, not database identities. When the calendar
+    is edited, the ordered slots retain their identity while their coordinates may
+    change. Existing lessons therefore follow the slot's position rather than
+    becoming orphaned just because an index was renumbered.
+    """
+    old_indexes = sorted(existing)
+    new_indexes = sorted(incoming)
+    if len(new_indexes) < len(old_indexes):
+        dropped = set(old_indexes[len(new_indexes):])
+        if dropped:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f'Cannot remove {kind} slots that may contain timetable lessons. Move those lessons first.'
+            )
+    return dict(zip(old_indexes, new_indexes))
+
+def _remap_json_slots(value, day_map: dict[int, int], period_map: dict[int, int]):
+    if not isinstance(value, dict):
+        return value
+    result = {}
+    for day, periods in value.items():
+        try:
+            old_day = int(day)
+        except (TypeError, ValueError):
+            old_day = None
+        new_day = day_map.get(old_day, old_day) if old_day is not None else day
+        if isinstance(periods, (list, tuple, set)):
+            result[str(new_day)] = [period_map.get(int(p), int(p)) for p in periods]
+        else:
+            result[str(new_day)] = periods
+    return result
+
+def _remap_calendar_references(db: Session, school_id: int, day_map: dict[int, int], period_map: dict[int, int]) -> None:
+    if not day_map and not period_map:
+        return
+
+    for lesson in db.query(m.TtLesson).filter(m.TtLesson.school_id == school_id).all():
+        if lesson.day_index in day_map:
+            lesson.day_index = day_map[lesson.day_index]
+        if lesson.period_index in period_map:
+            lesson.period_index = period_map[lesson.period_index]
+
+    for version in db.query(m.TtVersion).filter(m.TtVersion.school_id == school_id).all():
+        if isinstance(version.day_indexes, list):
+            version.day_indexes = [day_map.get(int(v), int(v)) for v in version.day_indexes]
+
+    for timetable_type in db.query(m.TtTimetableType).filter(m.TtTimetableType.school_id == school_id).all():
+        if isinstance(timetable_type.day_indexes, list):
+            timetable_type.day_indexes = [day_map.get(int(v), int(v)) for v in timetable_type.day_indexes]
+
+    for event in db.query(m.TtEvent).filter(m.TtEvent.school_id == school_id).all():
+        if isinstance(event.day_indexes, list):
+            event.day_indexes = [day_map.get(int(v), int(v)) for v in event.day_indexes]
+
+    for model in (m.TtTeacher, m.TtClass, m.TtRoom):
+        for row in db.query(model).filter(model.school_id == school_id).all():
+            if row.unavailable:
+                row.unavailable = _remap_json_slots(row.unavailable, day_map, period_map)
+
 @router.get('/calendar')
 def calendar(db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin', 'scheduler'))):
     days = db.query(m.TtDay).filter(m.TtDay.school_id == principal.school_id).order_by(m.TtDay.index).all()
@@ -70,7 +132,6 @@ def calendar(db: Session = Depends(get_db), principal: Principal = Depends(requi
 
 @router.put('/calendar')
 def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin', 'scheduler'))):
-    existing_lessons = db.query(m.TtLesson).filter(m.TtLesson.school_id == principal.school_id).count()
     existing_days = {r.index: r for r in db.query(m.TtDay).filter(m.TtDay.school_id == principal.school_id).all()}
     existing_periods = {r.index: r for r in db.query(m.TtPeriod).filter(m.TtPeriod.school_id == principal.school_id).all()}
     incoming_days = {d.index: d for d in payload.days}
@@ -85,39 +146,57 @@ def set_calendar(payload: CalendarIn, db: Session = Depends(get_db), principal: 
             _parse_date(day.date_value or day.name)
         elif day.date_value:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'Dates are not allowed when Days mode is selected.')
-    if existing_lessons:
-        if set(existing_days) != set(incoming_days) or set(existing_periods) != set(incoming_periods):
-            raise HTTPException(status.HTTP_409_CONFLICT, 'Existing timetable lessons require the same day and period indexes. Rename labels instead.')
-        for index, day in incoming_days.items():
-            if existing_days[index].is_active != day.is_active:
-                raise HTTPException(status.HTTP_409_CONFLICT, 'Existing timetable lessons require the current active days. Rename labels instead.')
+
+    day_map = _rank_map(existing_days, incoming_days, 'day')
+    period_map = _rank_map(existing_periods, incoming_periods, 'period')
+    _remap_calendar_references(db, principal.school_id, day_map, period_map)
+
     config = db.query(m.TtCalendarConfig).filter(m.TtCalendarConfig.school_id == principal.school_id).first()
     if config is None:
         db.add(m.TtCalendarConfig(school_id=principal.school_id, display_mode=payload.display_mode))
     else:
         config.display_mode = payload.display_mode
-    for index, day in incoming_days.items():
-        current = existing_days.get(index)
+
+    # Update existing rows using temporary indexes first so reordering/swapping
+    # cannot violate the unique (school_id, index) constraints.
+    temporary_base = 1000
+    for offset, current in enumerate(sorted(existing_days.values(), key=lambda row: row.index)):
+        current.index = temporary_base + offset
+    for offset, current in enumerate(sorted(existing_periods.values(), key=lambda row: row.index)):
+        current.index = temporary_base + offset
+    db.flush()
+
+    old_days_by_order = sorted(existing_days.values(), key=lambda row: row.index)
+    old_periods_by_order = sorted(existing_periods.values(), key=lambda row: row.index)
+    new_day_values = [incoming_days[index] for index in sorted(incoming_days)]
+    new_period_values = [incoming_periods[index] for index in sorted(incoming_periods)]
+
+    for position, day in enumerate(new_day_values):
+        current = old_days_by_order[position] if position < len(old_days_by_order) else None
         parsed = _parse_date(day.date_value or day.name) if payload.display_mode == 'date' else None
         if current is None:
-            db.add(m.TtDay(school_id=principal.school_id, index=index, day_of_week=index, name=day.name, short_form=day.short_form, date_value=parsed, is_active=day.is_active))
+            db.add(m.TtDay(school_id=principal.school_id, index=day.index, day_of_week=day.index, name=day.name, short_form=day.short_form, date_value=parsed, is_active=day.is_active))
         else:
+            current.index = day.index
+            current.day_of_week = day.index
             current.name = day.name
             current.short_form = day.short_form
             current.date_value = parsed
             current.is_active = day.is_active
-            current.day_of_week = index
-    for index, period in incoming_periods.items():
-        current = existing_periods.get(index)
+
+    for position, period in enumerate(new_period_values):
+        current = old_periods_by_order[position] if position < len(old_periods_by_order) else None
         start = _as_time(period.start_time)
         end = _as_time(period.end_time)
         if current is None:
-            db.add(m.TtPeriod(school_id=principal.school_id, index=index, name=period.name or f'Period {index + 1}', short_form=period.short_form, start_time=start, end_time=end, is_teaching=period.is_teaching))
+            db.add(m.TtPeriod(school_id=principal.school_id, index=period.index, name=period.name or f'Period {period.index + 1}', short_form=period.short_form, start_time=start, end_time=end, is_teaching=period.is_teaching))
         else:
-            current.name = period.name or f'Period {index + 1}'
+            current.index = period.index
+            current.name = period.name or f'Period {period.index + 1}'
             current.short_form = period.short_form
             current.start_time = start
             current.end_time = end
             current.is_teaching = period.is_teaching
+
     db.commit()
     return calendar(db, principal)
