@@ -11,7 +11,7 @@
  */
 
 // Bump this whenever the API/client contract changes so browsers discard stale shell/assets.
-const VERSION = 'v4'
+const VERSION = 'v5'
 const SHELL_CACHE = `phikila-shell-${VERSION}`
 const ASSET_CACHE = `phikila-assets-${VERSION}`
 const DATA_CACHE = `phikila-data-${VERSION}`
