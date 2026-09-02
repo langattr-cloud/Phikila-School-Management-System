@@ -1,0 +1,65 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Alert } from './Alert'
+import { useToast } from './Toast'
+import { friendlyApiError } from '../lib/api'
+import { scheduling, type Calendar, type Constraint, type SchoolClass, type Slots, type Subject, type Teacher } from '../lib/scheduling'
+
+type Kind = 'teachers' | 'classes' | 'subjects'
+type Resource = Teacher | SchoolClass | Subject
+
+type Props = { kind: Kind; resource: Resource; compact?: boolean }
+type CellState = 'empty' | 'available' | 'blocked'
+const EMPTY: Slots = {}
+const key = (day: number, period: number) => `${day}:${period}`
+const toStates = (slots: Slots) => { const out: Record<string, CellState> = {}; Object.entries(slots).forEach(([d, ps]) => (ps ?? []).forEach(p => { out[key(Number(d), p)] = 'blocked' })); return out }
+const toSlots = (states: Record<string, CellState>) => { const out: Slots = {}; Object.entries(states).forEach(([k, state]) => { if (state !== 'blocked') return; const [d, p] = k.split(':').map(Number); (out[String(d)] ??= []).push(p) }); return out }
+const subjectSlots = (rows: Constraint[], id: number): Slots => { const row = rows.find(r => r.kind === 'avoid_lessons' && r.scope === 'subject' && r.target_id === id && r.enabled); return row?.params?.slots && typeof row.params.slots === 'object' ? row.params.slots as Slots : EMPTY }
+const unavailable = (resource: Resource, kind: Kind, constraints: Constraint[]) => kind === 'subjects' ? subjectSlots(constraints, resource.id) : (resource as Teacher | SchoolClass).unavailable ?? EMPTY
+
+export function ResourceTimeOff({ kind, resource, compact = false }: Props) {
+  const { notify } = useToast()
+  const [open, setOpen] = useState(false)
+  const [calendar, setCalendar] = useState<Calendar | null>(null)
+  const [constraints, setConstraints] = useState<Constraint[]>([])
+  const [states, setStates] = useState<Record<string, CellState>>({})
+  const [saved, setSaved] = useState<Record<string, CellState>>({})
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const label = kind === 'teachers' ? 'teacher' : kind === 'classes' ? 'class' : 'subject'
+  const days = useMemo(() => calendar?.days.filter(d => d.is_active) ?? [], [calendar])
+  const periods = useMemo(() => calendar?.periods.filter(p => p.is_teaching) ?? [], [calendar])
+  const dirty = JSON.stringify(states) !== JSON.stringify(saved)
+  const blockedCount = Object.values(unavailable(resource, kind, constraints)).flat().length
+
+  useEffect(() => { if (!open) return; let live = true; setLoading(true); setError(null); Promise.all([scheduling.calendar(), scheduling.constraints()]).then(([c, co]) => { if (!live) return; setCalendar(c); setConstraints(co); const next = toStates(unavailable(resource, kind, co)); setStates(next); setSaved(next) }).catch(err => live && setError(friendlyApiError(err, 'load time off'))).finally(() => live && setLoading(false)); return () => { live = false } }, [open, resource.id, kind])
+
+  function cycle(day: number, period: number) { const k = key(day, period); setStates(s => ({ ...s, [k]: s[k] === 'empty' ? 'available' : s[k] === 'available' ? 'blocked' : 'empty' })) }
+  async function save() {
+    if (saving || !dirty) return
+    setSaving(true); setError(null)
+    try {
+      const draft = toSlots(states)
+      if (kind === 'teachers') await scheduling.updateTeacher(resource.id, { ...(resource as Teacher), unavailable: draft })
+      else if (kind === 'classes') await scheduling.updateClass(resource.id, { ...(resource as SchoolClass), unavailable: draft })
+      else {
+        const old = constraints.filter(i => i.kind === 'avoid_lessons' && i.scope === 'subject' && i.target_id === resource.id)
+        for (const row of old) await scheduling.deleteConstraint(row.id)
+        if (Object.keys(draft).length) await scheduling.createConstraint({ kind: 'avoid_lessons', scope: 'subject', target_id: resource.id, is_hard: true, weight: 100, params: { slots: draft }, enabled: true, note: `${resource.name} time off` })
+      }
+      setSaved(states); notify(`${resource.name} time off saved.`, 'success'); setOpen(false)
+    } catch (err) { setError(friendlyApiError(err, 'save time off')) } finally { setSaving(false) }
+  }
+
+  return <>
+    <button type="button" className={compact ? 'button button--ghost button--sm resource-timeoff-button' : 'button button--ghost button--sm'} onClick={() => setOpen(true)} aria-label={`Edit ${label} time off`}>
+      <span className="resource-timeoff-indicator" aria-hidden="true">{blockedCount ? 'X' : '✓'}</span>{compact ? '' : blockedCount ? `${blockedCount} blocked` : 'Time off'}
+    </button>
+    {open && <div className="resource-timeoff-backdrop"><section className="card resource-timeoff-modal" role="dialog" aria-modal="true" aria-labelledby="resource-timeoff-title">
+      <div className="resource-timeoff-header"><div><p className="eyebrow">Availability</p><h2 id="resource-timeoff-title" className="section__title">{resource.name} — Time off</h2></div><button type="button" className="button button--ghost button--sm" onClick={() => setOpen(false)}>×</button></div>
+      {error && <Alert tone="error">{error}</Alert>}
+      {loading ? <p>Loading availability…</p> : days.length && periods.length ? <><div className="resource-timeoff-toolbar"><span>Click: <b className="resource-timeoff-green">✓</b> then <b className="resource-timeoff-red">X</b> then blank</span><span>{dirty ? 'Unsaved changes' : 'All changes saved'}</span></div><div className="resource-timeoff-grid-shell"><table className="resource-timeoff-grid"><thead><tr><th>DAY</th>{periods.map((p, i) => <th key={p.index}>P{i + 1}</th>)}</tr></thead><tbody>{days.map(day => <tr key={day.index}><th>{day.name}</th>{periods.map(period => { const state = states[key(day.index, period.index)] ?? 'empty'; return <td key={period.index}><button type="button" className="resource-timeoff-cell" onClick={() => cycle(day.index, period.index)} aria-label={`${day.name}, ${period.name}: ${state}`}>{state === 'available' ? <span className="resource-timeoff-green">✓</span> : state === 'blocked' ? <span className="resource-timeoff-red">X</span> : null}</button></td> })}</tr>)}</tbody></table></div></> : <p>No timetable periods available.</p>}
+      <div className="resource-timeoff-actions"><button type="button" className="button button--ghost" onClick={() => setStates({})}>Clear all</button><div><button type="button" className="button button--secondary" onClick={() => setOpen(false)}>Cancel</button><button type="button" className="button button--primary" disabled={!dirty || saving || loading} onClick={() => void save()}>{saving ? 'Saving…' : 'Save time off'}</button></div></div>
+    </section></div>}
+  </>
+}
