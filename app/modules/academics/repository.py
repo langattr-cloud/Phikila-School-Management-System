@@ -19,9 +19,6 @@ class TermRepository:
         rows = self.db.query(models.Term).filter(models.Term.school_id == school_id).order_by(
             models.Term.academic_year_id, models.Term.start_date, models.Term.id
         ).all()
-        # Treat term names case-insensitively and ignore surrounding whitespace.
-        # This keeps API consumers from rendering duplicate logical terms while
-        # the migration/constraint cleans up the underlying database records.
         unique = {}
         for term in rows:
             key = (int(term.academic_year_id), term.name.strip().casefold())
@@ -78,7 +75,6 @@ class StreamRepository:
     def get_stream_by_id(self, school_id: int, stream_id: int): return self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.id == stream_id).first()
     def get_stream_by_name_context(self, school_id: int, academic_year_id: int, grade_id: int, name: str): return self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == academic_year_id, models.Stream.grade_id == grade_id, models.Stream.name == name).first()
     def create_stream(self, school_id: int, data: schemas.StreamCreate):
-        db_term = None
         db_stream = models.Stream(name=data.name.strip(), code=data.code.strip() if data.code else None, status=data.status, academic_year_id=data.academic_year_id, level_id=data.level_id, grade_id=data.grade_id, school_id=school_id)
         self.db.add(db_stream); self.db.commit(); self.db.refresh(db_stream); return db_stream
     def create_streams_bulk(self, school_id: int, data: schemas.BulkStreamCreate):
