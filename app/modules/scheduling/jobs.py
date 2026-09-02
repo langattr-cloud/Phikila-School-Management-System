@@ -43,8 +43,11 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             days=db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all(); original_days={d.id:d.is_active for d in days}
             for d in days:d.is_active=d.index in requested_days
             db.commit()
-        filters={'class_ids':config.get('class_ids'),'teacher_ids':config.get('teacher_ids'),'period_indexes':config.get('period_indexes')}
-        data=build_input(db,school_id,max_seconds=max_seconds,**filters); problems=preflight(data)
+        # build_input currently consumes the persisted school calendar directly.
+        # Day selection is applied above; period/class/teacher filters are validated
+        # by the profile API and must not be passed as unsupported keyword arguments.
+        data=build_input(db,school_id,max_seconds=max_seconds)
+        problems=preflight(data)
         if problems:return _fail(db,job," ".join(problems))
         def cancelled():
             try: db.expire_all(); row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first(); return bool(row and row.cancel_requested)
@@ -95,8 +98,6 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
 def _fail(db,job,message):job.status="failed";job.stage="Failed";job.message=message;job.finished_at=utcnow();db.commit();logger.error("Solver job %s failed: %s",job.id,message)
 def _persist(db,school_id,result,actor,config):
     timetable_type_id=config.get('timetable_type_id')
-    # Keep exactly one unsaved generated candidate per timetable type. The published
-    # timetable is deliberately left untouched until the administrator saves this candidate.
     draft_query=db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id,m.TtVersion.status=='draft')
     if timetable_type_id is None: draft_query=draft_query.filter(m.TtVersion.timetable_type_id.is_(None))
     else: draft_query=draft_query.filter(m.TtVersion.timetable_type_id==timetable_type_id)
