@@ -1,5 +1,6 @@
 """Scheduling package bootstrap."""
 from __future__ import annotations
+import inspect
 from . import engine as _engine
 from . import solver as _solver
 
@@ -41,3 +42,59 @@ def _scoped_build_input(db, school_id, *, max_seconds=30.0, class_ids=None, teac
     return data
 
 _engine.build_input = _scoped_build_input
+
+
+def _replace_function_source(function, replacements):
+    source = inspect.getsource(function)
+    for old, new in replacements:
+        if old not in source:
+            raise RuntimeError(f"Scheduling compatibility patch could not find expected source in {function.__name__}.")
+        source = source.replace(old, new, 1)
+    namespace = _solver.__dict__
+    exec(compile(source, inspect.getsourcefile(function) or "<scheduling>", "exec"), namespace, namespace)
+    return namespace[function.__name__]
+
+
+_solver.preflight = _replace_function_source(
+    _solver.preflight,
+    [
+        (
+            '    hc={};ht={}\n',
+            '    hc={};ht={};hs={}\n',
+        ),
+        (
+            '    for rule in data.avoid_rules:\n        if rule.is_hard:(hc if rule.scope=="class" else ht).setdefault(rule.target_id,set()).update(rule.slots)\n',
+            '    for rule in data.avoid_rules:\n'
+            '        if not rule.is_hard:continue\n'
+            '        if rule.scope=="class":hc.setdefault(rule.target_id,set()).update(rule.slots)\n'
+            '        elif rule.scope=="teacher":ht.setdefault(rule.target_id,set()).update(rule.slots)\n'
+            '        elif rule.scope=="subject":hs.setdefault(rule.target_id,set()).update(rule.slots)\n',
+        ),
+        (
+            '    pt={}\n',
+            '    for sid,blocked in hs.items():\n'
+            '        available=capacity-len(blocked)\n'
+            '        for r in data.requirements:\n'
+            '            if r.subject_id==sid and r.periods_per_week>available:\n'
+            '                subject=data.subjects.get(sid);name=subject.name if subject else f"Subject {sid}"\n'
+            '                problems.append(f"{name} needs {r.periods_per_week} lessons a week but only has {available} available slots after subject time-off is applied.")\n'
+            '    pt={}\n',
+        ),
+    ],
+)
+
+_solver.solve = _replace_function_source(
+    _solver.solve,
+    [
+        (
+            '        for rule in data.avoid_rules:\n            if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False\n',
+            '        for rule in data.avoid_rules:\n'
+            '            if not rule.is_hard or (d,p) not in rule.slots:continue\n'
+            '            if (rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and rule.target_id==r.subject_id):return False\n',
+        ),
+        (
+            '                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)\n',
+            '                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id)\n',
+        ),
+    ],
+)
