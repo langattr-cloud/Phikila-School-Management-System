@@ -45,7 +45,8 @@ class SolverOutput:
 class InfeasibleError(RuntimeError): pass
 def preflight(data:SolverInput)->list[str]:
     problems=[];capacity=len(data.days)*len(data.teaching_periods)
-    if not data.requirements:problems.append("No lesson requirements have been defined yet.")
+    # An incomplete lesson load is valid. Generate the currently loaded lessons;
+    # the UI can surface the missing lesson data as a warning.
     if capacity==0:problems.append("The timetable has no teaching periods. Add periods first.");return problems
     hc={};ht={}
     for rule in data.avoid_rules:
@@ -72,6 +73,9 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
     if not ORTOOLS_AVAILABLE:return SolverOutput("error",[],{}, {},["OR-Tools is not installed on the server."])
     report=on_progress or (lambda pct,stage:None);problems=preflight(data)
     if problems:return SolverOutput("infeasible",[],{}, {},problems)
+    warning_messages=[]
+    if not data.requirements:
+        warning_messages.append("Not all lessons are loaded. The timetable was generated from the lessons currently configured.")
     model=cp_model.CpModel();slots=[(d,p) for d in data.days for p in data.teaching_periods];x={}
     def allowed(r,d,p):
         c=data.classes.get(r.class_id)
@@ -189,7 +193,7 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
     label="optimal" if status==cp_model.OPTIMAL else "feasible" if status==cp_model.FEASIBLE else None
     if not label:return SolverOutput("infeasible",[],{}, {},["No timetable satisfies every hard constraint. Relax an availability rule, reduce weekly lessons, or add rooms/periods."])
     placements=[Placement(r.id,r.class_id,r.subject_id,r.teacher_id,r.room_id,d,p) for r in data.requirements for d,p in slots if (r.id,d,p) in x and solver.Value(x[(r.id,d,p)])]
-    quality=score(data,placements);stats={"placed":len(placements),"required":sum(r.periods_per_week for r in data.requirements),"conflicts":0,"penalty":int(solver.ObjectiveValue()) if penalties else 0,"wall_time":round(solver.WallTime(),2),"status":label};report(100,"Completed");return SolverOutput(label,placements,quality,stats,[])
+    quality=score(data,placements);stats={"placed":len(placements),"required":sum(r.periods_per_week for r in data.requirements),"conflicts":0,"penalty":int(solver.ObjectiveValue()) if penalties else 0,"wall_time":round(solver.WallTime(),2),"status":label};report(100,"Completed");return SolverOutput(label,placements,quality,stats,warning_messages)
 class _ProgressCallback(cp_model.CpSolverSolutionCallback if ORTOOLS_AVAILABLE else object):
     def __init__(self,report,should_cancel):
         if ORTOOLS_AVAILABLE:cp_model.CpSolverSolutionCallback.__init__(self)
