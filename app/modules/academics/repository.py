@@ -15,7 +15,15 @@ class AcademicYearRepository:
 
 class TermRepository:
     def __init__(self, db: Session): self.db = db
-    def get_terms(self, school_id: int): return self.db.query(models.Term).filter(models.Term.school_id == school_id).order_by(models.Term.academic_year_id, models.Term.start_date, models.Term.name).all()
+    def get_terms(self, school_id: int):
+        rows = self.db.query(models.Term).filter(models.Term.school_id == school_id).order_by(
+            models.Term.academic_year_id, models.Term.start_date, models.Term.id
+        ).all()
+        unique = {}
+        for term in rows:
+            key = (int(term.academic_year_id), term.name.strip().casefold())
+            unique.setdefault(key, term)
+        return list(unique.values())
     def get_term_by_id(self, school_id: int, term_id: int): return self.db.query(models.Term).filter(models.Term.school_id == school_id, models.Term.id == term_id).first()
     def get_term_by_name(self, school_id: int, academic_year_id: int, name: str):
         normalized = name.strip().casefold()
