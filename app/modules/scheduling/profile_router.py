@@ -17,7 +17,12 @@ def _utc(value):
 def _active_job(db,school_id):
     now=datetime.now(timezone.utc); job=db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==school_id,func.lower(m.TtSolverJob.status).in_(ACTIVE_STATUSES)).order_by(m.TtSolverJob.id.desc()).first()
     if job:
-        heartbeat=_utc(job.updated_at or job.started_at); stale=job.finished_at is not None or (job.progress or 0)>=99 or job.stage=="Completed" or bool(heartbeat and now-heartbeat>timedelta(minutes=10))
+        heartbeat=_utc(job.updated_at or job.started_at)
+        # A solver can legitimately report progress=99/stage=Completed while it
+        # is still persisting the generated version. Do not turn that transient
+        # state into a failure. Only recover a job when it is explicitly finished
+        # or has stopped sending heartbeats for the stale-job window.
+        stale=job.finished_at is not None or bool(heartbeat and now-heartbeat>timedelta(minutes=10))
         if stale:
             job.status="completed" if job.result_version_id else "failed";job.stage="Completed" if job.result_version_id else "Failed";job.finished_at=job.finished_at or datetime.now(timezone.utc);db.commit();return None
         return job
@@ -45,7 +50,7 @@ def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),prin
     if current and current.status in ACTIVE_STATUSES:raise HTTPException(status.HTTP_409_CONFLICT,'A timetable is already being generated.')
     config=_config(db,principal.school_id,payload);job=job_queue.create_job(db,principal.school_id,principal.email,config);job_queue.enqueue(job.id,principal.school_id,payload.max_seconds,config['day_indexes']);db.refresh(job);return job
 @router.post('/solver/generate-async',response_model=s.JobOut,status_code=202)
-def generate_async(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
+def generate_async(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler')):
     if not ORTOOLS_AVAILABLE:raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,'The scheduling engine is not available on this server.')
     current=_active_job(db,principal.school_id)
     if current and current.status in ACTIVE_STATUSES:raise HTTPException(status.HTTP_409_CONFLICT,'A timetable is already being generated.')
