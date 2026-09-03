@@ -73,12 +73,12 @@ export function GeneratePage() {
 
   const status = statusOf(job?.status)
   const running = RUNNING.has(status)
-  const readyToSave = !!name.trim() && days.length > 0 && teachingPeriods.length > 0
   const teachingPeriods = useMemo(
     () => periods.filter((index) => draftPeriods.some((period) => period.index === index && period.is_teaching)),
     [periods, draftPeriods],
   )
   const invalidTimes = draftPeriods.some((period) => !period.start_time || !period.end_time || period.end_time <= period.start_time)
+  const readyToSave = !!name.trim() && days.length > 0 && teachingPeriods.length > 0
   const generated = status === 'completed' && !!job?.result_version_id
 
   function chooseType(id: number) {
@@ -109,7 +109,7 @@ export function GeneratePage() {
     const index = draftDays.length ? Math.max(...draftDays.map((day) => day.index)) + 1 : 0
     const day: Day = { id: 0, index, name: `Day ${index + 1}`, short_form: `D${index + 1}`, date_value: null, is_active: true }
     setDraftDays((current) => [...current, day])
-    setDays((current) => [...current, index])
+    setDays((current) => [...new Set([...current, index])])
   }
 
   function removeDay(index: number) {
@@ -263,20 +263,17 @@ export function GeneratePage() {
           <button className="button button--secondary" type="button" onClick={newType}>New</button>
         </div>
       </div>
-
       <div className="builder-setup-grid">
         <div className="field"><label className="field__label">Timetable name</label><input className="input" disabled={!editing} value={name} onChange={(event) => setName(event.target.value)} /></div>
         <div className="field"><label className="field__label">Days selected</label><strong>{days.length}</strong></div>
         <div className="field"><label className="field__label">Teaching periods selected</label><strong>{teachingPeriods.length}</strong></div>
       </div>
-
       <div className="builder-section">
         <div className="builder-section-heading"><div><div className="eyebrow">SCHEDULE</div><h3>Days</h3><p className="form__note">Select the days that should be used by this timetable.</p></div><span className="count-pill">{draftDays.length} configured</span></div>
         <div className="builder-editor"><div className="section-line"><h4>School days</h4><div className="builder-actions"><button className="button button--secondary" disabled={!editing || draftDays.length >= MAX_ROWS} type="button" onClick={addDay}>Add day</button></div></div>
           <div className="builder-table-wrap"><table className="builder-table"><thead><tr><th>#</th><th>Use</th><th>Name</th><th>Short form</th><th>Remove</th></tr></thead><tbody>{draftDays.map((day) => <tr key={day.index}><td>{day.index + 1}</td><td><input type="checkbox" checked={days.includes(day.index)} disabled={!editing} onChange={(event) => toggleDay(day.index, event.target.checked)} /></td><td><input className="input" disabled={!editing} value={day.name} onChange={(event) => setDraftDays((current) => current.map((item) => item.index === day.index ? { ...item, name: event.target.value } : item))} /></td><td><input className="input builder-short" disabled={!editing} value={day.short_form} onChange={(event) => setDraftDays((current) => current.map((item) => item.index === day.index ? { ...item, short_form: event.target.value } : item))} /></td><td><button className="button button--secondary" disabled={!editing || draftDays.length <= 1} type="button" onClick={() => removeDay(day.index)}>Remove</button></td></tr>)}</tbody></table></div>
         </div>
       </div>
-
       <div className="builder-section">
         <div className="builder-section-heading"><div><h3>Periods and breaks</h3><p className="form__note">Teaching periods are available to the solver. Break rows are kept out of lesson slots.</p></div><span className="count-pill">{draftPeriods.length} rows</span></div>
         <div className="builder-editor"><div className="section-line"><h4>Schedule rows</h4><div className="builder-actions"><button className="button button--secondary" disabled={!editing || draftPeriods.length >= MAX_ROWS} type="button" onClick={() => addRow(true)}>Add lesson</button><button className="button button--secondary" disabled={!editing || draftPeriods.length >= MAX_ROWS} type="button" onClick={() => addRow(false)}>Add break</button></div></div>
@@ -284,10 +281,8 @@ export function GeneratePage() {
           <div className="builder-table-wrap"><table className="builder-table builder-period-table"><thead><tr><th>#</th><th>Name</th><th>Short</th><th>Start</th><th>End</th><th>Type</th><th>Remove</th></tr></thead><tbody>{draftPeriods.map((period) => <tr key={period.index}><td>{period.index + 1}</td><td><input className="input" disabled={!editing} value={period.name} onChange={(event) => setDraftPeriods((current) => current.map((item) => item.index === period.index ? { ...item, name: event.target.value } : item))} /></td><td><input className="input builder-short" disabled={!editing} value={period.short_form} onChange={(event) => setDraftPeriods((current) => current.map((item) => item.index === period.index ? { ...item, short_form: event.target.value } : item))} /></td><td><input className="input input--time" disabled={!editing} type="time" value={period.start_time} onChange={(event) => setDraftPeriods((current) => current.map((item) => item.index === period.index ? { ...item, start_time: event.target.value } : item))} /></td><td><input className="input input--time" disabled={!editing} type="time" value={period.end_time} onChange={(event) => setDraftPeriods((current) => current.map((item) => item.index === period.index ? { ...item, end_time: event.target.value } : item))} /></td><td><button className="button button--ghost button--sm" disabled={!editing} type="button" onClick={() => { setDraftPeriods((current) => current.map((item) => item.index === period.index ? { ...item, is_teaching: !item.is_teaching } : item)); setPeriods((current) => period.is_teaching ? current.filter((index) => index !== period.index) : [...new Set([...current, period.index])]) }}>{period.is_teaching ? 'Lesson' : 'Break'}</button></td><td><button className="button button--secondary" disabled={!editing || draftPeriods.length <= 1} type="button" onClick={() => removePeriod(period.index)}>Remove</button></td></tr>)}</tbody></table></div>
         </div>
       </div>
-
-      <div className="builder-footer"><button className="button button--secondary" disabled={saving || savingCalendar || !readyToSave || invalidTimes} type="button" onClick={async () => { if (await saveCalendar()) await saveType(); }}>{saving || savingCalendar ? 'Saving…' : 'Save timetable setup'}</button><button className="button button--primary" disabled={!readyToSave || invalidTimes || running || starting || savingCalendar} type="button" onClick={() => void generate()}>{starting ? 'Starting…' : running ? `Generating… ${job?.progress ?? 0}%` : 'Generate timetable'}</button></div>
+      <div className="builder-footer"><button className="button button--secondary" disabled={saving || savingCalendar || !readyToSave || invalidTimes} type="button" onClick={async () => { if (await saveCalendar()) await saveType() }}>{saving || savingCalendar ? 'Saving…' : 'Save timetable setup'}</button><button className="button button--primary" disabled={!readyToSave || invalidTimes || running || starting || savingCalendar} type="button" onClick={() => void generate()}>{starting ? 'Starting…' : running ? `Generating… ${job?.progress ?? 0}%` : 'Generate timetable'}</button></div>
     </section>
-
     {job && <section className="card section builder-status"><div className="panel__head"><div><h2 className="section__title">{generated ? 'Timetable ready' : 'Generation status'}</h2><p className="form__note">{job.message ?? job.stage ?? status}</p></div><Badge tone={running ? 'warning' : generated ? 'success' : status === 'failed' ? 'danger' : 'neutral'}>{status}</Badge></div>{generated && <div className="builder-footer"><button className="button button--primary" disabled={savingGenerated} type="button" onClick={() => void saveGenerated()}>{savingGenerated ? 'Saving…' : 'Save & View / Print'}</button></div>}</section>}
   </>
 }
