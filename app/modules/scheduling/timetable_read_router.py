@@ -18,7 +18,7 @@ def _version(db, school_id, version_id):
 
 
 def _current(db, school_id):
-    """Resolve the published timetable without requiring a fragile type match."""
+    """Resolve the latest published timetable without changing timetable data."""
     current_type = (
         db.query(m.TtTimetableType)
         .filter(
@@ -55,19 +55,10 @@ def _current(db, school_id):
     return current_type, version
 
 
-def _assert_scope_access(
-    db: Session,
-    principal: Principal,
-    scope: str,
-    target_id: int,
-) -> None:
-    """Keep teacher timetable views tenant-safe and limited to relevant data."""
+def _assert_scope_access(db: Session, principal: Principal, scope: str, target_id: int) -> None:
     if principal.at_least("scheduler"):
         return
-
     if principal.role != "teacher" or principal.teacher_id is None:
-        if scope == "teacher" and principal.teacher_id == target_id:
-            return
         raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this timetable view.")
 
     teacher_id = principal.teacher_id
@@ -111,11 +102,11 @@ def current_timetable_view(
             'target_name': None, 'version': None, 'timetable_type': None,
         }
 
-    configured_day_indexes = {
-        int(i) for i in (version.day_indexes or [])
-    } or {
-        int(i) for i in (timetable_type.day_indexes or [])
-    } if timetable_type else set()
+    # tt_versions stores the selected days. Period selection belongs to the
+    # timetable type; do not assume a period_indexes column exists on versions.
+    configured_day_indexes = {int(i) for i in (version.day_indexes or [])}
+    if not configured_day_indexes and timetable_type:
+        configured_day_indexes = {int(i) for i in (timetable_type.day_indexes or [])}
     if not configured_day_indexes:
         configured_day_indexes = {
             int(d.index) for d in db.query(m.TtDay).filter(
@@ -124,17 +115,16 @@ def current_timetable_view(
             ).all()
         }
 
-    days_query = db.query(m.TtDay).filter(
+    days = db.query(m.TtDay).filter(
         m.TtDay.school_id == principal.school_id,
         m.TtDay.is_active.is_(True),
-    )
-    days = days_query.filter(m.TtDay.index.in_(list(configured_day_indexes))).order_by(m.TtDay.index).all()
+        m.TtDay.index.in_(list(configured_day_indexes)),
+    ).order_by(m.TtDay.index).all()
 
-    configured_period_indexes = {
-        int(i) for i in (version.period_indexes or [])
-    } or {
-        int(i) for i in (timetable_type.period_indexes or [])
-    } if timetable_type else set()
+    configured_period_indexes = set()
+    if timetable_type:
+        configured_period_indexes = {int(i) for i in (timetable_type.period_indexes or [])}
+
     periods = db.query(m.TtPeriod).filter(
         m.TtPeriod.school_id == principal.school_id,
     ).order_by(m.TtPeriod.index).all()
