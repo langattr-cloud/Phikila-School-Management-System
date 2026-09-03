@@ -7,15 +7,9 @@ const allowedPublicVariables = new Set([
   'VITE_API_URL',
 ])
 
-// Vercel injects VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG automatically at
-// build time when the Observability / Speed Insights integration is enabled.
-// It is Vercel-managed public client configuration (e.g. script/endpoint
-// paths) intended to be read by the Vercel/Vite integration in the browser,
-// not an application secret. Allow it explicitly while keeping strict
-// validation for every other VITE_* variable.
-const vercelManagedVariables = new Set([
-  'VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG',
-])
+// Vercel may inject its own VITE_VERCEL_* variables at build time. These are
+// platform-managed public build metadata, not application secrets.
+const isVercelManagedVariable = (name: string) => name.startsWith('VITE_VERCEL_')
 
 export default defineConfig(({ mode }) => {
   const environment = loadEnv(mode, '.', 'VITE_')
@@ -35,7 +29,7 @@ export default defineConfig(({ mode }) => {
     (name) =>
       name.startsWith('VITE_') &&
       !allowedPublicVariables.has(name) &&
-      !vercelManagedVariables.has(name),
+      !isVercelManagedVariable(name),
   )
   if (unexpected.length > 0) {
     throw new Error(
@@ -48,7 +42,7 @@ export default defineConfig(({ mode }) => {
     server: {
       // Local development only. Vite rejects unknown Host headers, which blocks
       // remote dev/preview sandboxes (e.g. cloud workspaces). Production is
-      // served by FastAPI/Vercel and never uses this dev server.
+      // served by the Vercel static Vite deployment and never uses this dev server.
       allowedHosts: ['localhost', '127.0.0.1', '.e2b.app'],
       proxy: {
         // Forward API and health requests to the Cloudflare Worker backend
