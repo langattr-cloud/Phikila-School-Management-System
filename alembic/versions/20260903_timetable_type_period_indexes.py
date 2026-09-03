@@ -10,20 +10,20 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    columns = {c["name"] for c in sa.inspect(bind).get_columns("tt_timetable_types")}
+    columns = {c["name"]: c for c in sa.inspect(bind).get_columns("tt_timetable_types")}
     if "period_indexes" not in columns:
         op.add_column(
             "tt_timetable_types",
-            sa.Column("period_indexes", sa.JSON(), nullable=False, server_default=sa.text("'[]'::jsonb")),
+            sa.Column("period_indexes", sa.JSON(), nullable=False, server_default="[]"),
         )
     bind.execute(sa.text("""
         UPDATE tt_timetable_types t
         SET period_indexes = COALESCE((
-            SELECT jsonb_agg(p.index ORDER BY p.index)
+            SELECT json_agg(p.index ORDER BY p.index)
             FROM tt_periods p
             WHERE p.school_id = t.school_id AND p.is_teaching IS TRUE
-        ), '[]'::jsonb)
-        WHERE t.period_indexes = '[]'::jsonb
+        ), '[]'::json)
+        WHERE t.period_indexes::text = '[]'
     """))
 
 
