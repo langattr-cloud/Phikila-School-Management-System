@@ -1,36 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Badge, EmptyState, ErrorState } from '../components/States'
-import { DataTable, type Column } from '../components/DataTable'
-import { LayersIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { useNavigate } from '../lib/router'
 import { friendlyApiError } from '../lib/api'
-import { scheduling, type AuditEntry, type Version } from '../lib/scheduling'
-import { VersionCompare } from '../components/VersionCompare'
+import { scheduling, type Version } from '../lib/scheduling'
 
-function when(value: string | null) { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString() }
-type VersionWithDays = Version & { day_names?: string[] }
-
-function statusLabel(status: string) {
-  if (status === 'published') return 'Published'
-  if (status === 'archived') return 'Previous'
-  return 'Saved'
-}
-
-function statusTone(status: string): 'success' | 'neutral' | 'warning' {
-  if (status === 'published') return 'success'
-  if (status === 'archived') return 'neutral'
-  return 'warning'
-}
-
-export function VersionsPage() {
-  const { notify } = useToast(); const navigate = useNavigate()
-  const [versions, setVersions] = useState<Version[]>([]); const [audit, setAudit] = useState<AuditEntry[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState<number | null>(null)
-  const load = useCallback(async () => { setLoading(true); setError(null); try { const [v, a] = await Promise.all([scheduling.versions(), scheduling.audit(40)]); setVersions(v); setAudit(a) } catch (e) { setError(friendlyApiError(e, 'load timetables')) } finally { setLoading(false) } }, [])
-  useEffect(() => { void load() }, [load])
-  async function createDraft(v: Version) { setBusy(v.id); try { const draft = await scheduling.restore(v.id); notify(`Created a saved copy v${draft.number} from v${v.number}.`, 'success'); await load(); navigate(`/timetable?version=${draft.id}`) } catch (e) { notify(friendlyApiError(e, 'create a timetable copy'), 'error') } finally { setBusy(null) } }
-  async function publish(v: Version) { setBusy(v.id); try { await scheduling.publish(v.id); notify(`${v.label || `v${v.number}`} is now published.`, 'success'); await load() } catch (e) { notify(friendlyApiError(e, 'publish that timetable'), 'error') } finally { setBusy(null) } }
-  const columns: Column<Version>[] = [{ key: 'number', header: 'Version', render: r => `v${r.number}` }, { key: 'label', header: 'Timetable', render: r => r.label || 'Generated' }, { key: 'days', header: 'Working days', render: r => { const v = r as VersionWithDays; return v.day_names?.length ? v.day_names.join(', ') : '—' } }, { key: 'status', header: 'Status', render: r => <Badge tone={statusTone(r.status)}>{statusLabel(r.status)}</Badge> }, { key: 'quality', header: 'Quality', render: r => r.quality?.overall !== undefined ? `${r.quality.overall}/100` : '—' }, { key: 'lessons', header: 'Lessons', render: r => String(r.stats?.placed ?? '—') }, { key: 'created', header: 'Created', render: r => when(r.created_at) }]
-  return <><PageHeader title="Timetables" description="Create, save, publish and preserve independent timetable configurations." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Timetables' }]} actions={<button type="button" className="button button--primary" onClick={() => navigate('/scheduling/generate')}>Create Timetable</button>} />{error ? <ErrorState title="Timetables could not load" message={error} onRetry={load} /> : <><section className="card section"><div className="panel__head"><div><h2 className="section__title">Saved timetables</h2><p className="form__note">Keep multiple named timetables without overwriting one another. Published timetables are read-only; use Duplicate to make a saved copy for changes.</p></div><Badge>{versions.length} saved</Badge></div><DataTable caption="Saved timetables" columns={columns} rows={versions} rowKey={r => r.id} loading={loading} loadingLabel="Loading timetables" empty={<EmptyState title="No timetables yet" description="Create your first timetable, then create another without overwriting it." icon={<LayersIcon width={22} height={22} />} />} rowActions={row => <><button type="button" className="button button--ghost button--sm" onClick={() => navigate(`/timetable?version=${row.id}`)}>{row.status === 'draft' ? 'Open' : 'Review'}</button>{row.status === 'draft' && <button type="button" className="button button--ghost button--sm" onClick={() => void publish(row)} disabled={busy === row.id}>Publish</button>}<button type="button" className="button button--ghost button--sm" onClick={() => void createDraft(row)} disabled={busy === row.id}>{busy === row.id ? 'Creating…' : 'Duplicate'}</button></>} /></section>{versions.length > 1 && <VersionCompare versions={versions} />}<section className="card section"><h2 className="section__title">Audit log</h2>{audit.length === 0 ? <EmptyState title="No activity yet" description="Changes to timetables are recorded here." /> : <ol className="audit-list">{audit.map(entry => <li className="audit-item" key={entry.id}><span className="audit-item__time">{when(entry.at)}</span><div className="audit-item__body"><p className="audit-item__summary">{entry.summary}</p><p className="audit-item__meta"><Badge>{entry.action}</Badge> {entry.actor || 'system'}</p>{entry.before && entry.after && <p className="audit-item__diff">{JSON.stringify(entry.before)} → {JSON.stringify(entry.after)}</p>}</div></li>)}</ol>}</section></>}</>
-}
+function when(value:string|null|undefined){if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?'—':date.toLocaleString()}
+export function VersionsPage(){
+ const {notify}=useToast();const navigate=useNavigate();const [version,setVersion]=useState<Version|null>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState<string|null>(null);const [busy,setBusy]=useState(false)
+ const load=useCallback(async()=>{setLoading(true);setError(null);try{setVersion(await scheduling.currentVersion())}catch(e){setError(friendlyApiError(e,'load the current timetable'))}finally{setLoading(false)}},[]);useEffect(()=>{void load()},[load])
+ async function publishDraft(){if(!version||busy)return;setBusy(true);try{await scheduling.publish(version.id);notify('Timetable is now in force.','success');await load()}catch(e){notify(friendlyApiError(e,'publish the timetable'),'error')}finally{setBusy(false)}}
+ return <><PageHeader title="Current timetable" description="There is one timetable in force at a time. Saving a new timetable replaces the previous one." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Timetable'}]} actions={<button type="button" className="button button--primary" onClick={()=>navigate('/scheduling/generate')}>Build new timetable</button>}/>{error?<ErrorState title="Current timetable could not load" message={error} onRetry={load}/>:<section className="card section">{loading?<div className="form__note">Loading current timetable…</div>:!version?<EmptyState title="No current timetable" description="Build and publish a timetable to put the first schedule in force."/>:<><div className="panel__head"><div><div className="eyebrow">CURRENT</div><h2 className="section__title">{version.label||version.name||`Timetable ${version.number??''}`}</h2><p className="form__note">Published {when(version.published_at)}. This is the only timetable exposed to users.</p></div><Badge tone="success">In force</Badge></div><div className="builder-footer"><button type="button" className="button button--secondary" onClick={()=>navigate('/timetable')}>Open timetable</button>{version.status!=='published'&&<button type="button" className="button button--primary" onClick={()=>void publishDraft()} disabled={busy}>{busy?'Saving…':'Put in force'}</button>}</div></>}</section>}</>}
