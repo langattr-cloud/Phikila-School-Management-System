@@ -1,0 +1,221 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useToast } from './Toast'
+import { friendlyApiError } from '../lib/api'
+import { activeDays, scheduling, teachingPeriods, type Calendar, type Class as SchoolClass, type Constraint, type Lesson, type Slots, type Subject, type Teacher, type Version } from '../lib/scheduling'
+
+type Kind = 'teachers' | 'classes' | 'subjects'
+type Resource = Teacher | SchoolClass | Subject
+type CellState = 'empty' | 'available' | 'blocked'
+
+const EMPTY: Slots = {}
+const key = (day: number, period: number) => `${day}:${period}`
+
+function toStates(slots: Slots): Record<string, CellState> {
+  const out: Record<string, CellState> = {}
+  Object.entries(slots).forEach(([day, periods]) => (periods ?? []).forEach((period) => { out[key(Number(day), period)] = 'blocked' }))
+  return out
+}
+
+function toSlots(states: Record<string, CellState>): Slots {
+  const out: Slots = {}
+  Object.entries(states).forEach(([slot, state]) => {
+    if (state !== 'blocked') return
+    const [day, period] = slot.split(':').map(Number)
+    ;(out[String(day)] ??= []).push(period)
+  })
+  return out
+}
+
+function subjectSlots(rows: Constraint[], id: number): Slots {
+  const row = rows.find((item) => item.kind === 'avoid_lessons' && item.scope === 'subject' && item.target_id === id && item.enabled)
+  return row?.params?.slots && typeof row.params.slots === 'object' ? row.params.slots as Slots : EMPTY
+}
+
+export function TimeOffPopup({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { notify } = useToast()
+  const [kind, setKind] = useState<Kind>('teachers')
+  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [constraints, setConstraints] = useState<Constraint[]>([])
+  const [calendar, setCalendar] = useState<Calendar | null>(null)
+  const [version, setVersion] = useState<Version | null>(null)
+  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [states, setStates] = useState<Record<string, CellState>>({})
+  const [saved, setSaved] = useState<Record<string, CellState>>({})
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const resources = useMemo<Resource[]>(() => kind === 'teachers' ? teachers : kind === 'classes' ? classes : subjects, [kind, teachers, classes, subjects])
+  const selected = resources.find((resource) => resource.id === selectedId) ?? null
+  const days = useMemo(() => activeDays(calendar?.days ?? []), [calendar])
+  const periods = useMemo(() => teachingPeriods(calendar?.periods ?? []), [calendar])
+  const dirty = JSON.stringify(states) !== JSON.stringify(saved)
+  const blockedCount = Object.values(states).filter((state) => state === 'blocked').length
+  const availableCount = Object.values(states).filter((state) => state === 'available').length
+
+  const resourceLessons = useMemo(() => {
+    if (!selected) return []
+    if (kind === 'teachers') return lessons.filter((lesson) => lesson.teacher_id === selected.id)
+    if (kind === 'classes') return lessons.filter((lesson) => lesson.class_id === selected.id)
+    return lessons.filter((lesson) => lesson.subject_id === selected.id)
+  }, [kind, lessons, selected])
+
+  useEffect(() => {
+    if (!open) return
+    let live = true
+    setLoading(true)
+    setError(null)
+    Promise.allSettled([
+      scheduling.calendar(),
+      scheduling.teachers(),
+      scheduling.classes(),
+      scheduling.subjects(),
+      scheduling.constraints(),
+      scheduling.currentVersion(),
+    ]).then(async (results) => {
+      if (!live) return
+      const [calendarResult, teacherResult, classResult, subjectResult, constraintResult, versionResult] = results
+      if (calendarResult.status === 'fulfilled') setCalendar(calendarResult.value)
+      if (teacherResult.status === 'fulfilled') setTeachers(teacherResult.value)
+      if (classResult.status === 'fulfilled') setClasses(classResult.value)
+      if (subjectResult.status === 'fulfilled') setSubjects(subjectResult.value)
+      if (constraintResult.status === 'fulfilled') setConstraints(constraintResult.value)
+      if (versionResult.status === 'fulfilled') {
+        setVersion(versionResult.value)
+        if (versionResult.value) {
+          try {
+            const currentLessons = await scheduling.lessons(versionResult.value.id)
+            if (live) setLessons(currentLessons)
+          } catch (err) {
+            if (live) setError(friendlyApiError(err, 'load the timetable overlay'))
+          }
+        }
+      }
+      const failure = results.find((result) => result.status === 'rejected')
+      if (failure?.status === 'rejected' && live) setError(friendlyApiError(failure.reason, 'load time-off data'))
+      setLoading(false)
+    })
+    return () => { live = false }
+  }, [open])
+
+  useEffect(() => {
+    if (!resources.length) { setSelectedId(null); return }
+    if (!resources.some((resource) => resource.id === selectedId)) setSelectedId(resources[0].id)
+  }, [resources, selectedId])
+
+  useEffect(() => {
+    if (!selected) { setStates({}); setSaved({}); return }
+    const slots = kind === 'subjects' ? subjectSlots(constraints, selected.id) : (selected as Teacher | SchoolClass).unavailable ?? EMPTY
+    const next = toStates(slots)
+    setStates(next)
+    setSaved(next)
+  }, [constraints, kind, selected])
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKeyDown)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKeyDown); document.body.style.overflow = previousOverflow }
+  }, [open, onClose])
+
+  function cycle(day: number, period: number) {
+    const slot = key(day, period)
+    setStates((current) => ({ ...current, [slot]: current[slot] === 'empty' ? 'available' : current[slot] === 'available' ? 'blocked' : 'empty' }))
+  }
+
+  function setRowState(day: number, state: CellState) {
+    setStates((current) => {
+      const next = { ...current }
+      periods.forEach((period) => { next[key(day, period.index)] = state })
+      return next
+    })
+  }
+
+  async function save() {
+    if (!selected || saving || !dirty) return
+    setSaving(true)
+    setError(null)
+    try {
+      const draft = toSlots(states)
+      if (kind === 'teachers') {
+        const updated = await scheduling.updateTeacher(selected.id, { ...selected, unavailable: draft })
+        setTeachers((current) => current.map((item) => item.id === updated.id ? updated : item))
+      } else if (kind === 'classes') {
+        const updated = await scheduling.updateClass(selected.id, { ...selected, unavailable: draft })
+        setClasses((current) => current.map((item) => item.id === updated.id ? updated : item))
+      } else {
+        const old = constraints.filter((item) => item.kind === 'avoid_lessons' && item.scope === 'subject' && item.target_id === selected.id)
+        for (const row of old) await scheduling.deleteConstraint(row.id)
+        if (Object.keys(draft).length) {
+          const created = await scheduling.createConstraint({ kind: 'avoid_lessons', scope: 'subject', target_id: selected.id, is_hard: true, weight: 100, params: { slots: draft }, enabled: true, note: `${selected.name} time off` })
+          setConstraints((current) => [...current.filter((item) => !old.some((row) => row.id === item.id)), created])
+        } else {
+          setConstraints((current) => current.filter((item) => !old.some((row) => row.id === item.id)))
+        }
+      }
+      setSaved(states)
+      notify(`${selected.name} time off saved.`, 'success')
+    } catch (err) {
+      setError(friendlyApiError(err, 'save time-off changes'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function close() {
+    if (dirty && !window.confirm('Discard unsaved time-off changes?')) return
+    onClose()
+  }
+
+  if (!open) return null
+
+  return <div className="timeoff-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close() }}>
+    <section className="timeoff-modal" role="dialog" aria-modal="true" aria-labelledby="timeoff-modal-title">
+      <header className="timeoff-modal__header">
+        <div>
+          <span className="timeoff-modal__eyebrow">Scheduling</span>
+          <h2 id="timeoff-modal-title">Time off</h2>
+          <p>Set availability without leaving the whole-school timetable.</p>
+        </div>
+        <button type="button" className="icon-button icon-button--subtle" onClick={close} aria-label="Close time off">×</button>
+      </header>
+
+      <div className="timeoff-modal__controls">
+        <div className="timeoff-modal__types" role="tablist" aria-label="Time-off resource type">
+          {([['teachers', 'Teachers'], ['classes', 'Classes'], ['subjects', 'Learning areas']] as const).map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={kind === value} className={`timeoff-modal__type${kind === value ? ' is-active' : ''}`} onClick={() => { if (!dirty || window.confirm('Discard unsaved time-off changes?')) { setKind(value); setSelectedId(null) } }}>{label}</button>)}
+        </div>
+        <label className="field timeoff-modal__resource">
+          <span className="field__label">Select {kind === 'teachers' ? 'teacher' : kind === 'classes' ? 'class' : 'learning area'}</span>
+          <select className="input" value={selectedId ?? ''} onChange={(event) => setSelectedId(Number(event.target.value))} disabled={loading || !resources.length}>
+            {resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}{resource.code ? ` (${resource.code})` : ''}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {error && <div className="timeoff-modal__error" role="alert">{error}</div>}
+      {loading ? <div className="timeoff-modal__loading">Loading availability and timetable…</div> : <>
+        <div className="timeoff-modal__summary">
+          <div><strong>{selected?.name ?? 'No resource selected'}</strong><span>{version ? `Version ${version.number} · ${days.length} days · ${periods.length} teaching periods` : 'No timetable version'}</span></div>
+          <div className="timeoff-modal__stats"><span>Available <b>{availableCount}</b></span><span>Time off <b>{blockedCount}</b></span><span>Unmarked <b>{Math.max(days.length * periods.length - availableCount - blockedCount, 0)}</b></span></div>
+        </div>
+
+        <div className="timeoff-modal__legend"><span><i className="timeoff-state-dot timeoff-state-dot--available" /> Available</span><span><i className="timeoff-state-dot timeoff-state-dot--blocked" /> Time off</span><span><i className="timeoff-state-dot timeoff-state-dot--scheduled" /> Existing timetable</span></div>
+
+        <div className="timeoff-modal__grid-wrap">
+          {selected && days.length && periods.length ? <table className="timeoff-modal__grid"><thead><tr><th>DAY</th>{periods.map((period, index) => <th key={period.index}><span>P{index + 1}</span><small>{period.start_time}–{period.end_time}</small></th>)}</tr></thead><tbody>{days.map((day) => <tr key={day.index}><th><span>{day.name}</span><div><button type="button" onClick={() => setRowState(day.index, 'available')} title={`Mark all ${day.name} available`}>✓</button><button type="button" onClick={() => setRowState(day.index, 'blocked')} title={`Mark all ${day.name} time off`}>×</button></div></th>{periods.map((period) => { const slot = key(day.index, period.index); const state = states[slot] ?? 'empty'; const scheduled = resourceLessons.some((lesson) => lesson.day_index === day.index && lesson.period_index === period.index); return <td key={period.index} className={`timeoff-modal__cell timeoff-modal__cell--${state}${scheduled ? ' is-scheduled' : ''}`}><button type="button" onClick={() => cycle(day.index, period.index)} aria-label={`${day.name}, ${period.name}: ${state}${scheduled ? ', scheduled' : ''}`}><span>{state === 'available' ? '✓' : state === 'blocked' ? '×' : scheduled ? '•' : ''}</span></button></td> })}</tr>)}</tbody></table> : <div className="timeoff-modal__empty">Configure active scheduling days and teaching periods first.</div>}
+        </div>
+
+        <div className="timeoff-modal__footer">
+          <span className={dirty ? 'is-dirty' : ''}>{dirty ? 'Unsaved changes' : 'All changes saved'}</span>
+          <div><button type="button" className="button button--ghost button--sm" onClick={() => setStates({})} disabled={!selected || !dirty}>Clear all</button><button type="button" className="button button--ghost button--sm" onClick={close}>Cancel</button><button type="button" className="button button--primary button--sm" onClick={save} disabled={!selected || !dirty || saving}>{saving ? 'Saving…' : 'Save time off'}</button></div>
+        </div>
+      </>}
+    </section>
+    <style>{`.timeoff-modal-backdrop{position:fixed;inset:0;z-index:1400;background:rgba(15,23,42,.48);display:grid;place-items:center;padding:18px}.timeoff-modal{width:min(1180px,96vw);max-height:min(900px,94vh);overflow:hidden;display:flex;flex-direction:column;background:#fff;border:1px solid #cbd5e1;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.28)}.timeoff-modal__header{display:flex;justify-content:space-between;gap:1rem;padding:18px 20px 14px;border-bottom:1px solid #e2e8f0}.timeoff-modal__eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b}.timeoff-modal__header h2{margin:3px 0 2px;font-size:21px;color:#0f172a}.timeoff-modal__header p{margin:0;color:#64748b;font-size:13px}.timeoff-modal__controls{display:flex;align-items:end;gap:16px;padding:14px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0}.timeoff-modal__types{display:flex;gap:5px}.timeoff-modal__type{border:1px solid #d8e0ea;background:#fff;border-radius:8px;padding:8px 11px;color:#475569;font-weight:600;font-size:13px}.timeoff-modal__type.is-active{border-color:#2563eb;background:#eff6ff;color:#1d4ed8}.timeoff-modal__resource{min-width:280px}.timeoff-modal__error{margin:12px 20px 0;padding:10px 12px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:8px;font-size:13px}.timeoff-modal__loading{padding:48px 20px;text-align:center;color:#64748b}.timeoff-modal__summary{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:13px 20px;border-bottom:1px solid #e2e8f0}.timeoff-modal__summary>div:first-child{display:flex;flex-direction:column;gap:2px}.timeoff-modal__summary strong{font-size:14px;color:#0f172a}.timeoff-modal__summary span{font-size:12px;color:#64748b}.timeoff-modal__stats{display:flex;gap:15px}.timeoff-modal__stats span{font-size:12px;color:#64748b}.timeoff-modal__stats b{color:#0f172a}.timeoff-modal__legend{display:flex;gap:16px;align-items:center;padding:9px 20px;font-size:11px;color:#64748b}.timeoff-modal__legend span{display:inline-flex;align-items:center;gap:5px}.timeoff-state-dot{width:9px;height:9px;border-radius:50%;border:1px solid #cbd5e1}.timeoff-state-dot--available{background:#22c55e;border-color:#16a34a}.timeoff-state-dot--blocked{background:#ef4444;border-color:#dc2626}.timeoff-state-dot--scheduled{background:#cbd5e1;border-color:#94a3b8}.timeoff-modal__grid-wrap{overflow:auto;margin:0 20px;border:1px solid #d8e0ea;border-radius:10px;min-height:220px}.timeoff-modal__grid{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;min-width:760px}.timeoff-modal__grid th,.timeoff-modal__grid td{border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0}.timeoff-modal__grid tr:last-child th,.timeoff-modal__grid tr:last-child td{border-bottom:0}.timeoff-modal__grid th:last-child,.timeoff-modal__grid td:last-child{border-right:0}.timeoff-modal__grid thead th{height:48px;background:#f8fafc;color:#475569;font-size:11px;text-align:center}.timeoff-modal__grid thead th:first-child{width:145px;text-align:left;padding-left:12px}.timeoff-modal__grid thead th span,.timeoff-modal__grid thead th small{display:block}.timeoff-modal__grid thead th small{margin-top:3px;font-weight:500;color:#94a3b8;font-size:9px}.timeoff-modal__grid tbody th{width:145px;padding:8px 10px;background:#fff;text-align:left;font-size:12px;color:#334155}.timeoff-modal__grid tbody th>span{display:block;margin-bottom:6px}.timeoff-modal__grid tbody th div{display:flex;gap:4px}.timeoff-modal__grid tbody th button{width:24px;height:22px;border:1px solid #d8e0ea;border-radius:5px;background:#fff;color:#475569;cursor:pointer}.timeoff-modal__grid tbody th button:first-child{color:#15803d}.timeoff-modal__grid tbody th button:last-child{color:#b91c1c}.timeoff-modal__cell{height:58px;padding:0;background:#fff}.timeoff-modal__cell button{width:100%;height:100%;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;color:#64748b}.timeoff-modal__cell--available{background:#f0fdf4}.timeoff-modal__cell--available button{color:#15803d}.timeoff-modal__cell--blocked{background:#fef2f2}.timeoff-modal__cell--blocked button{color:#b91c1c}.timeoff-modal__cell.is-scheduled:not(.timeoff-modal__cell--available):not(.timeoff-modal__cell--blocked){background:#e5e7eb}.timeoff-modal__cell.is-scheduled:not(.timeoff-modal__cell--available):not(.timeoff-modal__cell--blocked) button{color:#64748b}.timeoff-modal__cell--blocked.is-scheduled{box-shadow:inset 0 0 0 2px #ef4444}.timeoff-modal__empty{padding:48px;text-align:center;color:#64748b}.timeoff-modal__footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid #e2e8f0}.timeoff-modal__footer>span{font-size:12px;color:#64748b}.timeoff-modal__footer>span.is-dirty{color:#b45309;font-weight:600}.timeoff-modal__footer>div{display:flex;gap:7px}@media(max-width:760px){.timeoff-modal-backdrop{padding:8px}.timeoff-modal{width:100%;max-height:96vh}.timeoff-modal__controls,.timeoff-modal__summary{align-items:stretch;flex-direction:column}.timeoff-modal__resource{min-width:0}.timeoff-modal__stats{justify-content:space-between}.timeoff-modal__grid-wrap{margin:0 10px}.timeoff-modal__header,.timeoff-modal__controls,.timeoff-modal__summary,.timeoff-modal__footer,.timeoff-modal__legend{padding-left:12px;padding-right:12px}}`}</style>
+  </div>
+}
