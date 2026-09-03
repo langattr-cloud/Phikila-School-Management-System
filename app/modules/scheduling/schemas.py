@@ -99,8 +99,55 @@ class TimetableTypeIn(BaseModel):
 class TimetableTypeOut(ORMModel, TimetableTypeIn): id: int
 class GenerateIn(BaseModel):
     max_seconds: float = Field(default=30.0, ge=1.0, le=180.0); timetable_type_id: int | None = None; class_ids: list[int] | None = None; teacher_ids: list[int] | None = None; period_indexes: list[int] | None = None
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_frontend_values(cls, value):
+        if not isinstance(value, dict): return value
+        data=dict(value)
+        if data.get('max_seconds') in (None, ''): data['max_seconds']=30.0
+        else:
+            try: data['max_seconds']=float(data['max_seconds'])
+            except (TypeError, ValueError): pass
+        for key in ('timetable_type_id',):
+            if data.get(key) in ('', None): data[key]=None
+            else:
+                try: data[key]=int(float(data[key]))
+                except (TypeError, ValueError): pass
+        for key in ('class_ids','teacher_ids','period_indexes'):
+            raw=data.get(key)
+            if raw in (None, ''): data[key]=None
+            elif not isinstance(raw,(list,tuple,set)): raw=[raw]
+            if data.get(key) is not None:
+                vals=[]
+                for item in raw:
+                    try: vals.append(int(float(item)))
+                    except (TypeError,ValueError): continue
+                data[key]=vals
+        return data
 class GenerateProfileIn(GenerateIn):
-    label: str = Field(default='New timetable', min_length=1, max_length=120); day_indexes: list[int] | None = None; day_names: dict[int,str] | None = None
+    label: str = Field(default='New timetable', min_length=1, max_length=120)
+    day_indexes: list[int] | None = None
+    day_names: dict[int,str] | None = None
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_profile_values(cls, value):
+        if not isinstance(value, dict): return value
+        data=dict(value)
+        label=data.get('label')
+        if label in (None, ''): data['label']='New timetable'
+        else: data['label']=str(label).strip() or 'New timetable'
+        for key in ('day_indexes',):
+            raw=data.get(key)
+            if raw in (None, ''): data[key]=None
+            elif not isinstance(raw,(list,tuple,set)): raw=[raw]
+            if data.get(key) is not None:
+                vals=[]
+                for item in raw:
+                    try: vals.append(int(float(item)))
+                    except (TypeError,ValueError): continue
+                data[key]=vals or None
+        if data.get('day_names') in ('', None): data['day_names']=None
+        return data
 class JobOut(ORMModel):
     id: int; status: str; progress: int; stage: str | None; checks: list[dict[str,Any]] = Field(default_factory=list); result_version_id: int | None; quality: dict[str,Any] = Field(default_factory=dict); message: str | None
 class VersionOut(ORMModel):
