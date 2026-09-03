@@ -77,6 +77,8 @@ export function GeneratePage() {
   const invalidTimes = draftPeriods.some((period) => !period.start_time || !period.end_time || period.end_time <= period.start_time)
   const readyToSave = !!name.trim() && days.length > 0 && teachingPeriods.length > 0
   const generated = status === 'completed' && !!job?.result_version_id
+  const progressFallback = status === 'queued' ? 8 : status === 'running' ? 18 : status === 'optimizing' ? 55 : status === 'validating' ? 88 : status === 'completed' ? 100 : 0
+  const progressValue = Math.min(100, Math.max(progressFallback, Number(job?.progress ?? 0)))
 
   function chooseType(id: number) {
     const type = types.find((item) => item.id === id)
@@ -223,9 +225,22 @@ export function GeneratePage() {
         </div>
       </div>
 
-      <div className="builder-footer"><button className="button button--secondary" disabled={saving || savingCalendar || !readyToSave || invalidTimes} type="button" onClick={async () => { if (await saveCalendar()) await saveType() }}>{saving || savingCalendar ? 'Saving…' : 'Save timetable setup'}</button><button className="button button--primary builder-generate" disabled={!readyToSave || invalidTimes || running || starting || savingCalendar} type="button" onClick={() => void generate()}>{starting ? 'Starting…' : running ? `Generating… ${job?.progress ?? 0}%` : 'Generate timetable'}</button></div>
+      <div className="builder-footer"><button className="button button--secondary" disabled={saving || savingCalendar || !readyToSave || invalidTimes} type="button" onClick={async () => { if (await saveCalendar()) await saveType() }}>{saving || savingCalendar ? 'Saving…' : 'Save timetable setup'}</button><button className="button button--primary builder-generate" disabled={!readyToSave || invalidTimes || running || starting || savingCalendar} type="button" onClick={() => void generate()}>{starting ? 'Starting…' : running ? `Generating… ${progressValue}%` : 'Generate timetable'}</button></div>
     </section>
 
-    {job && <section className="card section builder-status"><div className="panel__head"><div><h2 className="section__title">{generated ? 'Timetable ready' : 'Generation status'}</h2><p className="form__note">{job.message ?? job.stage ?? status}</p></div><Badge tone={running ? 'warning' : generated ? 'success' : status === 'failed' ? 'danger' : 'neutral'}>{status}</Badge></div>{generated && <div className="builder-footer"><button className="button button--primary builder-save-generated" disabled={savingGenerated} type="button" onClick={() => void saveGenerated()}>{savingGenerated ? 'Saving…' : 'Save & View / Print'}</button></div>}</section>}
+    {(job || starting) && <section className="card section builder-status">
+      <div className="panel__head"><div><h2 className="section__title">{generated ? 'Timetable ready' : starting && !job ? 'Preparing generation' : 'Generation status'}</h2><p className="form__note">{job?.message ?? job?.stage ?? (starting ? 'Saving schedule settings and starting the timetable solver…' : status)}</p></div>{job && <Badge tone={running ? 'warning' : generated ? 'success' : status === 'failed' ? 'danger' : 'neutral'}>{status}</Badge>}</div>
+      {(running || starting) && <div style={{ marginTop: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '.45rem', fontSize: '.75rem', fontWeight: 750, color: 'var(--color-ink)' }}>
+          <span>{starting && !job ? 'Starting solver…' : (job?.stage ?? 'Generating timetable…')}</span>
+          <strong>{starting && !job ? 'Preparing' : `${progressValue}%`}</strong>
+        </div>
+        <div role="progressbar" aria-label="Timetable generation progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={starting && !job ? 0 : progressValue} style={{ height: '10px', overflow: 'hidden', borderRadius: '999px', background: '#e2e8f0', boxShadow: 'inset 0 1px 2px rgba(15,42,71,.08)' }}>
+          <div style={{ width: `${starting && !job ? 8 : progressValue}%`, height: '100%', borderRadius: 'inherit', background: 'linear-gradient(90deg,#2563eb,#7c3aed)', transition: 'width .45s ease', boxShadow: '0 2px 8px rgba(79,70,229,.25)' }} />
+        </div>
+        <div style={{ marginTop: '.45rem', color: 'var(--color-ink-muted)', fontSize: '.7rem' }}>Progress updates automatically while the solver works.</div>
+      </div>}
+      {generated && <div className="builder-footer"><button className="button button--primary builder-save-generated" disabled={savingGenerated} type="button" onClick={() => void saveGenerated()}>{savingGenerated ? 'Saving…' : 'Save & View / Print'}</button></div>}
+    </section>}
   </>
 }
