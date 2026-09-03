@@ -32,11 +32,11 @@ def _config(db,school_id,payload):
     if current is None:raise HTTPException(status.HTTP_400_BAD_REQUEST,'Save a timetable type before generating a timetable.')
     if payload.timetable_type_id is not None and int(payload.timetable_type_id)!=int(current.id):raise HTTPException(status.HTTP_409_CONFLICT,'The selected timetable type is no longer current. Refresh and use the active type.')
     day_indexes=sorted(set(int(i) for i in (current.day_indexes or []))); period_indexes=sorted(set(int(i) for i in (current.period_indexes or [])))
-    configured_days={int(d.index) for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id,dummy if False else True).all()}
+    configured_days={int(d.index) for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all()}
     if not day_indexes or not set(day_indexes).issubset(configured_days):raise HTTPException(status.HTTP_400_BAD_REQUEST,'The current timetable type contains days that are not configured.')
     configured_periods={int(p.index) for p in db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id,m.TtPeriod.is_teaching.is_(True)).all()}
     if not period_indexes or not set(period_indexes).issubset(configured_periods):raise HTTPException(status.HTTP_400_BAD_REQUEST,'The current timetable type contains periods that are not configured teaching periods.')
-    day_names={int(i):str(d.name).strip() for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id,dummy if False else True).all() if int(d.index) in day_indexes and str(d.name).strip()}
+    day_names={int(d.index):str(d.name).strip() for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all() if int(d.index) in day_indexes and str(d.name).strip()}
     return {'label':payload.label,'timetable_type_id':current.id,'display_mode':current.display_mode,'day_indexes':day_indexes,'day_names':day_names,'class_ids':payload.class_ids,'teacher_ids':payload.teacher_ids,'period_indexes':period_indexes}
 @router.post('/solver/generate-profile',response_model=s.JobOut,status_code=202)
 def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin','scheduler'))):
