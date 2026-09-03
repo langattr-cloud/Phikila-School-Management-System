@@ -11,14 +11,14 @@ engine_options: dict = {"pool_pre_ping": True}
 if settings.database_url.startswith("sqlite"):
     engine_options["connect_args"] = {"check_same_thread": False}
 else:
-    # Render runs FastAPI, the polling worker, and isolated solver children.
-    # Supabase's session-mode pooler has a hard per-project client cap. Keep
-    # every long-lived process to one connection and never create an unbounded
-    # overflow pool. Sessions are short-lived and connections are recycled.
+    # Keep the pool bounded, but allow the request path and the timetable
+    # solver worker to use separate connections. The previous default of one
+    # connection caused QueuePool timeouts when the UI polled solver status
+    # while the solver was reading/writing timetable data.
     engine_options.update(
         {
-            "pool_size": int(os.getenv("DB_POOL_SIZE", "1")),
-            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "0")),
+            "pool_size": int(os.getenv("DB_POOL_SIZE", "2")),
+            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "1")),
             "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "15")),
             "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "300")),
             "connect_args": {"connect_timeout": 10},
