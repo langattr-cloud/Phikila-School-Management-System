@@ -1,10 +1,11 @@
 import { TimetablePage } from './TimetablePage'
+import { TimeOffPopupLauncher } from '../components/TimeOffPopupLauncher'
 
 /**
- * The timetable page owns its layout, filters, view state, and grid structure.
- * Keep this route as a thin compatibility wrapper so the old floating
- * grade/teacher controls cannot appear above the page header.
+ * The whole-school timetable owns its existing grid, filters, and editing
+ * structure. Time-off is layered on top as an independent popup so the
+ * teacher/class timetable views are not changed.
  */
 export function EnhancedTimetablePage() {
-  return <TimetablePage />
+  return <><TimetablePage /><TimeOffPopupLauncher /></>
 }
