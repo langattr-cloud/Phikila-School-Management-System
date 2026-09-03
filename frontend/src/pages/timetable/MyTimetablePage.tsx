@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { PageHeader } from '../components/PageHeader'
-import { Alert } from '../components/Alert'
-import { Badge, EmptyState, ErrorState, LoadingBlock } from '../components/States'
-import { PublishedTimetableGridWithEvents } from '../components/PublishedTimetableGridWithEvents'
-import { CalendarIcon } from '../components/icons'
-import { friendlyApiError } from '../lib/api'
-import { scheduling, type Event, type SchoolClass, type TimetableAmendment, type TimetableView } from '../lib/scheduling'
+import { PageHeader } from '../../components/PageHeader'
+import { Alert } from '../../components/Alert'
+import { Badge, EmptyState, ErrorState, LoadingBlock } from '../../components/States'
+import { PublishedTimetableGridWithEvents } from '../../components/timetable/PublishedTimetableGridWithEvents'
+import { CalendarIcon } from '../../components/icons'
+import { friendlyApiError } from '../../lib/api'
+import { scheduling, type Event, type SchoolClass, type TimetableAmendment, type TimetableView } from '../../lib/scheduling'
 
 type ViewKind = 'teacher' | 'class'
 
@@ -38,14 +38,16 @@ export function MyTimetablePage() {
     return () => { active = false }
   }, [])
 
-  // Only classes for which this teacher is the assigned class teacher are shown.
   const myClassTeacherClasses = useMemo(() => {
     if (!teacherId) return []
     return classes.filter(row => row.class_teacher_id === teacherId)
   }, [classes, teacherId])
 
   useEffect(() => {
-    if (targetId === null) return
+    if (targetId === null) {
+      setView(null)
+      return
+    }
     let active = true
     setLoading(true)
     setError(null)
