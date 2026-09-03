@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "fastapi",
+  "framework": "vite",
   "buildCommand": "npm --prefix frontend ci --include=dev && npm --prefix frontend run build && test -f frontend/dist/index.html",
+  "outputDirectory": "frontend/dist",
   "rewrites": [
     {
       "source": "/api/:path*",
@@ -16,13 +17,8 @@
       "destination": "https://phikila-school-management-system.onrender.com/ready"
     },
     {
-      "source": "/((?!api(?:/|$)|docs(?:/|$)|redoc(?:/|$)|openapi.json$|health$|ready$|assets(?:/|$)|brand(?:/|$)|favicon\\.(?:svg|ico)$|site\\.webmanifest$|sw\\.js$).*)",
+      "source": "/((?!api(?:/|$)|health$|ready$|assets(?:/|$)|brand(?:/|$)|favicon\\.(?:svg|ico)$|site\\.webmanifest$|sw\\.js$).*)",
       "destination": "/"
     }
-  ],
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 180
-    }
-  }
+  ]
 }
