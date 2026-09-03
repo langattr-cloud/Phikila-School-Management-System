@@ -20,7 +20,7 @@ export interface SubjectInput extends Loose {}
 export interface Room extends Loose { id: number; name: string; code?: string; room_type?: string }
 export interface RoomInput extends Loose {}
 export interface SchoolClass extends Loose { id: number; name: string; code: string; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; level_id?: number | null; academic_year_id?: number | null; unavailable?: Slots }
-export interface SchoolClassInput extends Loose { name: string; code: string; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; unavailable?: Slots; level_id?: number | null; academic_year_id?: number | null }
+export interface SchoolClassInput extends Loose { name?: string; code?: string; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; unavailable?: Slots; level_id?: number | null; academic_year_id?: number | null }
 export interface Requirement extends Loose { id: number; class_id: number; class_name?: string; subject_id: number; subject_name?: string; teacher_id: number | null; teacher_name?: string | null; room_id?: number | null; room_name?: string | null; periods_per_week: number; double_periods?: number }
 export interface RequirementInput extends Loose { class_id: number; subject_id: number; teacher_id: number | null; room_id?: number | null; periods_per_week: number; double_periods?: number }
 export interface Constraint extends Loose { id: number; kind?: string; scope?: string; target_id?: number | null; is_hard?: boolean; weight?: number | null; params?: Loose; enabled?: boolean; note?: string | null }
