@@ -14,7 +14,7 @@ class GuardianResponse(BaseModel):
 class StudentCreate(BaseModel):
     admission_number:str=Field(min_length=1,max_length=50); first_name:str=Field(min_length=1,max_length=100); middle_name:str|None=None; last_name:str=Field(min_length=1,max_length=100); preferred_name:str|None=None
     date_of_birth:date|None=None; gender:str|None=None; email:str|None=None; phone:str|None=None; address:str|None=None; nationality:str="Kenyan"; national_id:str|None=None; photo_url:str|None=None; admission_date:date|None=None
-    academic_year_id:int; level_id:int; grade_id:int; stream_id:int; status:str="active"; guardians:list[GuardianCreate]=[]
+    academic_year_id:int; term_id:int|None=None; level_id:int; grade_id:int; stream_id:int; status:str="active"; guardians:list[GuardianCreate]=[]
 class StudentUpdate(BaseModel):
     first_name:str|None=None; middle_name:str|None=None; last_name:str|None=None; preferred_name:str|None=None; date_of_birth:date|None=None; gender:str|None=None; email:str|None=None; phone:str|None=None; address:str|None=None; nationality:str|None=None; national_id:str|None=None; photo_url:str|None=None; status:str|None=None; status_reason:str|None=None
 class StudentResponse(BaseModel):
@@ -29,4 +29,5 @@ class DocumentCreate(BaseModel):
     document_type:str=Field(min_length=1,max_length=50); title:str=Field(min_length=1,max_length=200); description:str|None=None; file_url:str|None=None; file_size:int|None=None; mime_type:str|None=None; ocr_scan_id:int|None=None
 class DocumentResponse(BaseModel):
     id:int; school_id:int; student_id:int; document_type:str; title:str; description:str|None=None; file_url:str|None=None; file_size:int|None=None; mime_type:str|None=None; ocr_scan_id:int|None=None; uploaded_by:str|None=None; created_at:datetime|None=None
-    model_config={"from_attributes":True}
+    model_config={"from_attributes":True
+}
