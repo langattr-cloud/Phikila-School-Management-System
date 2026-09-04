@@ -14,6 +14,10 @@ class Student(Base):
     date_of_birth = Column(Date); gender = Column(String(20)); email = Column(String(200)); phone = Column(String(30)); address = Column(Text)
     nationality = Column(String(60), default="Kenyan"); national_id = Column(String(50)); photo_url = Column(String(500)); admission_date = Column(Date)
     status = Column(String(20), default="active", nullable=False, index=True); status_reason = Column(Text); status_date = Column(Date)
+    # Retained for compatibility with existing academic/scheduling integrations. Enrollment is canonical.
+    level_id = Column(Integer, ForeignKey("levels.id"), nullable=True, index=True)
+    grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True, index=True)
+    stream_id = Column(Integer, ForeignKey("streams.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now()); updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     guardians = orm_relationship("StudentGuardian", back_populates="student", cascade="all, delete-orphan")
     enrollments = orm_relationship("StudentEnrollment", cascade="all, delete-orphan")
