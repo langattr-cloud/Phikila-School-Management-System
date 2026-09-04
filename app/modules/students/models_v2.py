@@ -34,7 +34,8 @@ class StudentEnrollment(Base):
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True)
     student_id = Column(Integer, ForeignKey("students_v2.id", ondelete="CASCADE"), nullable=False, index=True)
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False); term_id = Column(Integer, ForeignKey("terms.id"))
-    level_id = Column(Integer, ForeignKey("levels.id"), nullable=False); grade_id = Column(Integer, ForeignKey("grades.id"), nullable=False); stream_id = Column(Integer, ForeignKey("streams.id"), nullable=False)
+    level_id = Column(Integer, ForeignKey("levels.id"), nullable=False); class_id = Column(Integer, ForeignKey("school_classes.id", ondelete="SET NULL"), nullable=True, index=True)
+    grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True); stream_id = Column(Integer, ForeignKey("streams.id"), nullable=True)
     status = Column(String(20), default="active", nullable=False); enrollment_date = Column(Date); created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class StudentDocument(Base):
