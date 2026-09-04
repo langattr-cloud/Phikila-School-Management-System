@@ -25,6 +25,7 @@ from app.modules.scheduling.events_router import router as timetable_events_rout
 from app.modules.scheduling.profile_router import router as timetable_profile_router
 from app.modules.scheduling.timetable_types_router import router as timetable_types_router
 from app.modules.scheduling.dashboard_router import router as scheduling_dashboard_router
+from app.modules.scheduling.project_router import router as timetable_projects_router
 from app.modules.scheduling.router import router as scheduling_router
 from app.modules.scheduling.timetable_read_router import router as timetable_read_router
 from app.modules.school.router import router as school_router
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
     scheduling_router.routes[:] = [route for route in scheduling_router.routes if not (getattr(route, "path", None) == "/calendar" and "PUT" in getattr(route, "methods", set()))]
     app.include_router(calendar_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(scheduling_dashboard_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=protected)
+    app.include_router(timetable_projects_router, prefix="/api/v1/scheduling", tags=["Timetable Projects"], dependencies=protected)
     app.include_router(timetable_profile_router, prefix="/api/v1/scheduling", tags=["Timetable Profiles"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(timetable_types_router, prefix="/api/v1/scheduling", tags=["Timetable Types"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
@@ -81,20 +83,14 @@ def create_app() -> FastAPI:
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
     app.include_router(finance_router, prefix="/api/v1", tags=["Finance"])
     app.include_router(finance_operations_router, prefix="/api/v1", tags=["Finance Operations"])
-    app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Treasury"])
-    app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
+    app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Mapping"])
     app.include_router(finance_reports_router, prefix="/api/v1", tags=["Finance Reports"])
-    app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["Document OCR"], dependencies=[Depends(rate_limit_ocr)])
-    _rate_limit_mutations(access_approval_router); _rate_limit_mutations(platform_router); _rate_limit_mutations(llm_router)
-    app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
-    app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
-    app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
-    app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
+    app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Completion"])
+    app.include_router(llm_router, prefix="/api/v1", tags=["AI"])
+    app.include_router(ocr_router, prefix="/api/v1", tags=["OCR"], dependencies=[Depends(rate_limit_ocr)])
+    app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"], dependencies=protected)
+    app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Access Approval"], dependencies=protected)
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
-    frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
-    if frontend_dist.is_dir(): app.mount("/", SPAStaticFiles(directory=frontend_dist, html=True), name="frontend")
     return app
+
 app = create_app()
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
