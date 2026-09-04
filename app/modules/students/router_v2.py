@@ -21,24 +21,24 @@ def _audit(db, principal, action, entity, entity_id, summary, before=None, after
     from app.modules.scheduling.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=principal.school_id, actor=principal.email or principal.user_id, action=action, entity=entity, entity_id=entity_id, summary=summary, before=before, after=after))
 
-def _validate_academic_context(db, school_id, academic_year_id, term_id, level_id, grade_id, stream_id):
-    from app.modules.academics.models import AcademicYear, Grade, Level, Stream, Term
+def _validate_academic_context(db, school_id, academic_year_id, term_id, level_id, class_id):
+    from app.modules.academics.models import AcademicYear, Level, SchoolClass, Term
     academic_year = db.query(AcademicYear).filter(AcademicYear.id == academic_year_id, AcademicYear.school_id == school_id).first()
     if not academic_year: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Academic year does not belong to this school.")
     term = None
     if term_id is not None:
         term = db.query(Term).filter(Term.id == term_id, Term.school_id == school_id, Term.academic_year_id == academic_year_id).first()
         if not term: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Term does not belong to the selected Academic Year.")
-    if not db.query(Level.id).filter(Level.id == level_id, Level.school_id == school_id).first(): raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Level does not belong to this school.")
-    if not db.query(Grade.id).filter(Grade.id == grade_id, Grade.school_id == school_id, Grade.level_id == level_id).first(): raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Grade does not belong to the selected level.")
-    stream = db.query(Stream).filter(Stream.id == stream_id, Stream.school_id == school_id, Stream.academic_year_id == academic_year_id, Stream.level_id == level_id, Stream.grade_id == grade_id).first()
-    if not stream: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Stream does not belong to the selected Academic Year → Level → Grade.")
+    level = db.query(Level).filter(Level.id == level_id, Level.school_id == school_id).first()
+    if not level: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Level does not belong to this school.")
+    school_class = db.query(SchoolClass).filter(SchoolClass.id == class_id, SchoolClass.school_id == school_id, SchoolClass.academic_year_id == academic_year_id, SchoolClass.level_id == level_id).first()
+    if not school_class: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Class does not belong to the selected Academic Year and Level.")
     if term is None:
         term = db.query(Term).filter(Term.school_id == school_id, Term.academic_year_id == academic_year_id, Term.is_current.is_(True)).first()
-    return stream, term
+    return school_class, term
 
 @router.get("/students", response_model=s.StudentListResponse)
-def list_students(page:int=Query(1,ge=1), page_size:int=Query(20,ge=1,le=100), search:str|None=Query(None,max_length=200), status_filter:str|None=Query(None,alias="status"), academic_year_id:int|None=Query(None), level_id:int|None=Query(None), grade_id:int|None=Query(None), stream_id:int|None=Query(None), admission_number:str|None=Query(None), db:Session=Depends(get_db), principal:Principal=Depends(require_role("viewer","teacher","admin"))):
+def list_students(page:int=Query(1,ge=1), page_size:int=Query(20,ge=1,le=100), search:str|None=Query(None,max_length=200), status_filter:str|None=Query(None,alias="status"), academic_year_id:int|None=Query(None), level_id:int|None=Query(None), class_id:int|None=Query(None), grade_id:int|None=Query(None), stream_id:int|None=Query(None), admission_number:str|None=Query(None), db:Session=Depends(get_db), principal:Principal=Depends(require_role("viewer","teacher","admin"))):
     query=db.query(m.Student).filter(m.Student.school_id==principal.school_id)
     if search:
         pattern=f"%{search.strip().lower()}%";query=query.filter((func.lower(m.Student.first_name).like(pattern))|(func.lower(m.Student.last_name).like(pattern))|(func.lower(m.Student.admission_number).like(pattern))|(func.lower(m.Student.middle_name).like(pattern)))
@@ -47,6 +47,7 @@ def list_students(page:int=Query(1,ge=1), page_size:int=Query(20,ge=1,le=100), s
     filters=[]
     if academic_year_id is not None:filters.append(m.StudentEnrollment.academic_year_id==academic_year_id)
     if level_id is not None:filters.append(m.StudentEnrollment.level_id==level_id)
+    if class_id is not None:filters.append(m.StudentEnrollment.class_id==class_id)
     if grade_id is not None:filters.append(m.StudentEnrollment.grade_id==grade_id)
     if stream_id is not None:filters.append(m.StudentEnrollment.stream_id==stream_id)
     if filters: filters.append(m.StudentEnrollment.status=="active");query=query.filter(m.Student.enrollments.any(*filters))
@@ -58,10 +59,10 @@ def list_students(page:int=Query(1,ge=1), page_size:int=Query(20,ge=1,le=100), s
 def create_student(payload:s.StudentCreate,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
     existing=db.query(m.Student).filter(m.Student.school_id==principal.school_id,func.lower(m.Student.admission_number)==payload.admission_number.strip().lower()).first()
     if existing:raise HTTPException(status.HTTP_409_CONFLICT,f"Admission number '{payload.admission_number}' already exists.")
-    stream, term=_validate_academic_context(db,principal.school_id,payload.academic_year_id,payload.term_id,payload.level_id,payload.grade_id,payload.stream_id)
+    school_class, term=_validate_academic_context(db,principal.school_id,payload.academic_year_id,payload.term_id,payload.level_id,payload.class_id)
     student=m.Student(school_id=principal.school_id,admission_number=payload.admission_number,first_name=payload.first_name,middle_name=payload.middle_name,last_name=payload.last_name,preferred_name=payload.preferred_name,date_of_birth=payload.date_of_birth,gender=payload.gender,email=payload.email,phone=payload.phone,address=payload.address,nationality=payload.nationality,national_id=payload.national_id,photo_url=payload.photo_url,admission_date=payload.admission_date,status=payload.status)
     db.add(student);db.flush()
-    db.add(m.StudentEnrollment(school_id=principal.school_id,student_id=student.id,academic_year_id=payload.academic_year_id,term_id=term.id if term else None,level_id=payload.level_id,grade_id=payload.grade_id,stream_id=stream.id,status="active",enrollment_date=payload.admission_date or date.today()))
+    db.add(m.StudentEnrollment(school_id=principal.school_id,student_id=student.id,academic_year_id=payload.academic_year_id,term_id=term.id if term else None,level_id=payload.level_id,class_id=school_class.id,status="active",enrollment_date=payload.admission_date or date.today()))
     for guardian in payload.guardians:db.add(m.StudentGuardian(school_id=principal.school_id,student_id=student.id,**guardian.model_dump()))
     _audit(db,principal,"create","student",student.id,f"Admitted student {payload.first_name} {payload.last_name} ({payload.admission_number})");db.commit();db.refresh(student);return student
 
