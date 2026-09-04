@@ -29,5 +29,4 @@ class DocumentCreate(BaseModel):
     document_type:str=Field(min_length=1,max_length=50); title:str=Field(min_length=1,max_length=200); description:str|None=None; file_url:str|None=None; file_size:int|None=None; mime_type:str|None=None; ocr_scan_id:int|None=None
 class DocumentResponse(BaseModel):
     id:int; school_id:int; student_id:int; document_type:str; title:str; description:str|None=None; file_url:str|None=None; file_size:int|None=None; mime_type:str|None=None; ocr_scan_id:int|None=None; uploaded_by:str|None=None; created_at:datetime|None=None
-    model_config={"from_attributes":True
-}
+    model_config={"from_attributes":True}
