@@ -77,65 +77,26 @@ export function MyTimetablePage() {
 
   const official = view?.version?.status === 'published'
   const typeName = view?.timetable_type?.name ?? 'Current timetable'
-  const selectedType = selectedTypeId === '' ? null : timetableTypes.find(item => item.id === selectedTypeId) ?? null
   const typeMatchesCurrent = selectedTypeId === '' || selectedTypeId === (view?.version?.timetable_type_id ?? view?.timetable_type?.id ?? null)
-  const teacherName = teacher?.name ?? [teacher?.first_name, teacher?.last_name].filter(Boolean).join(' ') || teacher?.email || 'Current user'
+  const teacherName = teacher?.name ?? ([teacher?.first_name, teacher?.last_name].filter(Boolean).join(' ') || teacher?.email || 'Current user')
   const targetName = view?.target_name ?? (kind === 'teacher' ? teacherName : '')
 
   if (loading && !view) return <><PageHeader title="My Timetable" description="Your personal timetable filtered by type, your name, and classes where you are the class teacher." /><div className="card section"><LoadingBlock label="Loading your timetable" rows={7} /></div></>
-  if (error && !view) return <><PageHeader title="My Timetable" /><ErrorState title="Timetable could not load" message={error} /></>
+  if (error && !view) return <><PageHeader title="My Timetable" /><ErrorState title="Timetable could not load" message={error} /></error></>}
 
   return <>
     <PageHeader title="My Timetable" description="Filter by timetable type, your name, or a class where you are the assigned class teacher." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My Timetable' }]} />
-
     <section className="card section">
-      <div className="toolbar">
-        <div>
-          <p className="eyebrow">FILTERS</p>
-          <h2 className="section__title">My timetable</h2>
-          <p className="section__description">Name is restricted to your signed-in teacher profile. Class options are restricted to classes where you are the class teacher.</p>
-        </div>
-        {view && <Badge tone="info">{view.days.length} days · {view.periods.length} periods</Badge>}
-      </div>
+      <div className="toolbar"><div><p className="eyebrow">FILTERS</p><h2 className="section__title">My timetable</h2><p className="section__description">Name is restricted to your signed-in teacher profile. Class options are restricted to classes where you are the class teacher.</p></div>{view && <Badge tone="info">{view.days.length} days · {view.periods.length} periods</Badge>}</div>
       <div className="timetable-controls-row">
-        <div className="timetable-control-group">
-          <label className="field__label" htmlFor="my-timetable-type">Type</label>
-          <select id="my-timetable-type" className="input input--select" value={selectedTypeId} onChange={event => setSelectedTypeId(event.target.value ? Number(event.target.value) : '')}>
-            <option value="">All types</option>
-            {timetableTypes.filter(item => item.is_active).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-        </div>
-        <div className="timetable-control-group">
-          <label className="field__label" htmlFor="my-timetable-name">Name</label>
-          <select id="my-timetable-name" className="input input--select" value={teacherId ?? ''} disabled>
-            <option value={teacherId ?? ''}>{teacherName}</option>
-          </select>
-        </div>
-        <div className="timetable-control-group">
-          <label className="field__label" htmlFor="my-timetable-class">Class</label>
-          <select id="my-timetable-class" className="input input--select" value={kind === 'teacher' ? 'teacher' : targetId ?? ''} onChange={event => {
-            if (event.target.value === 'teacher') chooseKind('teacher')
-            else { setKind('class'); setTargetId(Number(event.target.value)) }
-          }}>
-            <option value="teacher">My timetable</option>
-            {myClassTeacherClasses.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-        </div>
+        <div className="timetable-control-group"><label className="field__label" htmlFor="my-timetable-type">Type</label><select id="my-timetable-type" className="input input--select" value={selectedTypeId} onChange={event => setSelectedTypeId(event.target.value ? Number(event.target.value) : '')}><option value="">All types</option>{timetableTypes.filter(item => item.is_active).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
+        <div className="timetable-control-group"><label className="field__label" htmlFor="my-timetable-name">Name</label><select id="my-timetable-name" className="input input--select" value={teacherId ?? ''} disabled><option value={teacherId ?? ''}>{teacherName}</option></select></div>
+        <div className="timetable-control-group"><label className="field__label" htmlFor="my-timetable-class">Class</label><select id="my-timetable-class" className="input input--select" value={kind === 'teacher' ? 'teacher' : targetId ?? ''} onChange={event => { if (event.target.value === 'teacher') chooseKind('teacher'); else { setKind('class'); setTargetId(Number(event.target.value)) } }}><option value="teacher">My timetable</option>{myClassTeacherClasses.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
       </div>
     </section>
-
     {official && <Alert tone="info" title="Published timetable">This is the timetable currently in force for the school.</Alert>}
-
     {!typeMatchesCurrent && <section className="card section"><EmptyState title="No timetable for this type" description="The school currently has one active timetable in force. Select its type to display it." icon={<CalendarIcon width={22} height={22} />} /></section>}
-
-    {amendments.length > 0 && <section className="card section timetable-amendments">
-      <div className="toolbar"><div><h2 className="section__title">Timetable amendments</h2><p className="section__description">Official timetable changes are shown here.</p></div><Badge tone="info">{amendments.length}</Badge></div>
-      <div className="amendment-list">{amendments.map(item => <div className="amendment-item" key={item.id}><div><strong>{item.title}</strong><p>{item.message}</p></div><span className="amendment-meta">{item.at ? new Date(item.at).toLocaleString() : ''}</span></div>)}</div>
-    </section>}
-
-    {view?.version && targetId !== null && typeMatchesCurrent ? <section className="card section">
-      <div className="toolbar"><div><h2 className="section__title">{kind === 'teacher' ? 'My Timetable' : 'Class Timetable'}</h2><p className="section__description">{typeName}{targetName ? ` · ${targetName}` : ''}</p></div><Badge tone="success">Published</Badge></div>
-      <PublishedTimetableGridWithEvents view={view} mode={kind} events={events} />
-    </section> : typeMatchesCurrent && <section className="card section"><EmptyState title={kind === 'class' ? 'No class selected' : 'No timetable available'} description={kind === 'class' ? 'You can only select classes where you are assigned as class teacher.' : 'If the published timetable is missing, generate and publish one from the timetable builder.'} icon={<CalendarIcon width={22} height={22} />} /></section>}
+    {amendments.length > 0 && <section className="card section timetable-amendments"><div className="toolbar"><div><h2 className="section__title">Timetable amendments</h2><p className="section__description">Official timetable changes are shown here.</p></div><Badge tone="info">{amendments.length}</Badge></div><div className="amendment-list">{amendments.map(item => <div className="amendment-item" key={item.id}><div><strong>{item.title}</strong><p>{item.message}</p></div><span className="amendment-meta">{item.at ? new Date(item.at).toLocaleString() : ''}</span></div>)}</div></section>}
+    {view?.version && targetId !== null && typeMatchesCurrent ? <section className="card section"><div className="toolbar"><div><h2 className="section__title">{kind === 'teacher' ? 'My Timetable' : 'Class Timetable'}</h2><p className="section__description">{typeName}{targetName ? ` · ${targetName}` : ''}</p></div><Badge tone="success">Published</Badge></div><PublishedTimetableGridWithEvents view={view} mode={kind} events={events} /></section> : typeMatchesCurrent && <section className="card section"><EmptyState title={kind === 'class' ? 'No class selected' : 'No timetable available'} description={kind === 'class' ? 'You can only select classes where you are assigned as class teacher.' : 'If the published timetable is missing, generate and publish one from the timetable builder.'} icon={<CalendarIcon width={22} height={22} />} /></section>}
   </>
 }
