@@ -25,6 +25,7 @@ from app.modules.scheduling.events_router import router as timetable_events_rout
 from app.modules.scheduling.profile_router import router as timetable_profile_router
 from app.modules.scheduling.timetable_types_router import router as timetable_types_router
 from app.modules.scheduling.dashboard_router import router as scheduling_dashboard_router
+from app.modules.scheduling.project_router import router as timetable_projects_router
 from app.modules.scheduling.router import router as scheduling_router
 from app.modules.scheduling.timetable_read_router import router as timetable_read_router
 from app.modules.school.router import router as school_router
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
     scheduling_router.routes[:] = [route for route in scheduling_router.routes if not (getattr(route, "path", None) == "/calendar" and "PUT" in getattr(route, "methods", set()))]
     app.include_router(calendar_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(scheduling_dashboard_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=protected)
+    app.include_router(timetable_projects_router, prefix="/api/v1/scheduling", tags=["Timetable Projects"], dependencies=protected)
     app.include_router(timetable_profile_router, prefix="/api/v1/scheduling", tags=["Timetable Profiles"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(timetable_types_router, prefix="/api/v1/scheduling", tags=["Timetable Types"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
