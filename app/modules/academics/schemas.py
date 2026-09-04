@@ -74,3 +74,13 @@ class StreamStudentResponse(BaseModel):
     id: int; admission_number: str; first_name: str; middle_name: Optional[str] = None; last_name: str; current_class_id: Optional[int] = None; level_id: Optional[int] = None; stream_id: Optional[int] = None; status: str
     class Config: from_attributes = True
 class StreamAssignment(BaseModel): student_id: int
+
+class SchoolClassResponse(BaseModel):
+    id: int
+    school_id: int
+    name: str
+    code: str
+    level_id: Optional[int] = None
+    academic_year_id: Optional[int] = None
+    status: Optional[str] = None
+    class Config: from_attributes = True
