@@ -98,7 +98,7 @@ def get_calendar(db: Session = Depends(get_db), principal: Principal = Depends(r
 @router.put("/calendar")
 def set_calendar(payload:s.CalendarIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
     existing=db.query(m.TtLesson).filter(m.TtLesson.school_id==principal.school_id).count()
-    if existing: raise HTTPException(status.HTTP_409_CONFLICT,"Delete existing timetable versions before changing the working week.")
+    if existing: raise HTTPException(status.HTTP_409_CONFLICT,"Delete the current timetable before changing the working week.")
     db.query(m.TtDay).filter(m.TtDay.school_id==principal.school_id).delete(); db.query(m.TtPeriod).filter(m.TtPeriod.school_id==principal.school_id).delete()
     for day in payload.days: db.add(m.TtDay(school_id=principal.school_id,**day.model_dump()))
     for period in payload.periods: db.add(m.TtPeriod(school_id=principal.school_id,**period.model_dump()))
@@ -133,15 +133,16 @@ def cancel_job(job_id:int,db:Session=Depends(get_db),principal:Principal=Depends
     job.cancel_requested=True; db.commit(); db.refresh(job); return job
 @router.get("/versions",response_model=list[s.VersionOut])
 def list_versions(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
-    query=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id)
-    if not principal.at_least("scheduler"): query=query.filter(m.TtVersion.status=="published")
-    return query.order_by(m.TtVersion.number.desc()).all()
+    version=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
+    if version is None:return []
+    if not principal.at_least("scheduler") and version.status!="published":return []
+    return [version]
 @router.get("/versions/current",response_model=s.VersionOut|None)
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
-    return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id,m.TtVersion.status=="published").order_by(m.TtVersion.number.desc()).first()
+    return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
 @router.post("/versions/{version_id}/publish",response_model=s.VersionOut)
 def publish_version(version_id:int,effective_from:str|None=None,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
-    """Put a validated timetable into force and notify school staff."""
+    """Put the single current timetable into force and notify school staff."""
     version=_owned(db,m.TtVersion,principal.school_id,version_id)
     if version.status=="published": return version
     hard_conflicts=[c for c in detect_conflicts(db,principal.school_id,version.id) if c.severity=="hard"]
@@ -149,9 +150,9 @@ def publish_version(version_id:int,effective_from:str|None=None,db:Session=Depen
     try:
         effective=datetime.fromisoformat(effective_from) if effective_from else datetime.utcnow()
     except ValueError: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"effective_from must be an ISO date or datetime.")
-    db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id,m.TtVersion.status=="published",m.TtVersion.id!=version.id).update({"status":"archived"})
     version.status="published"; version.published_at=datetime.utcnow(); version.effective_from=effective
-    _audit(db,principal,"put_into_force","timetable",version.id,f"Put timetable v{version.number} into force effective {effective.date().isoformat()}",after={"status":"published","effective_from":effective.isoformat(),"published_by":principal.email or principal.user_id})
+    db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id,m.TtVersion.id!=version.id).delete(synchronize_session=False)
+    _audit(db,principal,"put_into_force","timetable",version.id,f"Put timetable into force effective {effective.date().isoformat()}",after={"status":"published","effective_from":effective.isoformat(),"published_by":principal.email or principal.user_id})
     db.commit(); db.refresh(version)
     try:
         recipients=[t.email for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id==principal.school_id,m.TtTeacher.is_active.is_(True),m.TtTeacher.email.isnot(None)).all() if t.email]
