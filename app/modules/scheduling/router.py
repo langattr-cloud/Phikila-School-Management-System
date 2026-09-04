@@ -71,21 +71,37 @@ def list_classes_with_academic_stream(db: Session = Depends(get_db), principal: 
             grade=stream.grade.code or stream.grade.name if stream.grade else ""; grade_num=''.join(ch for ch in str(grade) if ch.isdigit()); stream_code=(stream.code or "").strip(); stream_name=(stream.name or "").strip(); token=stream_code or (stream_name[:1] if stream_name else ""); item.academic_stream=f"{grade_num}{token.upper()}" if grade_num and token else (stream_name or None)
         out.append(item)
     return out
-_original_class_list=[r for r in router.routes if getattr(r,"path","")=="/classes" and getattr(r,"methods",set())=={"GET"}][0]
-@router.get("/classes", response_model=list[s.ClassOut], name="list_class_with_academic_stream")
-def list_classes_with_academic_stream(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
+
+# The generic CRUD registration above adds a /classes GET route before this
+# enriched route. Remove that earlier GET route so admission receives the
+# established academic year/level mapping from school_classes.
+router.routes[:] = [r for r in router.routes if not (getattr(r, "path", "") == "/classes" and getattr(r, "methods", set()) == {"GET"})]
+@router.get("/classes", response_model=list[s.ClassOut], name="list_classes_with_academic_setup")
+def list_classes_with_academic_setup(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
     from app.modules.academics.models import SchoolClass
-    rows=db.query(m.TtClass).filter(m.TtClass.school_id==principal.school_id).order_by(m.TtClass.id).all(); setup_rows=db.query(SchoolClass).filter(SchoolClass.school_id==principal.school_id).order_by(SchoolClass.id).all(); by_id={int(r.id):r for r in setup_rows}; by_key={}
+    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()
+    setup_rows = db.query(SchoolClass).filter(SchoolClass.school_id == principal.school_id).order_by(SchoolClass.id).all()
+    by_id = {int(r.id): r for r in setup_rows}
+    by_key = {}
     for r in setup_rows:
-        code=str(r.code or '').strip().upper(); year=int(r.academic_year_id) if r.academic_year_id is not None else None; by_key.setdefault((code,year),r); by_key.setdefault((code,None),r)
-    out=[]
+        code = str(r.code or '').strip().upper()
+        year = int(r.academic_year_id) if r.academic_year_id is not None else None
+        by_key.setdefault((code, year), r)
+        by_key.setdefault((code, None), r)
+    out = []
     for row in rows:
-        item=s.ClassOut.model_validate(row); setup=by_id.get(int(row.school_class_id)) if row.school_class_id is not None else None
+        item = s.ClassOut.model_validate(row)
+        setup = by_id.get(int(row.school_class_id)) if row.school_class_id is not None else None
         if setup is None:
-            code=str(row.code or '').strip().upper(); year=int(row.academic_year_id) if row.academic_year_id is not None else None; setup=by_key.get((code,year)) or by_key.get((code,None))
+            code = str(row.code or '').strip().upper()
+            year = int(row.academic_year_id) if row.academic_year_id is not None else None
+            setup = by_key.get((code, year)) or by_key.get((code, None))
         if setup is not None:
-            if setup.level_id is not None: item.level_id=int(setup.level_id)
-            if setup.academic_year_id is not None: item.academic_year_id=int(setup.academic_year_id)
+            if setup.level_id is not None:
+                item.level_id = int(setup.level_id)
+            if setup.academic_year_id is not None:
+                item.academic_year_id = int(setup.academic_year_id)
+            item.school_class_id = int(setup.id)
         out.append(item)
     return out
 _crud("constraints", m.TtConstraint, s.ConstraintIn, s.ConstraintOut, "constraint")
@@ -137,29 +153,6 @@ def list_versions(db:Session=Depends(get_db),principal:Principal=Depends(resolve
     if version is None:return []
     if not principal.at_least("scheduler") and version.status!="published":return []
     return [version]
-@router.get("/versions/current",response_model=s.VersionOut|None)
+@router.get("/versions/current",response_model=VersionOut|None)
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
-@router.post("/versions/{version_id}/publish",response_model=s.VersionOut)
-def publish_version(version_id:int,effective_from:str|None=None,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
-    """Put the single current timetable into force and notify school staff."""
-    version=_owned(db,m.TtVersion,principal.school_id,version_id)
-    if version.status=="published": return version
-    hard_conflicts=[c for c in detect_conflicts(db,principal.school_id,version.id) if c.severity=="hard"]
-    if hard_conflicts: raise HTTPException(status.HTTP_409_CONFLICT,f"Cannot put timetable into force: {len(hard_conflicts)} hard conflict(s) remain.")
-    try:
-        effective=datetime.fromisoformat(effective_from) if effective_from else datetime.utcnow()
-    except ValueError: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"effective_from must be an ISO date or datetime.")
-    version.status="published"; version.published_at=datetime.utcnow(); version.effective_from=effective
-    db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id,m.TtVersion.id!=version.id).delete(synchronize_session=False)
-    _audit(db,principal,"put_into_force","timetable",version.id,f"Put timetable into force effective {effective.date().isoformat()}",after={"status":"published","effective_from":effective.isoformat(),"published_by":principal.email or principal.user_id})
-    db.commit(); db.refresh(version)
-    try:
-        recipients=[t.email for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id==principal.school_id,m.TtTeacher.is_active.is_(True),m.TtTeacher.email.isnot(None)).all() if t.email]
-        if recipients:
-            from app.modules.school.models import SchoolInfo
-            school=db.query(SchoolInfo).filter(SchoolInfo.id==principal.school_id).first()
-            email_service.send_timetable_published_email(to=recipients,school_name=school.name if school else "Phikila School",version_number=version.number,effective_date=effective.strftime("%d %B %Y"))
-    except Exception:
-        pass
-    return version
