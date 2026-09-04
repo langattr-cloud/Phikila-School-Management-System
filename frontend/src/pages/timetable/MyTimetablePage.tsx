@@ -82,7 +82,7 @@ export function MyTimetablePage() {
   const targetName = view?.target_name ?? (kind === 'teacher' ? teacherName : '')
 
   if (loading && !view) return <><PageHeader title="My Timetable" description="Your personal timetable filtered by type, your name, and classes where you are the class teacher." /><div className="card section"><LoadingBlock label="Loading your timetable" rows={7} /></div></>
-  if (error && !view) return <><PageHeader title="My Timetable" /><ErrorState title="Timetable could not load" message={error} /></>}
+  if (error && !view) return <><PageHeader title="My Timetable" /><ErrorState title="Timetable could not load" message={error} /></> 
 
   return <>
     <PageHeader title="My Timetable" description="Filter by timetable type, your name, or a class where you are the assigned class teacher." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'My Timetable' }]} />
