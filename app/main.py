@@ -83,14 +83,20 @@ def create_app() -> FastAPI:
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
     app.include_router(finance_router, prefix="/api/v1", tags=["Finance"])
     app.include_router(finance_operations_router, prefix="/api/v1", tags=["Finance Operations"])
-    app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Mapping"])
+    app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Treasury"])
+    app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
     app.include_router(finance_reports_router, prefix="/api/v1", tags=["Finance Reports"])
-    app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Completion"])
-    app.include_router(llm_router, prefix="/api/v1", tags=["AI"])
-    app.include_router(ocr_router, prefix="/api/v1", tags=["OCR"], dependencies=[Depends(rate_limit_ocr)])
-    app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"], dependencies=protected)
-    app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Access Approval"], dependencies=protected)
+    app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["Document OCR"], dependencies=[Depends(rate_limit_ocr)])
+    _rate_limit_mutations(access_approval_router); _rate_limit_mutations(platform_router); _rate_limit_mutations(llm_router)
+    app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
+    app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
+    app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
+    app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
+    frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
+    if frontend_dist.is_dir(): app.mount("/", SPAStaticFiles(directory=frontend_dist, html=True), name="frontend")
     return app
-
 app = create_app()
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
