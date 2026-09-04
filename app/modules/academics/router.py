@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.modules.scheduling.tenancy import Principal, ROLE_ORDER
 from app.modules.platform.authz import Identity, resolve_identity
 from app.modules.academics import schemas, services
+from app.modules.academics.models import SchoolClass
 from app.modules.students import models_v2 as student_models
 router = APIRouter(tags=["Academics"])
 def require_academic_role(*roles: str):
@@ -58,7 +59,7 @@ def get_stream(stream_id:int,principal:Principal=Depends(require_academic_role("
 @router.post("/streams",response_model=schemas.StreamResponse,status_code=status.HTTP_201_CREATED)
 def create_stream(data:schemas.StreamCreate,principal:Principal=Depends(require_academic_role("admin")),db:Session=Depends(get_db)): return services.StreamService(db).create_stream(principal.school_id,data)
 @router.post("/streams/bulk",response_model=schemas.BulkStreamResponse,status_code=status.HTTP_201_CREATED)
-def create_streams_bulk(data:schemas.BulkStreamCreate,principal:Principal=Depends(require_academic_role("admin")),db:Session=Depends(get_db)): 
+def create_streams_bulk(data:schemas.BulkStreamCreate,principal:Principal=Depends(require_academic_role("admin")),db:Session=Depends(get_db)):
     streams=services.StreamService(db).create_streams_bulk(principal.school_id,data); return schemas.BulkStreamResponse(streams=streams,created_count=len(streams))
 @router.patch("/streams/{stream_id}",response_model=schemas.StreamResponse)
 def update_stream(stream_id:int,data:schemas.StreamUpdate,principal:Principal=Depends(require_academic_role("admin")),db:Session=Depends(get_db)): return services.StreamService(db).update_stream(principal.school_id,stream_id,data)
@@ -73,3 +74,6 @@ def assign_student_to_stream(stream_id:int,data:schemas.StreamAssignment,princip
     if not student: raise HTTPException(status.HTTP_404_NOT_FOUND,"Student not found")
     if stream.status!="ACTIVE": raise HTTPException(status.HTTP_409_CONFLICT,"Cannot assign a student to an inactive stream")
     student.level_id=stream.level_id; student.grade_id=stream.grade_id; student.stream_id=stream.id; db.commit(); db.refresh(student); return student
+@router.get("/classes",response_model=List[schemas.SchoolClassResponse])
+def get_school_classes(principal:Principal=Depends(require_academic_role("viewer","teacher","admin")),db:Session=Depends(get_db)):
+    return db.query(SchoolClass).filter(SchoolClass.school_id==principal.school_id).order_by(SchoolClass.academic_year_id.desc(),SchoolClass.level_id,SchoolClass.name,SchoolClass.code).all()
