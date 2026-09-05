@@ -10,7 +10,7 @@ import { useAsync } from '../lib/useAsync'
 import { useToast } from '../components/Toast'
 const PAGE_SIZE=10
 const STANDARD_LEVELS=[{name:'Pre-Primary School',code:'PRE'},{name:'Primary School',code:'PRI'},{name:'Junior School',code:'JUN'},{name:'Senior School',code:'SEN'}] as const
-function levelIsActive(level:Level){return (level.status as unknown)==='ACTIVE'||level.status===true}
+function levelIsActive(level:Level){return level.status===true}
 export function LevelsPage(){
  const {notify}=useToast(); const toMessage=useCallback((error:unknown)=>friendlyApiError(error,'load levels'),[]); const {data,loading,error,reload}=useAsync<Level[]>(api.levels,toMessage)
  const [query,setQuery]=useState('');const [page,setPage]=useState(1);const [editing,setEditing]=useState<Level|null>(null);const [creating,setCreating]=useState(false);const [name,setName]=useState('');const [code,setCode]=useState('');const [active,setActive]=useState(true);const [saving,setSaving]=useState(false);const [savingRowId,setSavingRowId]=useState<number|null>(null);const [deletingId,setDeletingId]=useState<number|null>(null);const [saveError,setSaveError]=useState<string|null>(null)
