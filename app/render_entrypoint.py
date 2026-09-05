@@ -25,6 +25,15 @@ def start_worker() -> subprocess.Popen:
     )
 
 
+def run_migrations() -> None:
+    logger.info("Running database migrations")
+    result = subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=False)
+    if result.returncode != 0:
+        logger.error("Database migrations failed with code %s; API will remain available", result.returncode)
+    else:
+        logger.info("Database migrations completed")
+
+
 def main() -> int:
     port = os.getenv("PORT", "10000")
     stopping = False
@@ -42,14 +51,19 @@ def main() -> int:
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
 
-    logger.info("Starting dedicated timetable solver worker")
-    worker = start_worker()
-    logger.info("Solver worker process started pid=%s", worker.pid)
-
     logger.info("Starting FastAPI on port %s", port)
     api = subprocess.Popen([
         sys.executable, "-u", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", port,
     ], env={**os.environ, "PYTHONUNBUFFERED": "1"})
+
+    # Start the web server first. Render must see the configured port quickly;
+    # migrations must never prevent the service from binding its port.
+    time.sleep(1)
+    run_migrations()
+
+    logger.info("Starting dedicated timetable solver worker")
+    worker = start_worker()
+    logger.info("Solver worker process started pid=%s", worker.pid)
 
     while not stopping:
         worker_code = worker.poll()
