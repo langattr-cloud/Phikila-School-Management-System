@@ -14,6 +14,6 @@ ENV LOG_LEVEL=INFO
 
 EXPOSE 8000
 
-# Run the API and solver under one supervisor so Render restarts the worker
-# independently if it exits, instead of silently orphaning it behind a shell.
-CMD ["sh", "-c", "alembic upgrade head && exec python -m app.render_entrypoint"]
+# Start the web server immediately so Render can detect the bound port.
+# Database migrations are handled by the supervisor after the API is listening.
+CMD ["python", "-m", "app.render_entrypoint"]
