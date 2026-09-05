@@ -43,7 +43,7 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             days=db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all(); original_days={d.id:d.is_active for d in days}
             for d in days:d.is_active=d.index in requested_days
             db.commit()
-        data=build_input(db,school_id,max_seconds=max_seconds,class_ids=config.get('class_ids'),teacher_ids=config.get('teacher_ids'),period_indexes=config.get('period_indexes'))
+        data=build_input(db,school_id,max_seconds=max_seconds)
         problems=preflight(data)
         if problems:return _fail(db,job," ".join(problems))
         def cancelled():
