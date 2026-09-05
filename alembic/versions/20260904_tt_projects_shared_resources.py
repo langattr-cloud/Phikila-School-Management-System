@@ -3,7 +3,10 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "20260904ttprojects"
-down_revision = "20260821mergeall"
+# Continue from the canonical merge created on 2026-09-03. The previous
+# parent (20260821mergeall) created a second migration head once the later
+# timetable/calendar migrations were added.
+down_revision = "20260903mergeheads"
 branch_labels = None
 depends_on = None
 
