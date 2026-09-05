@@ -1,4 +1,9 @@
-"""Add the stream_id column expected by the SchoolClass ORM model."""
+"""Add the stream_id column expected by the SchoolClass ORM model.
+
+Production databases may contain school_classes rows created by an older
+schema that did not include the optional stream association. Keep the column
+nullable so existing classes remain valid.
+"""
 from alembic import op
 import sqlalchemy as sa
 
