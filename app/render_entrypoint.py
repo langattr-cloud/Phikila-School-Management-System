@@ -37,6 +37,8 @@ def run_migrations() -> None:
 def main() -> int:
     port = os.getenv("PORT", "10000")
     stopping = False
+    api: subprocess.Popen | None = None
+    worker: subprocess.Popen | None = None
 
     def stop(_signum, _frame):
         nonlocal stopping
@@ -45,7 +47,7 @@ def main() -> int:
         stopping = True
         logger.info("Shutdown requested; stopping API and solver worker")
         for child in (worker, api):
-            if child.poll() is None:
+            if child is not None and child.poll() is None:
                 child.terminate()
 
     signal.signal(signal.SIGTERM, stop)
@@ -59,7 +61,16 @@ def main() -> int:
     # Start the web server first. Render must see the configured port quickly;
     # migrations must never prevent the service from binding its port.
     time.sleep(1)
+    if stopping:
+        if api.poll() is None:
+            api.terminate()
+        return 0
+
     run_migrations()
+    if stopping:
+        if api.poll() is None:
+            api.terminate()
+        return 0
 
     logger.info("Starting dedicated timetable solver worker")
     worker = start_worker()
@@ -79,9 +90,9 @@ def main() -> int:
         time.sleep(1)
 
     for child in (worker, api):
-        if child.poll() is None:
+        if child is not None and child.poll() is None:
             child.terminate()
-    return api.poll() if api.poll() is not None else 0
+    return api.poll() if api is not None and api.poll() is not None else 0
 
 
 if __name__ == "__main__":
