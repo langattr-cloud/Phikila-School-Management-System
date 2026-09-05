@@ -97,6 +97,17 @@ class TimetableTypeIn(BaseModel):
     is_active: bool = True
     is_system: bool = False
 class TimetableTypeOut(ORMModel, TimetableTypeIn): id: int
+class ProjectOut(ORMModel):
+    id: int
+    name: str
+    description: str | None = None
+    academic_year_id: int | None = None
+    term_id: int | None = None
+    status: str
+    current_version_id: int | None = None
+    created_by: str | None = None
+    created_at: datetime
+    updated_at: datetime | None = None
 class GenerateIn(BaseModel):
     max_seconds: float = Field(default=30.0, ge=1.0, le=180.0); timetable_type_id: int | None = None; class_ids: list[int] | None = None; teacher_ids: list[int] | None = None; period_indexes: list[int] | None = None
     @model_validator(mode='before')
