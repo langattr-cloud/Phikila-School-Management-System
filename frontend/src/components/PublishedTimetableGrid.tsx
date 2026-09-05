@@ -17,40 +17,25 @@ export function PublishedTimetableGrid({ view, mode }: Props) {
   const columnTemplate = `7rem repeat(${periodCount}, minmax(0, 1fr))`
 
   return <div className="timetable timetable--published timetable--entity">
-    <div
-      className="entity-timetable-grid"
-      style={{
-        gridTemplateColumns: columnTemplate,
-        gridTemplateRows: `1.6rem repeat(${dayCount}, 2.35rem)`,
-      }}
-    >
+    <div className="entity-timetable-grid" style={{
+      gridTemplateColumns: columnTemplate,
+      gridTemplateRows: `1.6rem repeat(${dayCount}, 2.35rem)`,
+      '--tt-day-count': dayCount,
+      '--tt-period-count': periodCount,
+    } as React.CSSProperties}>
       <div className="entity-timetable-corner">Day / Date</div>
       {periods.map((period, column) => <div className={`entity-timetable-period ${!period.is_teaching ? 'entity-timetable-period--break' : ''}`} style={{ gridColumn: column + 2, gridRow: 1 }} key={period.index}>
         {period.is_teaching ? <><span>{period.name}</span><small>{period.start_time}–{period.end_time}</small></> : <span>{period.name || 'BREAK'}</span>}
       </div>)}
-
       {days.map((day, row) => <div className="entity-timetable-day" style={{ gridColumn: 1, gridRow: row + 2 }} key={day.index}>{dayLabel(day)}</div>)}
-
       {periods.flatMap((period, column) => {
-        if (!period.is_teaching) {
-          return <div
-            className="entity-timetable-cell entity-timetable-cell--break entity-timetable-cell--break-span"
-            style={{ gridColumn: column + 2, gridRow: `2 / span ${dayCount}` }}
-            key={`break-${period.index}`}
-          >
-            <span>{period.name || 'BREAK'}</span>
-          </div>
-        }
-
+        if (!period.is_teaching) return <div className="entity-timetable-cell entity-timetable-cell--break entity-timetable-cell--break-span" style={{ gridColumn: column + 2 }} key={`break-${period.index}`}><span>{period.name || 'BREAK'}</span></div>
         return days.map((day, row) => {
           const lesson = view.lessons.find((item) => item.day === day.index && item.period === period.index)
           const colour = lesson ? validColour(lesson.subject_colour) : undefined
           const secondary = mode === 'class' ? (lesson?.teacher || '—') : compactClass(lesson?.class || '—')
           return <div className="entity-timetable-cell" style={{ gridColumn: column + 2, gridRow: row + 2 }} key={`${day.index}-${period.index}`}>
-            {lesson ? <div className="entity-lesson-card" style={{ '--subject-colour': colour ?? '#0F2A47' } as React.CSSProperties} title={mode === 'class' ? lesson.teacher : undefined}>
-              <strong>{lesson.subject}</strong>
-              <span>{secondary}</span>
-            </div> : null}
+            {lesson ? <div className="entity-lesson-card" style={{ '--subject-colour': colour ?? '#0F2A47' } as React.CSSProperties} title={mode === 'class' ? lesson.teacher : undefined}><strong>{lesson.subject}</strong><span>{secondary}</span></div> : null}
           </div>
         })
       })}
