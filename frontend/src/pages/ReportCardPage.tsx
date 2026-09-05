@@ -1,25 +1,196 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
-import { Badge, EmptyState, LoadingBlock } from '../components/States'
-import { api, type SchoolProfile, type StudentListItem } from '../lib/api'
-import { examinations, type ExamSubject, type Examination, type ExamEntry } from '../lib/examinations'
-import { scheduling, type Subject } from '../lib/scheduling'
+import { EmptyState, LoadingBlock } from '../components/States'
+import { api, type AcademicYear, type Grade, type Level, type SchoolProfile, type StudentListItem, type Term } from '../lib/api'
+import { examinations, type ExamEntry, type ExamSeries, type ExamSubject, type Examination, type GradeScale, type StudentResult } from '../lib/examinations'
+import { scheduling, type Subject, type Teacher } from '../lib/scheduling'
 import { friendlyApiError } from '../lib/api'
+import '../report-card.css'
 
-type Row = ExamSubject & { subjectName: string; entry?: ExamEntry }
+type ComparisonRow = {
+  subjectId: number
+  subjectName: string
+  previousAssignment?: ExamSubject
+  currentAssignment?: ExamSubject
+  previousEntry?: ExamEntry
+  currentEntry?: ExamEntry
+  teacherName: string
+}
+
 const fullName = (student: StudentListItem) => [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ')
-const outcomeLabel = (grade: string | null | undefined) => grade || '—'
 const formatScore = (score: number | null | undefined) => score == null ? '—' : Number.isInteger(score) ? String(score) : score.toFixed(1)
-
-const REPORT_STYLES = `.report-card-print{width:min(100%,210mm);margin:1rem auto;padding:12mm;background:#fff;border:1px solid #dcd8cc;box-shadow:0 6px 20px rgba(20,35,29,.08);color:#14231d}.report-card-header{display:flex;align-items:center;gap:1rem;padding-bottom:1rem;border-bottom:4px solid #0f5b58;text-align:center}.report-card-header>div:last-child{flex:1}.report-card-logo{width:58px;height:58px;display:grid;place-items:center;border:2px solid #0f5b58;border-radius:50%;font-weight:800;font-size:1.5rem;color:#0f5b58}.report-card-kicker{font-size:.72rem;font-weight:700;letter-spacing:.12em}.report-card-header h1{margin:.15rem 0;font-size:1.55rem;text-transform:uppercase}.report-card-title{font-size:1.25rem;font-weight:800;letter-spacing:.04em}.report-card-subtitle{font-size:.72rem;font-weight:700;color:#0f7f76;margin-top:.2rem}.report-card-meta{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;font-size:.78rem}.report-student-grid,.report-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #9aa9a4;margin-bottom:.8rem}.report-student-grid>div,.report-summary-grid>div{padding:.55rem .65rem;border-right:1px solid #9aa9a4}.report-student-grid>div:last-child,.report-summary-grid>div:last-child{border-right:0}.report-student-grid span,.report-summary-grid span{display:block;font-size:.63rem;font-weight:700;color:#49635b;letter-spacing:.05em}.report-student-grid strong,.report-summary-grid strong{display:block;margin-top:.15rem;font-size:.85rem}.report-summary-grid{background:#eef7f5}.report-summary-grid strong{font-size:1rem}.report-card-table{width:100%;border-collapse:collapse;font-size:.72rem}.report-card-table th,.report-card-table td{border:1px solid #a8b4b0;padding:.42rem .45rem;text-align:center}.report-card-table th:first-child,.report-card-table td:first-child{text-align:left}.report-card-table thead th{background:#0f5b58;color:#fff;font-size:.65rem;letter-spacing:.04em}.report-card-table tfoot th{background:#e4f1ef;color:#14231d}.report-key{margin-top:.8rem;padding:.6rem;border:1px solid #a8b4b0;font-size:.64rem;line-height:1.6}.report-remarks{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:1rem;font-size:.72rem}.signature-line{height:2.2rem;border-bottom:1px solid #78847f;margin-top:.25rem}.report-footer{display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem 1.2rem;margin-top:1.1rem;padding-top:.8rem;border-top:1px solid #a8b4b0;font-size:.68rem}@media(max-width:700px){.report-card-print{padding:.7rem;margin:.5rem 0}.report-card-header{flex-direction:column}.report-student-grid,.report-summary-grid{grid-template-columns:repeat(2,1fr)}.report-remarks,.report-footer{grid-template-columns:1fr}.report-card-table{font-size:.62rem}}@media print{@page{size:A4 portrait;margin:8mm}html,body{background:#fff!important}.no-print,.sidebar,.topbar,.bottom-nav,.print-footer{display:none!important}.app-shell,.app-shell__main,.app-shell__content{display:block!important;margin:0!important;padding:0!important;width:auto!important}.report-card-print{width:auto;margin:0;padding:0;border:0;box-shadow:none;break-inside:avoid}.report-card-table,.report-card-table tr,.report-card-table td,.report-card-table th{break-inside:avoid}}`
+const formatNumber = (value: number | null | undefined, digits = 1) => value == null || !Number.isFinite(value) ? '—' : value.toFixed(digits)
+const examTime = (exam: Examination) => exam.exam_date ? new Date(`${exam.exam_date}T00:00:00`).getTime() : 0
+const examSort = (a: Examination, b: Examination) => examTime(a) - examTime(b) || a.id - b.id
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'P'
+const gradeTone = (grade: string | null | undefined) => {
+  if (!grade) return ''
+  const match = grade.match(/(\d+)/)
+  const points = match ? Number(match[1]) : 0
+  return points >= 7 ? 'grade-ee' : points >= 5 ? 'grade-me' : points >= 3 ? 'grade-ae' : 'grade-be'
+}
+const scaleClass = (points: number | null | undefined) => points && points >= 1 && points <= 8 ? `scale-${points}` : 'scale-default'
 
 export default function ReportCardPage() {
-  const [exams, setExams] = useState<Examination[]>([]); const [students, setStudents] = useState<StudentListItem[]>([]); const [subjects, setSubjects] = useState<Subject[]>([]); const [school, setSchool] = useState<SchoolProfile | null>(null)
-  const [examId, setExamId] = useState(''); const [studentId, setStudentId] = useState(''); const [studentQuery, setStudentQuery] = useState(''); const [assignments, setAssignments] = useState<ExamSubject[]>([]); const [entries, setEntries] = useState<ExamEntry[]>([]); const [loading, setLoading] = useState(true); const [loadingCard, setLoadingCard] = useState(false); const [error, setError] = useState<string | null>(null)
-  useEffect(() => { void Promise.all([examinations.list(), api.students(), scheduling.subjects(), api.school()]).then(([nextExams,nextStudents,nextSubjects,nextSchool])=>{setExams(nextExams);setStudents(nextStudents.items);setSubjects(nextSubjects);setSchool(nextSchool);if(nextExams.length)setExamId(String(nextExams[0].id))}).catch(err=>setError(friendlyApiError(err,'load report-card data'))).finally(()=>setLoading(false)) }, [])
-  const selectedExam=exams.find(item=>item.id===Number(examId)); const selectedStudent=students.find(item=>item.id===Number(studentId)); const visibleStudents=useMemo(()=>{const q=studentQuery.trim().toLowerCase();if(!q)return students.slice(0,80);return students.filter(item=>`${fullName(item)} ${item.admission_number}`.toLowerCase().includes(q)).slice(0,80)},[students,studentQuery])
-  useEffect(()=>{if(!selectedExam||!selectedStudent){setAssignments([]);setEntries([]);return}setLoadingCard(true);setError(null);void Promise.all([examinations.listSubjects(selectedExam.id),examinations.listEntries(selectedExam.id,undefined,selectedStudent.id)]).then(([a,e])=>{setAssignments(a);setEntries(e)}).catch(err=>setError(friendlyApiError(err,'load the student report card'))).finally(()=>setLoadingCard(false))},[selectedExam,selectedStudent])
-  const rows=useMemo<Row[]>(()=>assignments.map(a=>({...a,subjectName:subjects.find(s=>s.id===a.subject_id)?.name||`Subject ${a.subject_id}`,entry:entries.find(e=>e.subject_id===a.subject_id)})),[assignments,entries,subjects]); const total=rows.reduce((sum,row)=>sum+(row.entry?.score??0),0); const maxTotal=rows.reduce((sum,row)=>sum+row.total_marks,0); const percentage=maxTotal?(total/maxTotal)*100:0; const markedRows=rows.filter(row=>row.entry?.score!=null); const averagePoints=markedRows.length?markedRows.reduce((sum,row)=>sum+((row.entry!.score!/row.total_marks)*8),0)/markedRows.length:0; const overallBand=percentage>=80?'EE2':percentage>=70?'EE1':percentage>=60?'ME2':percentage>=50?'ME1':percentage>=40?'AE2':percentage>=30?'AE1':percentage>=20?'BE2':'BE1'
-  return <><style>{REPORT_STYLES}</style><div className="no-print"><PageHeader title="Student Report Card" description="Generate, review and print a professional CBC/KNEC-style student assessment report." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Examinations',to:'/examinations'},{label:'Report Card'}]} actions={<button className="button button--primary" disabled={!selectedStudent||!selectedExam} onClick={()=>window.print()}>Print / Save PDF</button>}/>{error&&<Alert tone="error">{error}</Alert>}{loading?<LoadingBlock label="Loading report-card data" rows={4}/>:<section className="card section"><div className="form form--grid"><div className="field"><label className="field__label" htmlFor="report-exam">Examination</label><select id="report-exam" className="input" value={examId} onChange={e=>setExamId(e.target.value)}><option value="">Select examination</option>{exams.map(exam=><option key={exam.id} value={exam.id}>{exam.name}{exam.exam_date?` · ${exam.exam_date}`:''}</option>)}</select></div><div className="field"><label className="field__label" htmlFor="student-search">Find student</label><input id="student-search" className="input" value={studentQuery} onChange={e=>setStudentQuery(e.target.value)} placeholder="Name or admission number"/></div><div className="field"><label className="field__label" htmlFor="report-student">Student</label><select id="report-student" className="input" value={studentId} onChange={e=>setStudentId(e.target.value)}><option value="">Select student</option>{visibleStudents.map(student=><option key={student.id} value={student.id}>{fullName(student)} · {student.admission_number}</option>)}</select></div></div><p style={{color:'var(--color-ink-muted)',fontSize:'.85rem'}}>Select an examination and student. The printable report uses marks already entered for that examination.</p></section>}</div>{!selectedExam||!selectedStudent?<div className="no-print"><EmptyState title="Choose an examination and student" description="The completed report card will appear here for review and printing."/></div>:loadingCard?<LoadingBlock label="Preparing report card" rows={8}/>:<article className="report-card-print"><header className="report-card-header"><div className="report-card-logo" aria-hidden="true">{school?.name?.slice(0,1)||'P'}</div><div><div className="report-card-kicker">JUNIOR SECONDARY SCHOOL</div><h1>{school?.name||'PHIKILA SCHOOL'}</h1><div className="report-card-title">STUDENT ASSESSMENT REPORT</div><div className="report-card-subtitle">CBC · KNEC 8-LEVEL SCALE</div></div></header><div className="report-card-meta"><span><strong>EXAMINATION:</strong> {selectedExam.name}</span><span><strong>DATE:</strong> {selectedExam.exam_date||'—'}</span></div><section className="report-student-grid"><div><span>LEARNER'S NAME</span><strong>{fullName(selectedStudent)}</strong></div><div><span>ADMISSION NO.</span><strong>{selectedStudent.admission_number}</strong></div><div><span>UPI NO.</span><strong>—</strong></div><div><span>STATUS</span><strong>{selectedStudent.status}</strong></div></section><section className="report-summary-grid"><div><span>TOTAL SCORE</span><strong>{formatScore(total)} / {formatScore(maxTotal)}</strong></div><div><span>PERCENTAGE</span><strong>{percentage.toFixed(1)}%</strong></div><div><span>AVERAGE POINTS</span><strong>{averagePoints.toFixed(2)}</strong></div><div><span>OVERALL OUTCOME</span><strong>{overallBand}</strong></div></section><table className="report-card-table"><thead><tr><th>LEARNING AREA</th><th>MAX</th><th>SCORE</th><th>%</th><th>OUTCOME</th><th>REMARK</th></tr></thead><tbody>{rows.map(row=>{const score=row.entry?.score??null;const pct=score==null?null:(score/row.total_marks)*100;const tone=row.entry?.grade?.startsWith('EE')?'success':row.entry?.grade?.startsWith('AE')?'warning':'info';return <tr key={row.id}><td>{row.subjectName}</td><td>{row.total_marks}</td><td>{formatScore(score)}</td><td>{pct==null?'—':`${pct.toFixed(1)}%`}</td><td><Badge tone={tone}>{outcomeLabel(row.entry?.grade)}</Badge></td><td>{row.entry?.remarks||'—'}</td></tr>})}</tbody><tfoot><tr><th>TOTAL</th><th>{maxTotal}</th><th>{formatScore(total)}</th><th>{maxTotal?`${percentage.toFixed(1)}%`:'—'}</th><th>{overallBand}</th><th/></tr></tfoot></table><section className="report-key"><strong>KEY:</strong> BE1 (1) / BE2 (2) = Below Expectations · AE1 (3) / AE2 (4) = Approaching Expectations · ME1 (5) / ME2 (6) = Meeting Expectations · EE1 (7) / EE2 (8) = Exceeding Expectations</section><section className="report-remarks"><div><strong>CLASS TEACHER'S REMARKS</strong><div className="signature-line"/></div><div><strong>HEAD TEACHER'S REMARKS</strong><div className="signature-line"/></div></section><footer className="report-footer"><span>Class Teacher: __________________</span><span>Head Teacher: __________________</span><span>Parent/Guardian: ______________</span><span>Date: ______________</span></footer></article>}</>
+  const [exams, setExams] = useState<Examination[]>([])
+  const [series, setSeries] = useState<ExamSeries[]>([])
+  const [students, setStudents] = useState<StudentListItem[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [school, setSchool] = useState<SchoolProfile | null>(null)
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
+  const [terms, setTerms] = useState<Term[]>([])
+  const [levels, setLevels] = useState<Level[]>([])
+  const [grades, setGrades] = useState<Grade[]>([])
+  const [gradeScale, setGradeScale] = useState<GradeScale[]>([])
+  const [examId, setExamId] = useState('')
+  const [studentId, setStudentId] = useState('')
+  const [studentQuery, setStudentQuery] = useState('')
+  const [currentAssignments, setCurrentAssignments] = useState<ExamSubject[]>([])
+  const [previousAssignments, setPreviousAssignments] = useState<ExamSubject[]>([])
+  const [currentEntries, setCurrentEntries] = useState<ExamEntry[]>([])
+  const [previousEntries, setPreviousEntries] = useState<ExamEntry[]>([])
+  const [currentResult, setCurrentResult] = useState<StudentResult | null>(null)
+  const [previousResult, setPreviousResult] = useState<StudentResult | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadingCard, setLoadingCard] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void Promise.all([
+      examinations.list(), examinations.listSeries(), api.students(), scheduling.subjects(), scheduling.teachers(), api.school(),
+      api.academicYears(), api.terms(), api.levels(), api.grades(), examinations.listGradeScale(),
+    ]).then(([nextExams, nextSeries, nextStudents, nextSubjects, nextTeachers, nextSchool, nextYears, nextTerms, nextLevels, nextGrades, nextScale]) => {
+      setExams(nextExams); setSeries(nextSeries); setStudents(nextStudents.items); setSubjects(nextSubjects); setTeachers(nextTeachers); setSchool(nextSchool)
+      setAcademicYears(nextYears); setTerms(nextTerms); setLevels(nextLevels); setGrades(nextGrades); setGradeScale(nextScale)
+      const ordered = [...nextExams].sort((a, b) => examSort(b, a));
+      if (ordered.length) setExamId(String(ordered[0].id))
+    }).catch(err => setError(friendlyApiError(err, 'load report-card data'))).finally(() => setLoading(false))
+  }, [])
+
+  const selectedExam = exams.find(item => item.id === Number(examId))
+  const selectedStudent = students.find(item => item.id === Number(studentId))
+  const previousExam = useMemo(() => {
+    if (!selectedExam) return null
+    return [...exams].filter(item => item.id !== selectedExam.id && examSort(item, selectedExam) < 0).sort((a, b) => examSort(b, a))[0] || null
+  }, [exams, selectedExam])
+  const visibleStudents = useMemo(() => {
+    const q = studentQuery.trim().toLowerCase()
+    if (!q) return students.slice(0, 80)
+    return students.filter(item => `${fullName(item)} ${item.admission_number}`.toLowerCase().includes(q)).slice(0, 80)
+  }, [students, studentQuery])
+
+  useEffect(() => {
+    if (!selectedExam || !selectedStudent) {
+      setCurrentAssignments([]); setPreviousAssignments([]); setCurrentEntries([]); setPreviousEntries([]); setCurrentResult(null); setPreviousResult(null); return
+    }
+    let cancelled = false
+    setLoadingCard(true); setError(null)
+    void (async () => {
+      try {
+        const currentAssignmentsNext = await examinations.listSubjects(selectedExam.id)
+        const currentEntriesNext = await examinations.listEntries(selectedExam.id, undefined, selectedStudent.id)
+        const currentContext = currentAssignmentsNext[0] ? { academic_year_id: currentAssignmentsNext[0].academic_year_id, level_id: currentAssignmentsNext[0].level_id, grade_id: currentAssignmentsNext[0].grade_id, stream_id: currentAssignmentsNext[0].stream_id } : {}
+        const currentResults = await examinations.generateResults(selectedExam.id, currentContext)
+        let previousAssignmentsNext: ExamSubject[] = []
+        let previousEntriesNext: ExamEntry[] = []
+        let previousResultNext: StudentResult | null = null
+        if (previousExam) {
+          previousAssignmentsNext = await examinations.listSubjects(previousExam.id)
+          previousEntriesNext = await examinations.listEntries(previousExam.id, undefined, selectedStudent.id)
+          const previousContext = previousAssignmentsNext[0] ? { academic_year_id: previousAssignmentsNext[0].academic_year_id, level_id: previousAssignmentsNext[0].level_id, grade_id: previousAssignmentsNext[0].grade_id, stream_id: previousAssignmentsNext[0].stream_id } : {}
+          const previousResults = await examinations.generateResults(previousExam.id, previousContext)
+          previousResultNext = previousResults.find(item => item.student_id === selectedStudent.id) || null
+        }
+        if (cancelled) return
+        setCurrentAssignments(currentAssignmentsNext); setCurrentEntries(currentEntriesNext); setCurrentResult(currentResults.find(item => item.student_id === selectedStudent.id) || null)
+        setPreviousAssignments(previousAssignmentsNext); setPreviousEntries(previousEntriesNext); setPreviousResult(previousResultNext)
+      } catch (err) {
+        if (!cancelled) setError(friendlyApiError(err, 'load the student report card'))
+      } finally {
+        if (!cancelled) setLoadingCard(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [selectedExam, selectedStudent, previousExam])
+
+  const subjectById = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
+  const teacherById = useMemo(() => new Map(teachers.map(teacher => [teacher.id, teacher])), [teachers])
+  const rows = useMemo<ComparisonRow[]>(() => {
+    const currentMap = new Map(currentAssignments.map(item => [item.subject_id, item]))
+    const previousMap = new Map(previousAssignments.map(item => [item.subject_id, item]))
+    const currentEntryMap = new Map(currentEntries.map(item => [item.subject_id, item]))
+    const previousEntryMap = new Map(previousEntries.map(item => [item.subject_id, item]))
+    const ids = [...new Set([...currentAssignments.map(item => item.subject_id), ...previousAssignments.map(item => item.subject_id)])]
+    return ids.map(subjectId => {
+      const currentAssignment = currentMap.get(subjectId)
+      const previousAssignment = previousMap.get(subjectId)
+      const teacher = currentAssignment?.teacher_id != null ? teacherById.get(currentAssignment.teacher_id) : undefined
+      const previousTeacher = previousAssignment?.teacher_id != null ? teacherById.get(previousAssignment.teacher_id) : undefined
+      return { subjectId, subjectName: subjectById.get(subjectId)?.name || `Subject ${subjectId}`, currentAssignment, previousAssignment, currentEntry: currentEntryMap.get(subjectId), previousEntry: previousEntryMap.get(subjectId), teacherName: teacher?.name || previousTeacher?.name || '—' }
+    })
+  }, [currentAssignments, previousAssignments, currentEntries, previousEntries, subjectById, teacherById])
+
+  const currentAssignment = currentAssignments[0]
+  const currentGrade = grades.find(item => item.id === currentAssignment?.grade_id)
+  const currentLevel = levels.find(item => item.id === currentAssignment?.level_id)
+  const selectedSeries = series.find(item => item.id === selectedExam?.series_id)
+  const academicYear = academicYears.find(item => item.id === selectedSeries?.academic_year_id)
+  const term = terms.find(item => item.id === selectedSeries?.term_id)
+  const currentTotal = rows.reduce((sum, row) => sum + (row.currentEntry?.score ?? 0), 0)
+  const currentMax = rows.reduce((sum, row) => sum + (row.currentAssignment?.total_marks ?? 0), 0)
+  const previousTotal = rows.reduce((sum, row) => sum + (row.previousEntry?.score ?? 0), 0)
+  const previousMax = rows.reduce((sum, row) => sum + (row.previousAssignment?.total_marks ?? 0), 0)
+  const currentPercentage = currentResult?.percentage ?? (currentMax ? (currentTotal / currentMax) * 100 : null)
+  const previousPercentage = previousResult?.percentage ?? (previousMax ? (previousTotal / previousMax) * 100 : null)
+  const overallDeviation = currentPercentage != null && previousPercentage != null ? currentPercentage - previousPercentage : null
+  const currentAverage = currentResult?.average ?? (rows.filter(row => row.currentEntry?.score != null).length ? rows.reduce((sum, row) => sum + ((row.currentEntry!.score! / (row.currentAssignment?.total_marks || 1)) * 100), 0) / rows.filter(row => row.currentEntry?.score != null).length : null)
+  const previousAverage = previousResult?.average ?? (rows.filter(row => row.previousEntry?.score != null).length ? rows.reduce((sum, row) => sum + ((row.previousEntry!.score! / (row.previousAssignment?.total_marks || 1)) * 100), 0) / rows.filter(row => row.previousEntry?.score != null).length : null)
+  const currentOverallGrade = currentResult?.grade || currentResult?.band || null
+  const previousOverallGrade = previousResult?.grade || previousResult?.band || null
+  const scaleForCurrent = useMemo(() => {
+    const levelHint = `${currentLevel?.code || ''} ${currentLevel?.name || ''}`.toLowerCase()
+    const educationLevel = levelHint.includes('primary') ? 'primary' : levelHint.includes('senior') ? 'senior' : levelHint.includes('junior') ? 'junior' : null
+    const matching = gradeScale.filter(item => item.education_level == null || item.education_level === educationLevel)
+    return matching.sort((a, b) => (a.points ?? 99) - (b.points ?? 99) || a.min_score - b.min_score)
+  }, [gradeScale, currentLevel])
+
+  const deviationDisplay = (previous: number | null | undefined, current: number | null | undefined) => {
+    if (previous == null || current == null) return <span className="deviation deviation--new">New</span>
+    const delta = current - previous
+    return <span className={`deviation ${delta > 0 ? 'deviation--up' : delta < 0 ? 'deviation--down' : 'deviation--flat'}`}><strong>{delta > 0 ? '+' : ''}{formatNumber(delta, 1)} pp</strong><span aria-hidden="true">{delta > 0 ? '↑' : delta < 0 ? '↓' : '→'}</span></span>
+  }
+
+  return <>
+    <div className="no-print">
+      <PageHeader title="Student Report Card" description="Generate, review and print a comparison of the selected student's previous and current assessments." breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Examinations', to: '/examinations' }, { label: 'Report Card' }]} actions={<button className="button button--primary" disabled={!selectedStudent || !selectedExam || loadingCard} onClick={() => window.print()}>Print / Save PDF</button>} />
+      {error && <Alert tone="error">{error}</Alert>}
+      {loading ? <LoadingBlock label="Loading report-card data" rows={4} /> : <section className="card section report-card-controls"><div className="form form--grid"><div className="field"><label className="field__label" htmlFor="report-exam">Current assessment</label><select id="report-exam" className="input" value={examId} onChange={e => setExamId(e.target.value)}><option value="">Select assessment</option>{[...exams].sort((a, b) => examSort(b, a)).map(exam => <option key={exam.id} value={exam.id}>{exam.name}{exam.exam_date ? ` · ${exam.exam_date}` : ''}</option>)}</select></div><div className="field"><label className="field__label" htmlFor="student-search">Find student</label><input id="student-search" className="input" value={studentQuery} onChange={e => setStudentQuery(e.target.value)} placeholder="Name or admission number" /></div><div className="field"><label className="field__label" htmlFor="report-student">Student</label><select id="report-student" className="input" value={studentId} onChange={e => setStudentId(e.target.value)}><option value="">Select student</option>{visibleStudents.map(student => <option key={student.id} value={student.id}>{fullName(student)} · {student.admission_number}</option>)}</select></div></div></section>}
+    </div>
+
+    {!selectedExam || !selectedStudent ? <div className="no-print"><EmptyState title="Choose an assessment and student" description="The completed comparison report will appear here for review and printing." /></div> : loadingCard ? <LoadingBlock label="Preparing comparison report" rows={8} /> : <article className="report-card-print">
+      <header className="report-card-header">
+        <div className="report-card-brand"><img src="/brand/phikila-mark.svg" alt="" className="report-card-mark" /><span>{initials(school?.name || 'Phikila')}</span></div>
+        <div className="report-card-header-copy"><div className="report-card-kicker">{currentLevel?.name || 'School Assessment'}</div><h1>{school?.name || 'School'}</h1><div className="report-card-title">Assessment Report</div><div className="report-card-subtitle">{selectedExam.description || selectedExam.name}</div></div>
+      </header>
+
+      <section className="report-card-meta"><span><strong>Academic Year:</strong> {academicYear?.name || '—'}</span><span><strong>Term:</strong> {term?.name || '—'}</span><span><strong>Current:</strong> {selectedExam.name}</span><span><strong>Previous:</strong> {previousExam?.name || 'No previous assessment'}</span></section>
+
+      <section className="report-student-grid"><div><span>LEARNER'S NAME</span><strong>{fullName(selectedStudent)}</strong></div><div><span>ADMISSION NO.</span><strong>{selectedStudent.admission_number}</strong></div><div><span>GRADE / CLASS</span><strong>{currentGrade?.name || currentLevel?.name || '—'}</strong></div><div><span>UPI NO.</span><strong>—</strong></div></section>
+
+      <section className="report-comparison-banner"><div><span>PREVIOUS ASSESSMENT</span><strong>{previousExam?.name || 'Not available'}</strong></div><div className="comparison-arrow" aria-hidden="true">→</div><div><span>CURRENT ASSESSMENT</span><strong>{selectedExam.name}</strong></div></section>
+
+      <table className="report-card-table"><thead><tr><th rowSpan={2}>LEARNING AREA</th><th colSpan={2}>{previousExam?.name || 'Previous'}</th><th colSpan={2}>{selectedExam.name}</th><th rowSpan={2}>DEVIATION</th><th rowSpan={2}>SUBJECT TEACHER</th></tr><tr><th>SCORE</th><th>OUTCOME</th><th>SCORE</th><th>OUTCOME</th></tr></thead><tbody>{rows.map(row => <tr key={row.subjectId}><td>{row.subjectName}</td><td>{formatScore(row.previousEntry?.score)}</td><td><span className={`report-grade ${gradeTone(row.previousEntry?.grade)}`}>{row.previousEntry?.grade || '—'}</span></td><td>{formatScore(row.currentEntry?.score)}</td><td><span className={`report-grade ${gradeTone(row.currentEntry?.grade)}`}>{row.currentEntry?.grade || '—'}</span></td><td>{deviationDisplay(row.previousEntry?.percentage ?? (row.previousEntry?.score != null && row.previousAssignment ? (row.previousEntry.score / row.previousAssignment.total_marks) * 100 : null), row.currentEntry?.percentage ?? (row.currentEntry?.score != null && row.currentAssignment ? (row.currentEntry.score / row.currentAssignment.total_marks) * 100 : null))}</td><td>{row.teacherName}</td></tr>)}</tbody><tfoot><tr><th>TOTAL SCORE</th><th>{formatScore(previousTotal)}</th><th></th><th>{formatScore(currentTotal)}</th><th></th><th>{deviationDisplay(previousPercentage, currentPercentage)}</th><th></th></tr><tr><th>AVERAGE</th><th colSpan={2}>{formatNumber(previousAverage, 2)}{previousAverage != null ? '%' : ''}</th><th colSpan={2}>{formatNumber(currentAverage, 2)}{currentAverage != null ? '%' : ''}</th><th>{deviationDisplay(previousAverage, currentAverage)}</th><th></th></tr></tfoot></table>
+
+      <section className="report-overall"><div><span>PREVIOUS OVERALL</span><strong>{previousOverallGrade || '—'}</strong></div><div className="report-overall-progress"><span>OVERALL CHANGE</span><strong>{overallDeviation == null ? '—' : `${overallDeviation > 0 ? '+' : ''}${formatNumber(overallDeviation, 1)} percentage points`}</strong><small>{overallDeviation == null ? 'No earlier result available' : overallDeviation > 0 ? 'Improved' : overallDeviation < 0 ? 'Declined' : 'Maintained'}</small></div><div><span>CURRENT OVERALL</span><strong>{currentOverallGrade || '—'}</strong></div></section>
+
+      <section className="report-infographic"><div className="report-section-heading"><h2>Performance Comparison</h2><span>Previous vs Current</span></div><div className="chart-legend"><span><i className="legend-swatch legend-previous" /> Previous</span><span><i className="legend-swatch legend-current" /> Current</span></div><div className="comparison-chart">{rows.map(row => { const previous = row.previousEntry?.percentage ?? (row.previousEntry?.score != null && row.previousAssignment ? (row.previousEntry.score / row.previousAssignment.total_marks) * 100 : null); const current = row.currentEntry?.percentage ?? (row.currentEntry?.score != null && row.currentAssignment ? (row.currentEntry.score / row.currentAssignment.total_marks) * 100 : null); const max = Math.max(previous ?? 0, current ?? 0, 1); return <div className="chart-row" key={row.subjectId}><div className="chart-label">{row.subjectName}</div><div className="chart-bars"><div className="chart-bar-line"><span className="chart-bar chart-bar--previous" style={{ width: `${((previous ?? 0) / 100) * 100}%` }} /><b>{previous == null ? '—' : `${formatNumber(previous, 0)}%`}</b></div><div className="chart-bar-line"><span className="chart-bar chart-bar--current" style={{ width: `${((current ?? 0) / 100) * 100}%` }} /><b>{current == null ? '—' : `${formatNumber(current, 0)}%`}</b></div></div><div className="chart-delta">{max > 0 ? deviationDisplay(previous, current) : '—'}</div></div>})}</div></section>
+
+      {scaleForCurrent.length > 0 && <section className="report-key"><div className="report-section-heading"><h2>Assessment Scale</h2><span>Configured for this school</span></div><div className="scale-grid">{scaleForCurrent.map(item => <div className={`scale-item ${scaleClass(item.points)}`} key={item.id}><strong>{item.grade}</strong><span>{item.description || `${item.min_score}–${item.max_score}`}</span>{item.points != null && <small>{item.points} point{item.points === 1 ? '' : 's'}</small>}</div>)}</div></section>}
+
+      <section className="report-remarks"><div><strong>CLASS TEACHER'S REMARKS</strong><div className="remarks-line" /><div className="remarks-line" /><div className="signature-row"><span>Signature</span><i /></div></div><div><strong>HEAD TEACHER'S REMARKS</strong><div className="remarks-line" /><div className="remarks-line" /><div className="signature-row"><span>Signature</span><i /></div></div></section>
+      <footer className="report-footer"><span>Parent/Guardian: ____________________</span><span>Date: ____________________</span><span>Next Term Begins: ____________________</span><span className="stamp-box">School Stamp</span></footer>
+    </article>}
+  </>
 }
