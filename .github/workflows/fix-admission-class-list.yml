@@ -1,0 +1,36 @@
+name: Fix admission class dropdown
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/pages/Students.tsx')
+          s = p.read_text()
+          old_effect = "  useEffect(() => { if (!form.academic_year_id || !form.level_id) { setForm(v => ({ ...v, class_id: '' })); return }; setLoadingClasses(true); const yearId = Number(form.academic_year_id), levelId = Number(form.level_id); const available = classes.filter(c => Number(c.academic_year_id) === yearId && Number(c.level_id) === levelId && String(c.status ?? 'active').toLowerCase() === 'active'); setForm(v => ({ ...v, class_id: available.some(c => String(c.id) === v.class_id) ? v.class_id : available.length === 1 ? String(available[0].id) : '' })); setLoadingClasses(false) }, [form.academic_year_id, form.level_id, classes])"
+          new_effect = "  useEffect(() => { setLoadingClasses(false); setForm(v => ({ ...v, class_id: classes.some(c => String(c.id) === v.class_id) ? v.class_id : '' })) }, [classes])"
+          old_list = "  const update = (field: keyof FormState, value: string) => setForm(v => ({ ...v, [field]: value })); const updateGuardian = (i: number, field: keyof GuardianCreate, value: string) => setGuardians(v => v.map((g, n) => n === i ? { ...g, [field]: value } : g)); const availableClasses = classes.filter(c => Number(c.academic_year_id) === Number(form.academic_year_id) && Number(c.level_id) === Number(form.level_id) && String(c.status ?? 'active').toLowerCase() === 'active').sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' })); const selectedClass = availableClasses.find(c => String(c.id) === form.class_id)"
+          new_list = "  const update = (field: keyof FormState, value: string) => setForm(v => ({ ...v, [field]: value })); const updateGuardian = (i: number, field: keyof GuardianCreate, value: string) => setGuardians(v => v.map((g, n) => n === i ? { ...g, [field]: value } : g)); const availableClasses = classes.filter(c => String(c.status ?? 'active').toLowerCase() === 'active').sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' })); const selectedClass = availableClasses.find(c => String(c.id) === form.class_id)"
+          old_select = '<Field label="Class *"><select className="input" required disabled={!form.academic_year_id || !form.level_id || loadingClasses} value={form.class_id} onChange={e => update(\'class_id\', e.target.value)}><option value="">{loadingClasses ? \'Loading…\' : \'Select class…\'}</option>{availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>'
+          new_select = '<Field label="Class *"><select className="input" required disabled={loadingClasses} value={form.class_id} onChange={e => { const id = e.target.value; const selected = classes.find(c => String(c.id) === id); setForm(v => ({ ...v, class_id: id, academic_year_id: selected?.academic_year_id != null ? String(selected.academic_year_id) : v.academic_year_id, level_id: selected?.level_id != null ? String(selected.level_id) : v.level_id })) }}><option value="">{loadingClasses ? \'Loading…\' : \'Select class…\'}</option>{availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` — ${c.code}` : \'\'}</option>)}</select></Field>'
+          for old, new in ((old_effect, new_effect), (old_list, new_list), (old_select, new_select)):
+            if old not in s:
+              raise SystemExit('expected source pattern not found')
+            s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          rm -f .github/workflows/fix-admission-class-list.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add frontend/src/pages/Students.tsx .github/workflows/fix-admission-class-list.yml
+          git commit -m "fix: show all academic setup classes in admission dropdown"
+          git push
