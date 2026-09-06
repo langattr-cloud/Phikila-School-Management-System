@@ -16,7 +16,7 @@ class ExaminationV2(Base):
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); series_id = Column(Integer, ForeignKey("examination_series.id"), nullable=False, index=True)
     name = Column(String(150), nullable=False); description = Column(Text); exam_date = Column(Date); total_marks = Column(Integer, default=100); passing_marks = Column(Integer, default=50); status = Column(String(20), default="draft")
     created_at = Column(DateTime(timezone=True), server_default=func.now()); updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    series = relationship("ExaminationSeries", back_populates="examinations"); subjects = relationship("ExamSubject", back_populates="examination", cascade="all, delete-orphan"); entries = relationship("ExamEntry", back_populates="examination", cascade="all, delete-orphan")
+    series = relationship("ExaminationSeries", back_populates="examinations"); subjects = relationship("ExamSubject", back_populates="examination", cascade="all, delete-orphan", passive_deletes=True); entries = relationship("ExamEntry", back_populates="examination", cascade="all, delete-orphan", passive_deletes=True)
 
 class ExamSubject(Base):
     __tablename__ = "exam_subjects"
