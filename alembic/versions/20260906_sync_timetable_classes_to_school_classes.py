@@ -17,7 +17,6 @@ depends_on = None
 
 def upgrade():
     bind = op.get_bind()
-
     bind.execute(sa.text("""
         INSERT INTO school_classes
             (school_id, name, code, grade, student_count, capacity, level_id,
@@ -57,23 +56,18 @@ def upgrade():
         BEGIN
             IF TG_OP = 'INSERT' THEN
                 IF NEW.school_class_id IS NOT NULL THEN
-                    SELECT id INTO canonical_id
-                      FROM school_classes
-                     WHERE id = NEW.school_class_id
-                       AND school_id = NEW.school_id;
+                    SELECT id INTO canonical_id FROM school_classes
+                    WHERE id = NEW.school_class_id AND school_id = NEW.school_id;
                     IF canonical_id IS NULL THEN
                         RAISE EXCEPTION 'school_class_id % does not belong to school %', NEW.school_class_id, NEW.school_id;
                     END IF;
                 ELSE
-                    SELECT id INTO canonical_id
-                      FROM school_classes
-                     WHERE school_id = NEW.school_id
-                       AND upper(trim(code)) = upper(trim(NEW.code))
-                       AND academic_year_id IS NOT DISTINCT FROM NEW.academic_year_id
-                       AND level_id IS NOT DISTINCT FROM NEW.level_id
-                     ORDER BY id
-                     LIMIT 1;
-
+                    SELECT id INTO canonical_id FROM school_classes
+                    WHERE school_id = NEW.school_id
+                      AND upper(trim(code)) = upper(trim(NEW.code))
+                      AND academic_year_id IS NOT DISTINCT FROM NEW.academic_year_id
+                      AND level_id IS NOT DISTINCT FROM NEW.level_id
+                    ORDER BY id LIMIT 1;
                     IF canonical_id IS NULL THEN
                         INSERT INTO school_classes
                             (school_id, name, code, grade, student_count, capacity,
@@ -86,31 +80,24 @@ def upgrade():
                     END IF;
                     NEW.school_class_id := canonical_id;
                 END IF;
-
                 UPDATE school_classes
-                   SET name = NEW.name,
-                       code = upper(trim(NEW.code)),
-                       student_count = NEW.student_count,
-                       level_id = NEW.level_id,
+                   SET name = NEW.name, code = upper(trim(NEW.code)),
+                       student_count = NEW.student_count, level_id = NEW.level_id,
                        class_teacher_id = NEW.class_teacher_id,
-                       academic_year_id = NEW.academic_year_id,
-                       status = 'active',
+                       academic_year_id = NEW.academic_year_id, status = 'active',
                        updated_at = CURRENT_TIMESTAMP
                  WHERE id = NEW.school_class_id;
-
                 RETURN NEW;
             END IF;
 
             IF TG_OP = 'UPDATE' THEN
                 IF NEW.school_class_id IS NULL THEN
-                    SELECT id INTO canonical_id
-                      FROM school_classes
-                     WHERE school_id = NEW.school_id
-                       AND upper(trim(code)) = upper(trim(NEW.code))
-                       AND academic_year_id IS NOT DISTINCT FROM NEW.academic_year_id
-                       AND level_id IS NOT DISTINCT FROM NEW.level_id
-                     ORDER BY id
-                     LIMIT 1;
+                    SELECT id INTO canonical_id FROM school_classes
+                    WHERE school_id = NEW.school_id
+                      AND upper(trim(code)) = upper(trim(NEW.code))
+                      AND academic_year_id IS NOT DISTINCT FROM NEW.academic_year_id
+                      AND level_id IS NOT DISTINCT FROM NEW.level_id
+                    ORDER BY id LIMIT 1;
                     IF canonical_id IS NULL THEN
                         INSERT INTO school_classes
                             (school_id, name, code, grade, student_count, capacity,
@@ -123,38 +110,28 @@ def upgrade():
                     END IF;
                     NEW.school_class_id := canonical_id;
                 END IF;
-
                 UPDATE school_classes
-                   SET name = NEW.name,
-                       code = upper(trim(NEW.code)),
-                       student_count = NEW.student_count,
-                       level_id = NEW.level_id,
+                   SET name = NEW.name, code = upper(trim(NEW.code)),
+                       student_count = NEW.student_count, level_id = NEW.level_id,
                        class_teacher_id = NEW.class_teacher_id,
-                       academic_year_id = NEW.academic_year_id,
-                       status = 'active',
+                       academic_year_id = NEW.academic_year_id, status = 'active',
                        updated_at = CURRENT_TIMESTAMP
-                 WHERE id = NEW.school_class_id
-                   AND school_id = NEW.school_id;
-
+                 WHERE id = NEW.school_class_id AND school_id = NEW.school_id;
                 RETURN NEW;
             END IF;
 
             IF TG_OP = 'DELETE' THEN
                 IF OLD.school_class_id IS NOT NULL
-                   AND NOT EXISTS (
-                       SELECT 1 FROM student_enrollments e
-                        WHERE e.school_class_id = OLD.school_class_id
-                   ) THEN
+                   AND NOT EXISTS (SELECT 1 FROM student_enrollments e
+                                  WHERE e.school_class_id = OLD.school_class_id) THEN
                     DELETE FROM school_classes WHERE id = OLD.school_class_id;
                 END IF;
                 RETURN OLD;
             END IF;
-
             RETURN NEW;
         END;
         $$;
     """))
-
     bind.execute(sa.text("""
         DROP TRIGGER IF EXISTS trg_sync_tt_class_to_school_class ON tt_classes;
         CREATE TRIGGER trg_sync_tt_class_to_school_class
