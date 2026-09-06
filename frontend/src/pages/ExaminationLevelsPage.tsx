@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, EmptyState, LoadingBlock } from '../components/States'
-import { api, type Grade, type Level } from '../lib/api'
+import { api, type Level, type SchoolClassSetup } from '../lib/api'
 import { friendlyApiError } from '../lib/api'
 
-type LevelWithGrades = Level & { grades: Grade[] }
+type LevelWithClasses = Level & { classes: SchoolClassSetup[] }
 
 export function ExaminationLevelsPage() {
-  const [levels, setLevels] = useState<LevelWithGrades[]>([])
+  const [levels, setLevels] = useState<LevelWithClasses[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -17,9 +17,11 @@ export function ExaminationLevelsPage() {
     setLoading(true)
     setError(null)
     try {
-      const levelRows = await api.levels()
-      const gradeRows = await Promise.all(levelRows.map(level => api.grades(level.id)))
-      const next = levelRows.map((level, index) => ({ ...level, grades: gradeRows[index] ?? [] }))
+      const [levelRows, classRows] = await Promise.all([api.levels(), api.schoolClasses()])
+      const next = levelRows.map(level => ({
+        ...level,
+        classes: classRows.filter(item => item.level_id === level.id),
+      }))
       setLevels(next)
       setSelectedId(current => current && next.some(level => level.id === current) ? current : next[0]?.id ?? null)
     } catch (err) {
@@ -37,7 +39,7 @@ export function ExaminationLevelsPage() {
     <div>
       <PageHeader
         title="Examination Levels"
-        description="Choose the education level and grade scope before assigning mark-entry duties."
+        description="Choose the education level and class scope before assigning mark-entry duties."
       />
       {error && <Alert tone="error">{error}</Alert>}
       {loading ? <LoadingBlock label="Loading examination levels" rows={4} /> : !levels.length ? (
@@ -47,7 +49,7 @@ export function ExaminationLevelsPage() {
           <section className="card" aria-label="Examination levels">
             <div style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>
               <strong>Levels</strong>
-              <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>Select a level to see its grades.</p>
+              <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>Select a level to see its classes.</p>
             </div>
             <div style={{ padding: 'var(--space-2)' }}>
               {levels.map(level => {
@@ -61,7 +63,7 @@ export function ExaminationLevelsPage() {
                     onClick={() => setSelectedId(level.id)}
                   >
                     <span style={{ textAlign: 'left' }}><strong>{level.name}</strong><small style={{ display: 'block', opacity: .75 }}>{level.code}</small></span>
-                    <span>{level.grades.length}</span>
+                    <span>{level.classes.length}</span>
                   </button>
                 )
               })}
@@ -75,7 +77,7 @@ export function ExaminationLevelsPage() {
                   <div>
                     <p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '.8rem', textTransform: 'uppercase', letterSpacing: '.06em' }}>Selected examination scope</p>
                     <h2 style={{ margin: 'var(--space-1) 0' }}>{selected.name}</h2>
-                    <p style={{ margin: 0, color: 'var(--color-ink-muted)' }}>{selected.grades.length} grades available for examination setup and mark-entry assignments.</p>
+                    <p style={{ margin: 0, color: 'var(--color-ink-muted)' }}>{selected.classes.length} classes available for examination setup and mark-entry assignments.</p>
                   </div>
                   <Badge tone={selected.status === false ? 'warning' : 'success'}>{selected.status === false ? 'Inactive' : 'Active'}</Badge>
                 </div>
@@ -83,18 +85,19 @@ export function ExaminationLevelsPage() {
 
               <div className="card" style={{ overflowX: 'auto' }}>
                 <div style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>
-                  <strong>Grades in {selected.name}</strong>
+                  <strong>Classes in {selected.name}</strong>
                 </div>
-                {!selected.grades.length ? <EmptyState title="No grades in this level" description="Add grades under Academic Setup to make them available for examinations." /> : (
+                {!selected.classes.length ? <EmptyState title="No classes in this level" description="Add classes under the existing Classes module to make them available for examinations." /> : (
                   <table style={{ width: '100%' }}>
-                    <thead><tr><th>Grade</th><th>Code</th><th>Status</th><th>Examination use</th></tr></thead>
+                    <thead><tr><th>Class</th><th>Code</th><th>Academic year</th><th>Status</th><th>Examination use</th></tr></thead>
                     <tbody>
-                      {selected.grades.map(grade => (
-                        <tr key={grade.id}>
-                          <td><strong>{grade.name}</strong></td>
-                          <td>{grade.code}</td>
-                          <td><Badge tone={grade.status === false ? 'warning' : 'success'}>{grade.status === false ? 'Inactive' : 'Active'}</Badge></td>
-                          <td>Available for papers, candidate lists and mark-entry assignments</td>
+                      {selected.classes.map(item => (
+                        <tr key={item.id}>
+                          <td><strong>{item.name}</strong></td>
+                          <td>{item.code}</td>
+                          <td>{item.academic_year_id ?? '—'}</td>
+                          <td><Badge tone={item.status === 'active' ? 'success' : 'warning'}>{item.status ?? 'Unknown'}</Badge></td>
+                          <td>Available through the existing class and enrollment context</td>
                         </tr>
                       ))}
                     </tbody>
