@@ -1,6 +1,6 @@
 """Examination models — canonical academic context."""
 from __future__ import annotations
-from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, BigInteger
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -18,9 +18,9 @@ class ExaminationV2(Base):
     series = relationship("ExaminationSeries", back_populates="examinations"); subjects = relationship("ExamSubject", back_populates="examination", cascade="all, delete-orphan", passive_deletes=True); entries = relationship("ExamEntry", back_populates="examination", cascade="all, delete-orphan", passive_deletes=True)
 class ExamSubject(Base):
     __tablename__ = "exam_subjects"
-    __table_args__ = (UniqueConstraint("exam_id", "subject_id", "academic_year_id", "grade_id", "stream_id", name="uq_exam_subject_academic_context"), {"extend_existing": True})
+    __table_args__ = {"extend_existing": True}
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); exam_id = Column(Integer, ForeignKey("examinations_v2.id", ondelete="CASCADE"), nullable=False, index=True); subject_id = Column(Integer, nullable=False)
-    academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False, index=True); level_id = Column(Integer, ForeignKey("levels.id"), nullable=False); grade_id = Column(Integer, ForeignKey("grades.id"), nullable=False, index=True); stream_id = Column(BigInteger, ForeignKey("streams.id"), nullable=True, index=True)
+    academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False, index=True); level_id = Column(Integer, ForeignKey("levels.id"), nullable=False, index=True); school_class_id = Column(Integer, ForeignKey("school_classes.id", ondelete="SET NULL"), nullable=True, index=True)
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True, index=True); total_marks = Column(Integer, default=100); exam_date = Column(Date)
     examination = relationship("ExaminationV2", back_populates="subjects")
 class ExamEntry(Base):
