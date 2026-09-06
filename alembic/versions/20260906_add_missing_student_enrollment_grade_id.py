@@ -7,7 +7,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "20260906enrollgrade"
-down_revision = "20260906classsync"
+down_revision = "20260905classgrade"
 branch_labels = None
 depends_on = None
 
