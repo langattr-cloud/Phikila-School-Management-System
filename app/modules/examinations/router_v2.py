@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.scheduling.tenancy import Principal, require_role
@@ -93,7 +94,22 @@ def update_examination(exam_id: int, payload: s.ExaminationUpdate, db: Session =
     db.commit(); db.refresh(x); return x
 @router.delete("/examinations/{exam_id}", status_code=204)
 def delete_examination(exam_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
-    x = _exam(db, principal.school_id, exam_id); _assert_mutable(x); db.delete(x); db.commit()
+    """Delete a mutable examination without loading ORM child relationships.
+
+    Production may contain an older exam_subjects schema. Bulk deletes by exam_id
+    avoid SQLAlchemy traversing the stale ExamSubject mapping (notably grade_id).
+    """
+    x = _exam(db, principal.school_id, exam_id)
+    _assert_mutable(x)
+    try:
+        db.execute(sa_delete(m.ExamEntry).where(m.ExamEntry.exam_id == exam_id, m.ExamEntry.school_id == principal.school_id))
+        db.execute(sa_delete(m.ExamSubject).where(m.ExamSubject.exam_id == exam_id, m.ExamSubject.school_id == principal.school_id))
+        db.execute(sa_delete(m.ExaminationV2).where(m.ExaminationV2.id == exam_id, m.ExaminationV2.school_id == principal.school_id))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
 @router.post("/examinations/{exam_id}/status", response_model=s.ExaminationResponse)
 def change_examination_status(exam_id: int, payload: s.StatusChange, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
     x = _exam(db, principal.school_id, exam_id); allowed = {"draft": {"active"}, "active": {"draft", "published"}, "published": {"locked"}, "locked": set()}
@@ -144,22 +160,3 @@ def list_entries(exam_id: int, subject_id: int | None = Query(default=None), stu
     if subject_id is not None: q = q.filter(m.ExamEntry.subject_id == subject_id)
     if student_id is not None: q = q.filter(m.ExamEntry.student_id == student_id)
     return q.all()
-@router.get("/examinations/{exam_id}/results", response_model=list[s.StudentResult])
-def generate_results(exam_id: int, academic_year_id: int | None = Query(default=None), level_id: int | None = Query(default=None), grade_id: int | None = Query(default=None), stream_id: int | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
-    exam = _exam(db, principal.school_id, exam_id); rows, _ = build_results(db, exam); q = db.query(StudentEnrollment.student_id).filter(StudentEnrollment.school_id == principal.school_id, StudentEnrollment.status == "active")
-    if academic_year_id is not None: q = q.filter(StudentEnrollment.academic_year_id == academic_year_id)
-    if level_id is not None: q = q.filter(StudentEnrollment.level_id == level_id)
-    if grade_id is not None: q = q.filter(StudentEnrollment.grade_id == grade_id)
-    if stream_id is not None: q = q.filter(StudentEnrollment.stream_id == stream_id)
-    if any(v is not None for v in (academic_year_id, level_id, grade_id, stream_id)): allowed = {r[0] for r in q.all()}; rows = [r for r in rows if r["student_id"] in allowed]
-    out = [s.StudentResult(**{k: v for k, v in r.items() if k != "_level_code"}) for r in rows]; out.sort(key=lambda r: r.total_score, reverse=True)
-    for i, r in enumerate(out): r.position = i + 1
-    return out
-@router.get("/examinations/{exam_id}/results/analysis", response_model=s.ResultsAnalysis)
-def results_analysis(exam_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
-    exam = _exam(db, principal.school_id, exam_id); _, analysis = build_results(db, exam); return s.ResultsAnalysis(**analysis)
-@router.get("/examinations/grade-scale", response_model=list[s.GradeScaleResponse])
-def list_grade_scale(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))): return db.query(m.GradeScale).filter(m.GradeScale.school_id == principal.school_id).order_by(m.GradeScale.education_level.desc(), m.GradeScale.min_score.desc()).all()
-@router.post("/examinations/grade-scale", response_model=s.GradeScaleResponse, status_code=201)
-def create_grade_scale(payload: s.GradeScaleCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
-    x = m.GradeScale(school_id=principal.school_id, **payload.model_dump()); db.add(x); db.commit(); db.refresh(x); return x
