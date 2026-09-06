@@ -133,6 +133,23 @@ export const CheckIcon = (props: IconProps) => (
   </Icon>
 )
 
+/** Exact Clipboard with Check SVG supplied for examination actions. */
+export const ClipboardCheckIcon = (props: IconProps) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="white"
+    strokeWidth="2"
+    {...props}
+  >
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="2" width="8" height="4" rx="1" />
+    <path d="M9 12l2 2 4-4" />
+  </svg>
+)
+
 export const InboxIcon = (props: IconProps) => (
   <Icon {...props}>
     <path d="M3 13h5l1.5 3h5L16 13h5" />
@@ -190,7 +207,7 @@ export const UnlockIcon = (props: IconProps) => (
 
 export const TrashIcon = (props: IconProps) => (
   <Icon {...props}>
-    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l-1-13M9 7V4h6v3" />
   </Icon>
 )
 
