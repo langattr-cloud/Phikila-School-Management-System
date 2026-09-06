@@ -79,18 +79,16 @@ export default function ExaminationDashboardPage() {
 
           <section className="section">
             <div className="card" style={{ padding: 'var(--space-4)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
-                <div>
-                  <h2 className="section__title" style={{ marginBottom: '.25rem' }}>Examination workspace</h2>
-                  <p style={{ color: 'var(--color-ink-muted)', margin: 0 }}>The existing examination workflow remains unchanged underneath this dashboard.</p>
-                </div>
-                <Link className="button button--primary" to="/examinations/setup">Open examination setup</Link>
+              <div>
+                <h2 className="section__title" style={{ marginBottom: '.25rem' }}>Examination workspace</h2>
+                <p style={{ color: 'var(--color-ink-muted)', margin: 0 }}>Choose an examination function below. These options are kept inside the Examination module rather than in the main sidebar.</p>
               </div>
-              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-4)' }}>
-                <Link className="button button--secondary button--sm" to="/examinations/setup">Exam Setup</Link>
-                <Link className="button button--secondary button--sm" to="/examinations/marks-access">Teacher Assignments</Link>
-                <Link className="button button--secondary button--sm" to="/examinations/report-card">Results & Report Cards</Link>
-                <Link className="button button--secondary button--sm" to="/examinations/class-results">Class Results</Link>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(12rem,1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+                <WorkspaceLink title="Examination Setup" description="Create and manage examinations." to="/examinations/setup" />
+                <WorkspaceLink title="Levels" description="Configure examination levels." to="/examinations/levels" />
+                <WorkspaceLink title="Teacher Assignments" description="Manage marks access and teacher assignments." to="/examinations/marks-access" />
+                <WorkspaceLink title="Results & Report Cards" description="Review results and generate report cards." to="/examinations/report-card" />
+                <WorkspaceLink title="Class Results" description="View results by class." to="/examinations/class-results" />
               </div>
             </div>
           </section>
@@ -155,6 +153,16 @@ function Metric({ title, value, detail }: { title: string; value: number; detail
       <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '.2rem' }}>{value}</div>
       <div style={{ color: 'var(--color-ink-muted)', fontSize: '.8rem' }}>{detail}</div>
     </div>
+  )
+}
+
+function WorkspaceLink({ title, description, to }: { title: string; description: string; to: string }) {
+  return (
+    <Link className="card" to={to} style={{ padding: 'var(--space-4)', textDecoration: 'none', color: 'inherit', display: 'block' }}>
+      <strong>{title}</strong>
+      <p style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem', margin: '.4rem 0 0' }}>{description}</p>
+      <span className="button button--secondary button--sm" style={{ marginTop: 'var(--space-3)' }}>Open →</span>
+    </Link>
   )
 }
 
