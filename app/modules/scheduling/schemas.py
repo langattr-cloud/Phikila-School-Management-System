@@ -5,36 +5,23 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Slots = dict[str, list[int]]
-
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 class PeriodIn(BaseModel):
-    index: int = Field(ge=0, le=30)
-    name: str = Field(min_length=1, max_length=40)
-    short_form: str = Field(default='', max_length=20)
-    start_time: str = Field(pattern=r'^\d{2}:\d{2}$')
-    end_time: str = Field(pattern=r'^\d{2}:\d{2}$')
-    is_teaching: bool = True
+    index: int = Field(ge=0, le=30); name: str = Field(min_length=1, max_length=40); short_form: str = Field(default='', max_length=20); start_time: str = Field(pattern=r'^\d{2}:\d{2}$'); end_time: str = Field(pattern=r'^\d{2}:\d{2}$'); is_teaching: bool = True
 class PeriodOut(ORMModel, PeriodIn):
     id: int
     @field_validator('start_time', 'end_time', mode='before')
     @classmethod
     def serialize_time(cls, value): return value.strftime('%H:%M') if isinstance(value, time) else value
 class DayIn(BaseModel):
-    index: int = Field(ge=0, le=30)
-    name: str = Field(min_length=1, max_length=80)
-    short_form: str = Field(default='', max_length=20)
-    date_value: str | None = Field(default=None, max_length=40)
-    is_active: bool = True
+    index: int = Field(ge=0, le=30); name: str = Field(min_length=1, max_length=80); short_form: str = Field(default='', max_length=20); date_value: str | None = Field(default=None, max_length=40); is_active: bool = True
 class DayOut(ORMModel, DayIn):
     id: int
     @field_validator('date_value', mode='before')
     @classmethod
     def serialize_date(cls, value): return value.isoformat() if value is not None and hasattr(value, 'isoformat') else value
-class CalendarIn(BaseModel):
-    days: list[DayIn]
-    periods: list[PeriodIn]
-    display_mode: Literal['day', 'date'] = 'day'
+class CalendarIn(BaseModel): days: list[DayIn]; periods: list[PeriodIn]; display_mode: Literal['day', 'date'] = 'day'
 class TeacherIn(BaseModel):
     name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); phone: str | None = None; email: str | None = None; department: str | None = None; role: str = Field(default='Teacher', max_length=80); role_assignment: dict[str, Any] = Field(default_factory=dict); max_lessons_per_day: int = Field(default=7, ge=1, le=20); max_consecutive: int = Field(default=4, ge=1, le=20); workload_target: int | None = Field(default=None, ge=0, le=80); unavailable: Slots = Field(default_factory=dict); is_active: bool = True
 class TeacherOut(ORMModel, TeacherIn): id: int
@@ -45,9 +32,9 @@ class RoomIn(BaseModel):
     name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); building: str | None = None; capacity: int = Field(default=40, ge=1, le=2000); room_type: str = Field(default='classroom', max_length=40); is_accessible: bool = True; unavailable: Slots = Field(default_factory=dict)
 class RoomOut(ORMModel, RoomIn): id: int
 class ClassIn(BaseModel):
-    name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); academic_year_id: int | None = None; level_id: int | None = None; school_class_id: int | None = None; student_count: int = Field(default=40, ge=0, le=500); home_room_id: int | None = None; class_teacher_id: int | None = None; unavailable: Slots = Field(default_factory=dict)
+    name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); academic_year_id: int | None = None; level_id: int | None = None; grade_id: int | None = None; stream_id: int | None = None; school_class_id: int | None = None; student_count: int = Field(default=40, ge=0, le=500); home_room_id: int | None = None; class_teacher_id: int | None = None; unavailable: Slots = Field(default_factory=dict)
 class ClassUpdateIn(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=120); code: str | None = Field(default=None, min_length=1, max_length=30); academic_year_id: int | None = None; level_id: int | None = None; school_class_id: int | None = None; student_count: int | None = Field(default=None, ge=0, le=500); home_room_id: int | None = None; class_teacher_id: int | None = None; unavailable: Slots | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=120); code: str | None = Field(default=None, min_length=1, max_length=30); academic_year_id: int | None = None; level_id: int | None = None; grade_id: int | None = None; stream_id: int | None = None; school_class_id: int | None = None; student_count: int | None = Field(default=None, ge=0, le=500); home_room_id: int | None = None; class_teacher_id: int | None = None; unavailable: Slots | None = None
     @model_validator(mode='before')
     @classmethod
     def normalize_frontend_values(cls, value):
@@ -55,7 +42,7 @@ class ClassUpdateIn(BaseModel):
         data=dict(value)
         for key in ('name','code'):
             if key in data and data[key] is not None: data[key]=str(data[key]).strip()
-        for key in ('academic_year_id','level_id','school_class_id','student_count','home_room_id','class_teacher_id'):
+        for key in ('academic_year_id','level_id','grade_id','stream_id','school_class_id','student_count','home_room_id','class_teacher_id'):
             if key in data and data[key] is not None and data[key] != '':
                 try: data[key]=int(float(data[key]))
                 except (TypeError,ValueError): pass
@@ -78,36 +65,16 @@ class ClassUpdateIn(BaseModel):
 class ClassOut(ORMModel, ClassIn): id: int; academic_stream: str | None = None
 class ClassTeacherAssignmentIn(BaseModel): teacher_id: int | None = None
 class TtLessonRequirementIn(BaseModel): pass
-class RequirementIn(BaseModel):
-    class_id: int; subject_id: int; teacher_id: int | None = None; room_id: int | None = None; periods_per_week: int = Field(default=1, ge=1, le=40); double_periods: int = Field(default=0, ge=0, le=10)
-class RequirementOut(ORMModel, RequirementIn):
-    id: int; class_name: str | None = None; subject_name: str | None = None; teacher_name: str | None = None; room_name: str | None = None
+class RequirementIn(BaseModel): class_id: int; subject_id: int; teacher_id: int | None = None; room_id: int | None = None; periods_per_week: int = Field(default=1, ge=1, le=40); double_periods: int = Field(default=0, ge=0, le=10)
+class RequirementOut(ORMModel, RequirementIn): id: int; class_name: str | None = None; subject_name: str | None = None; teacher_name: str | None = None; room_name: str | None = None
 class TeacherAssignmentIn(BaseModel): class_id: int; subject_id: int; periods_per_week: int = Field(ge=1, le=40); double_periods: int = Field(default=0, ge=0, le=10); role: str | None = None
 class TeacherAssignmentSaveIn(BaseModel): teacher_id: int; assignments: list[TeacherAssignmentIn] = Field(max_length=100); class_teacher_class_ids: list[int] = Field(default_factory=list, max_length=100)
 class TeacherAssignmentOut(BaseModel): teacher_id: int; assignments: list[TeacherAssignmentIn]; class_teacher_class_ids: list[int]
-class ConstraintIn(BaseModel):
-    kind: str = Field(min_length=1, max_length=60); scope: Literal['school','teacher','class','subject','room'] = 'school'; target_id: int | None = None; is_hard: bool = False; weight: int = Field(default=10, ge=0, le=100); params: dict[str,Any] = Field(default_factory=dict); enabled: bool = True; note: str | None = None
+class ConstraintIn(BaseModel): kind: str = Field(min_length=1, max_length=60); scope: Literal['school','teacher','class','subject','room'] = 'school'; target_id: int | None = None; is_hard: bool = False; weight: int = Field(default=10, ge=0, le=100); params: dict[str,Any] = Field(default_factory=dict); enabled: bool = True; note: str | None = None
 class ConstraintOut(ORMModel, ConstraintIn): id: int
-class TimetableTypeIn(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
-    code: str = Field(min_length=1, max_length=40)
-    display_mode: Literal['day','date'] = 'day'
-    day_indexes: list[int] = Field(min_length=1, max_length=31)
-    period_indexes: list[int] = Field(min_length=1, max_length=31)
-    is_active: bool = True
-    is_system: bool = False
+class TimetableTypeIn(BaseModel): name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=40); display_mode: Literal['day','date'] = 'day'; day_indexes: list[int] = Field(min_length=1, max_length=31); period_indexes: list[int] = Field(min_length=1, max_length=31); is_active: bool = True; is_system: bool = False
 class TimetableTypeOut(ORMModel, TimetableTypeIn): id: int
-class ProjectOut(ORMModel):
-    id: int
-    name: str
-    description: str | None = None
-    academic_year_id: int | None = None
-    term_id: int | None = None
-    status: str
-    current_version_id: int | None = None
-    created_by: str | None = None
-    created_at: datetime
-    updated_at: datetime | None = None
+class ProjectOut(ORMModel): id: int; name: str; description: str | None = None; academic_year_id: int | None = None; term_id: int | None = None; status: str; current_version_id: int | None = None; created_by: str | None = None; created_at: datetime; updated_at: datetime | None = None
 class GenerateIn(BaseModel):
     max_seconds: float = Field(default=30.0, ge=1.0, le=180.0); timetable_type_id: int | None = None; class_ids: list[int] | None = None; teacher_ids: list[int] | None = None; period_indexes: list[int] | None = None
     @model_validator(mode='before')
@@ -136,37 +103,25 @@ class GenerateIn(BaseModel):
                 data[key]=vals
         return data
 class GenerateProfileIn(GenerateIn):
-    label: str = Field(default='New timetable', min_length=1, max_length=120)
-    day_indexes: list[int] | None = None
-    day_names: dict[int,str] | None = None
+    label: str = Field(default='New timetable', min_length=1, max_length=120); day_indexes: list[int] | None = None; day_names: dict[int,str] | None = None
     @model_validator(mode='before')
     @classmethod
     def normalize_profile_values(cls, value):
         if not isinstance(value, dict): return value
-        data=dict(value)
-        label=data.get('label')
-        if label in (None, ''): data['label']='New timetable'
-        else: data['label']=str(label).strip() or 'New timetable'
-        for key in ('day_indexes',):
-            raw=data.get(key)
-            if raw in (None, ''): data[key]=None
-            elif not isinstance(raw,(list,tuple,set)): raw=[raw]
-            if data.get(key) is not None:
-                vals=[]
-                for item in raw:
-                    try: vals.append(int(float(item)))
-                    except (TypeError,ValueError): continue
-                data[key]=vals or None
-        if data.get('day_names') in ('', None): data['day_names']=None
+        data=dict(value); label=data.get('label'); data['label']=('New timetable' if label in (None,'') else str(label).strip() or 'New timetable')
+        raw=data.get('day_indexes')
+        if raw in (None,''): data['day_indexes']=None
+        elif not isinstance(raw,(list,tuple,set)): raw=[raw]
+        if data.get('day_indexes') is not None:
+            vals=[]
+            for item in raw:
+                try: vals.append(int(float(item)))
+                except (TypeError,ValueError): continue
+            data['day_indexes']=vals or None
+        if data.get('day_names') in ('',None): data['day_names']=None
         return data
-class JobOut(ORMModel):
-    id: int; status: str; progress: int; stage: str | None; checks: list[dict[str,Any]] = Field(default_factory=list); result_version_id: int | None; quality: dict[str,Any] = Field(default_factory=dict); message: str | None
-class VersionOut(ORMModel):
-    id: int; number: int; name: str; label: str | None = None; status: str; quality: dict[str,Any] = Field(default_factory=dict); stats: dict[str,Any] = Field(default_factory=dict); created_by: str | None = None
-    @field_validator('created_by', mode='before')
-    @classmethod
-    def serialize_created_by(cls,value): return str(value) if value is not None else None
-    published_at: datetime | None = None; effective_from: datetime | None = None; day_indexes: list[int] = Field(default_factory=list); day_names: list[str] = Field(default_factory=list); display_mode: Literal['day','date'] = 'day'; timetable_type_id: int | None = None; period_indexes: list[int] = Field(default_factory=list)
+class JobOut(ORMModel): id: int; status: str; progress: int; stage: str | None; checks: list[dict[str,Any]] = Field(default_factory=list); result_version_id: int | None; quality: dict[str,Any] = Field(default_factory=dict); message: str | None
+class VersionOut(ORMModel): id: int; number: int; name: str; label: str | None = None; status: str; quality: dict[str,Any] = Field(default_factory=dict); stats: dict[str,Any] = Field(default_factory=dict); created_by: str | None = None; published_at: datetime | None = None; effective_from: datetime | None = None; day_indexes: list[int] = Field(default_factory=list); day_names: list[str] = Field(default_factory=list); display_mode: Literal['day','date'] = 'day'; timetable_type_id: int | None = None; period_indexes: list[int] = Field(default_factory=list)
 class LessonOut(ORMModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
 class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); room_id:int|None=None
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=30); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
