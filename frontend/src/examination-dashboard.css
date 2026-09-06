@@ -1,0 +1,69 @@
+.examination-academia {
+  --exa-ink: #122a22;
+  --exa-muted: #66756e;
+  --exa-line: #dfe7e2;
+  --exa-soft: #f7faf8;
+  --exa-green: #0a7d5d;
+}
+
+.examination-academia__hero { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; padding:1.4rem 0 1.25rem; margin-bottom:1rem; border-bottom:1px solid var(--exa-line); }
+.examination-academia__hero h1 { color:var(--exa-ink); font-family:var(--font-sans); font-size:clamp(1.8rem,4vw,2.45rem); font-weight:750; letter-spacing:-.045em; }
+.examination-academia__hero p { max-width:44rem; margin-top:.45rem; color:var(--exa-muted); font-size:.86rem; }
+.examination-academia__eyebrow { margin-bottom:.35rem; color:var(--exa-green); font-size:.62rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+.examination-academia__metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.75rem; margin-bottom:1.25rem; }
+.examination-academia__metric { min-height:7.3rem; padding:1rem 1.1rem; display:flex; flex-direction:column; justify-content:center; }
+.examination-academia__metric span { color:var(--exa-muted); font-size:.72rem; font-weight:700; }
+.examination-academia__metric strong { margin-top:.25rem; color:var(--exa-ink); font-size:2rem; line-height:1; letter-spacing:-.045em; }
+.examination-academia__metric small { margin-top:.3rem; color:#89958f; font-size:.68rem; }
+.examination-academia__workspace,.examination-academia__panel,.examination-academia__levels { padding:1.25rem; }
+.examination-academia__section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+.examination-academia__section-head h2 { color:var(--exa-ink); font-size:1rem; font-weight:750; letter-spacing:-.02em; }
+.examination-academia__section-head p { margin-top:.25rem; color:var(--exa-muted); font-size:.78rem; }
+.examination-academia__work-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.7rem; margin-top:1rem; }
+.examination-academia__work-card { display:flex; min-width:0; flex-direction:column; min-height:10.5rem; padding:1rem; border:1px solid var(--exa-line); border-radius:.7rem; background:#fff; color:inherit; text-decoration:none; transition:transform 150ms ease,border-color 150ms ease,box-shadow 150ms ease; }
+.examination-academia__work-card:hover { transform:translateY(-2px); border-color:#b9d5c9; box-shadow:0 8px 22px rgba(20,55,43,.07); }
+.examination-academia__number { color:#89958f; font-size:.62rem; font-weight:800; letter-spacing:.08em; }
+.examination-academia__work-card strong { margin-top:.35rem; color:var(--exa-ink); font-size:.88rem; }
+.examination-academia__work-card p { margin-top:.35rem; color:var(--exa-muted); font-size:.72rem; line-height:1.5; }
+.examination-academia__open { margin-top:auto; padding-top:.8rem; color:var(--exa-green); font-size:.68rem; font-weight:750; }
+.examination-academia__two-col { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(18rem,.85fr); gap:.75rem; margin:1.25rem 0; }
+.examination-academia__section-head--compact { align-items:center; }
+.examination-academia__recent { display:grid; gap:.45rem; margin-top:.9rem; }
+.examination-academia__recent-item { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.75rem; border:1px solid var(--exa-line); border-radius:.6rem; background:var(--exa-soft); }
+.examination-academia__recent-item div { min-width:0; }
+.examination-academia__recent-item strong { display:block; color:var(--exa-ink); font-size:.8rem; }
+.examination-academia__recent-item span:not(.badge) { display:block; margin-top:.18rem; color:var(--exa-muted); font-size:.67rem; }
+.examination-academia__muted,.examination-academia__data-note { margin-top:.9rem; color:var(--exa-muted); font-size:.8rem; }
+.examination-academia__connected { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin-top:.9rem; }
+.examination-academia__connected-item { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.72rem; border:1px solid var(--exa-line); border-radius:.6rem; color:inherit; text-decoration:none; background:#fff; }
+.examination-academia__connected-item strong { display:block; color:var(--exa-ink); font-size:1.05rem; }
+.examination-academia__connected-item span { color:var(--exa-muted); font-size:.68rem; }
+.examination-academia__levels { margin-bottom:1rem; }
+.examination-academia__level-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.65rem; margin-top:1rem; }
+.examination-academia__level { display:flex; align-items:center; gap:.7rem; padding:.8rem; border:1px solid var(--exa-line); border-radius:.6rem; color:inherit; text-decoration:none; background:var(--exa-soft); }
+.examination-academia__level:hover { border-color:#b9d5c9; background:#fff; }
+.examination-academia__level-dot { width:.55rem; height:.55rem; flex:0 0 auto; border-radius:50%; background:var(--exa-green); box-shadow:0 0 0 4px #e5f3ed; }
+.examination-academia__level div { min-width:0; flex:1; }
+.examination-academia__level strong,.examination-academia__level div span { display:block; }
+.examination-academia__level strong { color:var(--exa-ink); font-size:.76rem; }
+.examination-academia__level div span { margin-top:.12rem; color:var(--exa-muted); font-size:.64rem; }
+.examination-academia__level > span:last-child { color:#82918a; }
+
+@media (max-width:900px) {
+  .examination-academia__metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .examination-academia__work-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .examination-academia__two-col { grid-template-columns:1fr; }
+  .examination-academia__level-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media (max-width:560px) {
+  .examination-academia__hero { align-items:flex-start; flex-direction:column; }
+  .examination-academia__hero .button { width:100%; }
+  .examination-academia__work-grid,.examination-academia__level-grid { grid-template-columns:1fr; }
+  .examination-academia__connected { grid-template-columns:1fr; }
+  .examination-academia__workspace,.examination-academia__panel,.examination-academia__levels { padding:1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .examination-academia__work-card { transition:none; }
+}
