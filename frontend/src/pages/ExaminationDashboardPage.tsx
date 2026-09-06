@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, LoadingBlock } from '../components/States'
-import { ClipboardCheckIcon } from '../components/icons'
+import { CheckIcon, ClipboardCheckIcon, LayersIcon, PrintIcon, SparkIcon, UserIcon } from '../components/icons'
 import { Link } from '../lib/router'
 import { examinations, type ExamSeries, type Examination } from '../lib/examinations'
 import { friendlyApiError } from '../lib/api'
@@ -71,10 +71,10 @@ export default function ExaminationDashboardPage() {
         <>
           <section className="section">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--space-3)', alignItems: 'stretch' }}>
-              <Metric title="Examinations" value={metrics.total} detail={`${metrics.draft} draft`} />
-              <Metric title="Active" value={metrics.active} detail="Open for marks" />
-              <Metric title="Published" value={metrics.published} detail="Results released" />
-              <Metric title="Locked" value={metrics.locked} detail="Finalised" />
+              <Metric icon={<ClipboardCheckIcon />} iconTone="emerald" title="Examinations" value={metrics.total} detail={`${metrics.draft} draft`} />
+              <Metric icon={<SparkIcon />} iconTone="gold" title="Active" value={metrics.active} detail="Open for marks" />
+              <Metric icon={<CheckIcon />} iconTone="blue" title="Published" value={metrics.published} detail="Results released" />
+              <Metric icon={<PrintIcon />} iconTone="purple" title="Locked" value={metrics.locked} detail="Finalised" />
             </div>
           </section>
 
@@ -92,11 +92,11 @@ export default function ExaminationDashboardPage() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(15rem,1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
-                <WorkspaceLink number="01" title="Examination Setup" description="Create examinations, dates, marks and pass requirements." to="/examinations/setup" />
-                <WorkspaceLink number="02" title="Levels" description="Configure Pre-School, Primary and Secondary examination levels." to="/examinations/levels" />
-                <WorkspaceLink number="03" title="Teacher Assignments" description="Assign teachers and control marks-entry access." to="/examinations/marks-access" />
-                <WorkspaceLink number="04" title="Results & Report Cards" description="Review results, analyse performance and generate report cards." to="/examinations/report-card" />
-                <WorkspaceLink number="05" title="Class Results" description="View class-level results and performance." to="/examinations/class-results" />
+                <WorkspaceLink icon={<ClipboardCheckIcon />} iconTone="emerald" number="01" title="Examination Setup" description="Create examinations, dates, marks and pass requirements." to="/examinations/setup" />
+                <WorkspaceLink icon={<LayersIcon />} iconTone="blue" number="02" title="Levels" description="Configure Pre-School, Primary and Secondary examination levels." to="/examinations/levels" />
+                <WorkspaceLink icon={<UserIcon />} iconTone="gold" number="03" title="Teacher Assignments" description="Assign teachers and control marks-entry access." to="/examinations/marks-access" />
+                <WorkspaceLink icon={<PrintIcon />} iconTone="purple" number="04" title="Results & Report Cards" description="Review results, analyse performance and generate report cards." to="/examinations/report-card" />
+                <WorkspaceLink icon={<CheckIcon />} iconTone="emerald" number="05" title="Class Results" description="View class-level results and performance." to="/examinations/class-results" />
               </div>
             </div>
           </section>
@@ -162,21 +162,37 @@ export default function ExaminationDashboardPage() {
   )
 }
 
-function Metric({ title, value, detail }: { title: string; value: number; detail: string }) {
+function Metric({ icon, iconTone, title, value, detail }: { icon: ReactNode; iconTone: 'emerald' | 'gold' | 'blue' | 'purple'; title: string; value: number; detail: string }) {
   return (
-    <div className="card" style={{ padding: '1rem 1.1rem', minHeight: '6.8rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
-      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.78rem', fontWeight: 600, letterSpacing: '.02em' }}>{title}</div>
-      <div style={{ fontSize: '2rem', lineHeight: 1.05, fontWeight: 800, marginTop: '.3rem' }}>{value}</div>
-      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.75rem', marginTop: '.25rem' }}>{detail}</div>
+    <div className="card" style={{ padding: '1rem 1.1rem', minHeight: '6.8rem', display: 'flex', alignItems: 'center', gap: '.8rem', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
+      <IconBadge tone={iconTone}>{icon}</IconBadge>
+      <div>
+        <div style={{ color: 'var(--color-ink-muted)', fontSize: '.78rem', fontWeight: 600, letterSpacing: '.02em' }}>{title}</div>
+        <div style={{ fontSize: '2rem', lineHeight: 1.05, fontWeight: 800, marginTop: '.3rem' }}>{value}</div>
+        <div style={{ color: 'var(--color-ink-muted)', fontSize: '.75rem', marginTop: '.25rem' }}>{detail}</div>
+      </div>
     </div>
   )
 }
 
-function WorkspaceLink({ number, title, description, to }: { number: string; title: string; description: string; to: string }) {
+function IconBadge({ children, tone }: { children: ReactNode; tone: 'emerald' | 'gold' | 'blue' | 'purple' }) {
+  const tones = {
+    emerald: { background: '#e4f7ef', color: '#087a5c' },
+    gold: { background: '#fff4d9', color: '#a36a00' },
+    blue: { background: '#e6f0fb', color: '#225f9e' },
+    purple: { background: '#eee8fb', color: '#6a49a5' },
+  } as const
+  return <span aria-hidden="true" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 2.65rem', width: '2.65rem', height: '2.65rem', borderRadius: '.8rem', background: tones[tone].background, color: tones[tone].color }}>{children}</span>
+}
+
+function WorkspaceLink({ icon, iconTone, number, title, description, to }: { icon: ReactNode; iconTone: 'emerald' | 'gold' | 'blue' | 'purple'; number: string; title: string; description: string; to: string }) {
   return (
     <Link className="card" to={to} style={{ padding: 'var(--space-4)', textDecoration: 'none', color: 'inherit', display: 'block' }}>
-      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.75rem', fontWeight: 700, letterSpacing: '.05em' }}>{number}</div>
-      <strong style={{ display: 'block', marginTop: '.35rem' }}>{title}</strong>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.75rem' }}>
+        <IconBadge tone={iconTone}>{icon}</IconBadge>
+        <div style={{ color: 'var(--color-ink-muted)', fontSize: '.75rem', fontWeight: 700, letterSpacing: '.05em' }}>{number}</div>
+      </div>
+      <strong style={{ display: 'block', marginTop: '.65rem' }}>{title}</strong>
       <p style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem', margin: '.4rem 0 0', minHeight: '2.4rem' }}>{description}</p>
       <span className="button button--secondary button--sm" style={{ marginTop: 'var(--space-3)' }}>Open →</span>
     </Link>
