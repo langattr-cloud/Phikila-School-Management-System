@@ -29,6 +29,7 @@ from app.modules.scheduling.project_router import router as timetable_projects_r
 from app.modules.scheduling.router import router as scheduling_router
 from app.modules.scheduling.timetable_read_router import router as timetable_read_router
 from app.modules.school.router import router as school_router
+from app.modules.students.import_router import router as students_import_router
 from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
 
@@ -78,6 +79,8 @@ def create_app() -> FastAPI:
     app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(timetable_read_router, prefix="/api/v1/scheduling", tags=["Scheduling Read"], dependencies=protected)
     app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"], dependencies=[Depends(rate_limit_scheduling_mutation)])
+    # Static import route must be registered before /students/{student_id}.
+    app.include_router(students_import_router, prefix="/api/v1", tags=["Students"])
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
     app.include_router(attendance_router, prefix="/api/v1", tags=["Attendance"])
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
