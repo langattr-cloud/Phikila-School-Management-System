@@ -23,15 +23,15 @@ class ExaminationUpdate(BaseModel):
 class ExaminationResponse(BaseModel):
     id: int; school_id: int; series_id: int; name: str; description: str | None = None; exam_date: date | None = None; total_marks: int; passing_marks: int; status: str; created_at: datetime | None = None
     model_config = {"from_attributes": True}
-class ExamSubjectCreate(BaseModel):
-    subject_id: int; academic_year_id: int; level_id: int; grade_id: int; stream_id: int | None = None; total_marks: int = Field(default=100, ge=1); exam_date: date | None = None
+class ExamSubjectCreate(BaseModel): subject_id: int; academic_year_id: int; level_id: int; grade_id: int; stream_id: int | None = None; total_marks: int = Field(default=100, ge=1); exam_date: date | None = None
 class ExamSubjectResponse(BaseModel):
     id: int; exam_id: int; subject_id: int; academic_year_id: int; level_id: int; grade_id: int; stream_id: int | None = None; teacher_id: int | None = None; total_marks: int; exam_date: date | None = None
     model_config = {"from_attributes": True}
 class ScoreEntry(BaseModel): student_id: int; subject_id: int; score: float = Field(ge=0); grade: str | None = None; position: int | None = Field(default=None, ge=1); remarks: str | None = None
 class BulkScoreEntry(BaseModel): entries: list[ScoreEntry] = Field(min_length=1)
-class ExamEntryResponse(BaseModel): id: int; exam_id: int; student_id: int; subject_id: int; score: float | None = None; grade: str | None = None; position: int | None = None; remarks: str | None = None; percentage: float | None = None
-    
+class ExamEntryResponse(BaseModel):
+    id: int; exam_id: int; student_id: int; subject_id: int; score: float | None = None; grade: str | None = None; position: int | None = None; remarks: str | None = None; percentage: float | None = None
+    model_config = {"from_attributes": True}
 class StudentResult(BaseModel): student_id: int; student_name: str; admission_number: str; subject_scores: list[dict]; total_score: float; average: float; position: int | None = None; grade: str | None = None; education_level: str | None = None; percentage: float | None = None; band: str | None = None; band_label: str | None = None; deviation: float | None = None; progress: float | None = None
 class SubjectAnalysis(BaseModel): subject_id: int; entries: int; mean_percentage: float | None = None; band_distribution: dict[str, int] = {}
 class ResultsAnalysis(BaseModel): exam_id: int; exam_name: str; cohort_size: int; education_levels: dict[str, int] = {}; cohort_mean: float | None = None; band_distribution: dict[str, int] = {}; subject_analysis: list[SubjectAnalysis] = []; progress_summary: dict[str, int] = {}
