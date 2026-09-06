@@ -69,7 +69,7 @@ export default function ExaminationDashboardPage() {
       {loading ? <LoadingBlock label="Loading examination dashboard" rows={4} /> : (
         <>
           <section className="section">
-            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--space-3)', alignItems: 'stretch' }}>
               <Metric title="Examinations" value={metrics.total} detail={`${metrics.draft} draft`} />
               <Metric title="Active" value={metrics.active} detail="Open for marks" />
               <Metric title="Published" value={metrics.published} detail="Results released" />
@@ -160,10 +160,10 @@ export default function ExaminationDashboardPage() {
 
 function Metric({ title, value, detail }: { title: string; value: number; detail: string }) {
   return (
-    <div className="card" style={{ padding: 'var(--space-4)' }}>
-      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{title}</div>
-      <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '.2rem' }}>{value}</div>
-      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.8rem' }}>{detail}</div>
+    <div className="card" style={{ padding: '1rem 1.1rem', minHeight: '6.8rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.78rem', fontWeight: 600, letterSpacing: '.02em' }}>{title}</div>
+      <div style={{ fontSize: '2rem', lineHeight: 1.05, fontWeight: 800, marginTop: '.3rem' }}>{value}</div>
+      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.75rem', marginTop: '.25rem' }}>{detail}</div>
     </div>
   )
 }
