@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "20260906classsync"
-down_revision = "20260905classstream"
+down_revision = "20260906enrollstream"
 branch_labels = None
 depends_on = None
 
@@ -18,8 +18,6 @@ depends_on = None
 def upgrade():
     bind = op.get_bind()
 
-    # Backfill canonical school_classes for existing timetable classes and
-    # establish the FK bridge on tt_classes.
     bind.execute(sa.text("""
         INSERT INTO school_classes
             (school_id, name, code, grade, student_count, capacity, level_id,
