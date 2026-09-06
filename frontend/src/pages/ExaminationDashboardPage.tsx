@@ -79,66 +79,78 @@ export default function ExaminationDashboardPage() {
 
           <section className="section">
             <div className="card" style={{ padding: 'var(--space-4)' }}>
-              <div>
-                <h2 className="section__title" style={{ marginBottom: '.25rem' }}>Examination workspace</h2>
-                <p style={{ color: 'var(--color-ink-muted)', margin: 0 }}>Choose an examination function below. These options are kept inside the Examination module rather than in the main sidebar.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                <div>
+                  <h2 className="section__title" style={{ marginBottom: '.25rem' }}>Examination workspace</h2>
+                  <p style={{ color: 'var(--color-ink-muted)', margin: 0 }}>All examination tasks are grouped here. The main sidebar stays uncluttered.</p>
+                </div>
+                <Link className="button button--primary" to="/examinations/setup">Create / Manage Examination</Link>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(12rem,1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
-                <WorkspaceLink title="Examination Setup" description="Create and manage examinations." to="/examinations/setup" />
-                <WorkspaceLink title="Levels" description="Configure examination levels." to="/examinations/levels" />
-                <WorkspaceLink title="Teacher Assignments" description="Manage marks access and teacher assignments." to="/examinations/marks-access" />
-                <WorkspaceLink title="Results & Report Cards" description="Review results and generate report cards." to="/examinations/report-card" />
-                <WorkspaceLink title="Class Results" description="View results by class." to="/examinations/class-results" />
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(15rem,1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+                <WorkspaceLink number="01" title="Examination Setup" description="Create examinations, dates, marks and pass requirements." to="/examinations/setup" />
+                <WorkspaceLink number="02" title="Levels" description="Configure Pre-School, Primary and Secondary examination levels." to="/examinations/levels" />
+                <WorkspaceLink number="03" title="Teacher Assignments" description="Assign teachers and control marks-entry access." to="/examinations/marks-access" />
+                <WorkspaceLink number="04" title="Results & Report Cards" description="Review results, analyse performance and generate report cards." to="/examinations/report-card" />
+                <WorkspaceLink number="05" title="Class Results" description="View class-level results and performance." to="/examinations/class-results" />
               </div>
             </div>
           </section>
 
           <section className="section">
-            <h2 className="section__title">Examination levels</h2>
-            <div className="dashboard-grid">
-              {['Pre-School', 'Primary', 'Junior Secondary', 'Senior Secondary'].map(label => (
-                <div className="card" key={label} style={{ padding: 'var(--space-4)' }}>
-                  <strong>{label}</strong>
-                  <p style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem', minHeight: '2.5rem' }}>
-                    {levels.has(label) ? 'Available in current examination data.' : 'Ready for examination configuration.'}
-                  </p>
-                  <Link className="button button--secondary button--sm" to="/examinations/levels">Open level configuration</Link>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.7fr) minmax(16rem,1fr)', gap: 'var(--space-3)', alignItems: 'start' }}>
+              <div className="card" style={{ padding: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                  <h2 className="section__title" style={{ margin: 0 }}>Recent examinations</h2>
+                  <Link className="button button--ghost button--sm" to="/examinations/setup">View all</Link>
                 </div>
-              ))}
+                {!exams.length ? <div style={{ color: 'var(--color-ink-muted)' }}>No examinations have been created yet.</div> : (
+                  <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+                    {exams.slice(0, 5).map(exam => (
+                      <div key={exam.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap' }}>
+                        <div>
+                          <strong>{exam.name}</strong>
+                          <div style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem', marginTop: '.2rem' }}>{exam.exam_date || 'No date'} · {exam.total_marks} marks · Pass {exam.passing_marks}</div>
+                        </div>
+                        <Badge tone={statusTone(exam.status)}>{exam.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="card" style={{ padding: 'var(--space-4)' }}>
+                <h2 className="section__title" style={{ marginBottom: '.25rem' }}>Connected modules</h2>
+                <p style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem', marginTop: 0 }}>Examination uses these existing records instead of duplicating them.</p>
+                <div style={{ display: 'grid', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+                  <ExistingModule label="Students" to="/students" />
+                  <ExistingModule label="Classes" to="/setup/academic-setup" />
+                  <ExistingModule label="Teachers" to="/setup/teachers" />
+                  <ExistingModule label="Subjects" to="/setup/subjects" />
+                </div>
+              </div>
             </div>
           </section>
 
           <section className="section">
             <div className="card" style={{ padding: 'var(--space-4)' }}>
-              <h2 className="section__title">Connected school modules</h2>
-              <p style={{ color: 'var(--color-ink-muted)' }}>These are existing modules. Examination reads from them; it does not duplicate their management screens.</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(12rem,1fr))', gap: 'var(--space-2)' }}>
-                <ExistingModule label="Students" to="/students" />
-                <ExistingModule label="Classes" to="/setup/academic-setup" />
-                <ExistingModule label="Teachers" to="/setup/teachers" />
-                <ExistingModule label="Subjects" to="/setup/subjects" />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                <div>
+                  <h2 className="section__title" style={{ marginBottom: '.25rem' }}>Examination levels</h2>
+                  <p style={{ color: 'var(--color-ink-muted)', margin: 0 }}>Open level configuration for the school's four education stages.</p>
+                </div>
+                <Link className="button button--secondary button--sm" to="/examinations/levels">Manage levels</Link>
               </div>
-            </div>
-          </section>
-
-          <section className="section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-              <h2 className="section__title">Recent examinations</h2>
-              <Link className="button button--ghost button--sm" to="/examinations/setup">View all</Link>
-            </div>
-            {!exams.length ? <div className="card" style={{ padding: 'var(--space-4)', color: 'var(--color-ink-muted)' }}>No examinations have been created yet.</div> : (
-              <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-                {exams.slice(0, 5).map(exam => (
-                  <div className="card" key={exam.id} style={{ padding: 'var(--space-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-                    <div>
-                      <strong>{exam.name}</strong>
-                      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{exam.exam_date || 'No date'} · {exam.total_marks} marks · Pass {exam.passing_marks}</div>
-                    </div>
-                    <Badge tone={statusTone(exam.status)}>{exam.status}</Badge>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(12rem,1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
+                {['Pre-School', 'Primary', 'Junior Secondary', 'Senior Secondary'].map(label => (
+                  <div key={label} style={{ padding: 'var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                    <strong>{label}</strong>
+                    <p style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem', margin: '.35rem 0 .7rem' }}>{levels.has(label) ? 'Available in current examination data.' : 'Ready for examination configuration.'}</p>
+                    <Link className="button button--ghost button--sm" to="/examinations/levels">Configure →</Link>
                   </div>
                 ))}
               </div>
-            )}
+            </div>
           </section>
         </>
       )}
@@ -156,16 +168,17 @@ function Metric({ title, value, detail }: { title: string; value: number; detail
   )
 }
 
-function WorkspaceLink({ title, description, to }: { title: string; description: string; to: string }) {
+function WorkspaceLink({ number, title, description, to }: { number: string; title: string; description: string; to: string }) {
   return (
     <Link className="card" to={to} style={{ padding: 'var(--space-4)', textDecoration: 'none', color: 'inherit', display: 'block' }}>
-      <strong>{title}</strong>
-      <p style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem', margin: '.4rem 0 0' }}>{description}</p>
+      <div style={{ color: 'var(--color-ink-muted)', fontSize: '.75rem', fontWeight: 700, letterSpacing: '.05em' }}>{number}</div>
+      <strong style={{ display: 'block', marginTop: '.35rem' }}>{title}</strong>
+      <p style={{ color: 'var(--color-ink-muted)', fontSize: '.85rem', margin: '.4rem 0 0', minHeight: '2.4rem' }}>{description}</p>
       <span className="button button--secondary button--sm" style={{ marginTop: 'var(--space-3)' }}>Open →</span>
     </Link>
   )
 }
 
 function ExistingModule({ label, to }: { label: string; to: string }) {
-  return <Link className="button button--secondary" to={to}>{label} →</Link>
+  return <Link className="button button--secondary" to={to} style={{ justifyContent: 'space-between' }}>{label}<span>→</span></Link>
 }
