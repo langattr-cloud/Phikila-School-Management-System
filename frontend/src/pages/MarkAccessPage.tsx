@@ -18,6 +18,7 @@ export default function MarkAccessPage() {
   const [years, setYears] = useState<AcademicYear[]>([])
   const [levels, setLevels] = useState<Level[]>([])
   const [grades, setGrades] = useState<Grade[]>([])
+  const [allGrades, setAllGrades] = useState<Grade[]>([])
   const [streams, setStreams] = useState<Stream[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([])
@@ -57,12 +58,21 @@ export default function MarkAccessPage() {
   ), [assignments, yearId, levelId, gradeId, streamId])
 
   useEffect(() => {
-    void Promise.all([scheduling.me(), examinations.list(), api.academicYears(), api.levels(), scheduling.teachers(), scheduling.subjects()])
-      .then(([me, nextExams, nextYears, nextLevels, nextTeachers, nextSubjects]) => {
+    void Promise.all([
+      scheduling.me(),
+      examinations.list(),
+      api.academicYears(),
+      api.levels(),
+      api.grades(),
+      scheduling.teachers(),
+      scheduling.subjects(),
+    ])
+      .then(([me, nextExams, nextYears, nextLevels, nextGrades, nextTeachers, nextSubjects]) => {
         setPrincipal(me)
         setExams(nextExams)
         setYears(nextYears)
         setLevels(nextLevels)
+        setAllGrades(nextGrades)
         setTeachers(nextTeachers)
         setSubjects(nextSubjects.map(item => ({ id: item.id, name: item.name })))
         const currentYear = nextYears.find(item => item.is_current) ?? nextYears[0]
@@ -81,8 +91,13 @@ export default function MarkAccessPage() {
       setStreamId('')
       return
     }
-    void api.grades(Number(levelId)).then(setGrades).catch(() => setGrades([]))
-  }, [levelId])
+    const selectedLevelId = Number(levelId)
+    const matchingGrades = allGrades.filter(item => item.level_id === selectedLevelId)
+    setGrades(matchingGrades)
+    setGradeId(current => matchingGrades.some(item => String(item.id) === current) ? current : '')
+    setStreams([])
+    setStreamId('')
+  }, [levelId, allGrades])
 
   useEffect(() => {
     if (!yearId || !gradeId) {
