@@ -2,13 +2,23 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, EmptyState, LoadingBlock } from '../components/States'
-import { api, type Level, type SchoolClassSetup } from '../lib/api'
+import { api, type AcademicYear, type Level, type SchoolClassSetup } from '../lib/api'
 import { friendlyApiError } from '../lib/api'
 
 type LevelWithClasses = Level & { classes: SchoolClassSetup[] }
 
+function formatClassStatus(status?: string | null) {
+  if (!status) return 'Not set'
+  return status.replace(/_/g, ' ').replace(/\b\w/g, value => value.toUpperCase())
+}
+
+function classStatusTone(status?: string | null): 'success' | 'warning' {
+  return status?.toLowerCase() === 'active' ? 'success' : 'warning'
+}
+
 export function ExaminationLevelsPage() {
   const [levels, setLevels] = useState<LevelWithClasses[]>([])
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -17,12 +27,17 @@ export function ExaminationLevelsPage() {
     setLoading(true)
     setError(null)
     try {
-      const [levelRows, classRows] = await Promise.all([api.levels(), api.schoolClasses()])
+      const [levelRows, classRows, yearRows] = await Promise.all([
+        api.levels(),
+        api.schoolClasses(),
+        api.academicYears(),
+      ])
       const next = levelRows.map(level => ({
         ...level,
         classes: classRows.filter(item => item.level_id === level.id),
       }))
       setLevels(next)
+      setAcademicYears(yearRows)
       setSelectedId(current => current && next.some(level => level.id === current) ? current : next[0]?.id ?? null)
     } catch (err) {
       setError(friendlyApiError(err, 'load examination levels'))
@@ -34,6 +49,7 @@ export function ExaminationLevelsPage() {
   useEffect(() => { void load() }, [load])
 
   const selected = useMemo(() => levels.find(level => level.id === selectedId) ?? null, [levels, selectedId])
+  const academicYearById = useMemo(() => new Map(academicYears.map(year => [year.id, year])), [academicYears])
 
   return (
     <div>
@@ -79,7 +95,9 @@ export function ExaminationLevelsPage() {
                     <h2 style={{ margin: 'var(--space-1) 0' }}>{selected.name}</h2>
                     <p style={{ margin: 0, color: 'var(--color-ink-muted)' }}>{selected.classes.length} classes available for examination setup and mark-entry assignments.</p>
                   </div>
-                  <Badge tone={selected.status === false ? 'warning' : 'success'}>{selected.status === false ? 'Inactive' : 'Active'}</Badge>
+                  <Badge tone={selected.status === false || selected.status === 'INACTIVE' || selected.status === 'ARCHIVED' ? 'warning' : 'success'}>
+                    {selected.status === false || selected.status === 'INACTIVE' || selected.status === 'ARCHIVED' ? 'Inactive' : 'Active'}
+                  </Badge>
                 </div>
               </div>
 
@@ -91,15 +109,18 @@ export function ExaminationLevelsPage() {
                   <table style={{ width: '100%' }}>
                     <thead><tr><th>Class</th><th>Code</th><th>Academic year</th><th>Status</th><th>Examination use</th></tr></thead>
                     <tbody>
-                      {selected.classes.map(item => (
-                        <tr key={item.id}>
-                          <td><strong>{item.name}</strong></td>
-                          <td>{item.code}</td>
-                          <td>{item.academic_year_id ?? '—'}</td>
-                          <td><Badge tone={item.status === 'active' ? 'success' : 'warning'}>{item.status ?? 'Unknown'}</Badge></td>
-                          <td>Available through the existing class and enrollment context</td>
-                        </tr>
-                      ))}
+                      {selected.classes.map(item => {
+                        const academicYear = item.academic_year_id != null ? academicYearById.get(item.academic_year_id) : undefined
+                        return (
+                          <tr key={item.id}>
+                            <td><strong>{item.name}</strong></td>
+                            <td>{item.code || '—'}</td>
+                            <td>{academicYear?.name ?? (item.academic_year_id != null ? `Year ${item.academic_year_id}` : 'Not set')}</td>
+                            <td><Badge tone={classStatusTone(item.status)}>{formatClassStatus(item.status)}</Badge></td>
+                            <td>Available through the existing class and enrollment context</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 )}
