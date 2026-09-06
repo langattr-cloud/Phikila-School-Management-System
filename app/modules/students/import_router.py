@@ -1,4 +1,4 @@
-"""Bulk student import from Excel workbooks."""
+"""Bulk student import and Excel export."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -6,9 +6,11 @@ from io import BytesIO
 import re
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
 from openpyxl import load_workbook
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.modules.scheduling.tenancy import Principal, require_role
@@ -260,3 +262,68 @@ async def import_students_excel(
     except Exception as exc:
         db.rollback()
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Could not read the Excel workbook: {exc}") from exc
+
+
+@router.get("/students/export")
+def export_students_excel(
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin", "scheduler")),
+):
+    """Download all students for the current school as an Excel workbook."""
+    students = (
+        db.query(m.Student)
+        .options(selectinload(m.Student.enrollments), selectinload(m.Student.guardians))
+        .filter(m.Student.school_id == principal.school_id)
+        .order_by(m.Student.admission_number.asc())
+        .all()
+    )
+
+    years = {x.id: x.name for x in db.query(AcademicYear).filter(AcademicYear.school_id == principal.school_id).all()}
+    levels = {x.id: x.name for x in db.query(Level).filter(Level.school_id == principal.school_id).all()}
+    classes = {x.id: x.name for x in db.query(SchoolClass).filter(SchoolClass.school_id == principal.school_id).all()}
+    terms = {x.id: x.name for x in db.query(Term).filter(Term.school_id == principal.school_id).all()}
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Students"
+    headers = [
+        "admission_number", "first_name", "middle_name", "last_name", "preferred_name",
+        "date_of_birth", "gender", "email", "phone", "address", "nationality", "national_id",
+        "admission_date", "status", "academic_year", "level", "class", "term",
+        "guardian_name", "guardian_relationship", "guardian_phone", "guardian_alt_phone", "guardian_email",
+    ]
+    sheet.append(headers)
+
+    for student in students:
+        enrollment = next((x for x in reversed(student.enrollments) if x.status == "active"), None) or (student.enrollments[-1] if student.enrollments else None)
+        guardian = next((x for x in student.guardians if x.is_emergency_contact), None) or (student.guardians[0] if student.guardians else None)
+        sheet.append([
+            student.admission_number, student.first_name, student.middle_name, student.last_name, student.preferred_name,
+            student.date_of_birth, student.gender, student.email, student.phone, student.address, student.nationality, student.national_id,
+            student.admission_date, student.status,
+            years.get(enrollment.academic_year_id) if enrollment else None,
+            levels.get(enrollment.level_id) if enrollment else None,
+            classes.get(enrollment.school_class_id or enrollment.class_id) if enrollment else None,
+            terms.get(enrollment.term_id) if enrollment else None,
+            guardian.full_name if guardian else None,
+            guardian.relationship if guardian else None,
+            guardian.phone if guardian else None,
+            guardian.alt_phone if guardian else None,
+            guardian.email if guardian else None,
+        ])
+
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    for column in sheet.columns:
+        width = min(max(max(len(str(cell.value or "")) for cell in column) + 2, 12), 32)
+        sheet.column_dimensions[column[0].column_letter].width = width
+
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    filename = f"students-{date.today().isoformat()}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
