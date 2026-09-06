@@ -69,7 +69,7 @@ export default function ExaminationDashboardPage() {
       {loading ? <LoadingBlock label="Loading examination dashboard" rows={4} /> : (
         <>
           <section className="section">
-            <div className="dashboard-grid">
+            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
               <Metric title="Examinations" value={metrics.total} detail={`${metrics.draft} draft`} />
               <Metric title="Active" value={metrics.active} detail="Open for marks" />
               <Metric title="Published" value={metrics.published} detail="Results released" />
