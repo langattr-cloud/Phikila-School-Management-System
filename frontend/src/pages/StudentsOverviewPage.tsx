@@ -22,17 +22,11 @@ export default function StudentsOverviewPage() {
     async function load() {
       setLoading(true); setError(null)
       try {
-        const [loadedLevels, loadedGrades, loadedClasses, loadedStudents] = await Promise.all([
-          api.levels(), api.grades(), api.schoolClasses(), students.list({ page: 1, page_size: 1000, status: 'active' }),
-        ])
+        const [loadedLevels, loadedGrades, loadedClasses] = await Promise.all([api.levels(), api.grades(), api.schoolClasses()])
+        const gradeResults = await Promise.all(loadedGrades.map(async grade => ({ id: grade.id, total: (await students.list({ page: 1, page_size: 1, status: 'active', grade_id: grade.id })).total })))
         if (!active) return
         setLevels(loadedLevels); setGrades(loadedGrades); setClasses(loadedClasses)
-        const counts: Record<number, number> = {}
-        loadedStudents.items.forEach(s => {
-          const levelId = loadedClasses.find(c => c.id === (s as typeof s & { current_class_id?: number }).current_class_id)?.level_id
-          if (levelId != null) counts[levelId] = (counts[levelId] || 0) + 1
-        })
-        setLearnerCounts(counts)
+        setLearnerCounts(Object.fromEntries(gradeResults.map(result => [result.id, result.total])))
       } catch (err) { if (active) setError(friendlyApiError(err, 'load student overview')) }
       finally { if (active) setLoading(false) }
     }
@@ -41,7 +35,7 @@ export default function StudentsOverviewPage() {
 
   const rows = useMemo<GradeRow[]>(() => grades.filter(g => g.status !== false).map(g => {
     const level = levels.find(l => l.id === g.level_id)
-    return { ...g, levelName: level?.name || 'Level', learnerCount: learnerCounts[g.level_id] || 0, classes: classes.filter(c => c.level_id === g.level_id && c.status !== 'inactive').map(c => ({ id:c.id, name:c.name, code:c.code })) }
+    return { ...g, levelName: level?.name || 'Level', learnerCount: learnerCounts[g.id] || 0, classes: classes.filter(c => c.level_id === g.level_id && c.status !== 'inactive').map(c => ({ id:c.id, name:c.name, code:c.code })) }
   }).sort((a,b) => a.levelName.localeCompare(b.levelName) || a.name.localeCompare(b.name)), [grades, levels, classes, learnerCounts])
 
   const totalLearners = Object.values(learnerCounts).reduce((sum, count) => sum + count, 0)
