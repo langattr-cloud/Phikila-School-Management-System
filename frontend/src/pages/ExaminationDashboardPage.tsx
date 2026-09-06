@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge, LoadingBlock } from '../components/States'
+import { ClipboardCheckIcon } from '../components/icons'
 import { Link } from '../lib/router'
 import { examinations, type ExamSeries, type Examination } from '../lib/examinations'
 import { friendlyApiError } from '../lib/api'
@@ -84,7 +85,10 @@ export default function ExaminationDashboardPage() {
                   <h2 className="section__title" style={{ marginBottom: '.25rem' }}>Examination workspace</h2>
                   <p style={{ color: 'var(--color-ink-muted)', margin: 0 }}>All examination tasks are grouped here. The main sidebar stays uncluttered.</p>
                 </div>
-                <Link className="button button--primary" to="/examinations/setup">Create / Manage Examination</Link>
+                <Link className="button button--primary" to="/examinations/setup">
+                  <ClipboardCheckIcon aria-hidden="true" />
+                  Create / Manage Examination
+                </Link>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(15rem,1fr))', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
