@@ -18,6 +18,7 @@ from app.modules.finance.reports_router import router as finance_reports_router
 from app.modules.finance.completion_router import router as finance_completion_router
 from app.modules.llm.router import router as llm_router
 from app.modules.ocr.router import router as ocr_router
+from app.modules.outlook.router import router as outlook_router
 from app.modules.platform.router import router as platform_router
 from app.modules.platform.access_approval import router as access_approval_router
 from app.modules.scheduling.calendar_router import router as calendar_router
@@ -79,11 +80,11 @@ def create_app() -> FastAPI:
     app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(timetable_read_router, prefix="/api/v1/scheduling", tags=["Scheduling Read"], dependencies=protected)
     app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"], dependencies=[Depends(rate_limit_scheduling_mutation)])
-    # Static import route must be registered before /students/{student_id}.
     app.include_router(students_import_router, prefix="/api/v1", tags=["Students"])
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
     app.include_router(attendance_router, prefix="/api/v1", tags=["Attendance"])
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
+    app.include_router(outlook_router, prefix="/api/v1/outlook", tags=["Microsoft Outlook"])
     app.include_router(finance_router, prefix="/api/v1", tags=["Finance"])
     app.include_router(finance_operations_router, prefix="/api/v1", tags=["Finance Operations"])
     app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Treasury"])
