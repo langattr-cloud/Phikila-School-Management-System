@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from sqlalchemy import func, and_
 from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.modules.scheduling.tenancy import Principal, require_role
@@ -44,7 +44,9 @@ def list_students(page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100),sea
     if class_id is not None:filters.append((m.StudentEnrollment.school_class_id==class_id)|(m.StudentEnrollment.class_id==class_id))
     if grade_id is not None:filters.append(m.StudentEnrollment.grade_id==grade_id)
     if stream_id is not None:filters.append(m.StudentEnrollment.stream_id==stream_id)
-    if filters:filters.append(m.StudentEnrollment.status=="active");query=query.filter(m.Student.enrollments.any(*filters))
+    if filters:
+        filters.append(m.StudentEnrollment.status=="active")
+        query=query.filter(m.Student.enrollments.any(and_(*filters)))
     total=query.count();pages=math.ceil(total/page_size) if total else 1;items=query.options(joinedload(m.Student.guardians)).order_by(m.Student.last_name,m.Student.first_name).offset((page-1)*page_size).limit(page_size).all()
     return s.StudentListResponse(items=items,total=total,page=page,page_size=page_size,pages=pages)
 @router.post("/students",response_model=s.StudentResponse,status_code=201)
