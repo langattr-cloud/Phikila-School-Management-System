@@ -121,7 +121,11 @@ class GenerateProfileIn(GenerateIn):
         if data.get('day_names') in ('',None): data['day_names']=None
         return data
 class JobOut(ORMModel): id: int; status: str; progress: int; stage: str | None; checks: list[dict[str,Any]] = Field(default_factory=list); result_version_id: int | None; quality: dict[str,Any] = Field(default_factory=dict); message: str | None
-class VersionOut(ORMModel): id: int; number: int; name: str; label: str | None = None; status: str; quality: dict[str,Any] = Field(default_factory=dict); stats: dict[str,Any] = Field(default_factory=dict); created_by: str | None = None; published_at: datetime | None = None; effective_from: datetime | None = None; day_indexes: list[int] = Field(default_factory=list); day_names: list[str] = Field(default_factory=list); display_mode: Literal['day','date'] = 'day'; timetable_type_id: int | None = None; period_indexes: list[int] = Field(default_factory=list)
+class VersionOut(ORMModel):
+    id: int; number: int; name: str; label: str | None = None; status: str; quality: dict[str,Any] = Field(default_factory=dict); stats: dict[str,Any] = Field(default_factory=dict); created_by: str | None = None; published_at: datetime | None = None; effective_from: datetime | None = None; day_indexes: list[int] = Field(default_factory=list); day_names: list[str] = Field(default_factory=list); display_mode: Literal['day','date'] = 'day'; timetable_type_id: int | None = None; period_indexes: list[int] = Field(default_factory=list)
+    @field_validator('created_by', mode='before')
+    @classmethod
+    def serialize_created_by(cls, value): return str(value) if value is not None else None
 class LessonOut(ORMModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
 class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); room_id:int|None=None
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=30); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
