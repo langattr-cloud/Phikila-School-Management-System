@@ -47,7 +47,7 @@ def list_projects(db: Session = Depends(get_db), principal: Principal = Depends(
 
 @router.post("/projects", response_model=s.ProjectOut, status_code=201)
 def create_project(payload: ProjectCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
-    row = m.TtProject(school_id=principal.school_id, created_by=principal.email or principal.user_id, **payload.model_dump())
+    row = m.TtProject(school_id=principal.school_id, created_by=principal.email or str(principal.user_id), **payload.model_dump())
     db.add(row)
     try: db.commit()
     except Exception:
@@ -79,13 +79,14 @@ def delete_project(project_id: int, db: Session = Depends(get_db), principal: Pr
 @router.post("/projects/{project_id}/clone", response_model=s.ProjectOut, status_code=201)
 def clone_project(project_id: int, payload: ProjectCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
     source = _owned(db, principal, project_id)
-    target = m.TtProject(school_id=principal.school_id, name=payload.name, description=payload.description if payload.description is not None else source.description, academic_year_id=payload.academic_year_id if payload.academic_year_id is not None else source.academic_year_id, term_id=payload.term_id if payload.term_id is not None else source.term_id, created_by=principal.email or principal.user_id)
+    creator = principal.email or str(principal.user_id)
+    target = m.TtProject(school_id=principal.school_id, name=payload.name, description=payload.description if payload.description is not None else source.description, academic_year_id=payload.academic_year_id if payload.academic_year_id is not None else source.academic_year_id, term_id=payload.term_id if payload.term_id is not None else source.term_id, created_by=creator)
     db.add(target); db.flush()
     source_version = None
     if source.current_version_id:
         source_version = db.query(m.TtVersion).filter(m.TtVersion.id == source.current_version_id, m.TtVersion.school_id == principal.school_id).first()
     if source_version:
-        new_version = m.TtVersion(school_id=principal.school_id, project_id=target.id, number=1, name=source_version.name, label=source_version.label, status="draft", quality=source_version.quality or {}, stats=source_version.stats or {}, created_by=principal.email or principal.user_id, day_indexes=source_version.day_indexes or [], day_names=source_version.day_names or [], display_mode=source_version.display_mode, timetable_type_id=source_version.timetable_type_id)
+        new_version = m.TtVersion(school_id=principal.school_id, project_id=target.id, number=1, name=source_version.name, label=source_version.label, status="draft", quality=source_version.quality or {}, stats=source_version.stats or {}, created_by=creator, day_indexes=source_version.day_indexes or [], day_names=source_version.day_names or [], display_mode=source_version.display_mode, timetable_type_id=source_version.timetable_type_id)
         db.add(new_version); db.flush()
         for lesson in source_version.lessons:
             db.add(m.TtLesson(school_id=principal.school_id, version_id=new_version.id, requirement_id=lesson.requirement_id, class_id=lesson.class_id, subject_id=lesson.subject_id, teacher_id=lesson.teacher_id, room_id=lesson.room_id, day_index=lesson.day_index, period_index=lesson.period_index, duration=lesson.duration, is_locked=lesson.is_locked))
