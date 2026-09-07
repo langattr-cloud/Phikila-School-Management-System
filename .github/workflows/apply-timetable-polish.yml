@@ -1,0 +1,53 @@
+name: Apply final timetable UI polish
+
+on:
+  push:
+    branches: [ui/timetable-final-polish]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !startsWith(github.event.head_commit.message, 'fix: finalize timetable UI') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply minimal timetable changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          grid = Path('frontend/src/components/TimetableGrid.tsx')
+          s = grid.read_text()
+
+          old = "const timeStyle = { '--tt-period-count': orderedPeriods.length || 1, gridTemplateColumns: `2.5rem repeat(${Math.max(1, orderedPeriods.length)}, minmax(0, 1fr))` } as CSSProperties"
+          new = "const timeStyle = { '--tt-period-count': orderedPeriods.length || 1, gridTemplateColumns: `2.25rem repeat(${Math.max(1, orderedPeriods.length)}, minmax(0, 1fr))` } as CSSProperties"
+          assert old in s, 'timeStyle target not found'
+          s = s.replace(old, new, 1)
+
+          old = "{cellLessons.map((lesson) => renderCard(lesson, true))}</div>"
+          new = "{!isBreak && cellLessons.map((lesson) => renderCard(lesson, true))}</div>"
+          assert s.count(old) == 2, f'expected 2 lesson-cell targets, found {s.count(old)}'
+          s = s.replace(old, new)
+
+          grid.write_text(s)
+
+          page = Path('frontend/src/pages/TimetablePage.tsx')
+          p = page.read_text()
+          old = '<PageHeader title="Timetable - Whole School"'
+          new = '<PageHeader title="Timetable"'
+          assert p.count(old) == 1, f'expected one page title target, found {p.count(old)}'
+          p = p.replace(old, new, 1)
+          page.write_text(p)
+          PY
+
+          git diff --check
+          git diff -- frontend/src/components/TimetableGrid.tsx frontend/src/pages/TimetablePage.tsx
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add frontend/src/components/TimetableGrid.tsx frontend/src/pages/TimetablePage.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: finalize timetable UI"
+          git push
