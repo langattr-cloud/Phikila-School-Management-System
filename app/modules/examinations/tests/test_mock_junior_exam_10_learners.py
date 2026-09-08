@@ -11,20 +11,22 @@ def load_fixture():
     return json.loads(FIXTURE.resolve().read_text())
 
 
-def test_mock_exam_has_ten_learners_and_six_subjects():
+def test_mock_exam_has_ten_learners_and_nine_learning_areas():
     data = load_fixture()
     assert len(data["learners"]) == 10
-    assert len(data["scenario"]["subjects"]) == 6
+    assert len(data["scenario"]["learning_areas"]) == 9
+    assert data["scenario"]["grading_structure"] == "KJSEA/CBC four-band achievement levels"
 
 
-def test_all_scores_are_valid_percentages():
+def test_all_scores_are_valid_percentages_and_cover_all_learning_areas():
     data = load_fixture()
+    learning_area_keys = {area["key"] for area in data["scenario"]["learning_areas"]}
     for learner in data["learners"]:
-        assert set(learner["marks"]) == {s["key"] for s in data["scenario"]["subjects"]}
+        assert set(learner["marks"]) == learning_area_keys
         assert all(0 <= score <= 100 for score in learner["marks"].values())
 
 
-def test_expected_report_cards_match_junior_cbc_bands():
+def test_expected_report_cards_match_junior_kjsea_cbc_bands():
     data = load_fixture()
     expected = {r["admission_number"]: r for r in data["expected_report_cards"]}
     for learner in data["learners"]:
@@ -40,7 +42,7 @@ def test_expected_report_cards_match_junior_cbc_bands():
         assert result["band_label"] == band.label
 
 
-def test_fixture_covers_all_four_junior_bands():
+def test_fixture_covers_all_four_junior_kjsea_bands():
     data = load_fixture()
     bands = {r["band"] for r in data["expected_report_cards"]}
     assert bands == {"EE", "ME", "AE", "BE"}
