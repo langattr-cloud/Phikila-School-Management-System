@@ -4,7 +4,7 @@ import json
 
 from app.modules.examinations.grading import band_for_percentage, JUNIOR
 
-FIXTURE = Path(__file__).parents[3] / ".." / ".." / ".." / "tests" / "fixtures" / "mock_junior_exam_10_learners.json"
+FIXTURE = Path(__file__).parents[3] / "tests" / "fixtures" / "mock_junior_exam_10_learners.json"
 
 
 def load_fixture():
