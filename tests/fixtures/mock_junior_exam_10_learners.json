@@ -1,0 +1,41 @@
+{
+  "scenario": {
+    "name": "2026 Term 3 Junior School Mock Examination",
+    "education_level": "junior",
+    "grade": "Grade 8",
+    "stream": "A",
+    "total_marks_per_subject": 100,
+    "subjects": [
+      {"key": "ENG", "name": "English"},
+      {"key": "KIS", "name": "Kiswahili"},
+      {"key": "MAT", "name": "Mathematics"},
+      {"key": "SCI", "name": "Integrated Science"},
+      {"key": "SST", "name": "Social Studies"},
+      {"key": "CRE", "name": "CRE"}
+    ]
+  },
+  "learners": [
+    {"admission_number":"PS-8001","first_name":"Amani","last_name":"Otieno","marks":{"ENG":88,"KIS":76,"MAT":81,"SCI":69,"SST":92,"CRE":84}},
+    {"admission_number":"PS-8002","first_name":"Brian","last_name":"Kamau","marks":{"ENG":74,"KIS":68,"MAT":79,"SCI":61,"SST":72,"CRE":77}},
+    {"admission_number":"PS-8003","first_name":"Chipo","last_name":"Mwangi","marks":{"ENG":58,"KIS":64,"MAT":55,"SCI":71,"SST":62,"CRE":59}},
+    {"admission_number":"PS-8004","first_name":"Daisy","last_name":"Wanjiku","marks":{"ENG":47,"KIS":52,"MAT":44,"SCI":49,"SST":56,"CRE":41}},
+    {"admission_number":"PS-8005","first_name":"Eliud","last_name":"Kiptoo","marks":{"ENG":36,"KIS":43,"MAT":39,"SCI":31,"SST":45,"CRE":38}},
+    {"admission_number":"PS-8006","first_name":"Faith","last_name":"Achieng","marks":{"ENG":82,"KIS":89,"MAT":78,"SCI":86,"SST":91,"CRE":80}},
+    {"admission_number":"PS-8007","first_name":"George","last_name":"Mutua","marks":{"ENG":67,"KIS":73,"MAT":62,"SCI":58,"SST":69,"CRE":71}},
+    {"admission_number":"PS-8008","first_name":"Hawa","last_name":"Abdi","marks":{"ENG":51,"KIS":48,"MAT":57,"SCI":53,"SST":46,"CRE":60}},
+    {"admission_number":"PS-8009","first_name":"Ian","last_name":"Omondi","marks":{"ENG":79,"KIS":83,"MAT":75,"SCI":72,"SST":81,"CRE":77}},
+    {"admission_number":"PS-8010","first_name":"Joy","last_name":"Njeri","marks":{"ENG":42,"KIS":37,"MAT":45,"SCI":50,"SST":39,"CRE":44}}
+  ],
+  "expected_report_cards": [
+    {"admission_number":"PS-8001","total":490,"average":81.7,"percentage":81.7,"band":"EE","band_label":"Exceeding Expectations"},
+    {"admission_number":"PS-8002","total":431,"average":71.8,"percentage":71.8,"band":"ME","band_label":"Meeting Expectations"},
+    {"admission_number":"PS-8003","total":369,"average":61.5,"percentage":61.5,"band":"ME","band_label":"Meeting Expectations"},
+    {"admission_number":"PS-8004","total":289,"average":48.2,"percentage":48.2,"band":"AE","band_label":"Approaching Expectations"},
+    {"admission_number":"PS-8005","total":232,"average":38.7,"percentage":38.7,"band":"BE","band_label":"Below Expectations"},
+    {"admission_number":"PS-8006","total":506,"average":84.3,"percentage":84.3,"band":"EE","band_label":"Exceeding Expectations"},
+    {"admission_number":"PS-8007","total":400,"average":66.7,"percentage":66.7,"band":"ME","band_label":"Meeting Expectations"},
+    {"admission_number":"PS-8008","total":315,"average":52.5,"percentage":52.5,"band":"ME","band_label":"Meeting Expectations"},
+    {"admission_number":"PS-8009","total":467,"average":77.8,"percentage":77.8,"band":"ME","band_label":"Meeting Expectations"},
+    {"admission_number":"PS-8010","total":257,"average":42.8,"percentage":42.8,"band":"AE","band_label":"Approaching Expectations"}
+  ]
+}
