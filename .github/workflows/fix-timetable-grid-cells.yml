@@ -9,19 +9,20 @@ permissions:
 
 jobs:
   fix:
-    if: ${{ !startsWith(github.event.head_commit.message, 'fix: apply timetable grid cell selection') }}
+    if: ${{ !startsWith(github.event.head_commit.message, 'fix: apply timetable grid cell selection') && !startsWith(github.event.head_commit.message, 'fix: apply timetable generation safeguards') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch timetable grid
+      - name: Patch timetable grid and solver
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('frontend/src/components/TimetableGrid.tsx')
-          s = p.read_text()
+
+          grid = Path('frontend/src/components/TimetableGrid.tsx')
+          s = grid.read_text()
           old = "const [dragging, setDragging] = useState<Lesson | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [printSettings, setPrintSettings] = useState<PrintLabelSettings>(() => ({ ...DEFAULT_PRINT_LABEL_SETTINGS, timeFormat, timeLayout })); const [printSettingsOpen, setPrintSettingsOpen] = useState(false)"
           new = "const [dragging, setDragging] = useState<Lesson | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [selectedAppearanceKey, setSelectedAppearanceKey] = useState<string | null>(null); const [printSettings, setPrintSettings] = useState<PrintLabelSettings>(() => ({ ...DEFAULT_PRINT_LABEL_SETTINGS, timeFormat, timeLayout })); const [printSettingsOpen, setPrintSettingsOpen] = useState(false)"
-          if old in s:
+          if old in s and 'selectedAppearanceKey' not in s:
               s = s.replace(old, new, 1)
           old = "const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => { window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } })) }"
           new = "const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => { const key = `${type}:${details.day ?? ''}:${details.period ?? ''}:${details.lessonId ?? ''}`; setSelectedAppearanceKey(key); window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } })) }"
@@ -35,23 +36,41 @@ jobs:
           new = "onClick={() => period.is_teaching && selectAppearanceCell(cellLessons.length ? 'lesson' : 'period', cellLessons.length ? (meta.subjects.get(cellLessons[0].subject_id)?.name ?? 'Lesson') : `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index, lessonId: cellLessons[0]?.id })} {...slotHandlers(key, day.index, period.index, isBreak)}"
           if old in s:
               s = s.replace(old, new, 1)
-          p.write_text(s)
+          grid.write_text(s)
+
           css = Path('frontend/src/components/timetable-time-grid.css')
           c = css.read_text()
           rule = '.timetable__cell--appearance-selected,.timetable__whole-slot--appearance-selected{box-shadow:inset 0 0 0 2px var(--color-primary);position:relative;z-index:2}'
           if rule not in c:
-              css.write_text(c + '\n' + rule + '\n')
+              css.write_text(c.rstrip() + '\n' + rule + '\n')
+
+          solver = Path('app/modules/scheduling/solver.py')
+          s = solver.read_text()
+          old = "    # An incomplete lesson load is valid. Generate the currently loaded lessons;\n    # the UI can surface the missing lesson data as a warning.\n    if capacity==0:problems.append(\"The timetable has no teaching periods. Add periods first.\");return problems"
+          new = "    if capacity==0:problems.append(\"The timetable has no teaching periods. Add periods first.\");return problems\n    if not data.requirements:\n        problems.append(\"No lesson requirements are configured. Add at least one class, subject and weekly lesson requirement before generating a timetable.\")\n        return problems"
+          if old in s:
+              s = s.replace(old, new, 1)
+          solver.write_text(s)
+
+          jobs = Path('app/modules/scheduling/jobs.py')
+          s = jobs.read_text()
+          old = '        if not result.solved:return _fail(db,job," ".join(result.messages) or "No feasible timetable was found.")\n        double_problems=enforce_double_lessons(data,result.placements)'
+          new = '        if not result.solved:return _fail(db,job," ".join(result.messages) or "No feasible timetable was found.")\n        expected=sum(r.periods_per_week for r in data.requirements)\n        if not result.placements or len(result.placements) != expected:\n            return _fail(db,job,f"The generated timetable is incomplete ({len(result.placements)} of {expected} lessons). The existing timetable was not changed.")\n        double_problems=enforce_double_lessons(data,result.placements)'
+          if old in s:
+              s = s.replace(old, new, 1)
+          jobs.write_text(s)
           PY
       - name: Verify patch
         run: |
           grep -q "selectedAppearanceKey" frontend/src/components/TimetableGrid.tsx
           grep -q "timetable__cell--appearance-selected" frontend/src/components/TimetableGrid.tsx
-          grep -q "timetable__cell--appearance-selected" frontend/src/components/timetable-time-grid.css
+          grep -q "No lesson requirements are configured" app/modules/scheduling/solver.py
+          grep -q "generated timetable is incomplete" app/modules/scheduling/jobs.py
       - name: Commit fix
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add frontend/src/components/TimetableGrid.tsx frontend/src/components/timetable-time-grid.css
+          git add frontend/src/components/TimetableGrid.tsx frontend/src/components/timetable-time-grid.css app/modules/scheduling/solver.py app/modules/scheduling/jobs.py
           git diff --cached --quiet && exit 0
-          git commit -m "fix: apply timetable grid cell selection"
+          git commit -m "fix: apply timetable generation safeguards"
           git push
