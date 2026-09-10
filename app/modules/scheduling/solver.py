@@ -45,9 +45,10 @@ class SolverOutput:
 class InfeasibleError(RuntimeError): pass
 def preflight(data:SolverInput)->list[str]:
     problems=[];capacity=len(data.days)*len(data.teaching_periods)
-    # An incomplete lesson load is valid. Generate the currently loaded lessons;
-    # the UI can surface the missing lesson data as a warning.
     if capacity==0:problems.append("The timetable has no teaching periods. Add periods first.");return problems
+    if not data.requirements:
+        problems.append("No lesson requirements are configured. Add at least one class, subject and weekly lesson requirement before generating a timetable.")
+        return problems
     hc={};ht={}
     for rule in data.avoid_rules:
         if rule.is_hard:(hc if rule.scope=="class" else ht).setdefault(rule.target_id,set()).update(rule.slots)
@@ -73,9 +74,6 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
     if not ORTOOLS_AVAILABLE:return SolverOutput("error",[],{}, {},["OR-Tools is not installed on the server."])
     report=on_progress or (lambda pct,stage:None);problems=preflight(data)
     if problems:return SolverOutput("infeasible",[],{}, {},problems)
-    warning_messages=[]
-    if not data.requirements:
-        warning_messages.append("Not all lessons are loaded. The timetable was generated from the lessons currently configured.")
     model=cp_model.CpModel();slots=[(d,p) for d in data.days for p in data.teaching_periods];x={}
     def allowed(r,d,p):
         c=data.classes.get(r.class_id)
@@ -128,9 +126,6 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
             if v:model.Add(sum(v)<=spec.max_per_day)
     for r in data.requirements:
         subject=data.subjects.get(r.subject_id)
-        # Subject appears at most once per day by default. A double lesson may
-        # occupy two periods on the same day. Allocations above 5 periods/week
-        # are exempt because they cannot be distributed one-per-day.
         if subject and subject.spread_across_week and r.periods_per_week<=5:
             cap=2 if r.double_periods else 1
             for d in data.days:
@@ -193,7 +188,9 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
     label="optimal" if status==cp_model.OPTIMAL else "feasible" if status==cp_model.FEASIBLE else None
     if not label:return SolverOutput("infeasible",[],{}, {},["No timetable satisfies every hard constraint. Relax an availability rule, reduce weekly lessons, or add rooms/periods."])
     placements=[Placement(r.id,r.class_id,r.subject_id,r.teacher_id,r.room_id,d,p) for r in data.requirements for d,p in slots if (r.id,d,p) in x and solver.Value(x[(r.id,d,p)])]
-    quality=score(data,placements);stats={"placed":len(placements),"required":sum(r.periods_per_week for r in data.requirements),"conflicts":0,"penalty":int(solver.ObjectiveValue()) if penalties else 0,"wall_time":round(solver.WallTime(),2),"status":label};report(100,"Completed");return SolverOutput(label,placements,quality,stats,warning_messages)
+    expected=sum(r.periods_per_week for r in data.requirements)
+    if len(placements)!=expected:return SolverOutput("error",placements,{},{"placed":len(placements),"required":expected},[f"The solver returned an incomplete timetable ({len(placements)} of {expected} lessons). The existing timetable was not changed."])
+    quality=score(data,placements);stats={"placed":len(placements),"required":expected,"conflicts":0,"penalty":int(solver.ObjectiveValue()) if penalties else 0,"wall_time":round(solver.WallTime(),2),"status":label};report(100,"Completed");return SolverOutput(label,placements,quality,stats,[])
 class _ProgressCallback(cp_model.CpSolverSolutionCallback if ORTOOLS_AVAILABLE else object):
     def __init__(self,report,should_cancel):
         if ORTOOLS_AVAILABLE:cp_model.CpSolverSolutionCallback.__init__(self)
@@ -202,13 +199,10 @@ class _ProgressCallback(cp_model.CpSolverSolutionCallback if ORTOOLS_AVAILABLE e
         import time
         self._count+=1
         now=time.monotonic()
-        # Solution callbacks run on the solver hot path. Do not perform a database
-        # query/commit for every incumbent; that can dominate solve time.
         if now-self._last_report >= 0.75 or self._count == 1:
             self._last_report=now
             self._report(min(80,40+self._count*6),f"Improving solution ({self._count})")
-        if self._should_cancel and (self._count % 10 == 0 or now-self._last_report < 0.01) and self._should_cancel():
-            self.StopSearch()
+        if self._should_cancel and (self._count % 10 == 0 or now-self._last_report < 0.01) and self._should_cancel():self.StopSearch()
 def score(data:SolverInput,placements:Sequence[Placement])->dict:
     required=sum(r.periods_per_week for r in data.requirements);placed=len(placements);hard=100.0 if placed==required else round(100.0*placed/max(1,required),1)
     by_teacher_day={}
@@ -222,17 +216,5 @@ def score(data:SolverInput,placements:Sequence[Placement])->dict:
     per_class_subject_day={}
     for p in placements:key=(p.class_id,p.subject_id,p.day);per_class_subject_day[key]=per_class_subject_day.get(key,0)+1
     repeats=sum(v-1 for v in per_class_subject_day.values() if v>1);dist_score=100.0 if placed==0 else round(max(0.0,100.0*(1-repeats/placed)),1)
-    capacity=len(data.days)*len(data.teaching_periods)*max(1,len(data.rooms));used=sum(1 for p in placements if p.room_id is not None);room_score=round(min(100.0,100.0*used/capacity),1) if data.rooms else 100.0
-    loads={}
-    for p in placements:
-        if p.teacher_id is not None:loads[p.teacher_id]=loads.get(p.teacher_id,0)+1
-    if len(loads)>1:
-        mean=sum(loads.values())/len(loads);spread=sum(abs(v-mean) for v in loads.values())/len(loads);workload_score=round(max(0.0,100.0-(spread/max(1.0,mean))*100.0),1)
-    else:workload_score=100.0
-    per_class_day={}
-    for p in placements:per_class_day[(p.class_id,p.day)]=per_class_day.get((p.class_id,p.day),0)+1
-    if per_class_day:
-        mean=sum(per_class_day.values())/len(per_class_day);spread=sum(abs(v-mean) for v in per_class_day.values())/len(per_class_day);class_score=round(max(0.0,100.0-(spread/max(1.0,mean))*100.0),1)
-    else:class_score=100.0
-    overall=hard*.45+workload_score*.15+dist_score*.15+gap_score*.15+class_score*.06+room_score*.04
-    return {"overall":round(overall),"breakdown":{"hard_constraints":hard,"teacher_workload":workload_score,"subject_distribution":dist_score,"room_utilisation":room_score,"teacher_gaps":gap_score,"class_distribution":class_score}}
+    capacity=len(data.days)*len(data.teaching_periods);utilisation=round(100.0*placed/max(1,capacity*max(1,len(data.classes))),1)
+    return {"hard_constraints":hard,"teacher_gap_score":gap_score,"distribution_score":dist_score,"room_utilisation":utilisation,"overall":round((hard+gap_score+dist_score)/3,1)}
