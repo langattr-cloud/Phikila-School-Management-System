@@ -24,6 +24,26 @@ def _diagnostic_checks(data, problems: list[str], feasible: bool | None = None):
     ]
 
 
+def _relax_until_solved(data, max_seconds: float):
+    """Try the strict model first, then relax one lowest-priority hard avoid rule at a time."""
+    relaxed: list[str] = []
+    while True:
+        problems = preflight(data)
+        if problems:
+            rule = relax_next_rule(data.avoid_rules)
+            if rule is None:
+                return None, problems, relaxed
+            relaxed.append(rule.note or f"{rule.scope} {rule.target_id} avoid constraint")
+            continue
+        result = solve(data)
+        if result.solved:
+            return result, [], relaxed
+        rule = relax_next_rule(data.avoid_rules)
+        if rule is None:
+            return result, result.messages or ["No feasible timetable was found."], relaxed
+        relaxed.append(rule.note or f"{rule.scope} {rule.target_id} avoid constraint")
+
+
 @router.post("/solver/test")
 def test_generation(
     payload: GenerateIn,
@@ -46,22 +66,26 @@ def test_generation(
     if payload.mode == "draft":
         relaxed = [rule.note or f"{rule.scope} {rule.target_id} constraint" for rule in data.avoid_rules]
         data.avoid_rules = []
+        problems = preflight(data)
+        checks = _diagnostic_checks(data, problems)
+        if problems:
+            return {"passed": False, "feasible": False, "mode": payload.mode, "checks": checks, "problems": problems, "relaxed_constraints": relaxed}
+        result = solve(data)
     elif payload.mode == "relax":
-        while True:
-            problems = preflight(data)
-            if not problems:
-                break
-            rule = relax_next_rule(data.avoid_rules)
-            if rule is None:
-                checks = _diagnostic_checks(data, problems, False)
-                return {"passed": False, "feasible": False, "mode": payload.mode, "checks": checks, "problems": problems, "relaxed_constraints": relaxed}
-            relaxed.append(rule.note or f"{rule.scope} {rule.target_id} avoid constraint")
-    problems = preflight(data)
-    checks = _diagnostic_checks(data, problems)
-    if problems:
-        return {"passed": False, "feasible": False, "mode": payload.mode, "checks": checks, "problems": problems, "relaxed_constraints": relaxed}
+        result, problems, relaxed = _relax_until_solved(data, min(10.0, payload.max_seconds))
+        if result is None:
+            checks = _diagnostic_checks(data, problems, False)
+            return {"passed": False, "feasible": False, "mode": payload.mode, "checks": checks, "problems": problems, "relaxed_constraints": relaxed}
+        if not result.solved:
+            checks = _diagnostic_checks(data, problems, False)
+            return {"passed": False, "feasible": False, "mode": payload.mode, "checks": checks, "problems": problems, "relaxed_constraints": relaxed, "quality": result.quality, "stats": result.stats}
+    else:
+        problems = preflight(data)
+        checks = _diagnostic_checks(data, problems)
+        if problems:
+            return {"passed": False, "feasible": False, "mode": payload.mode, "checks": checks, "problems": problems, "relaxed_constraints": relaxed}
+        result = solve(data)
 
-    result = solve(data)
     feasible = result.solved
     checks = _diagnostic_checks(data, result.messages if not feasible else [], feasible)
     return {
