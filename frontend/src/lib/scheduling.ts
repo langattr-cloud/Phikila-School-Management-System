@@ -41,6 +41,7 @@ export interface TimetableAmendment { id:number; title:string; message:string; a
 export interface TimetableDisplayDay { index:number; name:string }
 export interface TimetableDisplayPeriod { index:number; name:string; start_time:string; end_time:string; is_teaching:boolean }
 export interface TimetableDisplayLesson { day:number; period:number; subject:string; subject_colour?:string; teacher:string|null; class:string; room?:string|null }
+export interface TimetableView extends Loose { days:TimetableDisplayDay[]; periods:TimetableDisplayPeriod[]; lessons:TimetableDisplayLesson[]; target_name?:string; version?:Version|null; timetable_type?:TimetableType|null }
 export interface ExplanationReason { code?:string|null; message?:string|null; text?:string|null; factor?:string|null; detail?:string|null }
 export interface Alternative { day:number; period:number; day_name?:string|null; period_name?:string|null }
 export interface Explanation { allowed:boolean; reasons:ExplanationReason[]; alternatives:Alternative[] }
