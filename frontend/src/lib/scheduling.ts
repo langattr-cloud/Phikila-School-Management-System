@@ -35,7 +35,7 @@ export interface JobCheck { key: string; label: string; state: string; group?: '
 export interface JobQuality extends Quality {}
 export interface Job extends Loose { id: number; status: string; stage?: string; progress: number; message?: string|null; checks: JobCheck[]; quality?: JobQuality; result_version_id?: number|null }
 export interface Quality { overall?: number; breakdown?: Record<string, number> }
-export interface Version extends Loose { id: number; number?:number; status:string; effective_from?:string|null; published_at?:string|null; timetable_type_id?:number|null; timetable_type_name?:string|null; display_mode?:'day'|'date'; day_indexes?:number[]; day_names?:string[]; period_indexes?:number[] }
+export interface Version extends Loose { id: number; number?:number; name?:string; label?:string; status:string; effective_from?:string|null; published_at?:string|null; timetable_type_id?:number|null; timetable_type_name?:string|null; display_mode?:'day'|'date'; day_indexes?:number[]; day_names?:string[]; period_indexes?:number[] }
 export interface Lesson extends Loose { id:number; day_index:number; period_index:number; subject_id:number; teacher_id:number; room_id:number|null; class_id:number; version_id:number; duration:number; is_locked?:boolean }
 export interface TimetableAmendment { id:number; title:string; message:string; at:string|null; actor:string|null }
 export interface TimetableDisplayDay { index:number; name:string }
