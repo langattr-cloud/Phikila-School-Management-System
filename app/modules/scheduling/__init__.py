@@ -42,8 +42,8 @@ def _scoped_build_input(db, school_id, *, max_seconds=30.0, class_ids=None, teac
     data.avoid_rules = [r for r in data.avoid_rules if (r.scope == 'class' and r.target_id in data.classes) or (r.scope == 'teacher' and r.target_id in data.teachers) or (r.scope == 'subject' and r.target_id in data.subjects)]
 
     # aSc-style regeneration semantics: existing locked lessons become fixed
-    # solver placements. Only their requirement/day/period is needed here;
-    # weekly quota and resource collision constraints already protect the slot.
+    # solver placements. The existing timetable remains the source of truth for
+    # locks; no new schema is required.
     latest = db.query(_engine.m.TtVersion).filter(_engine.m.TtVersion.school_id == school_id).order_by(_engine.m.TtVersion.id.desc()).first()
     if latest is not None:
         locked = {}
@@ -91,11 +91,15 @@ def _persist_project(db, school_id, result, actor, config):
     indexes=list(config.get('day_indexes') or []); names=config.get('day_names') or {}; display_mode=config.get('display_mode') or 'day'
     fallback={d.index:d.name for d in db.query(_engine.m.TtDay).filter(_engine.m.TtDay.school_id==school_id).all()}
     previous=db.query(_engine.m.TtVersion).filter(_engine.m.TtVersion.project_id==project.id, _engine.m.TtVersion.school_id==school_id).order_by(_engine.m.TtVersion.number.desc()).first()
+    locked_positions=set()
+    if previous is not None:
+        locked_positions={(int(l.requirement_id), int(l.day_index), int(l.period_index)) for l in previous.lessons if l.is_locked and l.requirement_id}
     number=(previous.number+1) if previous else 1
     version=_engine.m.TtVersion(school_id=school_id,project_id=project.id,number=number,name=config.get('label') or project.name,label=config.get('label') or project.name,status='draft',timetable_type_id=config.get('timetable_type_id'),created_by=actor,day_indexes=indexes,day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes],display_mode=display_mode,quality=result.quality,stats=result.stats)
     db.add(version); db.flush()
     for p in result.placements:
-        db.add(_engine.m.TtLesson(school_id=school_id,version_id=version.id,requirement_id=p.requirement_id,class_id=p.class_id,subject_id=p.subject_id,teacher_id=p.teacher_id,room_id=p.room_id,day_index=p.day,period_index=p.period,duration=p.duration))
+        locked=(int(p.requirement_id), int(p.day), int(p.period)) in locked_positions
+        db.add(_engine.m.TtLesson(school_id=school_id,version_id=version.id,requirement_id=p.requirement_id,class_id=p.class_id,subject_id=p.subject_id,teacher_id=p.teacher_id,room_id=p.room_id,day_index=p.day,period_index=p.period,duration=p.duration,is_locked=locked))
     project.current_version_id=version.id
     db.commit(); _engine.assign_rooms_to_lessons(db,school_id,version.id); db.refresh(version); return version
 
