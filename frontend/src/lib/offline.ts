@@ -37,6 +37,7 @@ function openDb(): Promise<IDBDatabase | null> {
     // Private-browsing modes can block IndexedDB; degrade to online-only.
     request.onerror = () => resolve(null)
   })
+
   return dbPromise
 }
 
@@ -74,11 +75,11 @@ export async function cacheClear(): Promise<void> {
 }
 
 function scopedKey(key: string): string {
-  // TimetablePage supports ?version=<id>. Keep each version's offline copy
+  // TimetablePage supports ?version_id=<id>. Keep each version's offline copy
   // separate so opening an older timetable offline cannot surface another
   // version's cached lessons.
   if (key !== 'timetable:workspace' || typeof window === 'undefined') return key
-  const requested = new URLSearchParams(window.location.search).get('version')
+  const requested = new URLSearchParams(window.location.search).get('version_id')
   return requested ? `${key}:version:${requested}` : `${key}:current`
 }
 
