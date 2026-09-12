@@ -52,7 +52,7 @@ def _rate_limit_mutations(router) -> None:
 def create_app() -> FastAPI:
     app = FastAPI(title="Phikila School System API", description="Backend API for Phikila School System - Phased Modular Architecture", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
     if settings.cors_origins or settings.cors_origin_regex:
-        app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_origin_regex=settings.cors_origin_regex, allow_credentials=True, allow_methods=["Authorization", "Content-Type", "Accept"] if False else ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "Accept"])
+        app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_origin_regex=settings.cors_origin_regex, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "Accept"])
     from app.middleware import SecurityHeadersMiddleware, AccessLogMiddleware
     app.add_middleware(AccessLogMiddleware); app.add_middleware(SecurityHeadersMiddleware)
     @app.get("/health", tags=["Health"])
