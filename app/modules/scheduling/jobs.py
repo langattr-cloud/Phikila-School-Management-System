@@ -30,6 +30,48 @@ def _actor_uuid(db,school_id,actor):
     if membership:return membership.user_id
     membership=db.query(TtMembership).filter(TtMembership.school_id==school_id,TtMembership.email==actor,TtMembership.is_active.is_(True)).first()
     return membership.user_id if membership else None
+
+def _diagnose_infeasibility(data):
+    """Return actionable aSc-style explanations for a solver infeasibility."""
+    diagnostics=[]
+    slots=[(d,p) for d in data.days for p in data.teaching_periods]
+    for r in data.requirements:
+        available=[]
+        blocked_class=blocked_teacher=blocked_room=blocked_rule=0
+        for d,p in slots:
+            c=data.classes.get(r.class_id)
+            if c and (d,p) in c.unavailable:
+                blocked_class+=1; continue
+            if r.teacher_id and data.teachers.get(r.teacher_id) and (d,p) in data.teachers[r.teacher_id].unavailable:
+                blocked_teacher+=1; continue
+            if r.room_id and data.rooms.get(r.room_id) and (d,p) in data.rooms[r.room_id].unavailable:
+                blocked_room+=1; continue
+            denied=False
+            for rule in data.avoid_rules:
+                match=(rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)
+                if rule.is_hard and match and (d,p) in rule.slots:
+                    blocked_rule+=1; denied=True; break
+            if not denied: available.append((d,p))
+        if len(available)<r.periods_per_week:
+            diagnostics.append(f"Requirement {r.id} needs {r.periods_per_week} slot(s) but only {len(available)} are available after hard constraints.")
+            if blocked_class: diagnostics.append(f"Requirement {r.id}: {blocked_class} slot(s) are blocked by class availability.")
+            if blocked_teacher: diagnostics.append(f"Requirement {r.id}: {blocked_teacher} slot(s) are blocked by teacher availability.")
+            if blocked_room: diagnostics.append(f"Requirement {r.id}: {blocked_room} slot(s) are blocked by room availability.")
+            if blocked_rule: diagnostics.append(f"Requirement {r.id}: {blocked_rule} slot(s) are blocked by hard avoid constraints.")
+    if not diagnostics:
+        class_counts={}
+        teacher_counts={}
+        for r in data.requirements:
+            class_counts[r.class_id]=class_counts.get(r.class_id,0)+r.periods_per_week
+            if r.teacher_id: teacher_counts[r.teacher_id]=teacher_counts.get(r.teacher_id,0)+r.periods_per_week
+        capacity=len(slots)
+        for cid,total in class_counts.items():
+            if total>capacity: diagnostics.append(f"Class {cid} requires {total} lessons but the calendar provides only {capacity} teaching slots.")
+        for tid,total in teacher_counts.items():
+            spec=data.teachers.get(tid)
+            if spec and total>spec.max_per_day*len(data.days): diagnostics.append(f"Teacher {spec.name} requires {total} lessons but the configured daily limit provides at most {spec.max_per_day*len(data.days)} slots.")
+    return diagnostics
+
 def _run_job(job_id,school_id,max_seconds,day_indexes=None):
     db=SessionLocal(); original_days=None
     try:
@@ -61,7 +103,8 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
         if mode=='draft' and problems:
             job.stage="Generating draft"; job.progress=max(job.progress,18); db.commit()
         def cancelled():
-            try: db.expire_all(); row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first(); return bool(row and row.cancel_requested)
+            try:
+                db.expire_all(); row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first(); return bool(row and row.cancel_requested)
             except Exception: db.rollback(); return False
         def report(pct,stage):
             try:
@@ -81,7 +124,12 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             return
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
         if not job:return
-        if not result.solved:return _fail(db,job," ".join(result.messages) or "No feasible timetable was found.")
+        if not result.solved:
+            diagnostics=_diagnose_infeasibility(data)
+            message=" ".join(result.messages) or "No feasible timetable was found."
+            if diagnostics: message += " Diagnostics: " + " ".join(diagnostics)
+            job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"failed")
+            return _fail(db,job,message)
         double_problems=enforce_double_lessons(data,result.placements)
         if double_problems:
             job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"failed"); db.commit()
