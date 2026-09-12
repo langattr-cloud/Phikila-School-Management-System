@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from . import models as m
 from .engine import build_input, detect_conflicts
-from .generation_rules import enforce_double_lessons
+from .generation_rules import enforce_double_lessons, relax_next_rule
 from .solver import ORTOOLS_AVAILABLE, preflight, solve
 from .tenancy import TtMembership
 logger=logging.getLogger(__name__)
@@ -33,24 +33,18 @@ def _actor_uuid(db,school_id,actor):
 
 def _diagnose_infeasibility(data):
     """Return actionable aSc-style explanations for a solver infeasibility."""
-    diagnostics=[]
-    slots=[(d,p) for d in data.days for p in data.teaching_periods]
+    diagnostics=[]; slots=[(d,p) for d in data.days for p in data.teaching_periods]
     for r in data.requirements:
-        available=[]
-        blocked_class=blocked_teacher=blocked_room=blocked_rule=0
+        available=[]; blocked_class=blocked_teacher=blocked_room=blocked_rule=0
         for d,p in slots:
             c=data.classes.get(r.class_id)
-            if c and (d,p) in c.unavailable:
-                blocked_class+=1; continue
-            if r.teacher_id and data.teachers.get(r.teacher_id) and (d,p) in data.teachers[r.teacher_id].unavailable:
-                blocked_teacher+=1; continue
-            if r.room_id and data.rooms.get(r.room_id) and (d,p) in data.rooms[r.room_id].unavailable:
-                blocked_room+=1; continue
+            if c and (d,p) in c.unavailable: blocked_class+=1; continue
+            if r.teacher_id and data.teachers.get(r.teacher_id) and (d,p) in data.teachers[r.teacher_id].unavailable: blocked_teacher+=1; continue
+            if r.room_id and data.rooms.get(r.room_id) and (d,p) in data.rooms[r.room_id].unavailable: blocked_room+=1; continue
             denied=False
             for rule in data.avoid_rules:
-                match=(rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)
-                if rule.is_hard and match and (d,p) in rule.slots:
-                    blocked_rule+=1; denied=True; break
+                match=(rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id)
+                if rule.is_hard and match and (d,p) in rule.slots: blocked_rule+=1; denied=True; break
             if not denied: available.append((d,p))
         if len(available)<r.periods_per_week:
             diagnostics.append(f"Requirement {r.id} needs {r.periods_per_week} slot(s) but only {len(available)} are available after hard constraints.")
@@ -59,8 +53,7 @@ def _diagnose_infeasibility(data):
             if blocked_room: diagnostics.append(f"Requirement {r.id}: {blocked_room} slot(s) are blocked by room availability.")
             if blocked_rule: diagnostics.append(f"Requirement {r.id}: {blocked_rule} slot(s) are blocked by hard avoid constraints.")
     if not diagnostics:
-        class_counts={}
-        teacher_counts={}
+        class_counts={}; teacher_counts={}
         for r in data.requirements:
             class_counts[r.class_id]=class_counts.get(r.class_id,0)+r.periods_per_week
             if r.teacher_id: teacher_counts[r.teacher_id]=teacher_counts.get(r.teacher_id,0)+r.periods_per_week
@@ -71,6 +64,25 @@ def _diagnose_infeasibility(data):
             spec=data.teachers.get(tid)
             if spec and total>spec.max_per_day*len(data.days): diagnostics.append(f"Teacher {spec.name} requires {total} lessons but the configured daily limit provides at most {spec.max_per_day*len(data.days)} slots.")
     return diagnostics
+
+def _solve_with_relaxation(data, mode, on_progress, should_cancel):
+    """Strict first; in Allow Relaxation mode relax one lowest-priority hard avoid rule per failed solve."""
+    relaxed=[]
+    while True:
+        if should_cancel(): return None, relaxed, "cancelled"
+        problems=preflight(data)
+        if problems and mode in {'strict','relax'}:
+            if mode!='relax': return None, relaxed, "preflight: " + " ".join(problems)
+            rule=relax_next_rule(data.avoid_rules)
+            if rule is None: return None, relaxed, "preflight: " + " ".join(problems)
+            relaxed.append(rule.note or f"{rule.scope} {rule.target_id} avoid constraint")
+            continue
+        result=solve(data,on_progress=on_progress,should_cancel=should_cancel)
+        if result.status=="cancelled" or should_cancel(): return result, relaxed, "cancelled"
+        if result.solved or mode!='relax': return result, relaxed, None
+        rule=relax_next_rule(data.avoid_rules)
+        if rule is None:return result, relaxed, None
+        relaxed.append(rule.note or f"{rule.scope} {rule.target_id} avoid constraint")
 
 def _run_job(job_id,school_id,max_seconds,day_indexes=None):
     db=SessionLocal(); original_days=None
@@ -88,20 +100,12 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             db.commit()
         data=build_input(db,school_id,max_seconds=max_seconds)
         problems=preflight(data)
-        if problems:
-            if mode=='relax':
-                relaxable=[r for r in data.avoid_rules if r.is_hard]
-                for rule in relaxable: rule.is_hard=False
-                problems=preflight(data)
-                if relaxable:
-                    job.checks=_set_checks(job.checks or initial_checks(),["availability"],"passed"); job.message=f"Allow Relaxation: {len(relaxable)} avoid constraint(s) were relaxed before generation."; db.commit()
-            if problems and mode in {'strict','relax'}: return _fail(db,job,"Test failed: " + " ".join(problems))
-            if problems and mode=='draft':
-                job.message="Draft mode: pre-generation blockers remain; the solver will attempt the best available timetable."; db.commit()
-        else:
-            job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed"); job.stage="Generating timetable"; job.progress=max(job.progress,18); db.commit()
-        if mode=='draft' and problems:
-            job.stage="Generating draft"; job.progress=max(job.progress,18); db.commit()
+        if problems and mode=='draft':
+            data.avoid_rules=[]
+            problems=preflight(data)
+            job.message="Draft mode: constraint preferences are disabled for the draft test."; db.commit()
+        if problems and mode=='strict': return _fail(db,job,"Test failed: " + " ".join(problems))
+        job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed" if not problems else "failed"); job.stage="Generating draft" if mode=='draft' else "Generating timetable"; job.progress=max(job.progress,18); db.commit()
         def cancelled():
             try:
                 db.expire_all(); row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first(); return bool(row and row.cancel_requested)
@@ -117,24 +121,21 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
                 if pct>=84:row.status="validating"
                 db.commit()
             except Exception:db.rollback()
-        result=solve(data,on_progress=report,should_cancel=cancelled)
-        if result.status=="cancelled" or cancelled():
-            job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
-            if job:job.status="cancelled";job.stage="Cancelled";job.finished_at=utcnow();job.message="Generation was cancelled.";db.commit()
-            return
+        result, relaxed, failure=_solve_with_relaxation(data,mode,report,cancelled)
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
         if not job:return
-        if not result.solved:
-            diagnostics=_diagnose_infeasibility(data)
-            message=" ".join(result.messages) or "No feasible timetable was found."
+        if relaxed:
+            job.message=f"Allow Relaxation: {len(relaxed)} constraint(s) relaxed: " + "; ".join(relaxed[:8]) + ("; …" if len(relaxed)>8 else ""); db.commit()
+        if failure=="cancelled" or (result and result.status=="cancelled") or cancelled():
+            job.status="cancelled";job.stage="Cancelled";job.finished_at=utcnow();job.message="Generation was cancelled.";db.commit();return
+        if result is None or not result.solved:
+            diagnostics=_diagnose_infeasibility(data); message=" ".join((result.messages if result else []) or [failure or "No feasible timetable was found."])
             if diagnostics: message += " Diagnostics: " + " ".join(diagnostics)
             job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"failed")
             return _fail(db,job,message)
         double_problems=enforce_double_lessons(data,result.placements)
         if double_problems:
             job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"failed"); db.commit()
-            if mode=='relax':
-                job.message=(job.message or '') + " Double-lesson requirements remain unresolved."; db.commit()
             if mode in {'strict','relax'}: return _fail(db,job," ".join(double_problems))
         job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"passed"); db.commit(); timetable=_persist(db,school_id,result,_actor_uuid(db,school_id,job.created_by),config); conflicts=detect_conflicts(db,school_id,timetable.id); hard_conflicts=[c for c in conflicts if c.severity=="hard"]
         if hard_conflicts and mode=='strict':
@@ -166,13 +167,10 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
         db.close()
 def _fail(db,job,message):job.status="failed";job.stage="Failed";job.message=message;job.finished_at=utcnow();db.commit();logger.error("Solver job %s failed: %s",job.id,message)
 def _persist(db,school_id,result,actor,config):
-    timetable_type_id=config.get('timetable_type_id')
-    indexes=list(config.get('day_indexes') or []); names=config.get('day_names') or {}; display_mode=config.get('display_mode') or 'day'
-    fallback={d.index:d.name for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all()}
+    timetable_type_id=config.get('timetable_type_id'); indexes=list(config.get('day_indexes') or []); names=config.get('day_names') or {}; display_mode=config.get('display_mode') or 'day'; fallback={d.index:d.name for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all()}
     version=db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id).order_by(m.TtVersion.id.desc()).first()
     if version is None:
-        version=m.TtVersion(school_id=school_id,number=1,name=config.get('label') or 'Timetable',label=config.get('label') or 'Current',status='draft',timetable_type_id=timetable_type_id)
-        db.add(version); db.flush()
+        version=m.TtVersion(school_id=school_id,number=1,name=config.get('label') or 'Timetable',label=config.get('label') or 'Current',status='draft',timetable_type_id=timetable_type_id); db.add(version); db.flush()
     db.query(m.TtLesson).filter(m.TtLesson.version_id==version.id).delete(synchronize_session=False)
     version.number=1; version.name=config.get('label') or 'Timetable'; version.label=config.get('label') or 'Current'; version.status='draft'; version.quality=result.quality; version.stats=result.stats; version.created_by=actor; version.day_indexes=indexes; version.day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes]; version.display_mode=display_mode; version.timetable_type_id=timetable_type_id
     db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id,m.TtVersion.id!=version.id).delete(synchronize_session=False)
