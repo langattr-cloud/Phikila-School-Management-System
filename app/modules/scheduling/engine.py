@@ -128,3 +128,59 @@ def _teaching_slots(calendar:SchoolCalendar,day:int,period:int,duration:int):
     except ValueError:return []
     if start+duration>len(ordered):return []
     return[(day,p) for p in ordered[start:start+duration]]
+
+def _blockers(db:Session, school_id:int, version_id:int, lesson_id:int|None, day_index:int, period_index:int, duration:int=1, room_id:int|None=None)->list[dict]:
+    """Return machine-readable reasons a lesson cannot occupy a proposed span."""
+    lesson=db.query(m.TtLesson).filter(m.TtLesson.id==lesson_id,m.TtLesson.school_id==school_id).first() if lesson_id else None
+    calendar=load_calendar(db,school_id); slots=_teaching_slots(calendar,day_index,period_index,duration)
+    blockers=[]
+    if not slots:
+        blockers.append({"code":"duration_overflow","factor":"calendar","detail":"The requested duration does not fit inside consecutive teaching periods."})
+        return blockers
+    if lesson and lesson.is_locked:
+        blockers.append({"code":"locked_lesson","factor":"lock","detail":"This lesson is locked and cannot be moved."})
+        return blockers
+    lessons=db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==version_id).all()
+    teachers={t.id:t for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id==school_id)};rooms={r.id:r for r in db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id)};classes={c.id:c for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}
+    if lesson:
+        for other in lessons:
+            if other.id==lesson.id:continue
+            other_slots=set(_teaching_slots(calendar,other.day_index,other.period_index,other.duration or 1))
+            overlap=bool(other_slots.intersection(slots))
+            if not overlap:continue
+            if lesson.class_id==other.class_id:blockers.append({"code":"class_double_booked","factor":"class","detail":f"Class {lesson.class_id} is already scheduled in this period.","lesson_id":other.id})
+            if lesson.teacher_id is not None and lesson.teacher_id==other.teacher_id:blockers.append({"code":"teacher_double_booked","factor":"teacher","detail":f"Teacher {lesson.teacher_id} is already scheduled in this period.","lesson_id":other.id})
+            target_room=room_id if room_id is not None else lesson.room_id
+            if target_room is not None and other.room_id==target_room:blockers.append({"code":"room_double_booked","factor":"room","detail":f"Room {target_room} is already occupied in this period.","lesson_id":other.id})
+    teacher=teachers.get(lesson.teacher_id) if lesson else None
+    if teacher and any(slot in _slots_from_json(teacher.unavailable) for slot in slots):blockers.append({"code":"teacher_unavailable","factor":"teacher","detail":f"{teacher.name} is unavailable during the requested span."})
+    klass=classes.get(lesson.class_id) if lesson else None
+    if klass and any(slot in _slots_from_json(klass.unavailable) for slot in slots):blockers.append({"code":"class_unavailable","factor":"class","detail":f"{klass.name} is unavailable during the requested span."})
+    target_room=room_id if room_id is not None else (lesson.room_id if lesson else None)
+    room=rooms.get(target_room) if target_room is not None else None
+    if room and any(slot in _slots_from_json(room.unavailable) for slot in slots):blockers.append({"code":"room_unavailable","factor":"room","detail":f"{room.name} is unavailable during the requested span."})
+    if room and klass and klass.student_count and room.capacity and klass.student_count>room.capacity:blockers.append({"code":"room_capacity","factor":"room","detail":f"The room capacity ({room.capacity}) is below the class size ({klass.student_count})."})
+    return blockers
+
+def explain_move(db:Session, school_id:int, version_id:int, lesson_id:int, day_index:int, period_index:int, duration:int|None=None, room_id:int|None=None):
+    lesson=db.query(m.TtLesson).filter(m.TtLesson.id==lesson_id,m.TtLesson.school_id==school_id,m.TtLesson.version_id==version_id).first()
+    if not lesson: return {"allowed":False,"reasons":[{"code":"lesson_not_found","message":"The lesson is not part of this timetable version."}],"alternatives":[]}
+    requested_duration=duration or lesson.duration or 1
+    reasons=_blockers(db,school_id,version_id,lesson_id,day_index,period_index,requested_duration,room_id)
+    alternatives=suggest_slots(db,school_id,version_id,lesson_id,requested_duration,room_id,limit=8) if reasons else []
+    return {"allowed":not reasons,"reasons":[{"code=r.get("code"),"message=r.get("detail"),"factor=r.get("factor")} for r in reasons],"alternatives":alternatives}
+
+def suggest_slots(db:Session, school_id:int, version_id:int, lesson_id:int, duration:int|None=None, room_id:int|None=None, limit:int=8):
+    lesson=db.query(m.TtLesson).filter(m.TtLesson.id==lesson_id,m.TtLesson.school_id==school_id,m.TtLesson.version_id==version_id).first()
+    if not lesson or lesson.is_locked:return []
+    calendar=load_calendar(db,school_id);duration=duration or lesson.duration or 1;results=[]
+    for day in calendar.day_indexes:
+        for period in calendar.teaching_indexes:
+            blockers=_blockers(db,school_id,version_id,lesson_id,day,period,duration,room_id)
+            if blockers:continue
+            day_row=next((d for d in calendar.days if d.index==day),None);period_row=next((p for p in calendar.periods if p.index==period),None)
+            distance=abs(day-lesson.day_index)*10+abs(period-lesson.period_index)
+            results.append({"day":day,"period":period,"day_name":day_row.name if day_row else None,"period_name":period_row.name if period_row else None,"distance":distance})
+    results.sort(key=lambda item:(item["distance"],item["day"],item["period"]))
+    for item in results:item.pop("distance",None)
+    return results[:max(1,limit)]
