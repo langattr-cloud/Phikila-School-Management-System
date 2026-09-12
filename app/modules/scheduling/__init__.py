@@ -5,7 +5,6 @@ from . import engine as _engine
 from . import solver as _solver
 from . import jobs as _jobs
 
-
 def _load_constraints(db, school_id):
     weights = _solver.Weights(); avoid = []
     rows = db.query(_engine.m.TtConstraint).filter(_engine.m.TtConstraint.school_id == school_id, _engine.m.TtConstraint.enabled.is_(True))
@@ -21,109 +20,55 @@ def _load_constraints(db, school_id):
                 avoid.append(_solver.AvoidRule(scope=scope,target_id=row.target_id,slots=slots,is_hard=bool(row.is_hard),weight=int(row.weight or 25),note=row.note or ""))
     return weights, avoid
 _engine.load_constraints = _load_constraints
-
 _original_build_input = _engine.build_input
 
 def _scoped_build_input(db, school_id, *, max_seconds=30.0, class_ids=None, teacher_ids=None, period_indexes=None):
     data = _original_build_input(db, school_id, max_seconds=max_seconds)
-    selected_classes = set(int(v) for v in class_ids or []) or None
-    selected_teachers = set(int(v) for v in teacher_ids or []) or None
-    selected_periods = set(int(v) for v in period_indexes or []) or None
+    selected_classes = set(int(v) for v in class_ids or []) or None; selected_teachers = set(int(v) for v in teacher_ids or []) or None; selected_periods = set(int(v) for v in period_indexes or []) or None
     if selected_classes is not None:
-        data.classes = {ident: row for ident, row in data.classes.items() if ident in selected_classes}
-        data.requirements = [r for r in data.requirements if r.class_id in selected_classes]
+        data.classes={i:r for i,r in data.classes.items() if i in selected_classes}; data.requirements=[r for r in data.requirements if r.class_id in selected_classes]
     if selected_teachers is not None:
-        data.teachers = {ident: row for ident, row in data.teachers.items() if ident in selected_teachers}
-        data.requirements = [r for r in data.requirements if r.teacher_id in selected_teachers]
+        data.teachers={i:r for i,r in data.teachers.items() if i in selected_teachers}; data.requirements=[r for r in data.requirements if r.teacher_id in selected_teachers]
     if selected_periods is not None:
-        data.periods = [p for p in data.periods if p in selected_periods]
-        data.teaching_periods = [p for p in data.teaching_periods if p in selected_periods]
-        data.morning_periods = [p for p in data.morning_periods if p in selected_periods]
-    data.avoid_rules = [r for r in data.avoid_rules if (r.scope == 'class' and r.target_id in data.classes) or (r.scope == 'teacher' and r.target_id in data.teachers) or (r.scope == 'subject' and r.target_id in data.subjects)]
-
-    # aSc-style regeneration semantics: existing locked lessons become fixed
-    # solver placements. The existing timetable remains the source of truth for
-    # locks; no new schema is required.
-    latest = db.query(_engine.m.TtVersion).filter(_engine.m.TtVersion.school_id == school_id).order_by(_engine.m.TtVersion.id.desc()).first()
+        data.periods=[p for p in data.periods if p in selected_periods]; data.teaching_periods=[p for p in data.teaching_periods if p in selected_periods]; data.morning_periods=[p for p in data.morning_periods if p in selected_periods]
+    data.avoid_rules=[r for r in data.avoid_rules if (r.scope=='class' and r.target_id in data.classes) or (r.scope=='teacher' and r.target_id in data.teachers) or (r.scope=='subject' and r.target_id in data.subjects)]
+    latest=db.query(_engine.m.TtVersion).filter(_engine.m.TtVersion.school_id==school_id).order_by(_engine.m.TtVersion.id.desc()).first()
     if latest is not None:
-        locked = {}
-        for lesson in db.query(_engine.m.TtLesson).filter(
-            _engine.m.TtLesson.school_id == school_id,
-            _engine.m.TtLesson.version_id == latest.id,
-            _engine.m.TtLesson.is_locked.is_(True),
-        ).all():
-            if lesson.requirement_id:
-                locked.setdefault(int(lesson.requirement_id), []).append((int(lesson.day_index), int(lesson.period_index)))
-        data.locked = locked
+        data.locked={}
+        for lesson in db.query(_engine.m.TtLesson).filter(_engine.m.TtLesson.school_id==school_id,_engine.m.TtLesson.version_id==latest.id,_engine.m.TtLesson.is_locked.is_(True)).all():
+            if lesson.requirement_id:data.locked.setdefault(int(lesson.requirement_id),[]).append((int(lesson.day_index),int(lesson.period_index)))
     return data
 _engine.build_input = _scoped_build_input
 
-
 def _replace_function_source(function, replacements):
-    source = inspect.getsource(function)
-    for old, new in replacements:
+    source=inspect.getsource(function)
+    for old,new in replacements:
         if old not in source: raise RuntimeError(f"Scheduling compatibility patch could not find expected source in {function.__name__}.")
-        source = source.replace(old, new, 1)
-    namespace = _solver.__dict__
-    exec(compile(source, inspect.getsourcefile(function) or "<scheduling>", "exec"), namespace, namespace)
-    return namespace[function.__name__]
+        source=source.replace(old,new,1)
+    namespace=_solver.__dict__;exec(compile(source,inspect.getsourcefile(function) or "<scheduling>","exec"),namespace,namespace);return namespace[function.__name__]
+_solver.preflight=_replace_function_source(_solver.preflight,[('    hc={};ht={}\n','    hc={};ht={};hs={}\n'),('    for rule in data.avoid_rules:\n        if rule.is_hard:(hc if rule.scope=="class" else ht).setdefault(rule.target_id,set()).update(rule.slots)\n','    for rule in data.avoid_rules:\n        if not rule.is_hard:continue\n        if rule.scope=="class":hc.setdefault(rule.target_id,set()).update(rule.slots)\n        elif rule.scope=="teacher":ht.setdefault(rule.target_id,set()).update(rule.slots)\n        elif rule.scope=="subject":hs.setdefault(rule.target_id,set()).update(rule.slots)\n'),('    pt={}\n','    for sid,blocked in hs.items():\n        available=capacity-len(blocked)\n        for r in data.requirements:\n            if r.subject_id==sid and r.periods_per_week>available:\n                subject=data.subjects.get(sid);name=subject.name if subject else f"Subject {sid}"\n                problems.append(f"{name} needs {r.periods_per_week} lessons a week but only has {available} available slots after subject time-off is applied.")\n    pt={}\n')])
+_solver.solve=_replace_function_source(_solver.solve,[('        for rule in data.avoid_rules:\n            if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False\n','        for rule in data.avoid_rules:\n            if not rule.is_hard or (d,p) not in rule.slots:continue\n            if (rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and rule.target_id==r.subject_id):return False\n'),('    for cid in data.classes:\n','    for requirement_id,locked_slots in data.locked.items():\n        for d,p in locked_slots:\n            if (requirement_id,d,p) not in x:return SolverOutput("infeasible",[],{}, {},[f"Locked lesson for requirement {requirement_id} is at an unavailable slot ({d}, {p}). Unlock it or adjust the constraint."])\n        allowed_locked=set(locked_slots)\n        for key,var in list(x.items()):\n            req_id,d,p=key\n            if req_id==requirement_id:model.Add(var==(1 if (d,p) in allowed_locked else 0))\n\n    for cid in data.classes:\n'),('                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)\n','                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id)\n')])
 
-_solver.preflight = _replace_function_source(_solver.preflight, [('    hc={};ht={}\n','    hc={};ht={};hs={}\n'),('    for rule in data.avoid_rules:\n        if rule.is_hard:(hc if rule.scope=="class" else ht).setdefault(rule.target_id,set()).update(rule.slots)\n','    for rule in data.avoid_rules:\n        if not rule.is_hard:continue\n        if rule.scope=="class":hc.setdefault(rule.target_id,set()).update(rule.slots)\n        elif rule.scope=="teacher":ht.setdefault(rule.target_id,set()).update(rule.slots)\n        elif rule.scope=="subject":hs.setdefault(rule.target_id,set()).update(rule.slots)\n'),('    pt={}\n','    for sid,blocked in hs.items():\n        available=capacity-len(blocked)\n        for r in data.requirements:\n            if r.subject_id==sid and r.periods_per_week>available:\n                subject=data.subjects.get(sid);name=subject.name if subject else f"Subject {sid}"\n                problems.append(f"{name} needs {r.periods_per_week} lessons a week but only has {available} available slots after subject time-off is applied.")\n    pt={}\n')])
-
-_solver.solve = _replace_function_source(_solver.solve, [
-    ('        for rule in data.avoid_rules:\n            if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False\n',
-     '        for rule in data.avoid_rules:\n            if not rule.is_hard or (d,p) not in rule.slots:continue\n            if (rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and rule.target_id==r.subject_id):return False\n'),
-    ('    for cid in data.classes:\n',
-     '    # Locked lessons are hard fixed placements. Every other candidate for the same requirement is disabled.\n    for requirement_id, locked_slots in data.locked.items():\n        for d,p in locked_slots:\n            if (requirement_id,d,p) not in x:\n                return SolverOutput("infeasible",[],{}, {},[f"Locked lesson for requirement {requirement_id} is at an unavailable slot ({d}, {p}). Unlock it or adjust the constraint."])\n        allowed_locked = set(locked_slots)\n        for key,var in list(x.items()):\n            req_id,d,p = key\n            if req_id == requirement_id:\n                model.Add(var == (1 if (d,p) in allowed_locked else 0))\n\n    for cid in data.classes:\n'),
-    ('                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)\n',
-     '                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id)\n')
-])
-
-
-def _persist_school(db, school_id, result, actor, config):
-    """Persist a generated timetable as a new draft without destroying history."""
-    indexes=list(config.get('day_indexes') or []); names=config.get('day_names') or {}; display_mode=config.get('display_mode') or 'day'
-    fallback={d.index:d.name for d in db.query(_engine.m.TtDay).filter(_engine.m.TtDay.school_id==school_id).all()}
-    previous=db.query(_engine.m.TtVersion).filter(_engine.m.TtVersion.school_id==school_id).order_by(_engine.m.TtVersion.number.desc(), _engine.m.TtVersion.id.desc()).first()
+def _new_version(db, school_id, result, actor, config, project=None):
+    indexes=list(config.get('day_indexes') or []);names=config.get('day_names') or {};display_mode=config.get('display_mode') or 'day';fallback={d.index:d.name for d in db.query(_engine.m.TtDay).filter(_engine.m.TtDay.school_id==school_id).all()}
+    query=db.query(_engine.m.TtVersion).filter(_engine.m.TtVersion.school_id==school_id)
+    if project is not None:query=query.filter(_engine.m.TtVersion.project_id==project.id)
+    previous=query.order_by(_engine.m.TtVersion.number.desc(),_engine.m.TtVersion.id.desc()).first();number=(int(previous.number)+1) if previous else 1
     locked_meta={}
-    if previous is not None:
-        locked_meta={
-            (int(l.requirement_id),int(l.day_index),int(l.period_index)):(int(l.duration or 1),l.room_id)
-            for l in previous.lessons if l.is_locked and l.requirement_id
-        }
-    number=(int(previous.number)+1) if previous else 1
-    version=_engine.m.TtVersion(school_id=school_id,number=number,name=config.get('label') or 'Timetable',label=config.get('label') or 'Current',status='draft',timetable_type_id=config.get('timetable_type_id'),created_by=actor,day_indexes=indexes,day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes],display_mode=display_mode,quality=result.quality,stats=result.stats)
-    db.add(version); db.flush()
+    if previous:
+        locked_meta={(int(l.requirement_id),int(l.day_index),int(l.period_index)):(int(l.duration or 1),l.room_id) for l in previous.lessons if l.is_locked and l.requirement_id}
+    version=_engine.m.TtVersion(school_id=school_id,project_id=project.id if project else None,number=number,name=config.get('label') or (project.name if project else 'Timetable'),label=config.get('label') or (project.name if project else 'Timetable'),status='draft',timetable_type_id=config.get('timetable_type_id'),created_by=actor,day_indexes=indexes,day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes],display_mode=display_mode,quality=result.quality,stats=result.stats)
+    db.add(version);db.flush()
     for p in result.placements:
-        meta=locked_meta.get((int(p.requirement_id),int(p.day),int(p.period)))
-        duration,locked_room=(meta if meta else (int(p.duration or 1),None))
-        db.add(_engine.m.TtLesson(school_id=school_id,version_id=version.id,requirement_id=p.requirement_id,class_id=p.class_id,subject_id=p.subject_id,teacher_id=p.teacher_id,room_id=locked_room if meta else p.room_id,day_index=p.day,period_index=p.period,duration=duration,is_locked=bool(meta)))
-    db.commit(); _engine.assign_rooms_to_lessons(db,school_id,version.id); db.refresh(version); return version
+        meta=locked_meta.get((int(p.requirement_id),int(p.day),int(p.period)));duration,room=(meta if meta else (int(p.duration or 1),p.room_id))
+        db.add(_engine.m.TtLesson(school_id=school_id,version_id=version.id,requirement_id=p.requirement_id,class_id=p.class_id,subject_id=p.subject_id,teacher_id=p.teacher_id,room_id=room,day_index=p.day,period_index=p.period,duration=duration,is_locked=bool(meta)))
+    if project is not None:project.current_version_id=version.id;project.status='draft'
+    db.commit();_engine.assign_rooms_to_lessons(db,school_id,version.id);db.refresh(version);return version
 
-
-def _persist_project(db, school_id, result, actor, config):
-    project_id = config.get("project_id")
-    if not project_id:
-        return _persist_school(db, school_id, result, actor, config)
-    project = db.query(_engine.m.TtProject).filter(_engine.m.TtProject.id == int(project_id), _engine.m.TtProject.school_id == school_id).first()
-    if project is None: raise RuntimeError("Timetable project not found.")
-    indexes=list(config.get('day_indexes') or []); names=config.get('day_names') or {}; display_mode=config.get('display_mode') or 'day'
-    fallback={d.index:d.name for d in db.query(_engine.m.TtDay).filter(_engine.m.TtDay.school_id==school_id).all()}
-    previous=db.query(_engine.m.TtVersion).filter(_engine.m.TtVersion.project_id==project.id, _engine.m.TtVersion.school_id==school_id).order_by(_engine.m.TtVersion.number.desc()).first()
-    locked_meta={}
-    if previous is not None:
-        locked_meta={
-            (int(l.requirement_id),int(l.day_index),int(l.period_index)):(int(l.duration or 1),l.room_id)
-            for l in previous.lessons if l.is_locked and l.requirement_id
-        }
-    number=(previous.number+1) if previous else 1
-    version=_engine.m.TtVersion(school_id=school_id,project_id=project.id,number=number,name=config.get('label') or project.name,label=config.get('label') or project.name,status='draft',timetable_type_id=config.get('timetable_type_id'),created_by=actor,day_indexes=indexes,day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes],display_mode=display_mode,quality=result.quality,stats=result.stats)
-    db.add(version); db.flush()
-    for p in result.placements:
-        meta=locked_meta.get((int(p.requirement_id),int(p.day),int(p.period)))
-        duration,locked_room=(meta if meta else (int(p.duration or 1),None))
-        db.add(_engine.m.TtLesson(school_id=school_id,project_id=project.id if hasattr(_engine.m.TtLesson,'project_id') else None,version_id=version.id,requirement_id=p.requirement_id,class_id=p.class_id,subject_id=p.subject_id,teacher_id=p.teacher_id,room_id=locked_room if meta else p.room_id,day_index=p.day,period_index=p.period,duration=duration,is_locked=bool(meta)))
-    project.current_version_id=version.id
-    db.commit(); _engine.assign_rooms_to_lessons(db,school_id,version.id); db.refresh(version); return version
-
-_jobs._persist = _persist_project
+def _persist_project(db,school_id,result,actor,config):
+    project_id=config.get('project_id');project=None
+    if project_id:
+        project=db.query(_engine.m.TtProject).filter(_engine.m.TtProject.id==int(project_id),_engine.m.TtProject.school_id==school_id).first()
+        if project is None:raise RuntimeError('Timetable project not found.')
+    return _new_version(db,school_id,result,actor,config,project)
+_jobs._persist=_persist_project
