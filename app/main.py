@@ -28,6 +28,7 @@ from app.modules.scheduling.timetable_types_router import router as timetable_ty
 from app.modules.scheduling.dashboard_router import router as scheduling_dashboard_router
 from app.modules.scheduling.project_router import router as timetable_projects_router
 from app.modules.scheduling.router import router as scheduling_router
+from app.modules.scheduling.generation_test_router import router as generation_test_router
 from app.modules.scheduling.timetable_read_router import router as timetable_read_router
 from app.modules.school.router import router as school_router
 from app.modules.students.import_router import router as students_import_router
@@ -51,7 +52,7 @@ def _rate_limit_mutations(router) -> None:
 def create_app() -> FastAPI:
     app = FastAPI(title="Phikila School System API", description="Backend API for Phikila School System - Phased Modular Architecture", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
     if settings.cors_origins or settings.cors_origin_regex:
-        app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_origin_regex=settings.cors_origin_regex, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "Accept"])
+        app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_origin_regex=settings.cors_origin_regex, allow_credentials=True, allow_methods=["Authorization", "Content-Type", "Accept"] if False else ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "Accept"])
     from app.middleware import SecurityHeadersMiddleware, AccessLogMiddleware
     app.add_middleware(AccessLogMiddleware); app.add_middleware(SecurityHeadersMiddleware)
     @app.get("/health", tags=["Health"])
@@ -78,6 +79,7 @@ def create_app() -> FastAPI:
     app.include_router(timetable_profile_router, prefix="/api/v1/scheduling", tags=["Timetable Profiles"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(timetable_types_router, prefix="/api/v1/scheduling", tags=["Timetable Types"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
+    app.include_router(generation_test_router, prefix="/api/v1/scheduling", tags=["Scheduling Generation Test"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(timetable_read_router, prefix="/api/v1/scheduling", tags=["Scheduling Read"], dependencies=protected)
     app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(students_import_router, prefix="/api/v1", tags=["Students"])
