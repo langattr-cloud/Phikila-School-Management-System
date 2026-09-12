@@ -40,6 +40,21 @@ def _scoped_build_input(db, school_id, *, max_seconds=30.0, class_ids=None, teac
         data.teaching_periods = [p for p in data.teaching_periods if p in selected_periods]
         data.morning_periods = [p for p in data.morning_periods if p in selected_periods]
     data.avoid_rules = [r for r in data.avoid_rules if (r.scope == 'class' and r.target_id in data.classes) or (r.scope == 'teacher' and r.target_id in data.teachers) or (r.scope == 'subject' and r.target_id in data.subjects)]
+
+    # aSc-style regeneration semantics: existing locked lessons become fixed
+    # solver placements. Only their requirement/day/period is needed here;
+    # weekly quota and resource collision constraints already protect the slot.
+    latest = db.query(_engine.m.TtVersion).filter(_engine.m.TtVersion.school_id == school_id).order_by(_engine.m.TtVersion.id.desc()).first()
+    if latest is not None:
+        locked = {}
+        for lesson in db.query(_engine.m.TtLesson).filter(
+            _engine.m.TtLesson.school_id == school_id,
+            _engine.m.TtLesson.version_id == latest.id,
+            _engine.m.TtLesson.is_locked.is_(True),
+        ).all():
+            if lesson.requirement_id:
+                locked.setdefault(int(lesson.requirement_id), []).append((int(lesson.day_index), int(lesson.period_index)))
+        data.locked = locked
     return data
 _engine.build_input = _scoped_build_input
 
@@ -54,11 +69,19 @@ def _replace_function_source(function, replacements):
     return namespace[function.__name__]
 
 _solver.preflight = _replace_function_source(_solver.preflight, [('    hc={};ht={}\n','    hc={};ht={};hs={}\n'),('    for rule in data.avoid_rules:\n        if rule.is_hard:(hc if rule.scope=="class" else ht).setdefault(rule.target_id,set()).update(rule.slots)\n','    for rule in data.avoid_rules:\n        if not rule.is_hard:continue\n        if rule.scope=="class":hc.setdefault(rule.target_id,set()).update(rule.slots)\n        elif rule.scope=="teacher":ht.setdefault(rule.target_id,set()).update(rule.slots)\n        elif rule.scope=="subject":hs.setdefault(rule.target_id,set()).update(rule.slots)\n'),('    pt={}\n','    for sid,blocked in hs.items():\n        available=capacity-len(blocked)\n        for r in data.requirements:\n            if r.subject_id==sid and r.periods_per_week>available:\n                subject=data.subjects.get(sid);name=subject.name if subject else f"Subject {sid}"\n                problems.append(f"{name} needs {r.periods_per_week} lessons a week but only has {available} available slots after subject time-off is applied.")\n    pt={}\n')])
-_solver.solve = _replace_function_source(_solver.solve, [('        for rule in data.avoid_rules:\n            if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False\n','        for rule in data.avoid_rules:\n            if not rule.is_hard or (d,p) not in rule.slots:continue\n            if (rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and rule.target_id==r.subject_id):return False\n'),('                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)\n','                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id)\n')])
+
+# Extend the existing CP-SAT solve function with fixed placement constraints.
+_solver.solve = _replace_function_source(_solver.solve, [
+    ('        for rule in data.avoid_rules:\n            if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False\n',
+     '        for rule in data.avoid_rules:\n            if not rule.is_hard or (d,p) not in rule.slots:continue\n            if (rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and rule.target_id==r.subject_id):return False\n'),
+    ('    for cid in data.classes:\n',
+     '    # Locked lessons are hard fixed placements. Every other candidate for the same requirement is disabled.\n    for requirement_id, locked_slots in data.locked.items():\n        for d,p in locked_slots:\n            if (requirement_id,d,p) not in x:\n                return SolverOutput("infeasible",[],{}, {},[f"Locked lesson for requirement {requirement_id} is at an unavailable slot ({d}, {p}). Unlock it or adjust the constraint."])\n        allowed_locked = set(locked_slots)\n        for key,var in list(x.items()):\n            req_id,d,p = key\n            if req_id == requirement_id:\n                model.Add(var == (1 if (d,p) in allowed_locked else 0))\n\n    for cid in data.classes:\n'),
+    ('                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)\n',
+     '                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id)\n')
+])
 
 # Project-aware persistence: generated versions belong to one project and never
-# delete or overwrite versions belonging to another project. Teachers, learners,
-# classes, subjects and rooms remain school-scoped shared master data.
+# delete or overwrite versions belonging to another project.
 def _persist_project(db, school_id, result, actor, config):
     project_id = config.get("project_id")
     if not project_id:
@@ -76,8 +99,6 @@ def _persist_project(db, school_id, result, actor, config):
     project.current_version_id=version.id
     db.commit(); _engine.assign_rooms_to_lessons(db,school_id,version.id); db.refresh(version); return version
 
-# Preserve the previous implementation under a private name, then route jobs to
-# the project-aware implementation above.
 if not hasattr(_jobs, "_persist_legacy"):
     _jobs._persist_legacy = _jobs._persist
 _jobs._persist = _persist_project
