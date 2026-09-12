@@ -5,6 +5,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Slots = dict[str, list[int]]
+GenerationMode = Literal['strict', 'draft', 'relax']
+GenerationComplexity = Literal['fast', 'balanced', 'thorough']
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 class PeriodIn(BaseModel):
@@ -77,6 +79,7 @@ class TimetableTypeOut(ORMModel, TimetableTypeIn): id: int
 class ProjectOut(ORMModel): id: int; name: str; description: str | None = None; academic_year_id: int | None = None; term_id: int | None = None; status: str; current_version_id: int | None = None; created_by: str | None = None; created_at: datetime; updated_at: datetime | None = None
 class GenerateIn(BaseModel):
     max_seconds: float = Field(default=30.0, ge=1.0, le=180.0); timetable_type_id: int | None = None; class_ids: list[int] | None = None; teacher_ids: list[int] | None = None; period_indexes: list[int] | None = None
+    mode: GenerationMode = 'strict'; complexity: GenerationComplexity = 'balanced'; test_first: bool = True
     @model_validator(mode='before')
     @classmethod
     def normalize_frontend_values(cls, value):
@@ -101,6 +104,9 @@ class GenerateIn(BaseModel):
                     try: vals.append(int(float(item)))
                     except (TypeError,ValueError): continue
                 data[key]=vals
+        data['mode']=str(data.get('mode') or 'strict').lower()
+        data['complexity']=str(data.get('complexity') or 'balanced').lower()
+        data['test_first']=bool(data.get('test_first', True))
         return data
 class GenerateProfileIn(GenerateIn):
     label: str = Field(default='New timetable', min_length=1, max_length=120); day_indexes: list[int] | None = None; day_names: dict[int,str] | None = None
@@ -129,7 +135,7 @@ class VersionOut(ORMModel):
 class LessonOut(ORMModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
 class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); room_id:int|None=None
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=30); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
-class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
+class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0); period_index:int=Field(ge=0); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
 class UnassignedOut(BaseModel): requirement_id:int; subject_id:int; subject_name:str; subject_colour:str; class_id:int; class_name:str; teacher_id:int|None; teacher_name:str|None; room_id:int|None; room_name:str|None; periods_per_week:int; placed:int; remaining:int; requires_double:bool
 class ExplanationReason(BaseModel): code:str|None=None; message:str|None=None; text:str|None=None; factor:str|None=None; detail:str|None=None
 class Alternative(BaseModel): day:int; period:int; day_name:str|None=None; period_name:str|None=None
