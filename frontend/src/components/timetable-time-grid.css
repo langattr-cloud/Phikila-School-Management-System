@@ -21,3 +21,43 @@
 /* Keep lesson content constrained even when legacy time markup is present. */
 .timetable__time-grid .lesson-card,.timetable__whole-school-grid .lesson-card{min-width:0;min-height:0;max-width:100%;max-height:100%;overflow:hidden}
 .timetable__time-grid .lesson-card__subject,.timetable__time-grid .lesson-card__class,.timetable__whole-school-grid .lesson-card__subject,.timetable__whole-school-grid .lesson-card__class{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ASC-style print footer: fixed to the physical page, with timestamp left and brand right. */
+@media print {
+  .timetable__print-footer {
+    position: fixed;
+    left: 8mm;
+    right: 8mm;
+    bottom: 1mm;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+    background: #fff;
+    color: #111;
+    font-size: 2mm;
+    line-height: 1;
+  }
+
+  .timetable__print-generated {
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .timetable__print-brand {
+    text-align: right;
+    white-space: nowrap;
+    font-size: 0;
+  }
+
+  .timetable__print-brand::after {
+    content: '@PhikilaTimetable';
+    font-size: 2mm;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+}
