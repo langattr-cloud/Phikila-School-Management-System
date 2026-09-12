@@ -1,8 +1,8 @@
-"""Post-solve timetable rules that are easier to express on placements."""
+"""Post-solve timetable rules and generation constraint helpers."""
 from __future__ import annotations
 
 from collections import defaultdict
-from .solver import Placement, SolverInput
+from .solver import Placement, SolverInput, AvoidRule
 
 
 def enforce_double_lessons(data: SolverInput, placements: list[Placement]) -> list[str]:
@@ -49,3 +49,26 @@ def enforce_double_lessons(data: SolverInput, placements: list[Placement]) -> li
                 f"{double_blocks} consecutive double block(s). Relax a constraint or add teaching periods."
             )
     return problems
+
+
+def relaxation_order(rules: list[AvoidRule]) -> list[AvoidRule]:
+    """Return hard avoid rules in least-important-first relaxation order.
+
+    Higher weights represent more important constraints. Therefore Allow
+    Relaxation starts with the lowest-weight hard rules and only escalates
+    toward more important rules when necessary.
+    """
+    return sorted(
+        (rule for rule in rules if rule.is_hard),
+        key=lambda rule: (rule.weight if rule.weight is not None else 25, rule.scope, rule.target_id, rule.note),
+    )
+
+
+def relax_next_rule(rules: list[AvoidRule]) -> AvoidRule | None:
+    """Relax one lowest-priority hard avoid rule and return it."""
+    ordered = relaxation_order(rules)
+    if not ordered:
+        return None
+    selected = ordered[0]
+    selected.is_hard = False
+    return selected
