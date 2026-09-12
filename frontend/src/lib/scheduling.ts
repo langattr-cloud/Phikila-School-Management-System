@@ -4,6 +4,7 @@ const schedulingPath = (path: string) => `${SCHEDULING_API_PREFIX}${path.startsW
 const get = <T>(path: string) => apiFetch<T>(schedulingPath(path))
 const send = <T>(path: string, method = 'POST', body?: unknown) => apiFetch<T>(schedulingPath(path), { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
 type Loose = Record<string, any>
+export interface Slots { [day: string]: number[] }
 export interface Principal extends Loose { id?: number | string; school_id?: number; role?: string; teacher_id?: number | null; class_id?: number | null }
 export interface Day extends Loose { id: number; index: number; name: string; short_form: string; date_value?: string | null; is_active: boolean }
 export type DayInput = Pick<Day, 'index'|'name'|'short_form'|'date_value'|'is_active'>
@@ -12,14 +13,14 @@ export type PeriodInput = Pick<Period, 'index'|'name'|'short_form'|'start_time'|
 export interface Calendar extends Loose { days: Day[]; periods: Period[]; display_mode?: 'day'|'date' }
 export interface Event extends Loose { id: number; name: string; start_time: string; end_time: string; day_indexes: number[]; event_type: string; note: string | null; day_index?: number; period_index?: number }
 export interface EventInput extends Loose {}
-export interface Teacher extends Loose { id: number; name: string; code?: string; staff_number?: string; first_name?: string; last_name?: string; email?: string; phone?: string; department?: string; role?: string; role_assignment?: Loose; unavailable?: Record<string, number[]> }
+export interface Teacher extends Loose { id: number; name: string; code?: string; staff_number?: string; first_name?: string; last_name?: string; email?: string; phone?: string; department?: string; role?: string; role_assignment?: Loose; unavailable?: Slots }
 export interface TeacherInput extends Loose {}
-export interface Subject extends Loose { id: number; name: string; code?: string; colour?: string; unavailable?: Record<string, number[]> }
+export interface Subject extends Loose { id: number; name: string; code?: string; colour?: string; unavailable?: Slots }
 export interface SubjectInput extends Loose {}
 export interface Room extends Loose { id: number; name: string; code?: string; room_type?: string }
 export interface RoomInput extends Loose {}
-export interface SchoolClass extends Loose { id: number; name: string; code: string; school_class_id?: number; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; level_id?: number | null; academic_year_id?: number | null; unavailable?: Record<string, number[]> }
-export interface SchoolClassInput extends Loose { name?: string; code?: string; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; unavailable?: Record<string, number[]>; level_id?: number | null; academic_year_id?: number | null }
+export interface SchoolClass extends Loose { id: number; name: string; code: string; school_class_id?: number; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; level_id?: number | null; academic_year_id?: number | null; unavailable?: Slots }
+export interface SchoolClassInput extends Loose { name?: string; code?: string; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; unavailable?: Slots; level_id?: number | null; academic_year_id?: number | null }
 export interface Requirement extends Loose { id: number; class_id: number; class_name?: string; subject_id: number; subject_name?: string; teacher_id: number | null; teacher_name?: string | null; room_id?: number | null; room_name?: string | null; periods_per_week: number; double_periods?: number }
 export interface RequirementInput extends Loose { class_id: number; subject_id: number; teacher_id: number | null; room_id?: number | null; periods_per_week: number; double_periods?: number }
 export interface Constraint extends Loose { id: number; kind?: string; scope?: string; target_id?: number | null; is_hard?: boolean; weight?: number | null; params?: Loose; enabled?: boolean; note?: string | null }
