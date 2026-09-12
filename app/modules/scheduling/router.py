@@ -71,37 +71,22 @@ def list_classes_with_academic_stream(db: Session = Depends(get_db), principal: 
             grade=stream.grade.code or stream.grade.name if stream.grade else ""; grade_num=''.join(ch for ch in str(grade) if ch.isdigit()); stream_code=(stream.code or "").strip(); stream_name=(stream.name or "").strip(); token=stream_code or (stream_name[:1] if stream_name else ""); item.academic_stream=f"{grade_num}{token.upper()}" if grade_num and token else (stream_name or None)
         out.append(item)
     return out
-
-# The generic CRUD registration above adds a /classes GET route before this
-# enriched route. Remove that earlier GET route so admission receives the
-# established academic year/level mapping from school_classes.
 router.routes[:] = [r for r in router.routes if not (getattr(r, "path", "") == "/classes" and getattr(r, "methods", set()) == {"GET"})]
 @router.get("/classes", response_model=list[s.ClassOut], name="list_classes_with_academic_setup")
 def list_classes_with_academic_setup(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
     from app.modules.academics.models import SchoolClass
-    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()
-    setup_rows = db.query(SchoolClass).filter(SchoolClass.school_id == principal.school_id).order_by(SchoolClass.id).all()
-    by_id = {int(r.id): r for r in setup_rows}
-    by_key = {}
+    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all(); setup_rows = db.query(SchoolClass).filter(SchoolClass.school_id == principal.school_id).order_by(SchoolClass.id).all(); by_id = {int(r.id): r for r in setup_rows}; by_key = {}
     for r in setup_rows:
-        code = str(r.code or '').strip().upper()
-        year = int(r.academic_year_id) if r.academic_year_id is not None else None
-        by_key.setdefault((code, year), r)
-        by_key.setdefault((code, None), r)
-    out = []
+        code = str(r.code or '').strip().upper(); year = int(r.academic_year_id) if r.academic_year_id is not None else None; by_key.setdefault((code, year), r); by_key.setdefault((code, None), r)
+    out=[]
     for row in rows:
-        item = s.ClassOut.model_validate(row)
-        setup = by_id.get(int(row.school_class_id)) if row.school_class_id is not None else None
+        item=s.ClassOut.model_validate(row); setup=by_id.get(int(row.school_class_id)) if row.school_class_id is not None else None
         if setup is None:
-            code = str(row.code or '').strip().upper()
-            year = int(row.academic_year_id) if row.academic_year_id is not None else None
-            setup = by_key.get((code, year)) or by_key.get((code, None))
+            code=str(row.code or '').strip().upper(); year=int(row.academic_year_id) if row.academic_year_id is not None else None; setup=by_key.get((code,year)) or by_key.get((code,None))
         if setup is not None:
-            if setup.level_id is not None:
-                item.level_id = int(setup.level_id)
-            if setup.academic_year_id is not None:
-                item.academic_year_id = int(setup.academic_year_id)
-            item.school_class_id = int(setup.id)
+            if setup.level_id is not None:item.level_id=int(setup.level_id)
+            if setup.academic_year_id is not None:item.academic_year_id=int(setup.academic_year_id)
+            item.school_class_id=int(setup.id)
         out.append(item)
     return out
 _crud("constraints", m.TtConstraint, s.ConstraintIn, s.ConstraintOut, "constraint")
@@ -139,7 +124,14 @@ def generate(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal
     if not ORTOOLS_AVAILABLE: raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,"The scheduling engine is not available on this server.")
     running=db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==principal.school_id,m.TtSolverJob.status.in_(["queued","running","optimizing","validating"])).first()
     if running: raise HTTPException(status.HTTP_409_CONFLICT,"A timetable is already being generated.")
-    job=job_queue.create_job(db,principal.school_id,principal.email); job_queue.enqueue(job.id,principal.school_id,payload.max_seconds); return job
+    complexity_seconds={'fast':0.5,'balanced':1.0,'thorough':1.5}[payload.complexity]
+    effective_seconds=min(180.0,max(1.0,payload.max_seconds*complexity_seconds))
+    config=payload.model_dump(exclude_none=True)
+    config['generation_mode']=payload.mode
+    config['generation_complexity']=payload.complexity
+    config['test_first']=payload.test_first
+    job=job_queue.create_job(db,principal.school_id,principal.email,config=config)
+    job_queue.enqueue(job.id,principal.school_id,effective_seconds,payload.period_indexes); return job
 @router.get("/solver/jobs/{job_id}",response_model=s.JobOut)
 def job_status(job_id:int,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)): return _owned(db,m.TtSolverJob,principal.school_id,job_id)
 @router.post("/solver/jobs/{job_id}/cancel",response_model=s.JobOut)
