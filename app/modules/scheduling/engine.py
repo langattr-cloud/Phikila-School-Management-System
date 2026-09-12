@@ -141,7 +141,7 @@ def _blockers(db:Session, school_id:int, version_id:int, lesson_id:int|None, day
         blockers.append({"code":"locked_lesson","factor":"lock","detail":"This lesson is locked and cannot be moved."})
         return blockers
     lessons=db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==version_id).all()
-    teachers={t.id:t for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id==school_id)};rooms={r.id:r for r in db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id)};classes={c.id:c for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}
+    teachers={t.id:t for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id==school_id)};rooms={r.id:r for r in db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id)};classes={c.id:c for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)};subjects={s.id:s for s in db.query(m.TtSubject).filter(m.TtSubject.school_id==school_id)}
     if lesson:
         for other in lessons:
             if other.id==lesson.id:continue
@@ -160,6 +160,8 @@ def _blockers(db:Session, school_id:int, version_id:int, lesson_id:int|None, day
     room=rooms.get(target_room) if target_room is not None else None
     if room and any(slot in _slots_from_json(room.unavailable) for slot in slots):blockers.append({"code":"room_unavailable","factor":"room","detail":f"{room.name} is unavailable during the requested span."})
     if room and klass and klass.student_count and room.capacity and klass.student_count>room.capacity:blockers.append({"code":"room_capacity","factor":"room","detail":f"The room capacity ({room.capacity}) is below the class size ({klass.student_count})."})
+    subject=subjects.get(lesson.subject_id) if lesson else None
+    if subject and subject.required_room_type and room and room.room_type!=subject.required_room_type:blockers.append({"code":"room_type_mismatch","factor":"room","detail":f"{subject.name} requires a '{subject.required_room_type}' room; {room.name} is a {room.room_type}."})
     return blockers
 
 def explain_move(db:Session, school_id:int, version_id:int, lesson_id:int, day_index:int, period_index:int, duration:int|None=None, room_id:int|None=None):
@@ -168,7 +170,7 @@ def explain_move(db:Session, school_id:int, version_id:int, lesson_id:int, day_i
     requested_duration=duration or lesson.duration or 1
     reasons=_blockers(db,school_id,version_id,lesson_id,day_index,period_index,requested_duration,room_id)
     alternatives=suggest_slots(db,school_id,version_id,lesson_id,requested_duration,room_id,limit=8) if reasons else []
-    return {"allowed":not reasons,"reasons":[{"code=r.get("code"),"message=r.get("detail"),"factor=r.get("factor")} for r in reasons],"alternatives":alternatives}
+    return {"allowed":not reasons,"reasons":[{"code":r.get("code"),"message":r.get("detail"),"factor":r.get("factor")} for r in reasons],"alternatives":alternatives}
 
 def suggest_slots(db:Session, school_id:int, version_id:int, lesson_id:int, duration:int|None=None, room_id:int|None=None, limit:int=8):
     lesson=db.query(m.TtLesson).filter(m.TtLesson.id==lesson_id,m.TtLesson.school_id==school_id,m.TtLesson.version_id==version_id).first()
