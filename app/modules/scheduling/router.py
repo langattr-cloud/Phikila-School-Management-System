@@ -126,12 +126,8 @@ def generate(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal
     if running: raise HTTPException(status.HTTP_409_CONFLICT,"A timetable is already being generated.")
     complexity_seconds={'fast':0.5,'balanced':1.0,'thorough':1.5}[payload.complexity]
     effective_seconds=min(180.0,max(1.0,payload.max_seconds*complexity_seconds))
-    config=payload.model_dump(exclude_none=True)
-    config['generation_mode']=payload.mode
-    config['generation_complexity']=payload.complexity
-    config['test_first']=payload.test_first
-    job=job_queue.create_job(db,principal.school_id,principal.email,config=config)
-    job_queue.enqueue(job.id,principal.school_id,effective_seconds,payload.period_indexes); return job
+    config=payload.model_dump(exclude_none=True); config['generation_mode']=payload.mode; config['generation_complexity']=payload.complexity; config['test_first']=payload.test_first
+    job=job_queue.create_job(db,principal.school_id,principal.email,config=config); job_queue.enqueue(job.id,principal.school_id,effective_seconds,payload.period_indexes); return job
 @router.get("/solver/jobs/{job_id}",response_model=s.JobOut)
 def job_status(job_id:int,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)): return _owned(db,m.TtSolverJob,principal.school_id,job_id)
 @router.post("/solver/jobs/{job_id}/cancel",response_model=s.JobOut)
@@ -141,10 +137,42 @@ def cancel_job(job_id:int,db:Session=Depends(get_db),principal:Principal=Depends
     job.cancel_requested=True; db.commit(); db.refresh(job); return job
 @router.get("/versions",response_model=list[s.VersionOut])
 def list_versions(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
-    version=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
-    if version is None:return []
-    if not principal.at_least("scheduler") and version.status!="published":return []
-    return [version]
+    query=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.number.desc(),m.TtVersion.id.desc())
+    if not principal.at_least("scheduler"): query=query.filter(m.TtVersion.status=="published")
+    return query.all()
 @router.get("/versions/current",response_model=s.VersionOut|None)
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
-    return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
+    published=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id,m.TtVersion.status=="published").order_by(m.TtVersion.published_at.desc().nullslast(),m.TtVersion.id.desc()).first()
+    return published or db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
+@router.post("/versions/{version_id}/publish",response_model=s.VersionOut)
+def publish_version(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    version=_owned(db,m.TtVersion,principal.school_id,version_id)
+    conflicts=detect_conflicts(db,principal.school_id,version.id); hard=[c for c in conflicts if c.severity=="hard"]
+    if hard: raise HTTPException(status.HTTP_409_CONFLICT,f"Cannot publish timetable with {len(hard)} hard conflict(s).")
+    db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id,m.TtVersion.status=="published",m.TtVersion.id!=version.id).update({m.TtVersion.status:"archived"},synchronize_session=False)
+    version.status="published"; version.published_at=datetime.utcnow();
+    if version.project_id:
+        project=db.query(m.TtProject).filter(m.TtProject.id==version.project_id,m.TtProject.school_id==principal.school_id).first()
+        if project: project.current_version_id=version.id; project.status="published"
+    db.commit(); db.refresh(version); return version
+@router.post("/versions/{version_id}/restore",response_model=s.VersionOut,status_code=201)
+def restore_version(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    source=_owned(db,m.TtVersion,principal.school_id,version_id)
+    max_number=(db.query(func.max(m.TtVersion.number)).filter(m.TtVersion.school_id==principal.school_id,m.TtVersion.project_id==source.project_id).scalar() or 0)
+    target=m.TtVersion(school_id=principal.school_id,project_id=source.project_id,number=int(max_number)+1,name=f"Restored from {source.name or source.id}",label=f"Restored from {source.label or source.id}",status="draft",quality=source.quality or {},stats=source.stats or {},created_by=principal.email,day_indexes=source.day_indexes or [],day_names=source.day_names or [],display_mode=source.display_mode,timetable_type_id=source.timetable_type_id)
+    db.add(target); db.flush()
+    lessons=db.query(m.TtLesson).filter(m.TtLesson.school_id==principal.school_id,m.TtLesson.version_id==source.id).all()
+    for lesson in lessons:
+        db.add(m.TtLesson(school_id=principal.school_id,version_id=target.id,requirement_id=lesson.requirement_id,class_id=lesson.class_id,subject_id=lesson.subject_id,teacher_id=lesson.teacher_id,room_id=lesson.room_id,day_index=lesson.day_index,period_index=lesson.period_index,duration=lesson.duration,is_locked=lesson.is_locked))
+    if source.project_id:
+        project=db.query(m.TtProject).filter(m.TtProject.id==source.project_id,m.TtProject.school_id==principal.school_id).first()
+        if project: project.current_version_id=target.id; project.status="draft"
+    db.commit(); db.refresh(target); return target
+@router.delete("/versions/{version_id}",status_code=204)
+def delete_version(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    version=_owned(db,m.TtVersion,principal.school_id,version_id)
+    if version.status=="published": raise HTTPException(status.HTTP_409_CONFLICT,"Published timetable versions cannot be deleted.")
+    if version.project_id:
+        project=db.query(m.TtProject).filter(m.TtProject.id==version.project_id,m.TtProject.school_id==principal.school_id).first()
+        if project and project.current_version_id==version.id: raise HTTPException(status.HTTP_409_CONFLICT,"The current project version cannot be deleted.")
+    db.delete(version); db.commit()
