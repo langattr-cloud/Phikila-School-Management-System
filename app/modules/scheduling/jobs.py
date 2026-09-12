@@ -35,7 +35,8 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
     try:
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
         if not job or job.status not in {"queued","running"}: return
-        config=job.config if isinstance(job.config,dict) else {}; job.status="running"; job.stage="Loading school data"; job.progress=max(job.progress or 0,4); job.started_at=job.started_at or utcnow(); db.commit()
+        config=job.config if isinstance(job.config,dict) else {}; mode=str(config.get('generation_mode') or config.get('mode') or 'strict').lower(); complexity=str(config.get('generation_complexity') or config.get('complexity') or 'balanced').lower()
+        job.status="running"; job.stage="Testing constraints" if config.get('test_first',True) else "Loading school data"; job.progress=max(job.progress or 0,4); job.started_at=job.started_at or utcnow(); db.commit()
         if not ORTOOLS_AVAILABLE:return _fail(db,job,"The scheduling engine is not available on this server.")
         _ensure_calendar(db,school_id)
         requested_days=set(int(i) for i in (config.get('day_indexes') or day_indexes or []))
@@ -45,7 +46,20 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             db.commit()
         data=build_input(db,school_id,max_seconds=max_seconds)
         problems=preflight(data)
-        if problems:return _fail(db,job," ".join(problems))
+        if problems:
+            if mode=='relax':
+                relaxable=[r for r in data.avoid_rules if r.is_hard]
+                for rule in relaxable: rule.is_hard=False
+                problems=preflight(data)
+                if relaxable:
+                    job.checks=_set_checks(job.checks or initial_checks(),["availability"],"passed"); job.message=f"Allow Relaxation: {len(relaxable)} avoid constraint(s) were relaxed before generation."; db.commit()
+            if problems and mode in {'strict','relax'}: return _fail(db,job,"Test failed: " + " ".join(problems))
+            if problems and mode=='draft':
+                job.message="Draft mode: pre-generation blockers remain; the solver will attempt the best available timetable."; db.commit()
+        else:
+            job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability"],"passed"); job.stage="Generating timetable"; job.progress=max(job.progress,18); db.commit()
+        if mode=='draft' and problems:
+            job.stage="Generating draft"; job.progress=max(job.progress,18); db.commit()
         def cancelled():
             try: db.expire_all(); row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first(); return bool(row and row.cancel_requested)
             except Exception: db.rollback(); return False
@@ -69,14 +83,24 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
         if not job:return
         if not result.solved:return _fail(db,job," ".join(result.messages) or "No feasible timetable was found.")
         double_problems=enforce_double_lessons(data,result.placements)
-        if double_problems:job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"failed");db.commit();return _fail(db,job," ".join(double_problems))
-        job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"passed");db.commit();timetable=_persist(db,school_id,result,_actor_uuid(db,school_id,job.created_by),config);conflicts=detect_conflicts(db,school_id,timetable.id);hard_conflicts=[c for c in conflicts if c.severity=="hard"]
-        if hard_conflicts:
+        if double_problems:
+            job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"failed"); db.commit()
+            if mode=='relax':
+                job.message=(job.message or '') + " Double-lesson requirements remain unresolved."; db.commit()
+            if mode in {'strict','relax'}: return _fail(db,job," ".join(double_problems))
+        job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"passed"); db.commit(); timetable=_persist(db,school_id,result,_actor_uuid(db,school_id,job.created_by),config); conflicts=detect_conflicts(db,school_id,timetable.id); hard_conflicts=[c for c in conflicts if c.severity=="hard"]
+        if hard_conflicts and mode=='strict':
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
-            if job:job.result_version_id=timetable.id;job.message=f"Generation completed but {len(hard_conflicts)} hard conflict(s) remain. The timetable was saved as a draft and cannot be put into force.";db.commit();_fail(db,job,job.message)
+            if job:job.result_version_id=timetable.id;job.message=f"Generation completed but {len(hard_conflicts)} hard conflict(s) remain. Strict mode will not put this timetable into force.";db.commit();_fail(db,job,job.message)
             return
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
-        if job:job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability","double_lessons","workload","distribution"],"passed");job.status="completed";job.stage="Ready to save";job.progress=100;job.result_version_id=timetable.id;job.quality=result.quality;job.finished_at=utcnow();job.message="Timetable generated successfully. It is not in force until you save this generated timetable.";db.commit()
+        if job:
+            job.checks=_set_checks(job.checks or initial_checks(),["teacher_conflicts","class_conflicts","room_conflicts","availability","double_lessons","workload","distribution"],"passed" if not hard_conflicts else "failed")
+            job.status="completed" if not hard_conflicts or mode=='draft' else "failed"; job.stage="Ready to save" if not hard_conflicts else "Draft with unresolved conflicts"; job.progress=100; job.result_version_id=timetable.id; job.quality=result.quality; job.finished_at=utcnow()
+            base="Timetable generated successfully." if not hard_conflicts else f"Draft generated with {len(hard_conflicts)} unresolved hard conflict(s)."
+            prefix={'strict':'Strict generation.','draft':'Draft generation.','relax':'Allow Relaxation generation.'}.get(mode,'Strict generation.')
+            job.message=(prefix+' '+base+' It is not in force until you save this generated timetable.') if not job.message else job.message+' '+base
+            db.commit()
     except Exception as exc:
         logger.exception("Solver job %s failed",job_id)
         try:
