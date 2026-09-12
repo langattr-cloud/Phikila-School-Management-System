@@ -8,4 +8,28 @@
 .timetable__time-grid{width:100%;overflow:hidden}.timetable__time-grid .timetable__corner,.timetable__time-grid .timetable__period-head{position:sticky;top:0;z-index:3}.timetable__time-grid .timetable__day-label{position:sticky;left:0;z-index:2;background:var(--color-surface-muted)}
 .timetable__time-grid .timetable__period-head{padding:.08rem .04rem}.timetable__time-grid .timetable__period{display:block}.timetable__time-grid .timetable__clock{display:block;margin-top:0;font-size:.28rem}.timetable__cell--break{background:var(--color-surface)}.timetable__cell--break>*{visibility:hidden}
 @media(max-width:767px){.timetable__whole-school-grid{min-width:0}}
-@media print{.timetable__whole-school-grid{min-width:0;grid-template-columns:6rem repeat(var(--tt-whole-columns,1),minmax(4rem,1fr))}.timetable__whole-row{grid-template-columns:6rem repeat(var(--tt-whole-columns,1),minmax(4rem,1fr));height:2rem}.timetable__whole-school-grid .lesson-card{box-shadow:none}}
+@media print{
+  @page{size:A4 landscape;margin:5mm}
+  .timetable{width:100%;max-width:none;break-inside:avoid;page-break-inside:avoid}
+  .timetable__whole-school-grid{width:100%;min-width:0;grid-template-columns:12mm repeat(var(--tt-whole-columns,1),minmax(0,1fr));grid-auto-rows:var(--tt-print-row-height,8mm);overflow:visible}
+  .timetable__whole-row{grid-template-columns:12mm repeat(var(--tt-whole-columns,1),minmax(0,1fr));height:var(--tt-print-row-height,8mm)}
+  .timetable__whole-corner,.timetable__whole-day-head,.timetable__whole-period-head{font-size:2.4mm;line-height:1.05;padding:1mm .7mm}
+  .timetable__whole-day-head{min-height:7mm}
+  .timetable__whole-period-row-label,.timetable__whole-period-head{min-height:7mm}
+  .timetable__whole-period-head .timetable__clock{font-size:1.7mm;line-height:1.05;margin-top:.4mm}
+  .timetable__whole-class-label{font-size:2.5mm;line-height:1.05;padding:.8mm;white-space:nowrap}
+  .timetable__whole-slot{height:var(--tt-print-row-height,8mm);padding:.5mm}
+  .timetable__whole-school-grid .lesson-card{padding:.5mm;border-radius:.3mm}
+  .timetable__whole-school-grid .lesson-card__subject{font-size:2.7mm;line-height:1.05;font-weight:900}
+  .timetable__whole-school-grid .lesson-card__class{display:block;font-size:2.1mm;line-height:1.05;font-weight:800;text-align:center}
+  .timetable__time-grid{width:100%;min-width:0;grid-template-columns:12mm repeat(var(--tt-period-count,1),minmax(0,1fr))!important;grid-auto-rows:var(--tt-print-day-row-height,22mm)!important}
+  .timetable__time-grid .timetable__corner,.timetable__time-grid .timetable__period-head{height:9mm;min-height:9mm;padding:1mm .6mm}
+  .timetable__time-grid .timetable__corner{font-size:2.3mm}
+  .timetable__time-grid .timetable__period{font-size:2.5mm;line-height:1.05}
+  .timetable__time-grid .timetable__clock{font-size:1.7mm;line-height:1.05}
+  .timetable__time-grid .timetable__day-label{font-size:2.5mm;padding:.7mm}
+  .timetable__time-grid .timetable__cell{height:var(--tt-print-day-row-height,22mm);min-height:var(--tt-print-day-row-height,22mm);padding:1mm}
+  .timetable__time-grid .lesson-card{padding:1mm;gap:.5mm;border-radius:.5mm}
+  .timetable__time-grid .lesson-card__subject{font-size:var(--print-font-size,10px);line-height:1.1;font-weight:900}
+  .timetable__time-grid .lesson-card__class{font-size:calc(var(--print-font-size,10px) * .82);line-height:1.05;font-weight:800}
+}
