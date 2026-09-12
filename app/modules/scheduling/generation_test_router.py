@@ -6,6 +6,7 @@ from app.core.database import get_db
 from .schemas import GenerateIn
 from .engine import build_input
 from .solver import ORTOOLS_AVAILABLE, preflight, solve
+from .generation_rules import relax_next_rule
 from .tenancy import Principal, require_role
 
 router = APIRouter()
@@ -46,11 +47,15 @@ def test_generation(
         relaxed = [rule.note or f"{rule.scope} {rule.target_id} constraint" for rule in data.avoid_rules]
         data.avoid_rules = []
     elif payload.mode == "relax":
-        for rule in data.avoid_rules:
-            if rule.is_hard:
-                relaxed.append(rule.note or f"{rule.scope} {rule.target_id} avoid constraint")
-                rule.is_hard = False
-
+        while True:
+            problems = preflight(data)
+            if not problems:
+                break
+            rule = relax_next_rule(data.avoid_rules)
+            if rule is None:
+                checks = _diagnostic_checks(data, problems, False)
+                return {"passed": False, "feasible": False, "mode": payload.mode, "checks": checks, "problems": problems, "relaxed_constraints": relaxed}
+            relaxed.append(rule.note or f"{rule.scope} {rule.target_id} avoid constraint")
     problems = preflight(data)
     checks = _diagnostic_checks(data, problems)
     if problems:
