@@ -1,11 +1,12 @@
 .lesson-card {
   --subject-colour: #263238;
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: .05rem;
+  display: grid;
+  grid-template-areas: "subject" "secondary" "time";
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  justify-items: center;
+  gap: .08rem;
   min-height: 2.1rem;
   min-width: 0;
   width: 100%;
@@ -23,8 +24,10 @@
   overflow: hidden;
 }
 .lesson-card:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(20, 35, 29, .16); filter: brightness(.97); }
-.lesson-card__subject { color: #fff !important; font-weight: 900; font-size: .72rem; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.lesson-card__class { color: #000 !important; font-size: .68rem; font-weight: 900; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.lesson-card__subject { grid-area: subject; color: #fff !important; font-weight: 900; font-size: .72rem; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.lesson-card__class { grid-area: secondary; color: #fff !important; font-size: .68rem; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; opacity: .95; }
+.lesson-card__time { grid-area: time; color: rgb(255 255 255 / .86); font-size: .48rem; font-weight: 700; line-height: 1; white-space: nowrap; }
+.lesson-card__time--split { display: inline-flex; gap: .2rem; align-items: center; }
 .lesson-card__line, .lesson-card__room, .lesson-card__badge { display: none; }
 .lesson-card__flag { position: absolute; top: .12rem; right: .12rem; padding: .05rem .18rem; border-radius: 999px; background: #fff; color: #9a2f24; font-size: .48rem; font-weight: 800; }
 .lesson-card__lock { position: absolute; right: .12rem; bottom: .12rem; display: inline-flex; padding: .1rem; border-radius: .2rem; background: rgba(255,255,255,.2); color: #fff; }
@@ -35,6 +38,37 @@
 .lesson-card--compact { min-height: 1.5rem; padding: .08rem .12rem; border-radius: .18rem; }
 .lesson-card--compact .lesson-card__subject { font-size: .58rem; }
 .lesson-card--compact .lesson-card__class { font-size: .55rem; }
+.lesson-card--compact .lesson-card__time { font-size: .4rem; }
+
+/* aSc-style card presentation: the card is the printable lesson unit, not the grid cell. */
+.timetable__time-grid .lesson-card,
+.timetable__whole-school-grid .lesson-card {
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: .35rem .3rem;
+  gap: .22rem;
+  border-width: 1px;
+  border-radius: .55rem;
+  box-shadow: 0 1px 3px rgb(20 35 29 / .10);
+  filter: saturate(.84) brightness(1.03);
+}
+.timetable__time-grid .lesson-card__subject,
+.timetable__whole-school-grid .lesson-card__subject { font-size: clamp(.78rem, 1.05vw, 1.05rem); line-height: 1.05; font-weight: 900; letter-spacing: .01em; }
+.timetable__time-grid .lesson-card__class,
+.timetable__whole-school-grid .lesson-card__class { font-size: clamp(.62rem, .78vw, .78rem); line-height: 1; font-weight: 700; color: rgb(255 255 255 / .92) !important; }
+.timetable__time-grid .lesson-card__time,
+.timetable__whole-school-grid .lesson-card__time { font-size: clamp(.42rem, .52vw, .56rem); color: rgb(255 255 255 / .82); }
+.lesson-card--print-top { justify-content: start; align-content: start; }
+.lesson-card--print-middle { justify-content: center; align-content: center; }
+.lesson-card--print-bottom { justify-content: end; align-content: end; }
+.lesson-card--print-inside { justify-content: space-between; align-content: center; }
+.lesson-card--print-bold { font-weight: 800; }
+.lesson-card--print-italic .lesson-card__subject,
+.lesson-card--print-italic .lesson-card__class,
+.lesson-card--print-italic .lesson-card__time { font-style: italic; }
+.lesson-card--print-underline .lesson-card__subject { text-decoration: underline; text-underline-offset: 1px; }
 
 .timetable__time-grid,
 .timetable__whole-school-grid {
@@ -52,12 +86,6 @@
 .timetable__day-label { padding: .2rem .35rem; font-size: clamp(.65rem, .78vw, .82rem); }
 .timetable__cell { min-height: clamp(3.5rem, 6.5vh, 4.75rem); height: clamp(3.5rem, 6.5vh, 4.75rem); padding: .22rem .25rem; background: var(--color-surface-muted); }
 .timetable__cell--empty { background: #f8f8f6; }
-.timetable__time-grid .lesson-card,
-.timetable__whole-school-grid .lesson-card { min-height: 0; min-width: 0; width: 100%; height: 100%; padding: .35rem .3rem; gap: .22rem; border-width: 1px; border-radius: .55rem; box-shadow: 0 1px 3px rgb(20 35 29 / .10); filter: saturate(.84) brightness(1.03); }
-.timetable__time-grid .lesson-card__subject,
-.timetable__whole-school-grid .lesson-card__subject { font-size: clamp(.78rem, 1.05vw, 1.05rem); line-height: 1.05; font-weight: 900; letter-spacing: .01em; }
-.timetable__time-grid .lesson-card__class,
-.timetable__whole-school-grid .lesson-card__class { font-size: clamp(.62rem, .78vw, .78rem); line-height: 1; font-weight: 700; color: rgb(255 255 255 / .92) !important; }
 
 .entity-timetable-grid { grid-auto-rows: clamp(3.5rem, 6.5vh, 4.75rem) !important; border-radius: .45rem; }
 .entity-timetable-corner,
@@ -121,5 +149,8 @@
   background: var(--color-surface-muted) !important;
 }
 @media print {
+  .lesson-card { break-inside: avoid; page-break-inside: avoid; box-shadow: none; }
+  .lesson-card__time { font-size: var(--print-font-size, .5rem); }
+  .lesson-card--print-top, .lesson-card--print-bottom, .lesson-card--print-middle, .lesson-card--print-inside { align-content: center; }
   .entity-timetable-cell--break-span { grid-row: auto !important; min-height: 11mm; height: 11mm; border-bottom: 1px solid #999 !important; border-right: 1px solid #999 !important; }
 }
