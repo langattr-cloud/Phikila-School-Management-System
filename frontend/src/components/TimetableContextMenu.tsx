@@ -5,6 +5,7 @@ type SelectedCell = { type: CellType; label: string; day?: number; period?: numb
 
 function dispatchSelection(detail: SelectedCell) {
   window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail }))
+  if (detail.targetType === 'title') window.dispatchEvent(new CustomEvent('phikila:timetable-print-cell-selected', { detail: { type: 'title', targetType: 'title', label: detail.label } }))
 }
 
 export function TimetableContextMenu() {
