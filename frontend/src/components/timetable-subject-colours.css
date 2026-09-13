@@ -31,12 +31,11 @@
 .lesson-card__resize { position: absolute; right: .1rem; bottom: .04rem; width: 1.2rem; height: .2rem; cursor: ns-resize; border-radius: 999px; background: rgba(255,255,255,.55); }
 .lesson-card--selected { outline: 2px solid currentColor; outline-offset: 1px; }
 .lesson-card--carrying { opacity: .62; transform: rotate(1deg) scale(.99); }
-.lesson-card--conflict { border-color: #9a2f24; border-left-color: #9a2f24; background: #9a2f24 !important; }
+.lesson-card--conflict { border-color: #9a2f24; border-left-color: #9a2f24; background: var(--subject-colour) !important; box-shadow: inset 0 0 0 1px #9a2f24; }
 .lesson-card--compact { min-height: 1.5rem; padding: .08rem .12rem; border-radius: .18rem; }
 .lesson-card--compact .lesson-card__subject { font-size: .58rem; }
 .lesson-card--compact .lesson-card__class { font-size: .55rem; }
 
-/* Refined timetable presentation: same grid, larger readable allocations. */
 .timetable__time-grid,
 .timetable__whole-school-grid {
   grid-auto-rows: clamp(3.5rem, 6.5vh, 4.75rem);
@@ -51,46 +50,16 @@
 .timetable__period { font-size: clamp(.7rem, .85vw, .9rem); line-height: 1; }
 .timetable__clock { font-size: clamp(.52rem, .62vw, .68rem); line-height: 1.1; }
 .timetable__day-label { padding: .2rem .35rem; font-size: clamp(.65rem, .78vw, .82rem); }
-.timetable__cell {
-  min-height: clamp(3.5rem, 6.5vh, 4.75rem);
-  height: clamp(3.5rem, 6.5vh, 4.75rem);
-  padding: .22rem .25rem;
-  background: var(--color-surface-muted);
-}
+.timetable__cell { min-height: clamp(3.5rem, 6.5vh, 4.75rem); height: clamp(3.5rem, 6.5vh, 4.75rem); padding: .22rem .25rem; background: var(--color-surface-muted); }
 .timetable__cell--empty { background: #f8f8f6; }
 .timetable__time-grid .lesson-card,
-.timetable__whole-school-grid .lesson-card {
-  min-height: 0;
-  min-width: 0;
-  width: 100%;
-  height: 100%;
-  padding: .35rem .3rem;
-  gap: .22rem;
-  border-width: 1px;
-  border-radius: .55rem;
-  box-shadow: 0 1px 3px rgb(20 35 29 / .10);
-  filter: saturate(.84) brightness(1.03);
-}
+.timetable__whole-school-grid .lesson-card { min-height: 0; min-width: 0; width: 100%; height: 100%; padding: .35rem .3rem; gap: .22rem; border-width: 1px; border-radius: .55rem; box-shadow: 0 1px 3px rgb(20 35 29 / .10); filter: saturate(.84) brightness(1.03); }
 .timetable__time-grid .lesson-card__subject,
-.timetable__whole-school-grid .lesson-card__subject {
-  font-size: clamp(.78rem, 1.05vw, 1.05rem);
-  line-height: 1.05;
-  font-weight: 900;
-  letter-spacing: .01em;
-}
+.timetable__whole-school-grid .lesson-card__subject { font-size: clamp(.78rem, 1.05vw, 1.05rem); line-height: 1.05; font-weight: 900; letter-spacing: .01em; }
 .timetable__time-grid .lesson-card__class,
-.timetable__whole-school-grid .lesson-card__class {
-  font-size: clamp(.62rem, .78vw, .78rem);
-  line-height: 1;
-  font-weight: 700;
-  color: rgb(255 255 255 / .92) !important;
-}
+.timetable__whole-school-grid .lesson-card__class { font-size: clamp(.62rem, .78vw, .78rem); line-height: 1; font-weight: 700; color: rgb(255 255 255 / .92) !important; }
 
-/* Published/personal timetable follows the same card language. */
-.entity-timetable-grid {
-  grid-auto-rows: clamp(3.5rem, 6.5vh, 4.75rem) !important;
-  border-radius: .45rem;
-}
+.entity-timetable-grid { grid-auto-rows: clamp(3.5rem, 6.5vh, 4.75rem) !important; border-radius: .45rem; }
 .entity-timetable-corner,
 .entity-timetable-period { min-height: clamp(2.4rem, 4.5vh, 3.25rem); }
 .entity-timetable-period { padding: .25rem .35rem; font-size: clamp(.68rem, .82vw, .88rem); line-height: 1.05; }
@@ -101,18 +70,12 @@
 .entity-lesson-card strong { font-size: clamp(.78rem, 1.05vw, 1.05rem); line-height: 1.05; font-weight: 900; letter-spacing: .01em; }
 .entity-lesson-card span { font-size: clamp(.62rem, .78vw, .78rem); line-height: 1; font-weight: 700; color: rgb(255 255 255 / .92); }
 
-/* Hide only the empty selection rail. Selected lesson details still appear. */
 .workspace__panel:has(.state) { display: none; }
 .workspace:has(.workspace__panel:has(.state)) { grid-template-columns: minmax(0, 1fr); }
 
 @media (max-width: 767px) {
   .workspace__grid { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-inline: contain; }
-  .timetable__time-grid {
-    width: max-content;
-    min-width: 44rem;
-    grid-template-columns: 5rem repeat(var(--tt-period-count, 1), minmax(4.75rem, 1fr));
-    grid-auto-rows: 4rem;
-  }
+  .timetable__time-grid { width: max-content; min-width: 44rem; grid-template-columns: 5rem repeat(var(--tt-period-count, 1), minmax(4.75rem, 1fr)); grid-auto-rows: 4rem; }
   .timetable__corner, .timetable__period-head { min-height: 3.25rem; height: 3.25rem; }
   .timetable__period { font-size: .72rem; }
   .timetable__clock { font-size: .5rem; }
@@ -121,12 +84,7 @@
   .timetable__time-grid .lesson-card { padding: .3rem .25rem; gap: .18rem; border-radius: .5rem; }
   .timetable__time-grid .lesson-card__subject { font-size: .9rem; }
   .timetable__time-grid .lesson-card__class { font-size: .68rem; }
-  .entity-timetable-grid {
-    width: max-content;
-    min-width: 100%;
-    grid-template-columns: 5rem repeat(var(--tt-period-count, 1), minmax(4.75rem, 1fr)) !important;
-    grid-auto-rows: 4rem !important;
-  }
+  .entity-timetable-grid { width: max-content; min-width: 100%; grid-template-columns: 5rem repeat(var(--tt-period-count, 1), minmax(4.75rem, 1fr)) !important; grid-auto-rows: 4rem !important; }
   .entity-timetable-period { min-height: 3.25rem; font-size: .72rem; }
   .entity-timetable-period small { font-size: .5rem; }
   .entity-timetable-day { font-size: .68rem; }
@@ -136,120 +94,32 @@
   .entity-lesson-card span { font-size: .68rem; }
 }
 
-@media (min-width: 768px) {
-  .workspace__grid { min-width: 0; }
+@media (min-width: 768px) { .workspace__grid { min-width: 0; } }
+
+.timetable-toolbar { margin-bottom: .5rem; gap: .45rem; }
+.timetable-toolbar--secondary { margin-bottom: .6rem; padding-bottom: .15rem; }
+.timetable-toolbar .field--inline { gap: .35rem; }
+.timetable-toolbar .field__label { font-size: .72rem; }
+.timetable-toolbar .input--select { min-height: 2.35rem; min-width: 8.5rem; padding-top: .35rem; padding-bottom: .35rem; font-size: .82rem; }
+.timetable-toolbar__status { gap: .35rem; }
+.timetable-toolbar__status .badge { padding: .14rem .45rem; font-size: .7rem; }
+.workspace { gap: .6rem; }
+.workspace__grid { min-width: 0; min-height: 0; padding: .5rem; margin-bottom: 0; }
+.workspace__grid > .timetable { min-height: 0; }
+@media (min-width: 1200px) { .workspace { grid-template-columns: minmax(0, 1fr) 20rem; align-items: start; } .workspace__panel { top: 4.1rem; } }
+@media (min-width: 900px) { .app-shell__content:has(.workspace) { padding-top: .85rem; padding-bottom: 1.5rem; } .app-shell__content:has(.workspace) .page-header { margin-bottom: .65rem; padding-bottom: .65rem; } .app-shell__content:has(.workspace) .page-header__title { font-size: clamp(1.45rem, 2.2vw, 1.9rem); } .app-shell__content:has(.workspace) .page-header__description { margin-top: .15rem; font-size: .76rem; } .app-shell__content:has(.workspace) .timetable__scroll { max-height: calc(100vh - 14rem); overflow: auto; scrollbar-gutter: stable; } .app-shell__content:has(.workspace) .timetable__table { min-width: 100%; } }
+@media (min-width: 1200px) { .app-shell__content:has(.workspace) .timetable__scroll { max-height: calc(100vh - 11.5rem); } }
+@media (max-width: 899px) { .workspace__grid { padding: .35rem; } .timetable-toolbar--secondary .toolbar__group[aria-label='Export'] { width: 100%; overflow-x: auto; padding-bottom: .15rem; } }
+
+/* BREAK columns remain split by day. Do not let a spanning break cell erase row divisions. */
+.entity-timetable-cell--break-span {
+  grid-row: auto !important;
+  min-height: clamp(3.5rem, 6.5vh, 4.75rem);
+  height: clamp(3.5rem, 6.5vh, 4.75rem);
+  border-bottom: 1px solid var(--color-line) !important;
+  border-right: 1px solid var(--color-line) !important;
+  background: var(--color-surface-muted) !important;
 }
-
-/* Timetable workspace: preserve the existing grid, reclaim viewport space. */
-.timetable-toolbar {
-  margin-bottom: .5rem;
-  gap: .45rem;
-}
-
-.timetable-toolbar--secondary {
-  margin-bottom: .6rem;
-  padding-bottom: .15rem;
-}
-
-.timetable-toolbar .field--inline {
-  gap: .35rem;
-}
-
-.timetable-toolbar .field__label {
-  font-size: .72rem;
-}
-
-.timetable-toolbar .input--select {
-  min-height: 2.35rem;
-  min-width: 8.5rem;
-  padding-top: .35rem;
-  padding-bottom: .35rem;
-  font-size: .82rem;
-}
-
-.timetable-toolbar__status {
-  gap: .35rem;
-}
-
-.timetable-toolbar__status .badge {
-  padding: .14rem .45rem;
-  font-size: .7rem;
-}
-
-/* The grid is the dominant surface. Keep the existing grid/card structure intact. */
-.workspace {
-  gap: .6rem;
-}
-
-.workspace__grid {
-  min-width: 0;
-  min-height: 0;
-  padding: .5rem;
-  margin-bottom: 0;
-}
-
-.workspace__grid > .timetable {
-  min-height: 0;
-}
-
-@media (min-width: 1200px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr) 20rem;
-    align-items: start;
-  }
-
-  .workspace__panel {
-    top: 4.1rem;
-  }
-}
-
-/* Use the available viewport height for the school timetable without changing
-   its grid geometry or interaction model. */
-@media (min-width: 900px) {
-  .app-shell__content:has(.workspace) {
-    padding-top: .85rem;
-    padding-bottom: 1.5rem;
-  }
-
-  .app-shell__content:has(.workspace) .page-header {
-    margin-bottom: .65rem;
-    padding-bottom: .65rem;
-  }
-
-  .app-shell__content:has(.workspace) .page-header__title {
-    font-size: clamp(1.45rem, 2.2vw, 1.9rem);
-  }
-
-  .app-shell__content:has(.workspace) .page-header__description {
-    margin-top: .15rem;
-    font-size: .76rem;
-  }
-
-  .app-shell__content:has(.workspace) .timetable__scroll {
-    max-height: calc(100vh - 14rem);
-    overflow: auto;
-    scrollbar-gutter: stable;
-  }
-
-  .app-shell__content:has(.workspace) .timetable__table {
-    min-width: 100%;
-  }
-}
-
-@media (min-width: 1200px) {
-  .app-shell__content:has(.workspace) .timetable__scroll {
-    max-height: calc(100vh - 11.5rem);
-  }
-}
-
-@media (max-width: 899px) {
-  .workspace__grid {
-    padding: .35rem;
-  }
-
-  .timetable-toolbar--secondary .toolbar__group[aria-label='Export'] {
-    width: 100%;
-    overflow-x: auto;
-    padding-bottom: .15rem;
-  }
+@media print {
+  .entity-timetable-cell--break-span { grid-row: auto !important; min-height: 11mm; height: 11mm; border-bottom: 1px solid #999 !important; border-right: 1px solid #999 !important; }
 }
