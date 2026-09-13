@@ -16,7 +16,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const TimetablePage = lazy(() => import('./pages/EnhancedTimetablePage').then(m => ({ default: m.EnhancedTimetablePage })))
-const TimetableProjectsPage = lazy(() => import('./pages/TimetableProjectsPage').then(m => ({ default: m.ProjectTimetablePage })))
+const TimetableProjectsPage = lazy(() => import('./pages/TimetableProjectsPage').then(m => ({ default: m.TimetableProjectsPage })))
 const ProjectTimetablePage = lazy(() => import('./pages/ProjectTimetablePage').then(m => ({ default: m.ProjectTimetablePage })))
 const MyTimetablePage = lazy(() => import('./pages/MyTimetablePage').then(m => ({ default: m.MyTimetablePage })))
 const PeriodsPage = lazy(() => import('./pages/PeriodsPage').then(m => ({ default: m.PeriodsPage })))
