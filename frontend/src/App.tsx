@@ -19,7 +19,7 @@ const TimetablePage = lazy(() => import('./pages/EnhancedTimetablePage').then(m 
 const TimetableProjectsPage = lazy(() => import('./pages/TimetableProjectsPage').then(m => ({ default: m.TimetableProjectsPage })))
 const ProjectTimetablePage = lazy(() => import('./pages/ProjectTimetablePage').then(m => ({ default: m.ProjectTimetablePage })))
 const MyTimetablePage = lazy(() => import('./pages/MyTimetablePage').then(m => ({ default: m.MyTimetablePage })))
-const PeriodsPage = lazy(() => import('./pages/PeriodsPage').then(m => ({ default: m.PeriodsPage })))
+const PeriodsPage = lazy(() => import('./pages/PeriodsPage').then(m => ({ default: m.default })))
 const TeachersPage = lazy(() => import('./pages/Teachers').then(m => ({ default: m.default })))
 const SubjectsPage = lazy(() => import('./pages/Subjects').then(m => ({ default: m.default })))
 const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.SetupPage })))
@@ -47,7 +47,7 @@ const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ 
 const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.default })))
 const FinancePage = lazy(() => import('./pages/Finance').then(m => ({ default: m.default })))
 const FinancePaymentInboxPage = lazy(() => import('./pages/FinancePaymentInbox').then(m => ({ default: m.default })))
-const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.default })))
+const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.OcrScanPage })))
 const SchedulingAnalyticsPage = lazy(() => import('./pages/SchedulingAnalyticsPage').then(m => ({ default: m.SchedulingAnalyticsPage })))
 const VersionsPage = lazy(() => import('./pages/VersionsPage').then(m => ({ default: m.VersionsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
@@ -70,4 +70,4 @@ case '/': return <DashboardPage />; case '/timetable': return <TimetablePage />;
 function ProtectedRoutes({ pathname }: { pathname: string }) { return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense><TimetableCellToolbar /><TimetableContextMenu /></AppShell></AccessGate></RequireAuth> }
 function LandingRedirect() { const { session, initialising } = useAuth(); if (initialising) return <FullPageLoader label="Checking your session…" />; if (!session) return <LandingPage />; return <ProtectedRoutes pathname="/" /> }
 function Routes() { const { pathname } = useRouter(); const path = normalisePath(pathname); if (PUBLIC_ROUTES.has(path)) { const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : path === '/reset-password' ? <ResetPasswordPage /> : <NotFoundPage />; return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn> } if (path === '/') return <LandingRedirect />; return <ProtectedRoutes pathname={path} /> }
-export default function App() { return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><PrintSetupProvider><Routes /></PrintSetupProvider></PlatformSessionProvider></AuthProvider></ToastProvider></RouterProvider> }
+export default function App() { return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><PrintSetupProvider><Routes /></PrintSetupProvider></AuthProvider></ToastProvider></RouterProvider> }
