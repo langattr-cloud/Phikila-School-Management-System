@@ -1,0 +1,39 @@
+/* Keep every BREAK row divided by day. The entity timetable previously used one spanning cell, which removed horizontal divisions. */
+.entity-timetable-cell--break-span {
+  grid-row: auto !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(1.65rem, 2.5vw, 2.3rem);
+  height: clamp(1.65rem, 2.5vw, 2.3rem);
+  padding: 0;
+  border-bottom: 1px solid var(--color-line) !important;
+  border-right: 1px solid var(--color-line) !important;
+  background: var(--color-surface-muted) !important;
+  z-index: 1;
+}
+
+.entity-timetable-cell--break-span span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: clamp(.4rem, .5vw, .48rem);
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+@media print {
+  .entity-timetable-cell--break-span {
+    grid-row: auto !important;
+    min-height: 11mm;
+    height: 11mm;
+    border-bottom: 1px solid #999 !important;
+    border-right: 1px solid #999 !important;
+  }
+
+  .entity-timetable-cell--break-span span {
+    font-size: 2.1mm;
+  }
+}
