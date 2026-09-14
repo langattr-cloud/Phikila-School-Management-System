@@ -28,6 +28,45 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (() => {
+        const updateTimetablePrintMetadata = () => {
+          const header = document.querySelector('.timetable-print-header h1');
+          const scope = document.querySelector('#tt-scope');
+          const target = document.querySelector('#tt-target option:checked');
+          if (!header) return;
+
+          if (!header.dataset.phikilaOriginalTitle) {
+            header.dataset.phikilaOriginalTitle = header.textContent || '';
+          }
+
+          const scopeValue = scope?.value || 'all';
+          const selectedName = target?.textContent?.trim() || '';
+          const title = scopeValue !== 'all' && selectedName
+            ? selectedName
+            : header.dataset.phikilaOriginalTitle || 'WHOLE SCHOOL TIMETABLE';
+
+          header.textContent = title;
+          document.title = title;
+
+          const now = new Date();
+          const pad = (value) => String(value).padStart(2, '0');
+          document.body.dataset.phikilaPrintTime = `Printed: ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        };
+
+        const restoreTimetablePrintMetadata = () => {
+          const header = document.querySelector('.timetable-print-header h1');
+          if (header?.dataset.phikilaOriginalTitle) {
+            header.textContent = header.dataset.phikilaOriginalTitle;
+          }
+          document.title = 'Phikila — School operations, in one place';
+          delete document.body.dataset.phikilaPrintTime;
+        };
+
+        window.addEventListener('beforeprint', updateTimetablePrintMetadata);
+        window.addEventListener('afterprint', restoreTimetablePrintMetadata);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
