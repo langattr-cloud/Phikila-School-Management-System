@@ -1,0 +1,215 @@
+/* aSc-style timetable print sheet */
+@page {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  html,
+  body {
+    width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body {
+    color: #111 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Remove application chrome. */
+  header,
+  nav,
+  aside,
+  .page-header,
+  .timetable-controls-card,
+  .timetable-toolbar,
+  .timetable-toolbar--secondary,
+  .timetable__format-hint,
+  .timetable__format-backdrop,
+  .phikila-print-footer__logo {
+    display: none !important;
+  }
+
+  /* Keep only the print timetable sheet visually. */
+  .timetable-print-header {
+    display: block !important;
+    margin: 0 0 4mm !important;
+    padding: 0 0 2mm !important;
+    border: 0 !important;
+    text-align: center !important;
+    color: #111 !important;
+  }
+
+  .timetable-print-header h1 {
+    margin: 0 !important;
+    font-size: 7mm !important;
+    line-height: 1 !important;
+    font-weight: 800 !important;
+    letter-spacing: .01em !important;
+    text-transform: uppercase !important;
+  }
+
+  /* The print header must contain only the selected teacher/class name. */
+  .timetable-print-header p {
+    display: none !important;
+  }
+
+  .timetable,
+  .timetable--class-view,
+  .timetable--teacher-view {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .timetable__time-grid {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    overflow: visible !important;
+    border: 1px solid #222 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    grid-template-columns: 18mm repeat(var(--tt-period-count, 1), minmax(0, 1fr)) !important;
+    grid-auto-rows: 22mm !important;
+  }
+
+  .timetable__corner,
+  .timetable__period-head,
+  .timetable__day-label,
+  .timetable__cell {
+    border-right: 1px solid #444 !important;
+    border-bottom: 1px solid #444 !important;
+    border-radius: 0 !important;
+  }
+
+  .timetable__corner,
+  .timetable__period-head,
+  .timetable__day-label {
+    background: #f2f2f2 !important;
+    color: #111 !important;
+  }
+
+  .timetable__corner {
+    height: 12mm !important;
+    min-height: 12mm !important;
+    font-size: 2.2mm !important;
+    font-weight: 800 !important;
+  }
+
+  .timetable__period-head {
+    height: 12mm !important;
+    min-height: 12mm !important;
+    padding: 1mm !important;
+  }
+
+  .timetable__period {
+    font-size: 2.6mm !important;
+    line-height: 1.05 !important;
+    font-weight: 800 !important;
+  }
+
+  .timetable__clock {
+    font-size: 1.9mm !important;
+    line-height: 1.05 !important;
+    color: #333 !important;
+  }
+
+  .timetable__day-label {
+    position: static !important;
+    min-height: 22mm !important;
+    height: 22mm !important;
+    padding: 1mm !important;
+    font-size: 2.5mm !important;
+    font-weight: 800 !important;
+  }
+
+  .timetable__cell {
+    position: relative !important;
+    min-height: 22mm !important;
+    height: 22mm !important;
+    padding: 1mm !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
+  /* Every non-teaching interval is a real, dedicated timetable column. */
+  .timetable__period-head--break,
+  .timetable__cell--break {
+    background: #e9e9e9 !important;
+  }
+
+  .timetable__period-head--break::after {
+    content: "BREAK";
+    display: block;
+    font-size: 2.2mm;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: #222;
+  }
+
+  .timetable__cell--break::after {
+    content: "BREAK";
+    display: block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    margin: auto;
+    font-size: 2.2mm;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: .08em;
+    color: #333;
+  }
+
+  .timetable__cell--now {
+    box-shadow: none !important;
+  }
+
+  .timetable__time-grid .lesson-card {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 1.2mm 1mm !important;
+    border: 1px solid var(--subject-colour, #555) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+
+  .timetable__time-grid .lesson-card__subject {
+    font-size: 2.8mm !important;
+    line-height: 1.05 !important;
+    font-weight: 800 !important;
+  }
+
+  .timetable__time-grid .lesson-card__class {
+    margin-top: .6mm !important;
+    font-size: 2.2mm !important;
+    line-height: 1.05 !important;
+    font-weight: 700 !important;
+  }
+
+  .timetable__time-grid .lesson-card__time,
+  .timetable__time-grid .lesson-card__flag,
+  .timetable__time-grid .lesson-card__lock,
+  .timetable__time-grid .lesson-card__resize {
+    display: none !important;
+  }
+
+  .timetable__print-footer {
+    display: none !important;
+  }
+
+  .phikila-print-footer {
+    display: flex !important;
+  }
+}
