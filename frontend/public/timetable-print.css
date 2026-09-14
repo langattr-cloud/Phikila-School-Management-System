@@ -14,7 +14,7 @@
   }
 
   body {
-    color: #111 !important;
+    color: #000 !important;
     font-family: Arial, Helvetica, sans-serif !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -39,7 +39,7 @@
     padding: 0 0 2mm !important;
     border: 0 !important;
     text-align: center !important;
-    color: #111 !important;
+    color: #000 !important;
   }
 
   .timetable-print-header h1 {
@@ -69,7 +69,7 @@
     min-width: 0 !important;
     max-width: none !important;
     overflow: visible !important;
-    border: 1px solid #222 !important;
+    border: 1px solid #000 !important;
     border-radius: 0 !important;
     background: #fff !important;
     grid-template-columns: 18mm repeat(var(--tt-period-count, 1), minmax(0, 1fr)) !important;
@@ -80,16 +80,16 @@
   .timetable__period-head,
   .timetable__day-label,
   .timetable__cell {
-    border-right: 1px solid #444 !important;
-    border-bottom: 1px solid #444 !important;
+    border-right: 1px solid #000 !important;
+    border-bottom: 1px solid #000 !important;
     border-radius: 0 !important;
   }
 
   .timetable__corner,
   .timetable__period-head,
   .timetable__day-label {
-    background: #f2f2f2 !important;
-    color: #111 !important;
+    background: #fff !important;
+    color: #000 !important;
   }
 
   .timetable__corner {
@@ -109,12 +109,13 @@
     font-size: 2.6mm !important;
     line-height: 1.05 !important;
     font-weight: 800 !important;
+    color: #000 !important;
   }
 
   .timetable__clock {
     font-size: 1.9mm !important;
     line-height: 1.05 !important;
-    color: #333 !important;
+    color: #000 !important;
   }
 
   .timetable__day-label {
@@ -135,13 +136,22 @@
     background: #fff !important;
   }
 
-  /* Breaks are deliberately empty vertical columns: no label, no text, no shading. */
+  /* Break is one uninterrupted blank column: remove all horizontal dividers. */
   .timetable__period-head--break,
   .timetable__cell--break,
   .timetable__whole-period-head--break,
   .timetable__whole-slot--break {
     background: #fff !important;
     color: transparent !important;
+    border-bottom: 0 !important;
+  }
+
+  .timetable__period-head--break {
+    border-top: 1px solid #000 !important;
+  }
+
+  .timetable__cell--break {
+    border-bottom: 0 !important;
   }
 
   .timetable__period-head--break::before,
@@ -158,7 +168,7 @@
 
   .timetable__cell--now { box-shadow: none !important; }
 
-  /* Make actual lessons visually dominant in the printed sheet. */
+  /* Strict black-and-white lesson cards for reliable printer output. */
   .timetable__time-grid .lesson-card,
   .timetable__whole-school-grid .lesson-card {
     width: 100% !important;
@@ -166,10 +176,20 @@
     min-height: 0 !important;
     margin: 0 !important;
     padding: 1.6mm 1.4mm !important;
-    border: 1.4px solid var(--subject-colour, #555) !important;
+    background: #fff !important;
+    color: #000 !important;
+    border: 1.4px solid #000 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: hidden !important;
+  }
+
+  .timetable__time-grid .lesson-card__subject,
+  .timetable__whole-school-grid .lesson-card__subject,
+  .timetable__time-grid .lesson-card__class,
+  .timetable__whole-school-grid .lesson-card__class {
+    color: #000 !important;
+    text-shadow: none !important;
   }
 
   .timetable__time-grid .lesson-card__subject,
@@ -199,16 +219,15 @@
     display: none !important;
   }
 
-  /* Use the existing timetable footer so the generated timestamp stays dynamic. */
   .timetable__print-footer {
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
     margin-top: 2mm !important;
     padding: 1mm 0 0 !important;
-    border-top: 1px solid #777 !important;
+    border-top: 1px solid #000 !important;
     font-size: 2mm !important;
-    color: #222 !important;
+    color: #000 !important;
   }
 
   .timetable__print-brand {
