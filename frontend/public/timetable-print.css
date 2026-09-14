@@ -29,7 +29,12 @@
   .timetable-toolbar--secondary,
   .timetable__format-hint,
   .timetable__format-backdrop,
-  .phikila-print-footer__logo {
+  .phikila-print-footer__logo,
+  .timetable-print-header + .alert,
+  .timetable-workspace > .workspace__panel,
+  .timetable-workspace > aside,
+  .workspace__panel,
+  .alert {
     display: none !important;
   }
 
