@@ -7,7 +7,7 @@
 @media print {
   html,
   body {
-    width: 100%;
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
@@ -135,65 +135,67 @@
     background: #fff !important;
   }
 
+  /* Breaks are deliberately empty vertical columns: no label, no text, no shading. */
   .timetable__period-head--break,
-  .timetable__cell--break {
-    background: #e9e9e9 !important;
+  .timetable__cell--break,
+  .timetable__whole-period-head--break,
+  .timetable__whole-slot--break {
+    background: #fff !important;
+    color: transparent !important;
   }
 
-  .timetable__period-head--break::after {
-    content: "BREAK";
-    display: block;
-    font-size: 2.2mm;
-    line-height: 1;
-    font-weight: 800;
-    letter-spacing: .04em;
-    color: #222;
-  }
-
-  .timetable__cell--break::after {
-    content: "BREAK";
-    display: block;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    margin: auto;
-    font-size: 2.2mm;
-    line-height: 1;
-    font-weight: 800;
-    letter-spacing: .08em;
-    color: #333;
+  .timetable__period-head--break::before,
+  .timetable__period-head--break::after,
+  .timetable__cell--break::before,
+  .timetable__cell--break::after,
+  .timetable__whole-period-head--break::before,
+  .timetable__whole-period-head--break::after,
+  .timetable__whole-slot--break::before,
+  .timetable__whole-slot--break::after {
+    content: none !important;
+    display: none !important;
   }
 
   .timetable__cell--now { box-shadow: none !important; }
 
-  .timetable__time-grid .lesson-card {
+  /* Make actual lessons visually dominant in the printed sheet. */
+  .timetable__time-grid .lesson-card,
+  .timetable__whole-school-grid .lesson-card {
     width: 100% !important;
     height: 100% !important;
     min-height: 0 !important;
     margin: 0 !important;
-    padding: 1.2mm 1mm !important;
-    border: 1px solid var(--subject-colour, #555) !important;
+    padding: 1.6mm 1.4mm !important;
+    border: 1.4px solid var(--subject-colour, #555) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: hidden !important;
   }
 
-  .timetable__time-grid .lesson-card__subject {
-    font-size: 2.8mm !important;
+  .timetable__time-grid .lesson-card__subject,
+  .timetable__whole-school-grid .lesson-card__subject {
+    font-size: 3.8mm !important;
     line-height: 1.05 !important;
-    font-weight: 800 !important;
+    font-weight: 900 !important;
+    letter-spacing: .01em !important;
   }
 
-  .timetable__time-grid .lesson-card__class {
-    margin-top: .6mm !important;
-    font-size: 2.2mm !important;
+  .timetable__time-grid .lesson-card__class,
+  .timetable__whole-school-grid .lesson-card__class {
+    margin-top: .8mm !important;
+    font-size: 3mm !important;
     line-height: 1.05 !important;
-    font-weight: 700 !important;
+    font-weight: 800 !important;
   }
 
   .timetable__time-grid .lesson-card__time,
   .timetable__time-grid .lesson-card__flag,
   .timetable__time-grid .lesson-card__lock,
-  .timetable__time-grid .lesson-card__resize {
+  .timetable__time-grid .lesson-card__resize,
+  .timetable__whole-school-grid .lesson-card__time,
+  .timetable__whole-school-grid .lesson-card__flag,
+  .timetable__whole-school-grid .lesson-card__lock,
+  .timetable__whole-school-grid .lesson-card__resize {
     display: none !important;
   }
 
