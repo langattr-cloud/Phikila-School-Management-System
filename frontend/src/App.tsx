@@ -34,9 +34,9 @@ const ConstraintsPage = lazy(() => import('./pages/ConstraintsPage').then(m => (
 const TimeOffPage = lazy(() => import('./pages/TimeOffPage').then(m => ({ default: m.TimeOffPage })))
 const GeneratePage = lazy(() => import('./pages/GeneratePage').then(m => ({ default: m.GeneratePage })))
 const CopilotPage = lazy(() => import('./pages/CopilotPage').then(m => ({ default: m.CopilotPage })))
-const StudentsOverviewPage = lazy(() => import('./pages/StudentsOverviewPage').then(m => ({ default: m.StudentsOverviewPage })))
+const StudentsOverviewPage = lazy(() => import('./pages/StudentsOverviewPage'))
 const StudentsPage = lazy(() => import('./pages/Students').then(m => ({ default: m.default })))
-const StudentImportPage = lazy(() => import('./pages/StudentImportPage').then(m => ({ default: m.StudentImportPage })))
+const StudentImportPage = lazy(() => import('./pages/StudentImportPage'))
 const AttendancePage = lazy(() => import('./pages/Attendance').then(m => ({ default: m.default })))
 const ExaminationDashboardPage = lazy(() => import('./pages/ExaminationDashboardPage').then(m => ({ default: m.default })))
 const ExaminationsPage = lazy(() => import('./pages/Examinations').then(m => ({ default: m.default })))
@@ -59,7 +59,6 @@ const PlatformRequestsPage = lazy(() => import('./pages/PlatformPage').then(m =>
 const PlatformAdminsPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformAdminsPage })))
 const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then(m => ({ default: m.PlatformAuditPage })))
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then(m => ({ default: m.AwaitingApprovalPage })))
-const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
 function RequireAuth({ children }: { children: ReactNode }) { const { session, initialising } = useAuth(); const { pathname, search, hash } = useRouter(); const navigate = useNavigate(); useEffect(() => { if (initialising || session) return; navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true }) }, [initialising, session, pathname, search, hash, navigate]); if (initialising) return <FullPageLoader label="Restoring your session…" />; if (!session) return <FullPageLoader label="Redirecting to sign in…" />; return <>{children}</> }
 function RedirectIfSignedIn({ children }: { children: ReactNode }) { const { session, initialising, recoveryMode } = useAuth(); const navigate = useNavigate(); const { pathname } = useRouter(); const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'; useEffect(() => { if (shouldRedirect) navigate('/', { replace: true }) }, [shouldRedirect, navigate]); if (initialising) return <FullPageLoader label="Checking your session…" />; if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />; return <>{children}</> }
 function AccessGate({ children }: { children: ReactNode }) { const { session, loading, error } = usePlatformSession(); if (loading) return <FullPageLoader label="Checking your access…" />; if (error) return <>{children}</>; if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>; return <>{children}</> }
