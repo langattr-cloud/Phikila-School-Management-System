@@ -71,37 +71,22 @@ def list_classes_with_academic_stream(db: Session = Depends(get_db), principal: 
             grade=stream.grade.code or stream.grade.name if stream.grade else ""; grade_num=''.join(ch for ch in str(grade) if ch.isdigit()); stream_code=(stream.code or "").strip(); stream_name=(stream.name or "").strip(); token=stream_code or (stream_name[:1] if stream_name else ""); item.academic_stream=f"{grade_num}{token.upper()}" if grade_num and token else (stream_name or None)
         out.append(item)
     return out
-
-# The generic CRUD registration above adds a /classes GET route before this
-# enriched route. Remove that earlier GET route so admission receives the
-# established academic year/level mapping from school_classes.
 router.routes[:] = [r for r in router.routes if not (getattr(r, "path", "") == "/classes" and getattr(r, "methods", set()) == {"GET"})]
 @router.get("/classes", response_model=list[s.ClassOut], name="list_classes_with_academic_setup")
 def list_classes_with_academic_setup(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
     from app.modules.academics.models import SchoolClass
-    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all()
-    setup_rows = db.query(SchoolClass).filter(SchoolClass.school_id == principal.school_id).order_by(SchoolClass.id).all()
-    by_id = {int(r.id): r for r in setup_rows}
-    by_key = {}
+    rows = db.query(m.TtClass).filter(m.TtClass.school_id == principal.school_id).order_by(m.TtClass.id).all(); setup_rows = db.query(SchoolClass).filter(SchoolClass.school_id == principal.school_id).order_by(SchoolClass.id).all(); by_id = {int(r.id): r for r in setup_rows}; by_key = {}
     for r in setup_rows:
-        code = str(r.code or '').strip().upper()
-        year = int(r.academic_year_id) if r.academic_year_id is not None else None
-        by_key.setdefault((code, year), r)
-        by_key.setdefault((code, None), r)
-    out = []
+        code=str(r.code or '').strip().upper(); year=int(r.academic_year_id) if r.academic_year_id is not None else None; by_key.setdefault((code,year),r); by_key.setdefault((code,None),r)
+    out=[]
     for row in rows:
-        item = s.ClassOut.model_validate(row)
-        setup = by_id.get(int(row.school_class_id)) if row.school_class_id is not None else None
+        item=s.ClassOut.model_validate(row); setup=by_id.get(int(row.school_class_id)) if row.school_class_id is not None else None
         if setup is None:
-            code = str(row.code or '').strip().upper()
-            year = int(row.academic_year_id) if row.academic_year_id is not None else None
-            setup = by_key.get((code, year)) or by_key.get((code, None))
+            code=str(row.code or '').strip().upper(); year=int(row.academic_year_id) if row.academic_year_id is not None else None; setup=by_key.get((code,year)) or by_key.get((code,None))
         if setup is not None:
-            if setup.level_id is not None:
-                item.level_id = int(setup.level_id)
-            if setup.academic_year_id is not None:
-                item.academic_year_id = int(setup.academic_year_id)
-            item.school_class_id = int(setup.id)
+            if setup.level_id is not None: item.level_id=int(setup.level_id)
+            if setup.academic_year_id is not None: item.academic_year_id=int(setup.academic_year_id)
+            item.school_class_id=int(setup.id)
         out.append(item)
     return out
 _crud("constraints", m.TtConstraint, s.ConstraintIn, s.ConstraintOut, "constraint")
@@ -156,3 +141,47 @@ def list_versions(db:Session=Depends(get_db),principal:Principal=Depends(resolve
 @router.get("/versions/current",response_model=s.VersionOut|None)
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
+
+@router.post("/versions/{version_id}/publish", response_model=s.VersionOut, name="publish_version")
+def publish_version(version_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    """Validate and publish a generated timetable for the caller's school."""
+    version = _owned(db, m.TtVersion, principal.school_id, version_id)
+    conflicts = detect_conflicts(db, principal.school_id, version.id)
+    hard_conflicts = [c for c in conflicts if getattr(c, "severity", None) == "hard"]
+    if hard_conflicts:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Cannot publish timetable: {len(hard_conflicts)} hard conflict(s) remain.")
+
+    before = {"status": version.status, "published_at": version.published_at.isoformat() if version.published_at else None}
+    now = datetime.utcnow()
+    db.query(m.TtVersion).filter(
+        m.TtVersion.school_id == principal.school_id,
+        m.TtVersion.id != version.id,
+        m.TtVersion.status == "published",
+    ).update({"status": "draft"}, synchronize_session=False)
+    version.status = "published"
+    version.published_at = now
+    if version.effective_from is None:
+        version.effective_from = now
+
+    if version.project_id is not None:
+        project = db.query(m.TtProject).filter(
+            m.TtProject.id == version.project_id,
+            m.TtProject.school_id == principal.school_id,
+        ).first()
+        if project is not None:
+            project.current_version_id = version.id
+            project.status = "published"
+
+    _audit(
+        db,
+        principal,
+        "publish",
+        "version",
+        version.id,
+        f"Published timetable version {version.number}",
+        before=before,
+        after={"status": "published", "published_at": now.isoformat(), "effective_from": version.effective_from.isoformat() if version.effective_from else None},
+    )
+    db.commit()
+    db.refresh(version)
+    return version
