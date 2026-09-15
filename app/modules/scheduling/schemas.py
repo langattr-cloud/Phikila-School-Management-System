@@ -76,7 +76,7 @@ class TimetableTypeIn(BaseModel): name: str = Field(min_length=1, max_length=120
 class TimetableTypeOut(ORMModel, TimetableTypeIn): id: int
 class ProjectOut(ORMModel): id: int; name: str; description: str | None = None; academic_year_id: int | None = None; term_id: int | None = None; status: str; current_version_id: int | None = None; created_by: str | None = None; created_at: datetime; updated_at: datetime | None = None
 class GenerateIn(BaseModel):
-    max_seconds: float = Field(default=30.0, ge=1.0, le=180.0); timetable_type_id: int | None = None; class_ids: list[int] | None = None; teacher_ids: list[int] | None = None; period_indexes: list[int] | None = None
+    max_seconds: float = Field(default=30.0, ge=1.0, le=180.0); timetable_type_id: int | None = None; project_id: int | None = None; class_ids: list[int] | None = None; teacher_ids: list[int] | None = None; period_indexes: list[int] | None = None
     @model_validator(mode='before')
     @classmethod
     def normalize_frontend_values(cls, value):
@@ -86,7 +86,7 @@ class GenerateIn(BaseModel):
         else:
             try: data['max_seconds']=float(data['max_seconds'])
             except (TypeError, ValueError): pass
-        for key in ('timetable_type_id',):
+        for key in ('timetable_type_id','project_id'):
             if data.get(key) in ('', None): data[key]=None
             else:
                 try: data[key]=int(float(data[key]))
@@ -126,7 +126,7 @@ class VersionOut(ORMModel):
     @field_validator('created_by', mode='before')
     @classmethod
     def serialize_created_by(cls, value): return str(value) if value is not None else None
-class LessonOut(ORMModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
+class LessonOut(BaseModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
 class LessonMoveIn(BaseModel): day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); room_id:int|None=None
 class LessonPatch(BaseModel): day_index:int|None=Field(default=None,ge=0,le=30); period_index:int|None=Field(default=None,ge=0,le=30); duration:int|None=Field(default=None,ge=1,le=10); teacher_id:int|None=None; class_id:int|None=None; subject_id:int|None=None; room_id:int|None=None; is_locked:bool|None=None
 class LessonCreate(BaseModel): requirement_id:int; day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30); duration:int=Field(default=1,ge=1,le=10); room_id:int|None=None
