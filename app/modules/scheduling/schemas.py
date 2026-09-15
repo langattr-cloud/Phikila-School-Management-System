@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime, time
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
 Slots = dict[str, list[int]]
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -137,6 +136,15 @@ class Explanation(BaseModel): allowed:bool; reasons:list[ExplanationReason]; alt
 class ConflictOut(BaseModel): severity:str; kind:str; message:str; lesson_ids:list[int]; day:int|None=None; period:int|None=None
 class EventIn(BaseModel): name:str=Field(min_length=1,max_length=80); start_time:str=Field(pattern=r'^\d{2}:\d{2}$'); end_time:str=Field(pattern=r'^\d{2}:\d{2}$'); day_indexes:list[int]=Field(min_length=1,max_length=31); event_type:str=Field(default='break',min_length=1,max_length=40); note:str|None=None
 class EventOut(ORMModel, EventIn): id:int
+class PrintProfileIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    config: dict[str, Any] = Field(default_factory=dict)
+    is_default: bool = False
+class PrintProfileOut(ORMModel, PrintProfileIn):
+    id: int
+    created_by: str | None = None
+    created_at: datetime
+    updated_at: datetime | None = None
 class ExplainIn(BaseModel): day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30)
 class CopilotIn(BaseModel): text:str=Field(min_length=1,max_length=400)
 class CopilotApplyIn(BaseModel): command:dict[str,Any]
