@@ -54,7 +54,27 @@ def _replace_function_source(function, replacements):
     return namespace[function.__name__]
 
 _solver.preflight = _replace_function_source(_solver.preflight, [('    hc={};ht={}\n','    hc={};ht={};hs={}\n'),('    for rule in data.avoid_rules:\n        if rule.is_hard:(hc if rule.scope=="class" else ht).setdefault(rule.target_id,set()).update(rule.slots)\n','    for rule in data.avoid_rules:\n        if not rule.is_hard:continue\n        if rule.scope=="class":hc.setdefault(rule.target_id,set()).update(rule.slots)\n        elif rule.scope=="teacher":ht.setdefault(rule.target_id,set()).update(rule.slots)\n        elif rule.scope=="subject":hs.setdefault(rule.target_id,set()).update(rule.slots)\n'),('    pt={}\n','    for sid,blocked in hs.items():\n        available=capacity-len(blocked)\n        for r in data.requirements:\n            if r.subject_id==sid and r.periods_per_week>available:\n                subject=data.subjects.get(sid);name=subject.name if subject else f"Subject {sid}"\n                problems.append(f"{name} needs {r.periods_per_week} lessons a week but only has {available} available slots after subject time-off is applied.")\n    pt={}\n')])
-_solver.solve = _replace_function_source(_solver.solve, [('        for rule in data.avoid_rules:\n            if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False\n','        for rule in data.avoid_rules:\n            if not rule.is_hard or (d,p) not in rule.slots:continue\n            if (rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and rule.target_id==r.subject_id):return False\n'),('                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)\n','                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id)\n')])
+_solver.solve = _replace_function_source(_solver.solve, [('        for rule in data.avoid_rules:\n            if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False\n','        for rule in data.avoid_rules:\n            if not rule.is_hard or (d,p) not in rule.slots:continue\n            if (rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id):return False\n'),('                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)\n','                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id)\n')])
+
+# Standard generation calls historically did not carry a project id. When a
+# caller omits it, bind the job to the most recently updated non-archived project
+# for that school. Explicit project ids remain untouched and are validated by
+# project-aware persistence before a version is written.
+_original_create_job = _jobs.create_job
+
+def _create_job_with_project(db, school_id, actor, config=None):
+    config = dict(config or {})
+    if not config.get("project_id"):
+        project = (
+            db.query(_engine.m.TtProject)
+            .filter(_engine.m.TtProject.school_id == school_id, _engine.m.TtProject.status != "archived")
+            .order_by(_engine.m.TtProject.updated_at.desc(), _engine.m.TtProject.id.desc())
+            .first()
+        )
+        if project is not None:
+            config["project_id"] = project.id
+    return _original_create_job(db, school_id, actor, config)
+_jobs.create_job = _create_job_with_project
 
 # Project-aware persistence: generated versions belong to one project and never
 # delete or overwrite versions belonging to another project. Teachers, learners,
