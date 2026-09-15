@@ -26,7 +26,7 @@ export interface RequirementInput extends Loose { class_id: number; subject_id: 
 export interface Constraint extends Loose { id: number; kind?: string; scope?: string; target_id?: number | null; is_hard?: boolean; weight?: number | null; params?: Loose; enabled?: boolean; note?: string | null }
 export interface ConstraintInput extends Loose {}
 export interface TimetableType { id: number; name: string; code: string; display_mode: 'day'|'date'; day_indexes: number[]; period_indexes: number[]; is_active: boolean; is_system: boolean }
-export interface GenerateIn extends Loose { max_seconds?: number; timetable_type_id?: number | null; class_ids?: number[] | null; teacher_ids?: number[] | null; period_indexes?: number[] | null }
+export interface GenerateIn extends Loose { max_seconds?: number; timetable_type_id?: number | null; project_id?: number | null; class_ids?: number[] | null; teacher_ids?: number[] | null; period_indexes?: number[] | null }
 export interface GenerateProfileInput extends GenerateIn { label?: string; day_indexes?: number[] | null; day_names?: Record<number,string> | null }
 export interface JobCheck { key: string; label: string; state: string; group?: 'hard'|'soft'|string }
 export interface JobQuality extends Quality {}
