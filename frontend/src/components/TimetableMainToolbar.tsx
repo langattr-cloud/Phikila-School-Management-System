@@ -1,22 +1,13 @@
 import type { ReactNode } from 'react'
-import { CalendarIcon, CheckIcon, DownloadIcon, GridIcon, LayersIcon, PlusIcon, PrintIcon } from './icons'
+import { DownloadIcon, GridIcon, LayersIcon, PlusIcon, PrintIcon, SparkIcon } from './icons'
 import { TimetablePrintSetLauncher } from './TimetablePrintSetLauncher'
 import { Link } from '../lib/router'
 
 type ItemProps = { label: string; onClick?: () => void; icon: ReactNode; href?: string }
 
 function ToolItem({ label, onClick, icon, href }: ItemProps) {
-  const content = (
-    <>
-      <span className="timetable-main-toolbar__icon">{icon}</span>
-      <span>{label}</span>
-    </>
-  )
-
-  if (href) {
-    return <Link className="timetable-main-toolbar__item" to={href} title={label}>{content}</Link>
-  }
-
+  const content = <><span className="timetable-main-toolbar__icon">{icon}</span><span>{label}</span></>
+  if (href) return <Link className="timetable-main-toolbar__item" to={href} title={label}>{content}</Link>
   return <button type="button" className="timetable-main-toolbar__item" onClick={onClick} title={label}>{content}</button>
 }
 
@@ -29,131 +20,32 @@ export function TimetableMainToolbar() {
   function saveView() {
     const scope = document.getElementById('tt-scope') as HTMLSelectElement | null
     const target = document.getElementById('tt-target') as HTMLSelectElement | null
-    localStorage.setItem('phikila:timetable-view', JSON.stringify({
-      scope: scope?.value ?? 'all',
-      target: target?.value ?? '',
-    }))
+    localStorage.setItem('phikila:timetable-view', JSON.stringify({ scope: scope?.value ?? 'all', target: target?.value ?? '' }))
   }
 
-  return (
-    <div className="timetable-main-toolbar" role="toolbar" aria-label="Timetable main toolbar">
-      <ToolItem label="New" href="/scheduling/generate" icon={<PlusIcon width={22} height={22} />} />
-      <span className="timetable-main-toolbar__separator" aria-hidden="true" />
-      <ToolItem label="Open" href="/versions" icon={<LayersIcon width={22} height={22} />} />
-      <span className="timetable-main-toolbar__separator" aria-hidden="true" />
-      <ToolItem label="Save" onClick={saveView} icon={<CheckIcon width={22} height={22} />} />
-      <span className="timetable-main-toolbar__separator" aria-hidden="true" />
-      <ToolItem label="Print" onClick={() => window.print()} icon={<PrintIcon width={22} height={22} />} />
-      <span className="timetable-main-toolbar__separator" aria-hidden="true" />
-      <div className="timetable-main-toolbar__setup">
-        <TimetablePrintSetLauncher />
-      </div>
-      <span className="timetable-main-toolbar__separator" aria-hidden="true" />
-      <ToolItem label="CSV" onClick={() => clickExisting('CSV')} icon={<GridIcon width={22} height={22} />} />
-      <span className="timetable-main-toolbar__separator" aria-hidden="true" />
-      <ToolItem label="Calendar" onClick={() => clickExisting('Calendar')} icon={<CalendarIcon width={22} height={22} />} />
-      <span className="timetable-main-toolbar__separator" aria-hidden="true" />
-      <ToolItem label="PNG" onClick={() => clickExisting('PNG')} icon={<DownloadIcon width={22} height={22} />} />
-      <style>{`
-        .timetable-main-toolbar {
-          display: flex;
-          align-items: stretch;
-          width: 100%;
-          min-height: 72px;
-          background: #F0F0F0;
-          border: 1px solid #d1d1d1;
-          border-radius: 4px;
-          box-shadow: inset 0 1px #fff;
-          overflow-x: auto;
-          margin: 0 0 14px;
-          padding: 0 4px;
-        }
-        .timetable-main-toolbar__item {
-          display: flex;
-          flex: 0 0 82px;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 5px;
-          border: 0;
-          background: transparent;
-          color: #222;
-          text-decoration: none;
-          font: 500 12px/1.1 Arial, Helvetica, sans-serif;
-          cursor: pointer;
-          padding: 7px 6px;
-        }
-        .timetable-main-toolbar__item:hover { background: #e4e4e4; }
-        .timetable-main-toolbar__item:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
-        .timetable-main-toolbar__icon {
-          display: flex;
-          width: 24px;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-        }
-        .timetable-main-toolbar__separator {
-          width: 1px;
-          height: 50px;
-          align-self: center;
-          background: #c8c8c8;
-          box-shadow: 1px 0 #fff;
-          flex: 0 0 1px;
-        }
-        .timetable-main-toolbar__setup {
-          display: flex;
-          flex: 0 0 92px;
-          align-items: stretch;
-          justify-content: center;
-          position: relative;
-        }
-        .timetable-main-toolbar__setup > .button {
-          position: relative;
-          width: 92px;
-          border: 0 !important;
-          border-radius: 0 !important;
-          background: transparent !important;
-          box-shadow: none !important;
-          color: #222;
-          font: 500 12px/1.1 Arial, Helvetica, sans-serif;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 5px;
-          padding: 7px 5px;
-        }
-        .timetable-main-toolbar__setup > .button::before {
-          content: 'PRINT';
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-          font-size: 9px;
-          font-weight: 700;
-          border: 2px solid #333;
-          border-radius: 2px;
-          letter-spacing: -0.4px;
-        }
-        .timetable-main-toolbar__setup > .button::after {
-          content: 'SETUP';
-          position: absolute;
-          top: 34px;
-          left: calc(50% + 7px);
-          font-size: 6px;
-          font-weight: 700;
-          line-height: 7px;
-          background: #F0F0F0;
-          padding: 0 1px;
-        }
-        .timetable-main-toolbar__setup > .button:hover { background: #e4e4e4 !important; }
-        @media (max-width: 700px) {
-          .timetable-main-toolbar__item { flex-basis: 72px; }
-          .timetable-main-toolbar__setup,
-          .timetable-main-toolbar__setup > .button { flex-basis: 82px; width: 82px; }
-        }
-      `}</style>
-    </div>
-  )
+  return <div className="timetable-main-toolbar" role="toolbar" aria-label="Timetable main toolbar">
+    <ToolItem label="New" href="/scheduling/generate" icon={<PlusIcon width={22} height={22} />} />
+    <ToolItem label="Open" href="/versions" icon={<LayersIcon width={22} height={22} />} />
+    <ToolItem label="Save" onClick={saveView} icon={<DownloadIcon width={22} height={22} />} />
+    <span className="timetable-main-toolbar__separator" aria-hidden="true" />
+    <ToolItem label="Print" onClick={() => window.print()} icon={<PrintIcon width={22} height={22} />} />
+    <div className="timetable-main-toolbar__setup"><TimetablePrintSetLauncher /></div>
+    <ToolItem label="CSV" onClick={() => clickExisting('CSV')} icon={<GridIcon width={22} height={22} />} />
+    <ToolItem label="PNG" onClick={() => clickExisting('PNG')} icon={<SparkIcon width={22} height={22} />} />
+    <style>{`
+      .timetable-main-toolbar { display:flex; align-items:stretch; width:100%; min-height:82px; background:#fff; border:0; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow-x:auto; margin:0 0 24px; padding:0 8px; }
+      .timetable-main-toolbar__item { display:flex; flex:1 1 0; min-width:82px; flex-direction:column; align-items:center; justify-content:center; gap:6px; border:0; background:transparent; color:#111; text-decoration:none; font:500 12px/1.1 Arial,Helvetica,sans-serif; cursor:pointer; padding:9px 8px; }
+      .timetable-main-toolbar__item:hover { background:#f7f7f7; }
+      .timetable-main-toolbar__item:focus-visible { outline:2px solid #2563eb; outline-offset:-2px; border-radius:6px; }
+      .timetable-main-toolbar__icon { display:flex; width:24px; height:24px; align-items:center; justify-content:center; }
+      .timetable-main-toolbar__icon svg { stroke:#111; }
+      .timetable-main-toolbar__separator { width:1px; height:48px; align-self:center; background:#d7d7d7; flex:0 0 1px; }
+      .timetable-main-toolbar__setup { display:flex; flex:1 1 0; min-width:82px; align-items:stretch; justify-content:center; }
+      .timetable-main-toolbar__setup > .button { width:100%; border:0!important; border-radius:0!important; background:transparent!important; box-shadow:none!important; color:#111; font:500 12px/1.1 Arial,Helvetica,sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:9px 8px; }
+      .timetable-main-toolbar__setup > .button::before { content:'🖨'; display:block; font-size:21px; line-height:24px; filter:grayscale(1); }
+      .timetable-main-toolbar__setup > .button::after { content:'⚙'; position:absolute; margin:17px 0 0 18px; font-size:10px; line-height:10px; background:#fff; filter:grayscale(1); }
+      .timetable-main-toolbar__setup > .button:hover { background:#f7f7f7!important; }
+      @media (max-width:700px) { .timetable-main-toolbar__item,.timetable-main-toolbar__setup { min-width:74px; } }
+    `}</style>
+  </div>
 }
