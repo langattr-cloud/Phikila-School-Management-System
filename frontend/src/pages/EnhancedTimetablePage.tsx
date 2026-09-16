@@ -1,11 +1,14 @@
+import { TimetableMainToolbar } from '../components/TimetableMainToolbar'
 import { TimetablePage } from './TimetablePage'
-import { TimetablePrintSetLauncher } from '../components/TimetablePrintSetLauncher'
 
 /**
- * Timetable page with the aSc-style batch print-set launcher.
- * The launcher drives the existing timetable filters and combines each
- * selected timetable into one browser print job.
+ * Timetable page with an aSc-style main toolbar.
+ * Print setup remains backed by the existing full Print Set dialog.
  */
 export function EnhancedTimetablePage() {
-  return <><TimetablePage /><div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 1100 }}><TimetablePrintSetLauncher /></div></>
+  return <div className="timetable-enhanced-page">
+    <TimetableMainToolbar />
+    <TimetablePage />
+    <style>{`\n      @media (min-width: 701px) { .timetable-controls-card .timetable-controls-row:first-child .toolbar__group { display:none; } }\n      .timetable-enhanced-page > .timetable-main-toolbar { margin-top:0; }\n      @media print { .timetable-main-toolbar { display:none!important; } }\n    `}</style>
+  </div>
 }
