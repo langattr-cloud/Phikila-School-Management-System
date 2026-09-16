@@ -59,14 +59,251 @@ const PlatformAdminsPage = lazy(() => import('./pages/PlatformPage').then(m => (
 const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then(m => ({ default: m.PlatformAuditPage })))
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then(m => ({ default: m.AwaitingApprovalPage })))
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
-function RequireAuth({ children }: { children: ReactNode }) { const { session, initialising } = useAuth(); const { pathname, search, hash } = useRouter(); const navigate = useNavigate(); useEffect(() => { if (initialising || session) return; navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true }) }, [initialising, session, pathname, search, hash, navigate]); if (initialising) return <FullPageLoader label="Restoring your session…" />; if (!session) return <FullPageLoader label="Redirecting to sign in…" />; return <>{children}</> }
-function RedirectIfSignedIn({ children }: { children: ReactNode }) { const { session, initialising, recoveryMode } = useAuth(); const navigate = useNavigate(); const { pathname } = useRouter(); const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'; useEffect(() => { if (shouldRedirect) navigate('/', { replace: true }) }, [shouldRedirect, navigate]); if (initialising) return <FullPageLoader label="Checking your session…" />; if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />; return <>{children}</> }
-function AccessGate({ children }: { children: ReactNode }) { const { session, loading, error } = usePlatformSession(); if (loading) return <FullPageLoader label="Checking your access…" />; if (error) return <>{children}</>; if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>; return <>{children}</> }
-function applyTitleStyle(style: Record<string, unknown> | undefined) { if (!style) return; const titles = document.querySelectorAll<HTMLElement>('.timetable-print-header h1, .page-header__title'); titles.forEach((title) => { if (typeof style.font === 'string') title.style.fontFamily = style.font; if (typeof style.size === 'number') title.style.fontSize = `${style.size}px`; if (typeof style.bold === 'boolean') title.style.fontWeight = style.bold ? '700' : '400'; if (typeof style.italic === 'boolean') title.style.fontStyle = style.italic ? 'italic' : 'normal'; if (typeof style.color === 'string') title.style.color = style.color; if (typeof style.horizontal === 'string') title.style.textAlign = style.horizontal; if (typeof style.vertical === 'string') title.style.alignItems = style.vertical === 'top' ? 'flex-start' : style.vertical === 'bottom' ? 'flex-end' : 'center'; if (typeof style.wrap === 'boolean') title.style.whiteSpace = style.wrap ? 'normal' : 'nowrap' }) }
-function TimetableCellToolbar() { const { pathname } = useRouter(); const route = normalisePath(pathname); const isTimetable = route === '/timetable' || route === '/my-timetable'; const [open,setOpen]=useState(false); const [editorOpen,setEditorOpen]=useState(false); const [selectedCell,setSelectedCell]=useState<SelectedCell|null>(null); const [position,setPosition]=useState({x:0,y:0}); useEffect(()=>{if(!isTimetable)return; const onSelected=(event:Event)=>{const detail=(event as CustomEvent<SelectedCell>).detail;if(detail){setSelectedCell(detail);setPosition({x:window.innerWidth/2,y:120});setOpen(true)}}; const onAppearance=(event:Event)=>{const detail=(event as CustomEvent<{selectedCell?: SelectedCell;style?: Record<string,unknown>}>).detail;if(detail?.selectedCell && (detail.selectedCell as SelectedCell & {targetType?: string}).targetType==='title') applyTitleStyle(detail.style);}; window.addEventListener('phikila:timetable-cell-selected',onSelected); window.addEventListener('phikila:timetable-appearance-changed',onAppearance); return()=>{window.removeEventListener('phikila:timetable-cell-selected',onSelected);window.removeEventListener('phikila:timetable-appearance-changed',onAppearance)}},[isTimetable]); useEffect(()=>{if(!isTimetable)return; try{const saved=JSON.parse(localStorage.getItem('phikila:timetable-title-style:v1')||'null');if(saved)applyTitleStyle(saved)}catch{}},[isTimetable]); if(!isTimetable)return null; return <>{open&&selectedCell&&<div data-timetable-context-toolbar style={{position:'fixed',left:'50%',top:position.y,transform:'translateX(-50%)',zIndex:1200,display:'flex',gap:8,alignItems:'center',padding:'8px 10px',background:'var(--color-surface,#fff)',border:'1px solid var(--color-line,#ddd)',borderRadius:8,boxShadow:'0 8px 24px rgba(0,0,0,.14)'}}><span>{selectedCell.label}</span><button className="button button--secondary button--sm" onClick={()=>{setOpen(false);setEditorOpen(true)}}>Format</button><button className="button button--ghost button--sm" onClick={()=>setOpen(false)}>Close</button></div>}<div data-timetable-appearance-editor><TimetableAppearanceEditor open={editorOpen} onClose={()=>setEditorOpen(false)} selectedCell={selectedCell}/></div></> }
-function routeFor(pathname: string): ReactNode { switch (pathname) {
-case '/': return <DashboardPage />; case '/timetable': return <TimetablePage />; case '/timetable-projects': return <TimetableProjectsPage />; case '/timetable-project': return <ProjectTimetablePage />; case '/my-timetable': return <MyTimetablePage />; case '/setup/periods': return <PeriodsPage />; case '/setup/teachers': return <TeachersPage />; case '/setup/subjects': return <SubjectsPage />; case '/setup/rooms': return <SetupPage kind="rooms" />; case '/setup/school': return <SchoolPage />; case '/setup/academic-years': return <AcademicsPage />; case '/setup/levels': return <LevelsPage />; case '/setup/grades': return <GradesPage />; case '/setup/streams': return <StreamsPage />; case '/setup/academic-setup': return <AcademicSetupWizardPage />; case '/scheduling/requirements': return <RequirementsPage />; case '/scheduling/constraints': return <ConstraintsPage />; case '/scheduling/time-off': return <TimeOffPage />; case '/scheduling/generate': return <GeneratePage />; case '/scheduling/copilot': return <CopilotPage />; case '/students': return <StudentsOverviewPage />; case '/students/list': return <StudentsPage />; case '/students/import': return <StudentImportPage />; case '/attendance': return <AttendancePage />; case '/examinations': return <ExaminationDashboardPage />; case '/examinations/setup': return <ExaminationSetupPage />; case '/examinations/legacy-setup': return <ExaminationsPage />; case '/examinations/levels': return <ExaminationLevelsPage />; case '/examinations/marks-access': return <MarkAccessPage />; case '/examinations/report-card': return <ReportCardPage />; case '/examinations/class-results': return <ClassResultsPage />; case '/finance': return <FinancePage />; case '/finance/payment-inbox': return <FinancePaymentInboxPage />; case '/ocr': return <OcrScanPage />; case '/analytics': return <SchedulingAnalyticsPage />; case '/versions': return <VersionsPage />; case '/profile': return <ProfilePage />; case '/settings/ai-providers': return <LlmProvidersPage />; case '/platform': return <PlatformDashboardPage />; case '/platform/schools': return <PlatformSchoolsPage />; case '/platform/schools/detail': return <PlatformSchoolDetailPage />; case '/platform/requests': return <PlatformRequestsPage />; case '/platform/admins': return <PlatformAdminsPage />; case '/platform/audit': return <PlatformAuditPage />; default: return <NotFoundPage /> } }
-function ProtectedRoutes({ pathname }: { pathname: string }) { return <RequireAuth><AccessGate><AppShell><Suspense fallback={<FullPageLoader label="Loading page…" />}>{routeFor(pathname)}</Suspense><TimetableCellToolbar /><TimetableContextMenu /></AppShell></AccessGate></RequireAuth> }
-function LandingRedirect() { const { session, initialising } = useAuth(); if (initialising) return <FullPageLoader label="Checking your session…" />; if (!session) return <LandingPage />; return <ProtectedRoutes pathname="/" /> }
-function Routes() { const { pathname } = useRouter(); const path = normalisePath(pathname); if (PUBLIC_ROUTES.has(path)) { const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : path === '/reset-password' ? <ResetPasswordPage /> : <NotFoundPage />; return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn> } if (path === '/') return <LandingRedirect />; return <ProtectedRoutes pathname={path} /> }
-export default function App() { return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><Routes /></PlatformSessionProvider></AuthProvider></ToastProvider></RouterProvider> }
+
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { session, initialising } = useAuth()
+  const { pathname, search, hash } = useRouter()
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (initialising || session) return
+    navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true })
+  }, [initialising, session, pathname, search, hash, navigate])
+  if (initialising) return <FullPageLoader label="Restoring your session…" />
+  if (!session) return <FullPageLoader label="Redirecting to sign in…" />
+  return <>{children}</>
+}
+
+function RedirectIfSignedIn({ children }: { children: ReactNode }) {
+  const { session, initialising, recoveryMode } = useAuth()
+  const navigate = useNavigate()
+  const { pathname } = useRouter()
+  const shouldRedirect = !initialising && Boolean(session) && !recoveryMode && normalisePath(pathname) !== '/reset-password'
+  useEffect(() => { if (shouldRedirect) navigate('/', { replace: true }) }, [shouldRedirect, navigate])
+  if (initialising) return <FullPageLoader label="Checking your session…" />
+  if (shouldRedirect) return <FullPageLoader label="Taking you to your dashboard…" />
+  return <>{children}</>
+}
+
+function AccessGate({ children }: { children: ReactNode }) {
+  const { session, loading, error } = usePlatformSession()
+  if (loading) return <FullPageLoader label="Checking your access…" />
+  if (error) return <>{children}</>
+  if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>
+  return <>{children}</>
+}
+
+function applyTitleStyle(style: Record<string, unknown> | undefined) {
+  if (!style) return
+  const titles = document.querySelectorAll<HTMLElement>('.timetable-print-header h1, .page-header__title')
+  titles.forEach((title) => {
+    if (typeof style.font === 'string') title.style.fontFamily = style.font
+    if (typeof style.size === 'number') title.style.fontSize = `${style.size}px`
+    if (typeof style.bold === 'boolean') title.style.fontWeight = style.bold ? '700' : '400'
+    if (typeof style.italic === 'boolean') title.style.fontStyle = style.italic ? 'italic' : 'normal'
+    if (typeof style.color === 'string') title.style.color = style.color
+    if (typeof style.horizontal === 'string') title.style.textAlign = style.horizontal
+    if (typeof style.vertical === 'string') title.style.alignItems = style.vertical === 'top' ? 'flex-start' : style.vertical === 'bottom' ? 'flex-end' : 'center'
+    if (typeof style.wrap === 'boolean') title.style.whiteSpace = style.wrap ? 'normal' : 'nowrap'
+  })
+}
+
+function TimetableCellToolbar() {
+  const { pathname } = useRouter()
+  const route = normalisePath(pathname)
+  const isTimetable = route === '/timetable' || route === '/timetable/whole-school' || route === '/my-timetable'
+  const [open, setOpen] = useState(false)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  useEffect(() => {
+    if (!isTimetable) return
+    const onSelected = (event: Event) => {
+      const detail = (event as CustomEvent<SelectedCell>).detail
+      if (detail) {
+        setSelectedCell(detail)
+        setPosition({ x: window.innerWidth / 2, y: 120 })
+        setOpen(true)
+      }
+    }
+    const onAppearance = (event: Event) => {
+      const detail = (event as CustomEvent<{ selectedCell?: SelectedCell; style?: Record<string, unknown> }>).detail
+      if (detail?.selectedCell && (detail.selectedCell as SelectedCell & { targetType?: string }).targetType === 'title') applyTitleStyle(detail.style)
+    }
+    window.addEventListener('phikila:timetable-cell-selected', onSelected)
+    window.addEventListener('phikila:timetable-appearance-changed', onAppearance)
+    return () => {
+      window.removeEventListener('phikila:timetable-cell-selected', onSelected)
+      window.removeEventListener('phikila:timetable-appearance-changed', onAppearance)
+    }
+  }, [isTimetable])
+  useEffect(() => {
+    if (!isTimetable) return
+    try {
+      const saved = JSON.parse(localStorage.getItem('phikila:timetable-title-style:v1') || 'null')
+      if (saved) applyTitleStyle(saved)
+    } catch {}
+  }, [isTimetable])
+  if (!isTimetable) return null
+  return <>
+    {open && selectedCell && <div data-timetable-context-toolbar style={{ position: 'fixed', left: '50%', top: position.y, transform: 'translateX(-50%)', zIndex: 1200, display: 'flex', gap: 8, alignItems: 'center', padding: '8px 10px', background: 'var(--color-surface,#fff)', border: '1px solid var(--color-line,#ddd)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.14)' }}>
+      <span>{selectedCell.label}</span>
+      <button className="button button--secondary button--sm" onClick={() => { setOpen(false); setEditorOpen(true) }}>Format</button>
+      <button className="button button--ghost button--sm" onClick={() => setOpen(false)}>Close</button>
+    </div>}
+    <div data-timetable-appearance-editor><TimetableAppearanceEditor open={editorOpen} onClose={() => setEditorOpen(false)} selectedCell={selectedCell} /></div>
+  </>
+}
+
+function FullscreenLayout({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [])
+
+  return <div className="timetable-fullscreen-layout">
+    <button type="button" className="timetable-fullscreen-back" onClick={() => navigate('/platform/dashboard')} aria-label="Back to Dashboard">
+      ← Back to Dashboard
+    </button>
+    <div className="timetable-fullscreen-content">{children}</div>
+    <style>{`
+      .timetable-fullscreen-layout {
+        position:fixed;
+        inset:0;
+        z-index:50;
+        width:100vw;
+        height:100vh;
+        min-height:100vh;
+        overflow:auto;
+        background:#f8fafc;
+      }
+      .timetable-fullscreen-content {
+        min-height:100%;
+        width:100%;
+        padding:12px 24px 24px;
+        box-sizing:border-box;
+      }
+      .timetable-fullscreen-content > .timetable-enhanced-page { min-height:calc(100vh - 36px); }
+      .timetable-fullscreen-back {
+        position:absolute;
+        top:8px;
+        left:24px;
+        z-index:80;
+        border:0;
+        background:transparent;
+        color:#111827;
+        font-size:13px;
+        font-weight:600;
+        line-height:32px;
+        padding:0;
+        cursor:pointer;
+      }
+      .timetable-fullscreen-back:hover { color:#2563eb; }
+      .timetable-fullscreen-content .timetable-main-toolbar { padding-left:150px; }
+      @media (max-width:700px) {
+        .timetable-fullscreen-content { padding:44px 12px 16px; }
+        .timetable-fullscreen-content .timetable-main-toolbar { padding-left:0; }
+        .timetable-fullscreen-back { left:12px; top:4px; }
+      }
+    `}</style>
+  </div>
+}
+
+function routeFor(pathname: string): ReactNode {
+  switch (pathname) {
+    case '/': return <DashboardPage />
+    case '/timetable': return <TimetablePage />
+    case '/timetable/whole-school': return <TimetablePage />
+    case '/timetable-projects': return <TimetableProjectsPage />
+    case '/timetable-project': return <ProjectTimetablePage />
+    case '/my-timetable': return <MyTimetablePage />
+    case '/setup/periods': return <PeriodsPage />
+    case '/setup/teachers': return <TeachersPage />
+    case '/setup/subjects': return <SubjectsPage />
+    case '/setup/rooms': return <SetupPage kind="rooms" />
+    case '/setup/school': return <SchoolPage />
+    case '/setup/academic-years': return <AcademicsPage />
+    case '/setup/levels': return <LevelsPage />
+    case '/setup/grades': return <GradesPage />
+    case '/setup/streams': return <StreamsPage />
+    case '/setup/academic-setup': return <AcademicSetupWizardPage />
+    case '/scheduling/requirements': return <RequirementsPage />
+    case '/scheduling/constraints': return <ConstraintsPage />
+    case '/scheduling/time-off': return <TimeOffPage />
+    case '/scheduling/generate': return <GeneratePage />
+    case '/scheduling/copilot': return <CopilotPage />
+    case '/students': return <StudentsOverviewPage />
+    case '/students/list': return <StudentsPage />
+    case '/students/import': return <StudentImportPage />
+    case '/attendance': return <AttendancePage />
+    case '/examinations': return <ExaminationDashboardPage />
+    case '/examinations/setup': return <ExaminationSetupPage />
+    case '/examinations/legacy-setup': return <ExaminationsPage />
+    case '/examinations/levels': return <ExaminationLevelsPage />
+    case '/examinations/marks-access': return <MarkAccessPage />
+    case '/examinations/report-card': return <ReportCardPage />
+    case '/examinations/class-results': return <ClassResultsPage />
+    case '/finance': return <FinancePage />
+    case '/finance/payment-inbox': return <FinancePaymentInboxPage />
+    case '/ocr': return <OcrScanPage />
+    case '/analytics': return <SchedulingAnalyticsPage />
+    case '/versions': return <VersionsPage />
+    case '/profile': return <ProfilePage />
+    case '/settings/ai-providers': return <LlmProvidersPage />
+    case '/platform': return <PlatformDashboardPage />
+    case '/platform/schools': return <PlatformSchoolsPage />
+    case '/platform/schools/detail': return <PlatformSchoolDetailPage />
+    case '/platform/requests': return <PlatformRequestsPage />
+    case '/platform/admins': return <PlatformAdminsPage />
+    case '/platform/audit': return <PlatformAuditPage />
+    default: return <NotFoundPage />
+  }
+}
+
+function NormalLayout({ pathname }: { pathname: string }) {
+  return <AppShell>
+    <Suspense fallback={<FullPageLoader label="Loading page…" />}>
+      {routeFor(pathname)}
+    </Suspense>
+    <TimetableCellToolbar />
+    <TimetableContextMenu />
+  </AppShell>
+}
+
+function ProtectedRoutes({ pathname }: { pathname: string }) {
+  const isWholeSchool = normalisePath(pathname) === '/timetable/whole-school'
+  return <RequireAuth><AccessGate>
+    {isWholeSchool
+      ? <FullscreenLayout>
+          <Suspense fallback={<FullPageLoader label="Loading timetable…" />}>
+            {routeFor(pathname)}
+          </Suspense>
+          <TimetableCellToolbar />
+          <TimetableContextMenu />
+        </FullscreenLayout>
+      : <NormalLayout pathname={pathname} />}
+  </AccessGate></RequireAuth>
+}
+
+function LandingRedirect() {
+  const { session, initialising } = useAuth()
+  if (initialising) return <FullPageLoader label="Checking your session…" />
+  if (!session) return <LandingPage />
+  return <ProtectedRoutes pathname="/" />
+}
+
+function Routes() {
+  const { pathname } = useRouter()
+  const path = normalisePath(pathname)
+  if (PUBLIC_ROUTES.has(path)) {
+    const publicPage = path === '/login' ? <LoginPage /> : path === '/signup' ? <SignUpPage /> : path === '/forgot-password' ? <ForgotPasswordPage /> : path === '/reset-password' ? <ResetPasswordPage /> : <NotFoundPage />
+    return <RedirectIfSignedIn>{publicPage}</RedirectIfSignedIn>
+  }
+  if (path === '/') return <LandingRedirect />
+  return <ProtectedRoutes pathname={path} />
+}
+
+export default function App() {
+  return <RouterProvider><ToastProvider><AuthProvider><PlatformSessionProvider><Routes /></PlatformSessionProvider></AuthProvider></ToastProvider></RouterProvider>
+}
