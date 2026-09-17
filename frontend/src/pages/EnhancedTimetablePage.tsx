@@ -1,75 +1,203 @@
+import { useEffect } from 'react'
+import { useNavigate } from '../lib/router'
 import { TimetableMainToolbar } from '../components/TimetableMainToolbar'
 import { TimetablePage } from './TimetablePage'
 
 /**
- * Whole-school timetable shell with the seven-action main toolbar.
- * The existing timetable functionality remains underneath the reorganized layout.
+ * Dedicated whole-school timetable workspace.
+ * The management shell remains available underneath, but the timetable takes
+ * over the viewport so the grid gets the same screen-first treatment as a
+ * desktop scheduling application.
  */
 export function EnhancedTimetablePage() {
-  return <div className="timetable-enhanced-page">
-    <TimetableMainToolbar />
-    <TimetablePage />
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [])
+
+  return <div className="timetable-workspace" data-timetable-workspace>
+    <div className="timetable-workspace__topbar">
+      <button
+        type="button"
+        className="timetable-workspace__back"
+        onClick={() => navigate('/')}
+        aria-label="Back to dashboard"
+      >
+        <span aria-hidden="true">←</span>
+        <span>Dashboard</span>
+      </button>
+      <div className="timetable-workspace__title">
+        <strong>Timetable</strong>
+        <span>Whole School</span>
+      </div>
+      <div className="timetable-workspace__mode" aria-label="Current timetable view">Whole school</div>
+    </div>
+
+    <main className="timetable-workspace__content">
+      <TimetableMainToolbar />
+      <TimetablePage />
+    </main>
+
     <style>{`
-      .timetable-enhanced-page { background:#f8fafc; }
-      .timetable-enhanced-page > .timetable-main-toolbar { margin:0 0 24px; }
-      .timetable-enhanced-page .timetable-page-shell { gap:24px; }
-
-      /* Keep the page header directly below the main toolbar. */
-      .timetable-enhanced-page .page-header { margin:0; }
-      .timetable-enhanced-page .page-header__title { font-size:32px; font-weight:800; color:#111; }
-      .timetable-enhanced-page .page-header__description { color:#6b7280; }
-      .timetable-enhanced-page .page-header__actions .button:not(.timetable-generate-button) { display:none; }
-
-      /* One filter card: View on the left, zoom on the right. */
-      .timetable-enhanced-page .timetable-controls-card {
-        display:grid;
-        grid-template-columns:minmax(0,1fr) auto;
-        align-items:center;
-        gap:0;
-        padding:16px;
-        margin:0;
-        background:#fff;
-        border:1px solid #e5e7eb;
-        border-radius:12px;
-        box-shadow:0 1px 2px rgba(0,0,0,.04);
+      .timetable-workspace {
+        position:fixed;
+        inset:0;
+        z-index:1000;
+        width:100vw;
+        height:100vh;
+        min-height:100vh;
+        overflow:auto;
+        background:#f6f8fb;
+        color:#111827;
+        box-sizing:border-box;
+        font-family:Arial,Helvetica,sans-serif;
       }
-      .timetable-enhanced-page .timetable-controls-row { display:contents; }
-      .timetable-enhanced-page .timetable-controls-card .timetable-control-group:nth-child(2),
-      .timetable-enhanced-page .timetable-controls-card > .timetable-controls-row:first-child > .toolbar__group { display:none!important; }
-      .timetable-enhanced-page .timetable-controls-card .timetable-control-group:first-child { grid-column:1; }
-      .timetable-enhanced-page .timetable-controls-row--secondary .timetable-control-group { grid-column:1; }
-      .timetable-enhanced-page .timetable-controls-card .toolbar__spacer { display:none; }
-      .timetable-enhanced-page .timetable-controls-row--secondary > .toolbar__group { grid-column:2; grid-row:1; }
-      .timetable-enhanced-page .timetable-controls-row--secondary { display:contents; }
-      .timetable-enhanced-page .timetable-controls-card .timetable-control-group:first-child { display:flex; align-items:center; gap:10px; }
-      .timetable-enhanced-page .timetable-controls-card .field__label { margin:0; font-size:14px; font-weight:600; color:#111; }
-      .timetable-enhanced-page .timetable-controls-card .input--select { min-width:150px; }
-      .timetable-enhanced-page .timetable-controls-card .toolbar__group { display:flex; align-items:center; gap:0; }
-      .timetable-enhanced-page .timetable-controls-card .toolbar__group .button--ghost:last-child { margin-left:10px; }
-      .timetable-enhanced-page .timetable-controls-card .toolbar__zoom-label { min-width:54px; text-align:center; font-weight:600; color:#374151; }
+      .timetable-workspace * { box-sizing:border-box; }
+      .timetable-workspace__topbar {
+        position:sticky;
+        top:0;
+        z-index:90;
+        display:grid;
+        grid-template-columns:180px minmax(180px,1fr) 180px;
+        align-items:center;
+        min-height:42px;
+        padding:0 16px;
+        background:#fff;
+        border-bottom:1px solid #dfe4ea;
+      }
+      .timetable-workspace__back {
+        justify-self:start;
+        display:inline-flex;
+        align-items:center;
+        gap:7px;
+        min-height:30px;
+        border:0;
+        background:transparent;
+        color:#334155;
+        font:600 12px/1 Arial,Helvetica,sans-serif;
+        cursor:pointer;
+        padding:4px 6px;
+        border-radius:5px;
+      }
+      .timetable-workspace__back:hover { background:#f1f5f9; color:#0f2a47; }
+      .timetable-workspace__back span:first-child { font-size:17px; line-height:1; }
+      .timetable-workspace__title { display:flex; align-items:baseline; justify-content:center; gap:8px; min-width:0; }
+      .timetable-workspace__title strong { font-size:13px; letter-spacing:.01em; }
+      .timetable-workspace__title span { color:#64748b; font-size:12px; }
+      .timetable-workspace__mode {
+        justify-self:end;
+        padding:5px 9px;
+        border:1px solid #dbe3ec;
+        border-radius:5px;
+        background:#f8fafc;
+        color:#475569;
+        font-size:11px;
+        font-weight:700;
+      }
+      .timetable-workspace__content {
+        width:100%;
+        min-height:calc(100vh - 42px);
+        padding:8px 14px 18px;
+      }
+      .timetable-workspace .timetable-main-toolbar {
+        min-height:68px;
+        margin:0 0 8px;
+        padding:0 4px;
+        border:1px solid #dfe4ea;
+        border-radius:6px;
+        box-shadow:0 1px 2px rgba(15,23,42,.05);
+      }
+      .timetable-workspace .timetable-main-toolbar__item,
+      .timetable-workspace .timetable-main-toolbar__setup { min-width:76px; }
+      .timetable-workspace .timetable-main-toolbar__item { gap:4px; padding:6px 7px; }
+      .timetable-workspace .timetable-main-toolbar__icon { width:20px; height:20px; }
+      .timetable-workspace .timetable-main-toolbar__icon svg { width:19px; height:19px; }
+      .timetable-workspace .timetable-main-toolbar__item span:last-child,
+      .timetable-workspace .timetable-main-toolbar__setup > .button { font-size:11px; }
 
-      /* The published-state message becomes the requested light-blue info box. */
-      .timetable-enhanced-page .timetable-controls-card + .alert.alert--info {
+      /* Compress the page chrome so the matrix, not cards and headings, owns the screen. */
+      .timetable-workspace .timetable-enhanced-page { min-height:calc(100vh - 42px); background:transparent; }
+      .timetable-workspace .timetable-enhanced-page > .timetable-main-toolbar { display:none; }
+      .timetable-workspace .timetable-enhanced-page .timetable-page-shell { gap:8px; }
+      .timetable-workspace .timetable-enhanced-page .page-header {
+        margin:0;
+        min-height:34px;
+        padding:0 2px;
         display:flex;
         align-items:center;
-        gap:10px;
-        margin:0;
-        padding:13px 16px;
-        background:#eff6ff;
-        border:1px solid #bfdbfe;
-        border-radius:10px;
-        color:#1e40af;
       }
-      .timetable-enhanced-page .timetable-controls-card + .alert.alert--info .alert__title { display:none; }
-      .timetable-enhanced-page .timetable-controls-card + .alert.alert--info::before { content:'i'; display:grid; place-items:center; width:22px; height:22px; flex:0 0 22px; border:1.5px solid currentColor; border-radius:50%; font-weight:800; }
-      .timetable-enhanced-page .timetable-controls-card + .alert.alert--info .alert__message { font-size:0; }
-      .timetable-enhanced-page .timetable-controls-card + .alert.alert--info .alert__message::after { content:'This timetable is published and read-only. Changes require creating a new version.'; font-size:14px; }
+      .timetable-workspace .timetable-enhanced-page .page-header__title {
+        margin:0;
+        font-size:17px;
+        line-height:1.1;
+        font-weight:800;
+        color:#172033;
+      }
+      .timetable-workspace .timetable-enhanced-page .page-header__description {
+        margin:2px 0 0;
+        font-size:10px;
+        line-height:1.2;
+        color:#64748b;
+      }
+      .timetable-workspace .timetable-enhanced-page .page-header__actions { display:none; }
+      .timetable-workspace .timetable-enhanced-page .timetable-controls-card {
+        padding:7px 9px;
+        border:1px solid #dfe4ea;
+        border-radius:6px;
+        box-shadow:none;
+      }
+      .timetable-workspace .timetable-enhanced-page .timetable-controls-card .field__label { font-size:11px; }
+      .timetable-workspace .timetable-enhanced-page .timetable-controls-card .input--select { min-width:130px; height:28px; font-size:11px; }
+      .timetable-workspace .timetable-enhanced-page .day-chip { min-height:25px; padding:3px 7px; font-size:10px; }
+      .timetable-workspace .timetable-enhanced-page .timetable-controls-card .toolbar__group { gap:2px; }
+      .timetable-workspace .timetable-enhanced-page .timetable-controls-card .toolbar__zoom-label { min-width:42px; font-size:10px; }
+      .timetable-workspace .timetable-enhanced-page .timetable-controls-card .button,
+      .timetable-workspace .timetable-enhanced-page .timetable-controls-card .icon-button { min-height:26px; font-size:10px; }
+      .timetable-workspace .timetable-enhanced-page .timetable-controls-card + .alert.alert--info {
+        margin:0;
+        padding:7px 10px;
+        border-radius:6px;
+        font-size:10px;
+      }
 
-      @media print { .timetable-main-toolbar { display:none!important; } }
+      /* The grid is the primary workspace: remove the surrounding card chrome. */
+      .timetable-workspace .timetable {
+        width:100%;
+        max-width:none;
+        margin:0;
+      }
+      .timetable-workspace .timetable .card,
+      .timetable-workspace .timetable-grid-card,
+      .timetable-workspace .timetable__grid-card { border-radius:5px; }
+      .timetable-workspace .timetable__whole-school-grid {
+        width:100%;
+        max-width:none;
+        border-radius:3px;
+        box-shadow:0 1px 2px rgba(15,23,42,.05);
+      }
+      .timetable-workspace .timetable__whole-class-label { font-weight:800; }
+
+      @media (max-width:900px) {
+        .timetable-workspace__topbar { grid-template-columns:130px minmax(120px,1fr) 120px; padding:0 9px; }
+        .timetable-workspace__content { padding:7px 8px 14px; }
+      }
       @media (max-width:700px) {
-        .timetable-enhanced-page .timetable-controls-card { grid-template-columns:1fr; gap:12px; }
-        .timetable-enhanced-page .timetable-controls-row--secondary > .toolbar__group { grid-column:1; grid-row:2; justify-content:flex-end; }
-        .timetable-enhanced-page .page-header__title { font-size:26px; }
+        .timetable-workspace__topbar { grid-template-columns:1fr auto; }
+        .timetable-workspace__title { justify-content:flex-start; }
+        .timetable-workspace__mode { display:none; }
+        .timetable-workspace__content { padding:7px 6px 12px; }
+        .timetable-workspace .timetable-main-toolbar { overflow-x:auto; }
+        .timetable-workspace .timetable-main-toolbar__item,
+        .timetable-workspace .timetable-main-toolbar__setup { min-width:68px; }
+        .timetable-workspace .timetable-enhanced-page .page-header { display:none; }
+      }
+      @media print {
+        .timetable-workspace { position:static; width:auto; height:auto; overflow:visible; background:#fff; }
+        .timetable-workspace__topbar { display:none; }
+        .timetable-workspace__content { padding:0; }
       }
     `}</style>
   </div>
