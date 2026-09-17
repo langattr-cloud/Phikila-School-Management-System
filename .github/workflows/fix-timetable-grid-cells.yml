@@ -20,29 +20,16 @@ jobs:
 
           grid = Path('frontend/src/components/TimetableGrid.tsx')
           s = grid.read_text()
-          old = "const [dragging, setDragging] = useState<Lesson | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [printSettings, setPrintSettings] = useState<PrintLabelSettings>(() => ({ ...DEFAULT_PRINT_LABEL_SETTINGS, timeFormat, timeLayout })); const [printSettingsOpen, setPrintSettingsOpen] = useState(false)"
-          new = "const [dragging, setDragging] = useState<Lesson | null>(null); const [carrying, setCarrying] = useState<Lesson | null>(null); const [hovered, setHovered] = useState<string | null>(null); const [selectedAppearanceKey, setSelectedAppearanceKey] = useState<string | null>(null); const [printSettings, setPrintSettings] = useState<PrintLabelSettings>(() => ({ ...DEFAULT_PRINT_LABEL_SETTINGS, timeFormat, timeLayout })); const [printSettingsOpen, setPrintSettingsOpen] = useState(false)"
-          if old in s and 'selectedAppearanceKey' not in s:
-              s = s.replace(old, new, 1)
-          old = "const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => { window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } })) }"
-          new = "const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => { const key = `${type}:${details.day ?? ''}:${details.period ?? ''}:${details.lessonId ?? ''}`; setSelectedAppearanceKey(key); window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } })) }"
-          if old in s:
-              s = s.replace(old, new, 1)
-          old = "isTarget ? 'timetable__cell--target' : '', cellLessons.length === 0 ? 'timetable__cell--empty' : ''].filter(Boolean).join(' ')} tabIndex={readOnly ? -1 : 0} aria-label={`${dayLabel(day)}, ${period.name}`} onClick={() => period.is_teaching && selectAppearanceCell('period', `${period.name} ${periodTime(period)}`, { period: period.index })}"
-          new = "isTarget ? 'timetable__cell--target' : '', cellLessons.length === 0 ? 'timetable__cell--empty' : '', selectedAppearanceKey === `lesson:${day.index}:${period.index}:${cellLessons[0]?.id ?? ''}` || selectedAppearanceKey === `period:${day.index}:${period.index}:` ? 'timetable__cell--appearance-selected' : ''].filter(Boolean).join(' ')} tabIndex={readOnly ? -1 : 0} aria-label={`${dayLabel(day)}, ${period.name}`} onClick={() => period.is_teaching && selectAppearanceCell(cellLessons.length ? 'lesson' : 'period', cellLessons.length ? (meta.subjects.get(cellLessons[0].subject_id)?.name ?? 'Lesson') : `${period.name} ${periodTime(period)}`, { period: period.index, day: day.index, lessonId: cellLessons[0]?.id })}"
-          if old in s:
-              s = s.replace(old, new, 1)
-          old = "onClick={() => period.is_teaching && selectAppearanceCell('period', `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index })} {...slotHandlers(key, day.index, period.index, isBreak)}"
-          new = "onClick={() => period.is_teaching && selectAppearanceCell(cellLessons.length ? 'lesson' : 'period', cellLessons.length ? (meta.subjects.get(cellLessons[0].subject_id)?.name ?? 'Lesson') : `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index, lessonId: cellLessons[0]?.id })} {...slotHandlers(key, day.index, period.index, isBreak)}"
+
+          # Current TimetableGrid uses compact renderCard markup. Keep the existing
+          # view semantics, but expose codes instead of names in timetable cells:
+          # class timetable => subject code + teacher code
+          # teacher timetable => subject code + class code
+          old = "    const className = assignedClass ? timetableClassLabel(assignedClass) : '—'\n    const teacherName = teacher?.name || teacher?.code || teacher?.staff_number || '—'\n    const subjectName = subject?.name || subject?.code || 'Lesson'"
+          new = "    const className = assignedClass ? timetableClassLabel(assignedClass) : '—'\n    const classCode = assignedClass?.code || className\n    const teacherCode = teacher?.code || teacher?.staff_number || '—'\n    const teacherName = teacher?.name || teacherCode\n    const subjectName = subject?.name || subject?.code || 'Lesson'"
           if old in s:
               s = s.replace(old, new, 1)
 
-          # Timetable cell labels are deliberately codes, not people/class names:
-          # class view = subject code + teacher code; teacher view = subject code + class code.
-          old = "    const className = assignedClass ? timetableClassLabel(assignedClass) : '—'\n    const teacherName = teacher?.name || teacher?.code || teacher?.staff_number || '—'"
-          new = "    const className = assignedClass ? timetableClassLabel(assignedClass) : '—'\n    const classCode = assignedClass?.code || className\n    const teacherCode = teacher?.code || teacher?.staff_number || '—'\n    const teacherName = teacher?.name || teacherCode"
-          if old in s:
-              s = s.replace(old, new, 1)
           old = "{view === 'teacher' ? className : (secondary?.(lesson) || (teacherInitials && teacher ? teacher.name.split(/\\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 4).toUpperCase() : teacher?.code || teacher?.staff_number || '—'))}"
           new = "{view === 'teacher' ? classCode : teacherCode}"
           if old in s:
@@ -52,10 +39,12 @@ jobs:
           new = "    return { subject: subject?.code || subject?.name || 'Lesson', teacherCode: teacher?.code || teacher?.staff_number || '—', classCode: cls?.code || (cls ? timetableClassLabel(cls) : '—'), room: room?.name || '—', color }"
           if old in s:
               s = s.replace(old, new, 1)
+
           old = "{printReport.includes('class') ? data.teacher : printReport.includes('teacher') ? data.className : printReport.includes('classroom') ? data.className : data.className}"
           new = "{printReport.includes('class') ? data.teacherCode : printReport.includes('teacher') ? data.classCode : printReport.includes('classroom') ? data.classCode : data.classCode}"
           if old in s:
               s = s.replace(old, new, 1)
+
           grid.write_text(s)
 
           css = Path('frontend/src/components/timetable-time-grid.css')
@@ -82,8 +71,6 @@ jobs:
           PY
       - name: Verify patch
         run: |
-          grep -q "selectedAppearanceKey" frontend/src/components/TimetableGrid.tsx
-          grep -q "timetable__cell--appearance-selected" frontend/src/components/TimetableGrid.tsx
           grep -q "teacherCode" frontend/src/components/TimetableGrid.tsx
           grep -q "classCode" frontend/src/components/TimetableGrid.tsx
           grep -q "No lesson requirements are configured" app/modules/scheduling/solver.py
