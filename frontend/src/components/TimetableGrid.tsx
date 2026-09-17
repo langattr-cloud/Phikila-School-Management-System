@@ -213,14 +213,15 @@ export function TimetableGrid({
     const subject = meta.subjects.get(lesson.subject_id)
     const assignedClass = meta.classes.get(lesson.class_id)
     const teacher = lesson.teacher_id ? meta.teachers.get(lesson.teacher_id) : undefined
-    const className = assignedClass ? timetableClassLabel(assignedClass) : '—'
-    const teacherName = teacher?.name || teacher?.code || teacher?.staff_number || '—'
+    const classLabel = assignedClass ? timetableClassLabel(assignedClass) : '—'
+    const classCode = (assignedClass as (SchoolClass & { code?: string }) | undefined)?.code || classLabel
+    const teacherCode = teacher?.code || teacher?.staff_number || '—'
     const subjectName = subject?.name || subject?.code || 'Lesson'
     const subjectCode = subject?.code || subjectName
     const color = getSubjectColor(subject)
     const conflict = conflicted?.has(lesson.id) ?? false
     const period = teachingPeriods.find((item) => item.index === lesson.period_index)
-    const title = `${subjectName} · ${className} · ${teacherName}`
+    const title = `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}`
     const style = { backgroundColor: conflict ? '#FBE8E5' : color, borderColor: conflict ? '#9A2F24' : color, '--subject-colour': color } as CSSProperties
 
     return (
@@ -250,9 +251,7 @@ export function TimetableGrid({
         }}
       >
         <span className="lesson-card__subject">{subjectCode}</span>
-        <span className="lesson-card__class">
-          {view === 'teacher' ? className : (secondary?.(lesson) || (teacherInitials && teacher ? teacher.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 4).toUpperCase() : teacher?.code || teacher?.staff_number || '—'))}
-        </span>
+        <span className="lesson-card__class">{view === 'teacher' ? classCode : teacherCode}</span>
         {timeLayout === 'single' && period && <span className="lesson-card__time">{formatTime(period.start_time, timeFormat)}–{formatTime(period.end_time, timeFormat)}</span>}
         {timeLayout === 'split' && period && <span className="lesson-card__time lesson-card__time--split"><span>{formatTime(period.start_time, timeFormat)}</span><span>{formatTime(period.end_time, timeFormat)}</span></span>}
         {lesson.is_locked && <span className="lesson-card__lock" title="Locked"><LockIcon width={12} height={12} /></span>}
@@ -322,7 +321,10 @@ export function TimetableGrid({
     const cls = meta.classes.get(lesson.class_id)
     const room = lesson.room_id ? meta.rooms.get(lesson.room_id) : undefined
     const color = getSubjectColor(subject)
-    return { subject: subject?.code || subject?.name || 'Lesson', teacher: teacher?.name || teacher?.code || teacher?.staff_number || '—', className: cls ? timetableClassLabel(cls) : '—', room: room?.name || '—', color }
+    const classLabel = cls ? timetableClassLabel(cls) : '—'
+    const classCode = (cls as (SchoolClass & { code?: string }) | undefined)?.code || classLabel
+    const teacherCode = teacher?.code || teacher?.staff_number || '—'
+    return { subject: subject?.code || subject?.name || 'Lesson', teacherCode, classCode, room: room?.name || '—', color }
   }
 
   const renderPrintTable = (entityId: number, dense = false) => {
@@ -332,7 +334,7 @@ export function TimetableGrid({
       <div className={`print-table ${dense ? 'print-table--dense' : ''}`}>
         <div className="print-table__corner">DAY / PERIOD</div>
         {printPeriods.map((period, index) => <div key={period.id} className={`print-table__period ${period.is_teaching ? '' : 'print-table__break'}`}><strong>{period.is_teaching ? `P${index + 1}` : period.short_form || period.name || 'BREAK'}</strong><span>{formatTime(period.start_time, timeFormat)}–{formatTime(period.end_time, timeFormat)}</span></div>)}
-        {activeDays.map((day) => <div key={day.id} className="print-table__row"><div className="print-table__day">{dayLabel(day)}</div>{printPeriods.map((period) => { const lesson = lessonAt(day.index, period.index); const data = lesson ? printLesson(lesson) : null; return <div key={period.id} className={`print-table__cell ${period.is_teaching ? '' : 'print-table__break-cell'}`} style={data ? { backgroundColor: data.color } : undefined}>{data && <><strong>{data.subject}</strong><small>{printReport.includes('class') ? data.teacher : printReport.includes('teacher') ? data.className : printReport.includes('classroom') ? data.className : data.className}</small><small>{!dense && printReport.includes('class') ? data.room : ''}</small></>}</div> })}</div>)}
+        {activeDays.map((day) => <div key={day.id} className="print-table__row"><div className="print-table__day">{dayLabel(day)}</div>{printPeriods.map((period) => { const lesson = lessonAt(day.index, period.index); const data = lesson ? printLesson(lesson) : null; return <div key={period.id} className={`print-table__cell ${period.is_teaching ? '' : 'print-table__break-cell'}`} style={data ? { backgroundColor: data.color } : undefined}>{data && <><strong>{data.subject}</strong><small>{printReport.includes('class') ? data.teacherCode : data.classCode}</small><small>{!dense && printReport.includes('class') ? data.room : ''}</small></>}</div> })}</div>)}
       </div>
     )
   }
