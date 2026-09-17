@@ -56,6 +56,39 @@ const formatTime = (value: string, format: '24h' | '12h') => {
   return `${rawHour % 12 || 12}:${String(minute).padStart(2, '0')} ${suffix}`
 }
 
+const FALLBACK_SUBJECT_COLOURS = [
+  '#FDE68A', '#BFDBFE', '#C7D2FE', '#DDD6FE', '#FBCFE8', '#FECACA',
+  '#A7F3D0', '#BAE6FD', '#D9F99D', '#FED7AA', '#C4B5FD', '#F9A8D4',
+]
+
+const hashString = (value: string) => {
+  let hash = 0
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0
+  }
+  return Math.abs(hash)
+}
+
+const configuredSubjectColour = (subject: Subject) => {
+  const candidate = subject as Subject & {
+    color?: unknown
+    colour?: unknown
+    background_color?: unknown
+    backgroundColour?: unknown
+    color_hex?: unknown
+    colour_hex?: unknown
+  }
+  const values = [
+    candidate.color,
+    candidate.colour,
+    candidate.background_color,
+    candidate.backgroundColour,
+    candidate.color_hex,
+    candidate.colour_hex,
+  ]
+  return values.find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim() || null
+}
+
 export function TimetableGrid({
   days,
   periods,
@@ -110,22 +143,23 @@ export function TimetableGrid({
     return map
   }, [lessons])
 
+  // Resolve colours from Subject Setup by subject id first, then use a stable
+  // light fallback palette for subjects without a configured colour. The CSS
+  // card rules consume --subject-colour, so this value remains authoritative.
   const subjectColorMap = useMemo(() => {
-    const map = new Map<string, string>()
+    const map = new Map<number, string>()
     for (const subject of meta.subjects.values()) {
-      const code = subject.code?.toUpperCase().replace(/\./g, '')
-      if (!code) continue
-      const configured = (subject as Subject & { color?: string; colour?: string }).color
-        || (subject as Subject & { colour?: string }).colour
-      map.set(code, configured || '#F3F4F6')
+      const configured = configuredSubjectColour(subject)
+      const fallback = FALLBACK_SUBJECT_COLOURS[
+        hashString(`${subject.id}:${subject.code ?? subject.name}`) % FALLBACK_SUBJECT_COLOURS.length
+      ]
+      map.set(subject.id, configured || fallback)
     }
     return map
   }, [meta.subjects])
 
-  const getSubjectColor = (code: string | undefined) => {
-    const cleanCode = code?.toUpperCase().replace(/\./g, '')
-    return (cleanCode && subjectColorMap.get(cleanCode)) || '#F3F4F6'
-  }
+  const getSubjectColor = (subject: Subject | undefined) =>
+    (subject && subjectColorMap.get(subject.id)) || '#E5E7EB'
 
   const selectAppearanceCell = (
     type: 'lesson' | 'period' | 'day',
@@ -177,7 +211,7 @@ export function TimetableGrid({
     const teacherName = teacher?.name || teacher?.code || teacher?.staff_number || '—'
     const subjectName = subject?.name || subject?.code || 'Lesson'
     const subjectCode = subject?.code || subjectName
-    const color = getSubjectColor(subject?.code)
+    const color = getSubjectColor(subject)
     const conflict = conflicted?.has(lesson.id) ?? false
     const period = teachingPeriods.find((item) => item.index === lesson.period_index)
     const title = `${subjectName} · ${className} · ${teacherName}`
