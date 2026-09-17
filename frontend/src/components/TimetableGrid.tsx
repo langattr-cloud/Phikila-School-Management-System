@@ -113,7 +113,7 @@ export function TimetableGrid({
   const subjectColorMap = useMemo(() => {
     const map = new Map<string, string>()
     for (const subject of meta.subjects.values()) {
-      const code = subject.code?.toUpperCase().replace('.', '')
+      const code = subject.code?.toUpperCase().replace(/\./g, '')
       if (!code) continue
       const configured = (subject as Subject & { color?: string; colour?: string }).color
         || (subject as Subject & { colour?: string }).colour
@@ -123,7 +123,7 @@ export function TimetableGrid({
   }, [meta.subjects])
 
   const getSubjectColor = (code: string | undefined) => {
-    const cleanCode = code?.toUpperCase().replace('.', '')
+    const cleanCode = code?.toUpperCase().replace(/\./g, '')
     return (cleanCode && subjectColorMap.get(cleanCode)) || '#F3F4F6'
   }
 
@@ -272,6 +272,7 @@ export function TimetableGrid({
     const gridStyle = {
       '--tt-period-count': periodsPerDay || 1,
       '--tt-whole-columns': totalColumns,
+      '--tt-whole-rows': wholeRows.length || 1,
     } as CSSProperties
 
     return (
@@ -294,6 +295,7 @@ export function TimetableGrid({
             <div
               key={`period-${day.index}-${period.index}`}
               className="timetable__whole-period-head"
+              title={`${period.name || `P${index + 1}`} · ${formatTime(period.start_time, timeFormat)}–${formatTime(period.end_time, timeFormat)}`}
               onClick={() => selectAppearanceCell(
                 'period',
                 `${period.name || `P${index + 1}`} ${formatTime(period.start_time, timeFormat)}–${formatTime(period.end_time, timeFormat)}`,
@@ -375,26 +377,26 @@ export function TimetableGrid({
       {view === 'whole-school' ? renderWholeSchool() : renderDayPeriod()}
       <style>{`
         .timetable__whole-scroll{position:relative;width:100%;height:85vh;overflow:auto;min-width:0;border:1px solid #d1d5db;background:#fff}
-        .timetable__whole-school-grid{display:grid;grid-template-columns:180px repeat(var(--tt-whole-columns,1),55px);grid-auto-rows:30px;width:max-content;min-width:max-content;background:#fff}
+        .timetable__whole-school-grid{display:grid;grid-template-columns:75px repeat(var(--tt-whole-columns,1),38px);grid-template-rows:20px 20px repeat(var(--tt-whole-rows,1),18px);width:max-content;min-width:max-content;background:#fff}
         .timetable__whole-corner,.timetable__whole-day-head,.timetable__whole-period-head,.timetable__whole-class-label,.timetable__whole-slot{box-sizing:border-box;border-right:1px solid #fff;border-bottom:1px solid #fff}
-        .timetable__whole-corner,.timetable__whole-day-head,.timetable__whole-period-head{background:#111827;color:#fff;font-size:11px;font-weight:800;text-align:center;display:flex;align-items:center;justify-content:center}
-        .timetable__whole-corner{width:180px;min-width:180px;max-width:180px}
+        .timetable__whole-corner,.timetable__whole-day-head,.timetable__whole-period-head{background:#111827;color:#fff;font-size:9px;font-weight:800;text-align:center;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap}
+        .timetable__whole-corner{width:75px;min-width:75px;max-width:75px;height:20px}
         .timetable__whole-corner--sticky{position:sticky;left:0;z-index:30}
         .timetable__whole-corner--top{top:0}
-        .timetable__whole-day-head{height:30px;min-width:55px;position:sticky;top:0;z-index:20}
-        .timetable__whole-period-head{width:55px;min-width:55px;max-width:55px;height:30px;position:sticky;top:30px;z-index:19;flex-direction:column;gap:1px}
-        .timetable__whole-period-head .timetable__period{font-size:11px;font-weight:800;line-height:1}
-        .timetable__whole-period-head .timetable__clock{font-size:8px;line-height:1;white-space:nowrap}
-        .timetable__whole-period-row-label{top:30px;z-index:30}
+        .timetable__whole-day-head{height:20px;min-width:38px;position:sticky;top:0;z-index:20}
+        .timetable__whole-period-head{width:38px;min-width:38px;max-width:38px;height:20px;position:sticky;top:20px;z-index:19;flex-direction:column;gap:0}
+        .timetable__whole-period-head .timetable__period{font-size:9px;font-weight:800;line-height:9px}
+        .timetable__whole-period-head .timetable__clock{font-size:5px;line-height:6px;white-space:nowrap;transform:scale(.9);transform-origin:center}
+        .timetable__whole-period-row-label{top:20px;z-index:30}
         .timetable__whole-row{display:contents}
-        .timetable__whole-class-label{width:180px;min-width:180px;max-width:180px;height:30px;position:sticky;left:0;z-index:10;background:#e5e7eb;color:#111827;font-size:11px;font-weight:800;text-align:center;display:flex;align-items:center;justify-content:center}
-        .timetable__whole-slot{width:55px;min-width:55px;max-width:55px;height:30px;min-height:30px;background:#f9fafb;position:relative;overflow:hidden;font-size:11px;font-weight:700;text-align:center}
-        .timetable__whole-slot--now{box-shadow:inset 0 0 0 2px #111827}
-        .timetable__whole-slot .lesson-card{width:100%;height:100%;min-width:0;min-height:0;margin:0;border:1px solid transparent;box-sizing:border-box;display:flex;align-items:center;justify-content:center;overflow:hidden}
-        .timetable__whole-slot .lesson-card__subject{font-size:11px;font-weight:800;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .timetable__whole-class-label{width:75px;min-width:75px;max-width:75px;height:18px;position:sticky;left:0;z-index:10;background:#e5e7eb;color:#111827;font-size:8px;font-weight:800;text-align:center;display:flex;align-items:center;justify-content:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .timetable__whole-slot{width:38px;min-width:38px;max-width:38px;height:18px;min-height:18px;background:#f9fafb;position:relative;overflow:hidden;font-size:8px;font-weight:700;text-align:center}
+        .timetable__whole-slot--now{box-shadow:inset 0 0 0 1px #111827}
+        .timetable__whole-slot .lesson-card{width:100%;height:100%;min-width:0;min-height:0;margin:0;border:1px solid transparent;box-sizing:border-box;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 1px}
+        .timetable__whole-slot .lesson-card__subject{font-size:8px;font-weight:800;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .timetable__whole-slot .lesson-card__class,.timetable__whole-slot .lesson-card__time{display:none}
-        .timetable__whole-hoverbar{position:sticky;left:0;bottom:0;z-index:40;width:100%;height:36px;box-sizing:border-box;background:#111827;color:#f1c40f;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        @media(max-width:700px){.timetable__whole-school-grid{grid-template-columns:130px repeat(var(--tt-whole-columns,1),55px)}.timetable__whole-corner,.timetable__whole-class-label{width:130px;min-width:130px;max-width:130px}}
+        .timetable__whole-hoverbar{position:sticky;left:0;bottom:0;z-index:40;width:100%;height:30px;box-sizing:border-box;background:#111827;color:#f1c40f;display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        @media(max-width:700px){.timetable__whole-school-grid{grid-template-columns:60px repeat(var(--tt-whole-columns,1),34px)}.timetable__whole-corner,.timetable__whole-class-label{width:60px;min-width:60px;max-width:60px}.timetable__whole-slot,.timetable__whole-period-head,.timetable__whole-day-head{width:34px;min-width:34px;max-width:34px}}
       `}</style>
     </div>
   )
