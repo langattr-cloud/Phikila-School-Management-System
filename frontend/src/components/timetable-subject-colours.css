@@ -16,13 +16,14 @@
   border-left: 1px solid var(--subject-colour);
   border-radius: .25rem;
   background: var(--subject-colour) !important;
+  background-color: var(--subject-colour) !important;
   color: #fff;
   box-shadow: 0 1px 2px rgba(20, 35, 29, .12);
-  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease;
   user-select: none;
   overflow: hidden;
 }
-.lesson-card:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(20, 35, 29, .16); filter: brightness(.97); }
+.lesson-card:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(20, 35, 29, .16); }
 .lesson-card__subject { color: #fff !important; font-weight: 900; font-size: .72rem; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .lesson-card__class { color: #000 !important; font-size: .68rem; font-weight: 900; line-height: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .lesson-card__line, .lesson-card__room, .lesson-card__badge { display: none; }
@@ -31,7 +32,7 @@
 .lesson-card__resize { position: absolute; right: .1rem; bottom: .04rem; width: 1.2rem; height: .2rem; cursor: ns-resize; border-radius: 999px; background: rgba(255,255,255,.55); }
 .lesson-card--selected { outline: 2px solid currentColor; outline-offset: 1px; }
 .lesson-card--carrying { opacity: .62; transform: rotate(1deg) scale(.99); }
-.lesson-card--conflict { border-color: #9a2f24; border-left-color: #9a2f24; background: #9a2f24 !important; }
+.lesson-card--conflict { border-color: #9a2f24; border-left-color: #9a2f24; background: #9a2f24 !important; background-color: #9a2f24 !important; }
 .lesson-card--compact { min-height: 1.5rem; padding: .08rem .12rem; border-radius: .18rem; }
 .lesson-card--compact .lesson-card__subject { font-size: .58rem; }
 .lesson-card--compact .lesson-card__class { font-size: .55rem; }
@@ -69,7 +70,9 @@
   border-width: 1px;
   border-radius: .55rem;
   box-shadow: 0 1px 3px rgb(20 35 29 / .10);
-  filter: saturate(.84) brightness(1.03);
+  filter: none;
+  background: var(--subject-colour) !important;
+  background-color: var(--subject-colour) !important;
 }
 .timetable__time-grid .lesson-card__subject,
 .timetable__whole-school-grid .lesson-card__subject {
