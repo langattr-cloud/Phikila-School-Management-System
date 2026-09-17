@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   fix:
-    if: ${{ !startsWith(github.event.head_commit.message, 'fix: apply timetable grid cell selection') && !startsWith(github.event.head_commit.message, 'fix: apply timetable generation safeguards') }}
+    if: ${{ !startsWith(github.event.head_commit.message, 'fix: apply timetable grid cell selection') && !startsWith(github.event.head_commit.message, 'fix: apply timetable generation safeguards') && !startsWith(github.event.head_commit.message, 'fix: timetable cell labels') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +34,26 @@ jobs:
               s = s.replace(old, new, 1)
           old = "onClick={() => period.is_teaching && selectAppearanceCell('period', `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index })} {...slotHandlers(key, day.index, period.index, isBreak)}"
           new = "onClick={() => period.is_teaching && selectAppearanceCell(cellLessons.length ? 'lesson' : 'period', cellLessons.length ? (meta.subjects.get(cellLessons[0].subject_id)?.name ?? 'Lesson') : `${period.name} ${periodTime(period)}`, { day: day.index, period: period.index, lessonId: cellLessons[0]?.id })} {...slotHandlers(key, day.index, period.index, isBreak)}"
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          # Timetable cell labels are deliberately codes, not people/class names:
+          # class view = subject code + teacher code; teacher view = subject code + class code.
+          old = "    const className = assignedClass ? timetableClassLabel(assignedClass) : '—'\n    const teacherName = teacher?.name || teacher?.code || teacher?.staff_number || '—'"
+          new = "    const className = assignedClass ? timetableClassLabel(assignedClass) : '—'\n    const classCode = assignedClass?.code || className\n    const teacherCode = teacher?.code || teacher?.staff_number || '—'\n    const teacherName = teacher?.name || teacherCode"
+          if old in s:
+              s = s.replace(old, new, 1)
+          old = "{view === 'teacher' ? className : (secondary?.(lesson) || (teacherInitials && teacher ? teacher.name.split(/\\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 4).toUpperCase() : teacher?.code || teacher?.staff_number || '—'))}"
+          new = "{view === 'teacher' ? classCode : teacherCode}"
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old = "    return { subject: subject?.code || subject?.name || 'Lesson', teacher: teacher?.name || teacher?.code || teacher?.staff_number || '—', className: cls ? timetableClassLabel(cls) : '—', room: room?.name || '—', color }"
+          new = "    return { subject: subject?.code || subject?.name || 'Lesson', teacherCode: teacher?.code || teacher?.staff_number || '—', classCode: cls?.code || (cls ? timetableClassLabel(cls) : '—'), room: room?.name || '—', color }"
+          if old in s:
+              s = s.replace(old, new, 1)
+          old = "{printReport.includes('class') ? data.teacher : printReport.includes('teacher') ? data.className : printReport.includes('classroom') ? data.className : data.className}"
+          new = "{printReport.includes('class') ? data.teacherCode : printReport.includes('teacher') ? data.classCode : printReport.includes('classroom') ? data.classCode : data.classCode}"
           if old in s:
               s = s.replace(old, new, 1)
           grid.write_text(s)
@@ -64,6 +84,8 @@ jobs:
         run: |
           grep -q "selectedAppearanceKey" frontend/src/components/TimetableGrid.tsx
           grep -q "timetable__cell--appearance-selected" frontend/src/components/TimetableGrid.tsx
+          grep -q "teacherCode" frontend/src/components/TimetableGrid.tsx
+          grep -q "classCode" frontend/src/components/TimetableGrid.tsx
           grep -q "No lesson requirements are configured" app/modules/scheduling/solver.py
           grep -q "generated timetable is incomplete" app/modules/scheduling/jobs.py
       - name: Commit fix
@@ -72,5 +94,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add frontend/src/components/TimetableGrid.tsx frontend/src/components/timetable-time-grid.css app/modules/scheduling/solver.py app/modules/scheduling/jobs.py
           git diff --cached --quiet && exit 0
-          git commit -m "fix: apply timetable generation safeguards"
+          git commit -m "fix: timetable cell labels"
           git push
