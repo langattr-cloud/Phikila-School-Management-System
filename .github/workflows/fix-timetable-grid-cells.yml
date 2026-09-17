@@ -45,13 +45,12 @@ jobs:
           if old in s:
               s = s.replace(old, new, 1)
 
-          # Never render a placeholder dash in a timetable lesson cell when a
-          # teacher/class code is missing. Keep the cell label clean instead.
-          s = s.replace("const classCode = assignedClass?.code || className", "const classCode = assignedClass?.code || ''")
-          s = s.replace("const teacherCode = teacher?.code || teacher?.staff_number || '—'", "const teacherCode = teacher?.code || teacher?.staff_number || ''")
+          # The current source uses a typed expression for classCode, so patch that
+          # exact expression as well. Missing codes must render as an empty second line.
           s = s.replace("const classLabel = assignedClass ? timetableClassLabel(assignedClass) : '—'", "const classLabel = assignedClass ? timetableClassLabel(assignedClass) : ''")
-          s = s.replace("const classCode = cls?.code || (cls ? timetableClassLabel(cls) : '—')", "const classCode = cls?.code || (cls ? timetableClassLabel(cls) : '')")
-          s = s.replace("teacherCode: teacher?.code || teacher?.staff_number || '—'", "teacherCode: teacher?.code || teacher?.staff_number || ''")
+          s = s.replace("const classCode = (assignedClass as (SchoolClass & { code?: string }) | undefined)?.code || classLabel", "const classCode = (assignedClass as (SchoolClass & { code?: string }) | undefined)?.code || ''")
+          s = s.replace("const teacherCode = teacher?.code || teacher?.staff_number || '—'", "const teacherCode = teacher?.code || teacher?.staff_number || ''")
+          s = s.replace("const classCode = (cls as (SchoolClass & { code?: string }) | undefined)?.code || classLabel", "const classCode = (cls as (SchoolClass & { code?: string }) | undefined)?.code || ''")
 
           grid.write_text(s)
 
