@@ -34,3 +34,12 @@
   .timetable__print-footer{position:fixed;left:5mm;right:5mm;bottom:1.5mm;z-index:9999;display:flex;justify-content:space-between;align-items:center;width:auto;margin:0;padding:0;border:0;background:#fff;color:#111;font-size:2mm;line-height:1}
   .timetable__print-generated{text-align:left;white-space:nowrap}.timetable__print-brand{text-align:right;white-space:nowrap;font-size:0}.timetable__print-brand::after{content:'@PhikilaTimetable';font-size:2mm;font-weight:900;letter-spacing:.02em}
 }
+
+/* Selected timetable titles are the entity name only; keep duplicate report labels and weekday rows out of the preview. */
+.timetable-print-preview__subtitle,
+.timetable-print-preview__meta{display:none!important}
+.timetable-print-preview__title{font-size:23.4px!important;line-height:1.05!important;font-weight:900!important}
+.timetable-print-preview select option[value="Timetable for each class"]{display:none}
+@media print{
+  .timetable-print-header h1{font-size:9.1mm!important}
+}
