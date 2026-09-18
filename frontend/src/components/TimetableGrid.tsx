@@ -246,6 +246,7 @@ export function TimetableGrid({
           event.dataTransfer.setData('text/plain', String(lesson.id))
         }}
         onDragEnd={() => { setDragging(null); setHoveredLesson(null) }}
+        data-lesson-id={lesson.id}
         onContextMenu={(event) => {
           event.preventDefault()
           event.stopPropagation()
@@ -365,7 +366,20 @@ export function TimetableGrid({
   const changeReport = (value: Report) => { setPrintReport(value); setPrintPage(0) }
 
   return (
-    <div className={`timetable timetable--${view}-view`}>
+    <div
+      className={`timetable timetable--${view}-view`}
+      onContextMenuCapture={(event) => {
+        if (view !== 'class' && view !== 'teacher') return
+        const target = event.target as HTMLElement | null
+        const lessonCard = target?.closest?.('[data-lesson-id]') as HTMLElement | null
+        const lessonId = lessonCard?.dataset.lessonId
+        const lesson = lessonId ? lessons.find((item) => String(item.id) === lessonId) : null
+        if (!lesson) return
+        event.preventDefault()
+        event.stopPropagation()
+        setSelectedPrintLesson(lesson)
+      }}
+    >
       <div className="timetable__asc-toolbar">
         <span className="timetable__asc-view">Whole</span>
         <button type="button" className="timetable__asc-button" onClick={() => window.print()}>Print</button>
