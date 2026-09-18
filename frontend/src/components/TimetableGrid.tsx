@@ -127,10 +127,12 @@ export function TimetableGrid({
     if (view !== 'class' && view !== 'teacher') return
     const handleContextMenu = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null
-      const lessonCard = target?.closest?.('[data-lesson-id]') as HTMLElement | null
-      const lessonId = lessonCard?.dataset.lessonId
-      if (!lessonId) return
-      const lesson = lessons.find((item) => String(item.id) === lessonId)
+      const cell = target?.closest?.('.timetable__cell') as HTMLElement | null
+      if (!cell) return
+      const dayIndex = Number(cell.dataset.day)
+      const periodIndex = Number(cell.dataset.period)
+      if (!Number.isFinite(dayIndex) || !Number.isFinite(periodIndex)) return
+      const lesson = lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
       if (!lesson) return
       event.preventDefault()
       event.stopPropagation()
@@ -264,16 +266,10 @@ export function TimetableGrid({
         }}
         onDragEnd={() => { setDragging(null); setHoveredLesson(null) }}
         data-lesson-id={lesson.id}
-        onContextMenu={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          setSelectedPrintLesson(lesson)
-        }}
         onClick={(event) => {
           event.stopPropagation()
           onSelect?.(lesson)
           selectAppearanceCell('lesson', subjectName, { day: lesson.day_index, period: lesson.period_index, lessonId: lesson.id })
-          if (view !== 'whole-school') setSelectedPrintLesson(lesson)
         }}
       >
         <span className="lesson-card__subject">{subjectCode}</span>
@@ -329,7 +325,7 @@ export function TimetableGrid({
     <div className="timetable__time-grid" style={{ '--tt-period-count': periodsPerDay || 1 } as CSSProperties}>
       <div className="timetable__corner">Day / Date</div>
       {teachingPeriods.map((period, index) => <div key={period.index} className="timetable__period-head"><span className="timetable__period">P{index + 1}</span><span className="timetable__clock">{formatTime(period.start_time, timeFormat)}–{formatTime(period.end_time, timeFormat)}</span></div>)}
-      {activeDays.map((day) => <div key={day.index} className="timetable__day-row"><div className="timetable__day-label">{dayLabel(day)}</div>{teachingPeriods.map((period) => { const key = `${day.index}:${period.index}`; const cellLessons = bySlot.get(key) ?? []; return <div key={period.index} className={`timetable__cell ${hovered === key ? 'timetable__cell--target' : ''}`} tabIndex={readOnly ? -1 : 0} onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)} onContextMenu={(event) => { if (view === 'class' || view === 'teacher') { event.preventDefault(); event.stopPropagation(); const lesson = cellLessons[0]; if (lesson) setSelectedPrintLesson(lesson) } }} {...slotHandlers(key, day.index, period.index)}>{cellLessons.map(renderCard)}</div> })}</div>)}
+      {activeDays.map((day) => <div key={day.index} className="timetable__day-row"><div className="timetable__day-label">{dayLabel(day)}</div>{teachingPeriods.map((period) => { const key = `${day.index}:${period.index}`; const cellLessons = bySlot.get(key) ?? []; return <div key={period.index} className={`timetable__cell ${hovered === key ? 'timetable__cell--target' : ''}`} data-day={day.index} data-period={period.index} tabIndex={readOnly ? -1 : 0} onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)} onContextMenu={(event) => { if (view === 'class' || view === 'teacher') { event.preventDefault(); event.stopPropagation(); const lesson = cellLessons[0]; if (lesson) setSelectedPrintLesson(lesson) } }} {...slotHandlers(key, day.index, period.index)}>{cellLessons.map(renderCard)}</div> })}</div>)}
     </div>
   )
 
@@ -388,9 +384,12 @@ export function TimetableGrid({
       onContextMenuCapture={(event) => {
         if (view !== 'class' && view !== 'teacher') return
         const target = event.target as HTMLElement | null
-        const lessonCard = target?.closest?.('[data-lesson-id]') as HTMLElement | null
-        const lessonId = lessonCard?.dataset.lessonId
-        const lesson = lessonId ? lessons.find((item) => String(item.id) === lessonId) : null
+        const cell = target?.closest?.('.timetable__cell') as HTMLElement | null
+        if (!cell) return
+        const dayIndex = Number(cell.dataset.day)
+        const periodIndex = Number(cell.dataset.period)
+        if (!Number.isFinite(dayIndex) || !Number.isFinite(periodIndex)) return
+        const lesson = lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
         if (!lesson) return
         event.preventDefault()
         event.stopPropagation()
