@@ -66,7 +66,7 @@ export function TimetableMainToolbar() {
           <ToolItem label="Generate in Cloud" href="/scheduling/generate" icon={<SparkIcon />} />
           <ToolItem label="Verification" href="/versions" icon={<CheckIcon />} />
           <ToolItem label="School" href="/setup/school" icon={<SchoolIcon />} />
-          <ToolItem label="Timetables Online" href="/timetable" icon={<CalendarIcon />} />
+          <ToolItem label="Timetables Online" href="/timetable/whole-school" icon={<CalendarIcon />} />
         </div>
         <div className="timetable-main-toolbar__group timetable-main-toolbar__group--output">
           <span className="timetable-main-toolbar__label">Help</span>
