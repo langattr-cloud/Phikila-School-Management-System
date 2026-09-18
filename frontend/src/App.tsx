@@ -8,13 +8,14 @@ import { FullPageLoader } from './components/States'
 import { TimetableAppearanceEditor, type SelectedCell } from './components/TimetableAppearanceEditor'
 import { TimetableContextMenu } from './components/TimetableContextMenu'
 import { LandingPage } from './pages/LandingPage'
+import { EnhancedTimetablePage } from './pages/EnhancedTimetablePage'
 import { LoginPage } from './pages/LoginPage'
 import { SignUpPage } from './pages/SignUpPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
-const TimetablePage = lazy(() => import('./pages/EnhancedTimetablePage').then(m => ({ default: m.EnhancedTimetablePage })))
+const TimetablePage = EnhancedTimetablePage
 const TimetableProjectsPage = lazy(() => import('./pages/TimetableProjectsPage').then(m => ({ default: m.TimetableProjectsPage })))
 const ProjectTimetablePage = lazy(() => import('./pages/ProjectTimetablePage').then(m => ({ default: m.ProjectTimetablePage })))
 const MyTimetablePage = lazy(() => import('./pages/MyTimetablePage').then(m => ({ default: m.MyTimetablePage })))
