@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from 'react'
 import type { Day, Lesson, Period, SchoolClass, Subject } from '../lib/scheduling'
 import { LockIcon } from './icons'
+import { PrintSetupModal } from './PrintSetupModal'
 import { timetableClassLabel } from './timetable-view-helpers'
 import './timetable-time-grid.css'
 import './timetable-subject-colours.css'
@@ -117,6 +118,7 @@ export function TimetableGrid({
   const [carrying, setCarrying] = useState<Lesson | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
   const [hoveredLesson, setHoveredLesson] = useState<Lesson | null>(null)
+  const [selectedPrintLesson, setSelectedPrintLesson] = useState<Lesson | null>(null)
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const [printReport, setPrintReport] = useState<Report>('Timetable for each class')
   const [printPage, setPrintPage] = useState(0)
@@ -244,6 +246,11 @@ export function TimetableGrid({
           event.dataTransfer.setData('text/plain', String(lesson.id))
         }}
         onDragEnd={() => { setDragging(null); setHoveredLesson(null) }}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          setSelectedPrintLesson(lesson)
+        }}
         onClick={(event) => {
           event.stopPropagation()
           onSelect?.(lesson)
@@ -365,6 +372,14 @@ export function TimetableGrid({
       </div>
       <div className="timetable__format-hint">Click a lesson, period/time, or day/date cell to format its appearance.</div>
       {view === 'whole-school' ? renderWholeSchool() : renderDayPeriod()}
+
+      {selectedPrintLesson && (
+        <PrintSetupModal
+          lesson={selectedPrintLesson}
+          meta={meta}
+          onClose={() => setSelectedPrintLesson(null)}
+        />
+      )}
 
       {showPrintPreview && (
         <div className="timetable-print-preview" role="dialog" aria-modal="true" aria-label="Timetable print preview">
