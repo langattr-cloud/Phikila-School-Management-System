@@ -255,7 +255,7 @@ export function TimetableGrid({
           event.stopPropagation()
           onSelect?.(lesson)
           selectAppearanceCell('lesson', subjectName, { day: lesson.day_index, period: lesson.period_index, lessonId: lesson.id })
-          if (view === 'class' || view === 'teacher') setSelectedPrintLesson(lesson)
+          if (view !== 'whole-school') setSelectedPrintLesson(lesson)
         }}
       >
         <span className="lesson-card__subject">{subjectCode}</span>
