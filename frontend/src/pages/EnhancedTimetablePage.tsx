@@ -102,14 +102,8 @@ export function EnhancedTimetablePage() {
         min-height:calc(100vh - 42px);
         padding:8px 14px 18px;
       }
-      .timetable-workspace .timetable-main-toolbar {
-        min-height:68px;
-        margin:0 0 8px;
-        padding:0 4px;
-        border:1px solid #dfe4ea;
-        border-radius:6px;
-        box-shadow:0 1px 2px rgba(15,23,42,.05);
-      }
+      .timetable-workspace .timetable-main-toolbar-wrap { margin:0 0 6px; }
+      .timetable-workspace .timetable-main-toolbar { min-height:82px; }
       .timetable-workspace .timetable-main-toolbar__item,
       .timetable-workspace .timetable-main-toolbar__setup { min-width:76px; }
       .timetable-workspace .timetable-main-toolbar__item { gap:4px; padding:6px 7px; }
@@ -121,7 +115,8 @@ export function EnhancedTimetablePage() {
       /* Compress the page chrome so the matrix, not cards and headings, owns the screen. */
       .timetable-workspace .timetable-enhanced-page { min-height:calc(100vh - 42px); background:transparent; }
       .timetable-workspace .timetable-enhanced-page > .timetable-main-toolbar { display:none; }
-      .timetable-workspace .timetable-enhanced-page .timetable-page-shell { gap:8px; }
+      .timetable-workspace .timetable-enhanced-page .timetable-command-ribbon { display:none; }
+      .timetable-workspace .timetable-enhanced-page .timetable-page-shell { gap:6px; }
       .timetable-workspace .timetable-enhanced-page .page-header {
         margin:0;
         min-height:34px;
