@@ -121,7 +121,24 @@ export function TimetableGrid({
   const [selectedPrintLesson, setSelectedPrintLesson] = useState<Lesson | null>(null)
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const [printReport, setPrintReport] = useState<Report>('Timetable for each class')
-  const [printPage, setPrintPage] = useState(0)\n\n  useEffect(() => {\n    if (view !== 'class' && view !== 'teacher') return\n    const handleContextMenu = (event: MouseEvent) => {\n      const target = event.target as HTMLElement | null\n      const lessonCard = target?.closest?.('[data-lesson-id]') as HTMLElement | null\n      const lessonId = lessonCard?.dataset.lessonId\n      if (!lessonId) return\n      const lesson = lessons.find((item) => String(item.id) === lessonId)\n      if (!lesson) return\n      event.preventDefault()\n      event.stopPropagation()\n      setSelectedPrintLesson(lesson)\n    }\n    document.addEventListener('contextmenu', handleContextMenu, true)\n    return () => document.removeEventListener('contextmenu', handleContextMenu, true)\n  }, [lessons, view])
+  const [printPage, setPrintPage] = useState(0)
+
+  useEffect(() => {
+    if (view !== 'class' && view !== 'teacher') return
+    const handleContextMenu = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      const lessonCard = target?.closest?.('[data-lesson-id]') as HTMLElement | null
+      const lessonId = lessonCard?.dataset.lessonId
+      if (!lessonId) return
+      const lesson = lessons.find((item) => String(item.id) === lessonId)
+      if (!lesson) return
+      event.preventDefault()
+      event.stopPropagation()
+      setSelectedPrintLesson(lesson)
+    }
+    document.addEventListener('contextmenu', handleContextMenu, true)
+    return () => document.removeEventListener('contextmenu', handleContextMenu, true)
+  }, [lessons, view])
 
   const activeDays = useMemo(() => days.filter((day) => day.is_active), [days])
   const teachingPeriods = useMemo(
