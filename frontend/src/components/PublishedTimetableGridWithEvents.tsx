@@ -1,5 +1,6 @@
-import { useMemo, useState, type CSSProperties } from 'react'
-import type { Event, Lesson, LessonMeta, Subject, Teacher, SchoolClass, Room, TimetableDisplayPeriod, TimetableView } from '../lib/scheduling'
+import { useMemo, useState, type CSSProperties, type MouseEvent } from 'react'
+import type { LessonMeta } from './TimetableGrid'
+import type { Event, Lesson, Subject, Teacher, SchoolClass, Room, TimetableDisplayPeriod, TimetableView } from '../lib/scheduling'
 import { PrintSetupModal } from './PrintSetupModal'
 import './timetable-time-grid.css'
 import './timetable-subject-colours.css'
@@ -49,7 +50,7 @@ export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
  const columnTemplate=[`2.7rem`,...periods.map(period=>period.kind==='gap'?`minmax(.65rem,${Math.max(.15,(period.gapMinutes??1)/periodBaseMinutes)}fr)`:'minmax(5.25rem,1fr)')].join(' ')
  const title=mode==='teacher' ? `Teacher ${view.target_name ?? ''}`.trim() : `${view.target_name ?? 'Class'} Timetable`
  const generatedTimestamp=new Date().toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})
- const openMenu=(event:React.MouseEvent,lesson:TimetableView['lessons'][number],index:number)=>{event.preventDefault();event.stopPropagation();const built=buildLessonForPrint(lesson,index,view,mode);setMenu({x:event.clientX,y:event.clientY,...built})}
+ const openMenu=(event:MouseEvent,lesson:TimetableView['lessons'][number],index:number)=>{event.preventDefault();event.stopPropagation();const built=buildLessonForPrint(lesson,index,view,mode);setMenu({x:event.clientX,y:event.clientY,...built})}
  return <div className="timetable timetable--published timetable--final timetable--entity timetable--personal" onClick={()=>setMenu(null)}>
   <div className="timetable__personal-title">{title}</div>
   <div className="entity-timetable-grid" style={{'--tt-period-count':periodCount,'--tt-day-count':dayCount,'--tt-column-template':columnTemplate,gridTemplateRows:rowTemplate,gridTemplateColumns:columnTemplate} as CSSProperties}>
