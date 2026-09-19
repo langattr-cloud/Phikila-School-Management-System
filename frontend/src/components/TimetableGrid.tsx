@@ -389,7 +389,7 @@ export function TimetableGrid({
   return (
     <div
       className={`timetable timetable--${view}-view`}
-      onContextMenuCapture={openPrintSetupFromContext}
+      onContextMenuCapture={(event) => openPrintSetupFromContext(event.nativeEvent)}
     >
       <div className="timetable__asc-toolbar">
         <span className="timetable__asc-view">Whole</span>
