@@ -123,23 +123,29 @@ export function TimetableGrid({
   const [printReport, setPrintReport] = useState<Report>('Timetable for each class')
   const [printPage, setPrintPage] = useState(0)
 
+  const openPrintSetupFromContext = (event: MouseEvent) => {
+    if (view !== 'class' && view !== 'teacher') return
+    const target = event.target as HTMLElement | null
+    const lessonCard = target?.closest?.('[data-lesson-id]') as HTMLElement | null
+    const cell = target?.closest?.('.timetable__cell') as HTMLElement | null
+    const lessonId = lessonCard?.dataset.lessonId
+    const dayIndex = cell ? Number(cell.dataset.day) : NaN
+    const periodIndex = cell ? Number(cell.dataset.period) : NaN
+    const lesson = lessonId
+      ? lessons.find((item) => String(item.id) === lessonId)
+      : Number.isFinite(dayIndex) && Number.isFinite(periodIndex)
+        ? lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
+        : undefined
+    if (!lesson) return
+    event.preventDefault()
+    event.stopPropagation()
+    setSelectedPrintLesson(lesson)
+  }
+
   useEffect(() => {
     if (view !== 'class' && view !== 'teacher') return
-    const handleContextMenu = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null
-      const cell = target?.closest?.('.timetable__cell') as HTMLElement | null
-      if (!cell) return
-      const dayIndex = Number(cell.dataset.day)
-      const periodIndex = Number(cell.dataset.period)
-      if (!Number.isFinite(dayIndex) || !Number.isFinite(periodIndex)) return
-      const lesson = lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
-      if (!lesson) return
-      event.preventDefault()
-      event.stopPropagation()
-      setSelectedPrintLesson(lesson)
-    }
-    document.addEventListener('contextmenu', handleContextMenu, true)
-    return () => document.removeEventListener('contextmenu', handleContextMenu, true)
+    document.addEventListener('contextmenu', openPrintSetupFromContext, true)
+    return () => document.removeEventListener('contextmenu', openPrintSetupFromContext, true)
   }, [lessons, view])
 
   const activeDays = useMemo(() => days.filter((day) => day.is_active), [days])
@@ -266,6 +272,8 @@ export function TimetableGrid({
         }}
         onDragEnd={() => { setDragging(null); setHoveredLesson(null) }}
         data-lesson-id={lesson.id}
+        data-day={lesson.day_index}
+        data-period={lesson.period_index}
         onClick={(event) => {
           event.stopPropagation()
           onSelect?.(lesson)
@@ -381,20 +389,7 @@ export function TimetableGrid({
   return (
     <div
       className={`timetable timetable--${view}-view`}
-      onContextMenuCapture={(event) => {
-        if (view !== 'class' && view !== 'teacher') return
-        const target = event.target as HTMLElement | null
-        const cell = target?.closest?.('.timetable__cell') as HTMLElement | null
-        if (!cell) return
-        const dayIndex = Number(cell.dataset.day)
-        const periodIndex = Number(cell.dataset.period)
-        if (!Number.isFinite(dayIndex) || !Number.isFinite(periodIndex)) return
-        const lesson = lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
-        if (!lesson) return
-        event.preventDefault()
-        event.stopPropagation()
-        setSelectedPrintLesson(lesson)
-      }}
+      onContextMenuCapture={openPrintSetupFromContext}
     >
       <div className="timetable__asc-toolbar">
         <span className="timetable__asc-view">Whole</span>
