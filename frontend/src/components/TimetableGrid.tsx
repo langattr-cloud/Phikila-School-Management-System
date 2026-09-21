@@ -27,7 +27,6 @@ type Props = {
   conflicted?: Set<number>
   selectedId?: number | null
   selectedIds?: number[]
-  selectedIds?: number[]
   readOnly?: boolean
   zoom?: number
   dense?: boolean
@@ -35,7 +34,6 @@ type Props = {
   timeFormat?: '24h' | '12h'
   timeLayout?: 'split' | 'single'
   onSelect?: (lesson: Lesson) => void
-  onSelectionChange?: (ids: number[]) => void
   onSelectionChange?: (ids: number[]) => void
   onMove?: (lesson: Lesson, day: number, period: number) => void
   onResize?: (lesson: Lesson, duration: number) => void
@@ -145,7 +143,7 @@ export function TimetableGrid({
       ? lessons.find((item) => String(item.id) === lessonId)
       : Number.isFinite(dayIndex) && Number.isFinite(periodIndex)
         ? lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
-        : undefineddd
+        : undefined
     if (!lesson) return
     event.preventDefault()
     event.stopPropagation()
