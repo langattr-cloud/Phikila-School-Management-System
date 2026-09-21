@@ -122,6 +122,7 @@ export function TimetableGrid({
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const [printReport, setPrintReport] = useState<Report>('Timetable for each class')
   const [printPage, setPrintPage] = useState(0)
+  const [printTimestamp, setPrintTimestamp] = useState('')
 
   const openPrintSetupFromContext = (event: MouseEvent) => {
     if (view !== 'class' && view !== 'teacher') return
@@ -383,7 +384,7 @@ export function TimetableGrid({
     return renderPrintTable(printEntity?.id ?? 0)
   }
 
-  const openPrintPreview = () => { setPrintPage(0); setShowPrintPreview(true) }
+  const openPrintPreview = () => { setPrintPage(0); setPrintTimestamp(new Date().toLocaleString()); setShowPrintPreview(true) }
   const changeReport = (value: Report) => { setPrintReport(value); setPrintPage(0) }
 
   return (
@@ -415,16 +416,20 @@ export function TimetableGrid({
             .timetable-print-preview__toolbar button,.timetable-print-preview__toolbar select{height:30px;border:1px solid #94a3b8;background:#fff;border-radius:3px;padding:0 10px;font-size:12px}
             .timetable-print-preview__toolbar button{cursor:pointer}.timetable-print-preview__toolbar .primary{background:#2563eb;color:#fff;border-color:#2563eb}.timetable-print-preview__toolbar .close{margin-left:auto;background:#dc2626;color:#fff;border-color:#dc2626}
             .timetable-print-preview__pages{flex:1;overflow:hidden;padding:16px;display:flex;justify-content:center;align-items:center;min-height:0}
-            .timetable-print-preview__paper{width:min(297mm, calc((100vh - 92px) * 1.4142857));height:min(210mm, calc(100vh - 92px));max-width:100%;max-height:100%;background:#fff;box-sizing:border-box;padding:8mm;box-shadow:0 8px 28px rgba(0,0,0,.28);color:#111827;overflow:hidden}
+            .timetable-print-preview__stage{display:flex;align-items:center;justify-content:center;gap:10px;max-width:100%;max-height:100%}
+            .timetable-print-preview__paper{width:min(297mm, calc((100vh - 92px) * 1.4142857));height:min(210mm, calc(100vh - 92px));max-width:100%;max-height:100%;background:#fff;box-sizing:border-box;padding:8mm;box-shadow:0 8px 28px rgba(0,0,0,.28);color:#111827;overflow:hidden;display:flex;flex-direction:column}
+            .timetable-print-preview__content{flex:1;min-height:0;overflow:hidden}
+            .timetable-print-preview__nav{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto}
+            .timetable-print-preview__nav button{width:34px;height:34px;border:1px solid #94a3b8;background:#fff;border-radius:3px;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+            .timetable-print-preview__nav button:disabled{opacity:.4;cursor:default}
+            .timetable-print-preview__page-label{min-width:34px;text-align:center;font-size:10px;font-weight:700;color:#334155}
             .timetable-print-preview__title{text-align:center;margin:0 0 3px;font-size:18px;font-weight:800}.timetable-print-preview__subtitle{text-align:center;margin:0 0 12px;font-size:11px;color:#475569}.timetable-print-preview__meta{display:flex;justify-content:space-between;gap:12px;border-bottom:2px solid #111827;padding-bottom:6px;margin-bottom:8px;font-size:11px;font-weight:700}
             .print-table{display:grid;grid-template-columns:58px repeat(var(--print-periods),minmax(48px,1fr));border-top:1px solid #111827;border-left:1px solid #111827}.print-table{--print-periods:${printPeriods.length || 1}}
             .print-table__corner,.print-table__period,.print-table__day,.print-table__cell{border-right:1px solid #111827;border-bottom:1px solid #111827;box-sizing:border-box}.print-table__corner,.print-table__period{background:#1e293b;color:#fff;text-align:center;min-height:42px;padding:4px 2px}.print-table__period{display:flex;flex-direction:column;justify-content:center;font-size:9px}.print-table__period span{font-size:6px;font-weight:400}.print-table__break{background:#64748b!important}.print-table__row{display:contents}.print-table__day{background:#e2e8f0;font-size:9px;font-weight:800;padding:5px;display:flex;align-items:center}.print-table__cell{min-height:42px;padding:4px;text-align:center;display:flex;flex-direction:column;justify-content:center;overflow:hidden}.print-table__cell strong{font-size:10px;line-height:1.05}.print-table__cell small{font-size:7px;line-height:1.1;margin-top:2px}.print-table__break-cell{background:#e2e8f0!important}.print-table--dense .print-table__cell{min-height:30px;padding:2px}.print-table--dense .print-table__cell small{display:none}
-            .summary-grid{display:grid;grid-template-columns:70px repeat(var(--summary-cols),minmax(34px,1fr));border-top:1px solid #111827;border-left:1px solid #111827;--summary-cols:${Math.max(1, activeDays.length * teachingPeriods.length)}}.summary-grid__corner,.summary-grid__head,.summary-grid__label,.summary-grid__cell{border-right:1px solid #111827;border-bottom:1px solid #111827;box-sizing:border-box}.summary-grid__corner,.summary-grid__head{background:#1e293b;color:#fff;font-size:7px;font-weight:800;text-align:center;padding:4px 2px}.summary-grid__label{background:#e2e8f0;font-size:8px;font-weight:800;padding:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.summary-grid__cell{height:24px;font-size:7px;font-weight:800;text-align:center;padding:3px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-            @media print{body *{visibility:hidden!important}.timetable-print-preview,.timetable-print-preview *{visibility:visible!important}.timetable-print-preview{position:absolute!important;inset:0!important;background:#fff!important}.timetable-print-preview__toolbar{display:none!important}.timetable-print-preview__pages{padding:0!important;overflow:visible!important}.timetable-print-preview__paper{width:100%!important;min-height:0!important;box-shadow:none!important;padding:8mm!important}@page{size:landscape;margin:0}}
+            .timetable-print-preview__footer{flex:0 0 auto;border-top:1px solid #94a3b8;margin-top:5px;padding-top:4px;display:flex;justify-content:space-between;gap:12px;font-size:8px;font-weight:700;color:#334155}.timetable-print-preview__footer span:last-child{text-align:right}.summary-grid{display:grid;grid-template-columns:70px repeat(var(--summary-cols),minmax(34px,1fr));border-top:1px solid #111827;border-left:1px solid #111827;--summary-cols:${Math.max(1, activeDays.length * teachingPeriods.length)}}.summary-grid__corner,.summary-grid__head,.summary-grid__label,.summary-grid__cell{border-right:1px solid #111827;border-bottom:1px solid #111827;box-sizing:border-box}.summary-grid__corner,.summary-grid__head{background:#1e293b;color:#fff;font-size:7px;font-weight:800;text-align:center;padding:4px 2px}.summary-grid__label{background:#e2e8f0;font-size:8px;font-weight:800;padding:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.summary-grid__cell{height:24px;font-size:7px;font-weight:800;text-align:center;padding:3px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+            @media print{body *{visibility:hidden!important}.timetable-print-preview,.timetable-print-preview *{visibility:visible!important}.timetable-print-preview{position:absolute!important;inset:0!important;background:#fff!important}.timetable-print-preview__toolbar{display:none!important}.timetable-print-preview__pages{padding:0!important;overflow:visible!important}.timetable-print-preview__nav{display:none!important}.timetable-print-preview__stage{display:block!important;width:100%!important;height:100%!important}.timetable-print-preview__paper{width:100%!important;height:auto!important;min-height:0!important;box-shadow:none!important;padding:8mm!important}.timetable-print-preview__content{overflow:visible!important}@page{size:landscape;margin:0}}
           `}</style>
           <div className="timetable-print-preview__toolbar">
-            <button type="button" onClick={() => setPrintPage((page) => Math.max(0, page - 1))} disabled={printPage === 0}>Previous page</button>
-            <button type="button" onClick={() => setPrintPage((page) => Math.min(pageCount - 1, page + 1))} disabled={printPage >= pageCount - 1}>Next page</button>
             <button type="button" className="primary" onClick={() => window.print()}>Print</button>
             <span>Select your report</span>
             <select value={printReport} onChange={(event) => changeReport(event.target.value as Report)} aria-label="Select your report">
@@ -433,11 +438,24 @@ export function TimetableGrid({
             <button type="button" className="close" onClick={() => setShowPrintPreview(false)}>Close preview</button>
           </div>
           <div className="timetable-print-preview__pages">
-            <div className="timetable-print-preview__paper">
-              <h1 className="timetable-print-preview__title">{printEntity?.label || 'Whole School'}</h1>
-              <p className="timetable-print-preview__subtitle">{printReport}</p>
-              <div className="timetable-print-preview__meta"><span>{activeDays.map(dayLabel).join(' · ')}</span></div>
-              {renderPrintPage()}
+            <div className="timetable-print-preview__stage">
+              <div className="timetable-print-preview__nav" aria-label="Print preview pages">
+                <button type="button" onClick={() => setPrintPage((page) => Math.max(0, page - 1))} disabled={printPage === 0} aria-label="Previous page" title="Previous page">‹</button>
+                <span className="timetable-print-preview__page-label">{printPage + 1}/{pageCount}</span>
+                <button type="button" onClick={() => setPrintPage((page) => Math.min(pageCount - 1, page + 1))} disabled={printPage >= pageCount - 1} aria-label="Next page" title="Next page">›</button>
+              </div>
+              <div className="timetable-print-preview__paper">
+                <div className="timetable-print-preview__content">
+                  <h1 className="timetable-print-preview__title">{printEntity?.label || 'Whole School'}</h1>
+                  <p className="timetable-print-preview__subtitle">{printReport}</p>
+                  <div className="timetable-print-preview__meta"><span>{activeDays.map(dayLabel).join(' · ')}</span></div>
+                  {renderPrintPage()}
+                </div>
+                <footer className="timetable-print-preview__footer">
+                  <span>Phikila Timetables</span>
+                  <span>{printTimestamp || new Date().toLocaleString()}</span>
+                </footer>
+              </div>
             </div>
           </div>
         </div>
