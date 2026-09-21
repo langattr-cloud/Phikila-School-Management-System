@@ -83,7 +83,7 @@ def load_constraints(db: Session, school_id: int) -> tuple[Weights,list[AvoidRul
             if key and hasattr(weights,key): setattr(weights,key,int(row.weight))
         elif row.kind=="avoid_lessons" and row.target_id:
             slots=_slots_from_json(params.get("slots"))
-            if slots: avoid.append(AvoidRule(scope="teacher" if row.scope=="teacher" else "class",target_id=row.target_id,slots=slots,is_hard=bool(row.is_hard),weight=int(row.weight or 25),note=row.note or ""))
+            if slots and row.scope in {"teacher","class","subject","room"}: avoid.append(AvoidRule(scope=row.scope,target_id=row.target_id,slots=slots,is_hard=bool(row.is_hard),weight=int(row.weight or 25),note=row.note or ""))
     return weights,avoid
 
 @dataclass
