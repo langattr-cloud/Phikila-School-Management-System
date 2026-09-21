@@ -126,6 +126,7 @@ export function TimetableGrid({
   const [hovered, setHovered] = useState<string | null>(null)
   const [hoveredLesson, setHoveredLesson] = useState<Lesson | null>(null)
   const [selectedPrintLesson, setSelectedPrintLesson] = useState<Lesson | null>(null)
+  const [selectionAnchorId, setSelectionAnchorId] = useState<number | null>(null)
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const [printReport, setPrintReport] = useState<Report>('Timetable for each class')
   const [printPage, setPrintPage] = useState(0)
@@ -318,13 +319,25 @@ export function TimetableGrid({
         data-period={lesson.period_index}
         onClick={(event) => {
           event.stopPropagation()
-          if (event.shiftKey || event.ctrlKey || event.metaKey) {
+          if (event.shiftKey && selectionAnchorId != null) {
+            const anchorIndex = lessons.findIndex((item) => item.id === selectionAnchorId)
+            const currentIndex = lessons.findIndex((item) => item.id === lesson.id)
+            if (anchorIndex >= 0 && currentIndex >= 0) {
+              const [start, end] = anchorIndex <= currentIndex ? [anchorIndex, currentIndex] : [currentIndex, anchorIndex]
+              const rangeIds = lessons.slice(start, end + 1).map((item) => item.id)
+              onSelectionChange?.(Array.from(new Set([...selectedIds, ...rangeIds])))
+            } else {
+              onSelectionChange?.([lesson.id])
+            }
+          } else if (event.ctrlKey || event.metaKey) {
             const next = selectedIds.includes(lesson.id)
               ? selectedIds.filter((id) => id !== lesson.id)
               : [...selectedIds, lesson.id]
             onSelectionChange?.(next)
+            setSelectionAnchorId(lesson.id)
           } else {
             onSelectionChange?.([lesson.id])
+            setSelectionAnchorId(lesson.id)
           }
           onSelect?.(lesson)
           selectAppearanceCell('lesson', subjectName, { day: lesson.day_index, period: lesson.period_index, lessonId: lesson.id })
