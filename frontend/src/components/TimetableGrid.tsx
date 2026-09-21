@@ -145,7 +145,7 @@ export function TimetableGrid({
       ? lessons.find((item) => String(item.id) === lessonId)
       : Number.isFinite(dayIndex) && Number.isFinite(periodIndex)
         ? lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
-        : undefinedd
+        : undefineddd
     if (!lesson) return
     event.preventDefault()
     event.stopPropagation()
