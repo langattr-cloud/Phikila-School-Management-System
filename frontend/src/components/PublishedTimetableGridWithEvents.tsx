@@ -34,7 +34,6 @@ function buildLessonForPrint(lesson:TimetableView['lessons'][number], index:numb
 }
 
 export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
- const [menu,setMenu]=useState<MenuState|null>(null)
  const [printSetup,setPrintSetup]=useState<MenuState|null>(null)
  const sortedPeriods=useMemo(()=>[...view.periods].sort((a,b)=>minutes(a.start_time)-minutes(b.start_time)||a.index-b.index),[view.periods])
  const days=view.days
@@ -82,8 +81,8 @@ export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
  })].join(' ')
  const title=mode==='teacher' ? `Teacher ${view.target_name ?? ''}`.trim() : `${view.target_name ?? 'Class'} Timetable`
  const generatedTimestamp=new Date().toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})
- const openMenu=(event:MouseEvent,lesson:TimetableView['lessons'][number],index:number)=>{event.preventDefault();event.stopPropagation();const built=buildLessonForPrint(lesson,index,view,mode);setMenu({x:event.clientX,y:event.clientY,...built})}
- return <div className="timetable timetable--published timetable--final timetable--entity timetable--personal" onClick={()=>setMenu(null)}>
+ const openPrintSetup=(event:MouseEvent,lesson:TimetableView['lessons'][number],index:number)=>{event.preventDefault();event.stopPropagation();const built=buildLessonForPrint(lesson,index,view,mode);setPrintSetup(built)}
+ return <div className="timetable timetable--published timetable--final timetable--entity timetable--personal">
   <div className="timetable__personal-title">{title}</div>
   <div className="entity-timetable-grid" style={{'--tt-period-count':periodCount,'--tt-day-count':dayCount,'--tt-column-template':columnTemplate,gridTemplateRows:rowTemplate,gridTemplateColumns:columnTemplate} as CSSProperties}>
    <div className="entity-timetable-corner">Day / Date</div>
@@ -98,16 +97,13 @@ export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
      const isBreak=!lesson&&(!period.is_teaching||Boolean(event))
      const colour=lesson?validColour(lesson.subject_colour):undefined
      const lessonIndex=lesson?view.lessons.indexOf(lesson):0
-     return <div className={`entity-timetable-cell ${isBreak?'entity-timetable-cell--break':''}`} style={{gridColumn:column+2,gridRow:row+2}} key={`${day.index}-${period.index}`} onContextMenu={lesson?(event)=>openMenu(event,lesson,lessonIndex):undefined}>
+     return <div className={`entity-timetable-cell ${isBreak?'entity-timetable-cell--break':''}`} style={{gridColumn:column+2,gridRow:row+2}} key={`${day.index}-${period.index}`} onContextMenu={lesson?(event)=>openPrintSetup(event,lesson,lessonIndex):undefined}>
       {lesson?<div className="entity-lesson-card" style={{'--subject-colour':colour??'#0F2A47'} as CSSProperties}><strong>{lesson.subject}</strong><span>{mode==='class'?(lesson.teacher||'—'):compactClass(lesson.class)}</span></div>:event?<span className="entity-break-letter" aria-label={`${event.name} ${event.start_time}–${event.end_time}`}>{eventLetter(event,day.index)}</span>:null}
      </div>
     })
    })}
   </div>
   <div className="timetable__print-footer"><span className="timetable__print-brand">@Phikila Timetables</span><span className="timetable__print-generated" suppressHydrationWarning>{generatedTimestamp}</span></div>
-  {menu&&<div role="menu" aria-label="Timetable context menu" style={{position:'fixed',left:menu.x,top:menu.y,zIndex:2000,minWidth:170,padding:4,border:'1px solid #94a3b8',borderRadius:4,background:'#fff',boxShadow:'0 8px 24px rgba(0,0,0,.18)'}} onClick={event=>event.stopPropagation()}>
-    <button type="button" role="menuitem" style={{display:'block',width:'100%',padding:'8px 10px',border:0,background:'#fff',textAlign:'left',cursor:'pointer',fontSize:12}} onClick={()=>{setPrintSetup(menu);setMenu(null)}}>Print Setup</button>
-  </div>}
   {printSetup&&<PrintSetupModal lesson={printSetup.lesson} meta={printSetup.meta} onClose={()=>setPrintSetup(null)}/>}
  </div>
 }
