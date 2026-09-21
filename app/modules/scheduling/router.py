@@ -185,3 +185,14 @@ def publish_version(version_id: int, db: Session = Depends(get_db), principal: P
     db.commit()
     db.refresh(version)
     return version
+
+@router.post("/lessons/{lesson_id}/explain", name="explain_lesson_move")
+def explain_lesson_move(lesson_id: int, day_index: int, period_index: int, db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
+    lesson = _owned(db, m.TtLesson, principal.school_id, lesson_id)
+    return explain_move(db, principal.school_id, lesson.id, day_index, period_index)
+
+
+@router.get("/lessons/{lesson_id}/suggestions", name="lesson_suggestions")
+def lesson_suggestions(lesson_id: int, db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
+    lesson = _owned(db, m.TtLesson, principal.school_id, lesson_id)
+    return suggest_slots(db, principal.school_id, lesson, limit=8)
