@@ -111,6 +111,7 @@ export function TimetableGrid({
   onSelect,
   onMove,
   onResize,
+  onDropUnassigned,
   secondary,
   teacherInitials = false,
 }: Props) {
