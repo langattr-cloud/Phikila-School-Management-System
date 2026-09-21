@@ -5,122 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Print preview - Timetable for each class</title>
 <style>
-*{box-sizing:border-box; font-family:Tahoma, Segoe UI; margin:0}
-.top1{display:flex; gap:18px; background:#e8eef7; padding:4px 10px; border-bottom:1px solid #999; font-size:12px; font-weight:bold}
-.top1.active{background:#fff7c0; border:1px solid #999; padding:2px 6px}
-.top2{display:flex; gap:14px; background:#eef3fa; padding:6px 10px; border-bottom:2px solid #999; font-size:11px; align-items:flex-end; overflow:auto}
-.top2.icon{width:68px; text-align:center; line-height:12px}
-.top2.icon b{font-size:18px; display:block}
-select{padding:3px; min-width:240px}
-.page{background:#aab3c4; padding:18px; display:flex; justify-content:center; min-height:85vh}
-.paper{background:#fff; width:820px; box-shadow:0 0 12px #000; padding:14px; transform:rotate(0deg)}
-h1{text-align:center; font-size:28px; font-weight:900; margin-bottom:2px}
-table{width:100%; border-collapse:collapse; border:2px solid #000; font-size:11px; text-align:center}
-th,td{border:1px solid #000; padding:3px 2px; height:42px}
-th{background:#fff; font-size:9px; line-height:10px}
-.day{font-size:16px; font-weight:bold}
-.sub{font-weight:900; font-size:12px}
-.tid{font-size:10px; margin-top:2px}
+*{box-sizing:border-box;font-family:Tahoma,Segoe UI;margin:0}
+#asc-print{min-height:100vh;background:#aab3c4}
+.ribbon-top{background:#e8eef7;padding:5px 10px;border-bottom:1px solid #999;font-size:12px;font-weight:bold;word-spacing:12px}
+.ribbon-2{background:#eef3fa;padding:7px 10px;border-bottom:2px solid #999;font-size:11px;white-space:nowrap;overflow:auto}
+.paper{background:#fff;width:820px;margin:18px auto;padding:14px;box-shadow:0 0 12px #000}
+.title{text-align:center;font-size:28px;font-weight:900;margin-bottom:2px}
+.class-teacher{text-align:center;font-size:12px;font-weight:bold;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;border:2px solid #000;font-size:11px;text-align:center}
+th,td{border:1px solid #000;padding:3px 2px;height:42px}
+th{background:#fff;font-size:9px;line-height:10px}
+td:first-child{font-size:16px;font-weight:bold}
+@media(max-width:850px){.paper{width:calc(100% - 20px)}}
 </style>
 </head>
 <body>
-
-<div class="top1"><span>Main</span><span>File</span><span>Specification</span><span>View</span><span>Timetable</span><span>Options</span><span>Help</span><span class="active">Print preview</span></div>
-
-<div class="top2">
-  <div class="icon"><b>←</b>Previous<br>page</div>
-  <div class="icon"><b>→</b>Next<br>page</div>
-  <div class="icon"><b>🖨️</b>Print<br>
-    <select id="reportSel" onchange="render()"></select>
-    <div>Page: <span id="pageInfo">1/17</span></div>
+<div id="asc-print">
+  <div class="ribbon-top">Main File Specification View Timetable Options Help Print preview</div>
+  <div class="ribbon-2">Previous page | Next page | Print | Select your report: Timetable for each class | Page: 1/17 | Filter | Global settings | Modify structure | Extra columns/rows | Style | Sizes/widths | Design: Standard | Colors | Close preview</div>
+  <div class="paper">
+    <div class="title"></div>
+    <div class="class-teacher"></div>
+    <table id="ascTable"></table>
   </div>
-  <div class="icon"><b>🔽</b>Filter</div>
-  <div class="icon"><b>🛡️</b>Global<br>settings</div>
-  <div class="icon"><b>🏗️</b>Modify<br>structure</div>
-  <div class="icon"><b>⊞</b>Extra<br>columns/rows</div>
-  <div class="icon"><b>🎨</b>Style</div>
-  <div class="icon"><b>📏</b>Sizes/widths</div>
-  <div class="icon"><b>✏️</b>Design:<br>Standard</div>
-  <div class="icon"><b>🎨</b>Colors</div>
-  <div class="icon"><b>⏻</b>Close<br>preview</div>
 </div>
-
-<div class="page">
-  <div class="paper" id="paper"></div>
-</div>
-
 <script>
-const CONFIG = {
-  reports: ["Timetable for each class","Timetable for each teacher","Timetable for each classroom"],
-  periods: [
-    {id:1, time:"7:00\n8:00", type:"lesson"},
-    {id:"SHORT BREAK", time:"8:00\n8:20", type:"break"},
-    {id:2, time:"8:20\n9:20", type:"lesson"},
-    {id:3, time:"9:20\n10:20", type:"lesson"},
-    {id:"TEA BREAK", time:"10:20\n10:30", type:"break"},
-    {id:4, time:"10:30\n11:00", type:"lesson"},
-    {id:5, time:"11:00\n12:00", type:"lesson"},
-    {id:"LUNCH", time:"12:00\n14:00", type:"break"},
-    {id:6, time:"14:00\n15:00", type:"lesson"},
-    {id:7, time:"15:00\n16:00", type:"lesson"},
-    {id:"GAMES", time:"16:00\n17:00", type:"break"},
-    {id:8, time:"17:00\n20:00", type:"lesson"},
-  ],
-  days: ["MO","TU","WE","TH","FR"],
-  classes: {
-    "GRADE 4": {
-      MO: {1:{s:"MAT",t:21}, 2:{s:"PPI",t:""}, 3:{s:"ENG.",t:27}, 4:{s:"KIS",t:16}, 5:{s:"CAS",t:7}, 6:{s:"SCT",t:27}, 8:{s:"AGN",t:25}},
-      TU: {1:{s:"KIS",t:16}, 2:{s:"SST",t:20}, 3:{s:"MAT",t:21}, 4:{s:"ENG.",t:27}, 5:{s:"CRE",t:27}, 6:{s:"CAS",t:7}, 8:{s:"AGN",t:25}},
-      WE: {1:{s:"CAS",t:7}, 2:{s:"MAT",t:21}, 3:{s:"KIS",t:16}, 4:{s:"ENG.",t:27}, 5:{s:"CAS",t:7}, 6:{s:"SCT",t:27}, 8:{s:"AGN",t:25}},
-      TH: {1:{s:"MAT",t:21}, 2:{s:"AGN",t:25}, 3:{s:"ENG.",t:27}, 4:{s:"CAS",t:7}, 5:{s:"CRE",t:27}, 6:{s:"SCT",t:27}, 8:{s:"SST",t:20}},
-      FR: {1:{s:"MAT",t:21}, 2:{s:"CRE",t:27}, 3:{s:"SST",t:20}, 4:{s:"ENG.",t:27}, 5:{s:"CAS",t:7}, 6:{s:"SCT",t:27}, 8:{s:"KIS",t:16}},
-    }
-  }
+const asc = {
+  class: "GRADE 4",
+  teacher: "MOMANYI POLYTON, CHERWONY MERCY",
+  periods: [1,"SHORT BREAK",2,3,"TEA BREAK",4,5,"LUNCH",6,7,"GAMES",8],
+  days: ["MO","TU","WE","TH","FR"]
 };
 
-function init(){
-  const sel=document.getElementById('reportSel');
-  CONFIG.reports.forEach(r=>{
-    let o=document.createElement('option'); o.value=r; o.textContent=r;
-    if(r.includes('each class')) o.selected=true;
-    sel.appendChild(o);
-  });
-  Object.keys(CONFIG.classes).forEach(c=>{
-    let o=document.createElement('option'); o.value=c; o.textContent='Class '+c;
-    sel.appendChild(o);
-  });
-  render();
-}
+document.querySelector('.title').innerText = asc.class;
+document.querySelector('.class-teacher').innerText = "Class teacher: "+asc.teacher;
 
-function render(){
-  const className = Object.keys(CONFIG.classes)[0];
-  const data = CONFIG.classes[className];
-  document.getElementById('pageInfo').innerText = `1/${Object.keys(CONFIG.classes).length + CONFIG.reports.length}`;
-
-  let html=`<h1>${className}</h1>`;
-  html+=`<table><tr><th></th>`;
-  CONFIG.periods.forEach(p=>{
-    html+=`<th>${p.id}<br>${p.time.replace('\\n','<br>')}</th>`;
-  });
-  html+=`</tr>`;
-
-  CONFIG.days.forEach(d=>{
-    html+=`<tr><td class="day">${d}</td>`;
-    CONFIG.periods.forEach(p=>{
-      if(p.type==='break'){
-        html+=`<td style="background:#f2f2f2"></td>`;
-      } else {
-        const cell = data[d] && data[d][p.id]? data[d][p.id] : {s:"",t:""};
-        html+=`<td><div class="sub">${cell.s}</div><div class="tid">${cell.t}</div></td>`;
-      }
-    });
-    html+=`</tr>`;
-  });
-  html+=`</table>`;
-  document.getElementById('paper').innerHTML=html;
-}
-
-init();
+let h="<tr><th></th>"+asc.periods.map(p=>`<th>${p}</th>`).join('')+"</tr>";
+asc.days.forEach(d=>{
+  h+=`<tr><td>${d}</td>`+asc.periods.map(p=>`<td data-day="${d}" data-period="${p}"></td>`).join('')+"</tr>";
+});
+document.getElementById('ascTable').innerHTML=h;
 </script>
 </body>
 </html>
