@@ -102,6 +102,8 @@ export function EnhancedTimetablePage() {
         min-height:calc(100vh - 42px);
         padding:8px 14px 18px;
       }
+      .timetable-workspace .timetable-command-ribbon { display:none !important; }
+      .timetable-workspace .timetable-main-toolbar-wrap { margin:0 0 8px; }
       .timetable-workspace .timetable-main-toolbar {
         min-height:68px;
         margin:0 0 8px;
