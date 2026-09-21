@@ -225,14 +225,22 @@ export function TimetableGrid({
 
   const slotHandlers = (key: string, day: number, period: number) => ({
     onDragOver: (event: DragEvent) => {
-      if (readOnly || !dragging) return
+      if (readOnly) return
+      const types = Array.from(event.dataTransfer?.types ?? [])
+      if (!dragging && !types.includes(UNASSIGNED_DRAG_TYPE)) return
       event.preventDefault()
       setHovered(key)
     },
     onDragLeave: () => setHovered((value) => value === key ? null : value),
     onDrop: (event: DragEvent) => {
       event.preventDefault()
-      if (dragging) moveLesson(dragging, day, period)
+      if (dragging) {
+        moveLesson(dragging, day, period)
+        return
+      }
+      const raw = event.dataTransfer.getData(UNASSIGNED_DRAG_TYPE)
+      const unassignedId = Number(raw)
+      if (Number.isFinite(unassignedId)) onDropUnassigned?.(unassignedId, day, period)
     },
   })
 
