@@ -9,7 +9,10 @@ type ItemProps = { label: string; onClick?: () => void; icon?: ReactNode; href?:
 
 function ToolItem({ label, onClick, icon, href, disabled }: ItemProps) {
   const content = <>{icon && <span className="timetable-main-toolbar__icon">{icon}</span>}<span>{label}</span></>
-  if (href) {\n    if (/^https?:\\/\\//.test(href)) return <a className={`timetable-main-toolbar__item${disabled ? ' is-disabled' : ''}`} href={href} target="_blank" rel="noreferrer" title={label}>{content}</a>\n    return <Link className={`timetable-main-toolbar__item${disabled ? ' is-disabled' : ''}`} to={href} title={label}>{content}</Link>\n  }
+  if (href) {
+    if (/^https?:\/\//.test(href)) return <a className={`timetable-main-toolbar__item${disabled ? ' is-disabled' : ''}`} href={href} target="_blank" rel="noreferrer" title={label}>{content}</a>
+    return <Link className={`timetable-main-toolbar__item${disabled ? ' is-disabled' : ''}`} to={href} title={label}>{content}</Link>
+  }
   return <button type="button" className={`timetable-main-toolbar__item${disabled ? ' is-disabled' : ''}`} onClick={onClick} title={label} disabled={disabled}>{content}</button>
 }
 
