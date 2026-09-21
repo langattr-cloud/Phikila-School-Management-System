@@ -26,7 +26,6 @@ type Props = {
   view?: ViewKind
   conflicted?: Set<number>
   selectedId?: number | null
-  selectedIds?: number[]
   readOnly?: boolean
   zoom?: number
   dense?: boolean
@@ -34,7 +33,6 @@ type Props = {
   timeFormat?: '24h' | '12h'
   timeLayout?: 'split' | 'single'
   onSelect?: (lesson: Lesson) => void
-  onSelectionChange?: (ids: number[]) => void
   onMove?: (lesson: Lesson, day: number, period: number) => void
   onResize?: (lesson: Lesson, duration: number) => void
   onDropUnassigned?: (unassignedId: number, day: number, period: number) => void
@@ -106,7 +104,6 @@ export function TimetableGrid({
   view = 'whole-school',
   conflicted,
   selectedId,
-  selectedIds = [],
   readOnly = false,
   zoom = 100,
   dense = false,
@@ -114,7 +111,6 @@ export function TimetableGrid({
   timeFormat = '24h',
   timeLayout = 'split',
   onSelect,
-  onSelectionChange,
   onMove,
   onResize,
   onDropUnassigned,
@@ -288,7 +284,6 @@ export function TimetableGrid({
     const subjectCode = subject?.code || subjectName
     const color = getSubjectColor(subject)
     const conflict = conflicted?.has(lesson.id) ?? false
-    const isSelected = selectedIds.includes(lesson.id) || selectedId === lesson.id
     const period = teachingPeriods.find((item) => item.index === lesson.period_index)
     const title = `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}`
     const style = { backgroundColor: conflict ? '#FBE8E5' : color, borderColor: conflict ? '#9A2F24' : color, '--subject-colour': color } as CSSProperties
@@ -296,12 +291,12 @@ export function TimetableGrid({
     return (
       <div
         key={lesson.id}
-        className={`lesson-card ${isSelected ? 'lesson-card--selected' : ''} ${conflict ? 'lesson-card--conflict' : ''} ${lesson.is_locked ? 'lesson-card--locked' : ''}`}
+        className={`lesson-card ${selectedId === lesson.id ? 'lesson-card--selected' : ''} ${conflict ? 'lesson-card--conflict' : ''} ${lesson.is_locked ? 'lesson-card--locked' : ''}`}
         style={style}
         title={title}
         aria-label={title}
         role="button"
-        tabIndex={isSelected ? 0 : -1}
+        tabIndex={selectedId === lesson.id ? 0 : -1}
         draggable={!readOnly && !lesson.is_locked}
         onMouseEnter={() => setHoveredLesson(lesson)}
         onMouseLeave={() => setHoveredLesson((value) => value?.id === lesson.id ? null : value)}
@@ -319,12 +314,6 @@ export function TimetableGrid({
         data-period={lesson.period_index}
         onClick={(event) => {
           event.stopPropagation()
-          if (event.shiftKey || event.ctrlKey || event.metaKey) {
-            const next = selectedIds.includes(lesson.id) ? selectedIds.filter((id) => id !== lesson.id) : [...selectedIds, lesson.id]
-            onSelectionChange?.(next)
-          } else {
-            onSelectionChange?.([lesson.id])
-          }
           onSelect?.(lesson)
           selectAppearanceCell('lesson', subjectName, { day: lesson.day_index, period: lesson.period_index, lessonId: lesson.id })
         }}
