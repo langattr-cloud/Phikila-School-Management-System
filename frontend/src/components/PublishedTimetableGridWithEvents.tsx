@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type MouseEvent } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import type { LessonMeta } from './TimetableGrid'
 import type { Event, Lesson, Subject, Teacher, SchoolClass, Room, TimetableDisplayPeriod, TimetableView } from '../lib/scheduling'
 import { PrintSetupModal } from './PrintSetupModal'
@@ -81,7 +81,6 @@ function buildLessonForPrint(lesson:TimetableView['lessons'][number], index:numb
  })].join(' ')
  const title=mode==='teacher' ? `Teacher ${view.target_name ?? ''}`.trim() : `${view.target_name ?? 'Class'} Timetable`
  const generatedTimestamp=new Date().toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})
- const openPrintSetup=(event:MouseEvent,lesson:TimetableView['lessons'][number],index:number)=>{event.preventDefault();event.stopPropagation();const built=buildLessonForPrint(lesson,index,view,mode);setPrintSetup(built)}
  return <div className="timetable timetable--published timetable--final timetable--entity timetable--personal">
   <div className="timetable__personal-title">{title}</div>
   <div className="entity-timetable-grid" style={{'--tt-period-count':periodCount,'--tt-day-count':dayCount,'--tt-column-template':columnTemplate,gridTemplateRows:rowTemplate,gridTemplateColumns:columnTemplate} as CSSProperties}>
@@ -97,7 +96,7 @@ function buildLessonForPrint(lesson:TimetableView['lessons'][number], index:numb
      const isBreak=!lesson&&(!period.is_teaching||Boolean(event))
      const colour=lesson?validColour(lesson.subject_colour):undefined
      const lessonIndex=lesson?view.lessons.indexOf(lesson):0
-     return <div className={`entity-timetable-cell ${isBreak?'entity-timetable-cell--break':''}`} style={{gridColumn:column+2,gridRow:row+2}} key={`${day.index}-${period.index}`} onContextMenu={lesson?(event)=>openPrintSetup(event,lesson,lessonIndex):undefined}>
+     return <div className={`entity-timetable-cell ${isBreak?'entity-timetable-cell--break':''}`} style={{gridColumn:column+2,gridRow:row+2}} key={`${day.index}-${period.index}`} onContextMenu={lesson?(event)=>{event.preventDefault();event.stopPropagation();const built=buildLessonForPrint(lesson,lessonIndex,view,mode);setPrintSetup(built)}:undefined}>
       {lesson?<div className="entity-lesson-card" style={{'--subject-colour':colour??'#0F2A47'} as CSSProperties}><strong>{lesson.subject}</strong><span>{mode==='class'?(lesson.teacher||'—'):compactClass(lesson.class)}</span></div>:event?<span className="entity-break-letter" aria-label={`${event.name} ${event.start_time}–${event.end_time}`}>{eventLetter(event,day.index)}</span>:null}
      </div>
     })
