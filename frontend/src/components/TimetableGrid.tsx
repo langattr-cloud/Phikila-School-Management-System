@@ -125,7 +125,6 @@ export function TimetableGrid({
   const [printTimestamp, setPrintTimestamp] = useState('')
 
   const openPrintSetupFromContext = (event: MouseEvent) => {
-    if (view !== 'class' && view !== 'teacher') return
     const target = event.target as HTMLElement | null
     const lessonCard = target?.closest?.('[data-lesson-id]') as HTMLElement | null
     const cell = target?.closest?.('.timetable__cell') as HTMLElement | null
@@ -144,7 +143,6 @@ export function TimetableGrid({
   }
 
   useEffect(() => {
-    if (view !== 'class' && view !== 'teacher') return
     document.addEventListener('contextmenu', openPrintSetupFromContext, true)
     return () => document.removeEventListener('contextmenu', openPrintSetupFromContext, true)
   }, [lessons, view])
@@ -320,7 +318,7 @@ export function TimetableGrid({
               {activeDays.flatMap((day) => teachingPeriods.map((period, index) => {
                 const key = `whole:${row.id}:${day.index}:${period.index}`
                 const cellLessons = lessons.filter((lesson) => lesson.class_id === row.id && lesson.day_index === day.index && lesson.period_index === period.index)
-                return <div key={`${row.id}-${day.index}-${period.index}`} className={`timetable__whole-slot ${currentSlot?.day === day.index && currentSlot.period === period.index ? 'timetable__whole-slot--now' : ''} ${hovered === key && Boolean(dragging || carrying) ? 'timetable__cell--target' : ''}`} aria-label={`${timetableClassLabel(row)}, ${dayLabel(day)}, period ${index + 1}`} tabIndex={readOnly ? -1 : 0} onClick={() => { if (cellLessons[0]) onSelect?.(cellLessons[0]); selectAppearanceCell('period', `Period ${index + 1}`, { day: day.index, period: period.index }) }} onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)} {...slotHandlers(key, day.index, period.index)}>{cellLessons.map(renderCard)}</div>
+                return <div key={`${row.id}-${day.index}-${period.index}`} data-day={day.index} data-period={period.index} className={`timetable__whole-slot ${currentSlot?.day === day.index && currentSlot.period === period.index ? 'timetable__whole-slot--now' : ''} ${hovered === key && Boolean(dragging || carrying) ? 'timetable__cell--target' : ''}`} aria-label={`${timetableClassLabel(row)}, ${dayLabel(day)}, period ${index + 1}`} tabIndex={readOnly ? -1 : 0} onClick={() => { if (cellLessons[0]) onSelect?.(cellLessons[0]); selectAppearanceCell('period', `Period ${index + 1}`, { day: day.index, period: period.index }) }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); const lesson = cellLessons[0]; if (lesson) setSelectedPrintLesson(lesson) }} onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)} {...slotHandlers(key, day.index, period.index)}>{cellLessons.map(renderCard)}</div>
               }))}
             </div>
           ))}
