@@ -109,7 +109,6 @@ export function TimetableGrid({
   conflicted,
   selectedId,
   selectedIds = [],
-  selectedIds = [],
   readOnly = false,
   zoom = 100,
   dense = false,
@@ -117,7 +116,6 @@ export function TimetableGrid({
   timeFormat = '24h',
   timeLayout = 'split',
   onSelect,
-  onSelectionChange,
   onSelectionChange,
   onMove,
   onResize,
@@ -147,7 +145,7 @@ export function TimetableGrid({
       ? lessons.find((item) => String(item.id) === lessonId)
       : Number.isFinite(dayIndex) && Number.isFinite(periodIndex)
         ? lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
-        : undefined
+        : undefinedd
     if (!lesson) return
     event.preventDefault()
     event.stopPropagation()
