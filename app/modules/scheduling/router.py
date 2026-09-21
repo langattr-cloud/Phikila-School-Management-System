@@ -151,6 +151,55 @@ def restore_version(version_id:int,db:Session=Depends(get_db),principal:Principa
     _audit(db,principal,"restore","version",restored.id,f"Restored timetable version {source.number} into version {next_number}",before={"source_version_id":source.id},after={"version_id":restored.id})
     db.commit();db.refresh(restored);return restored
 
+@router.post("/versions/{version_id}/duplicate", response_model=s.VersionOut, name="duplicate_version")
+def duplicate_version(version_id: int, name: str | None = Query(default=None, max_length=160), db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    """Create a new editable timetable version from an existing version."""
+    source = _owned(db, m.TtVersion, principal.school_id, version_id)
+    latest = db.query(m.TtVersion).filter(m.TtVersion.school_id == principal.school_id).order_by(m.TtVersion.id.desc()).first()
+    next_number = (latest.number + 1) if latest and latest.number is not None else (source.number or 1)
+    requested_name = (name or "").strip()
+    base_name = requested_name or source.name or f"Timetable {next_number}"
+    duplicate = m.TtVersion(
+        school_id=principal.school_id,
+        project_id=source.project_id,
+        number=next_number,
+        name=base_name,
+        label=base_name,
+        status="draft",
+        quality=source.quality or {},
+        stats=source.stats or {},
+        created_by=principal.email,
+        day_indexes=list(source.day_indexes or []),
+        day_names=list(source.day_names or []),
+        display_mode=source.display_mode,
+        timetable_type_id=source.timetable_type_id,
+        period_indexes=list(source.period_indexes or []),
+    )
+    db.add(duplicate)
+    db.flush()
+    lessons = db.query(m.TtLesson).filter(
+        m.TtLesson.school_id == principal.school_id,
+        m.TtLesson.version_id == source.id,
+    ).all()
+    for lesson in lessons:
+        db.add(m.TtLesson(
+            school_id=principal.school_id,
+            version_id=duplicate.id,
+            requirement_id=lesson.requirement_id,
+            class_id=lesson.class_id,
+            subject_id=lesson.subject_id,
+            teacher_id=lesson.teacher_id,
+            room_id=lesson.room_id,
+            day_index=lesson.day_index,
+            period_index=lesson.period_index,
+            duration=lesson.duration,
+            is_locked=lesson.is_locked,
+        ))
+    _audit(db, principal, "duplicate", "version", duplicate.id, f"Duplicated timetable version {source.number} into version {next_number}", before={"source_version_id": source.id}, after={"version_id": duplicate.id})
+    db.commit()
+    db.refresh(duplicate)
+    return duplicate
+
 @router.delete("/versions/{version_id}",status_code=204,name="delete_version")
 def delete_version(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
     version=_owned(db,m.TtVersion,principal.school_id,version_id)
