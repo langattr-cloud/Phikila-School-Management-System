@@ -133,11 +133,32 @@ def cancel_job(job_id:int,db:Session=Depends(get_db),principal:Principal=Depends
     if job.status in {"completed","failed","cancelled"}: return job
     job.cancel_requested=True; db.commit(); db.refresh(job); return job
 @router.get("/versions",response_model=list[s.VersionOut])
-def list_versions(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
-    version=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
-    if version is None:return []
-    if not principal.at_least("scheduler") and version.status!="published":return []
-    return [version]
+def list_versions(db: Session = Depends(get_db),principal: Principal = Depends(resolve_principal)):
+    query=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc())
+    if not principal.at_least("scheduler"): query=query.filter(m.TtVersion.status=="published")
+    return query.all()
+
+@router.post("/versions/{version_id}/restore", response_model=s.VersionOut, name="restore_version")
+def restore_version(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    source=_owned(db,m.TtVersion,principal.school_id,version_id)
+    latest=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
+    if latest and latest.id==source.id:return source
+    next_number=(latest.number+1) if latest and latest.number is not None else (source.number or 1)
+    restored=m.TtVersion(school_id=principal.school_id,number=next_number,name=f"{source.name} (Restored)",label=f"{source.label or source.name} (Restored)",status="draft",quality=source.quality or {},stats=source.stats or {},created_by=principal.email,day_indexes=list(source.day_indexes or []),day_names=list(source.day_names or []),display_mode=source.display_mode,timetable_type_id=source.timetable_type_id,period_indexes=list(source.period_indexes or []))
+    db.add(restored); db.flush()
+    for lesson in db.query(m.TtLesson).filter(m.TtLesson.school_id==principal.school_id,m.TtLesson.version_id==source.id).all():
+        db.add(m.TtLesson(school_id=principal.school_id,version_id=restored.id,requirement_id=lesson.requirement_id,class_id=lesson.class_id,subject_id=lesson.subject_id,teacher_id=lesson.teacher_id,room_id=lesson.room_id,day_index=lesson.day_index,period_index=lesson.period_index,duration=lesson.duration,is_locked=lesson.is_locked))
+    _audit(db,principal,"restore","version",restored.id,f"Restored timetable version {source.number} into version {next_number}",before={"source_version_id":source.id},after={"version_id":restored.id})
+    db.commit();db.refresh(restored);return restored
+
+@router.delete("/versions/{version_id}",status_code=204,name="delete_version")
+def delete_version(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    version=_owned(db,m.TtVersion,principal.school_id,version_id)
+    if version.status=="published":raise HTTPException(status.HTTP_409_CONFLICT,"Published timetables cannot be deleted.")
+    db.query(m.TtLesson).filter(m.TtLesson.version_id==version.id).delete(synchronize_session=False)
+    _audit(db,principal,"delete","version",version.id,f"Deleted timetable version {version.number}")
+    db.delete(version);db.commit()
+
 @router.get("/versions/current",response_model=s.VersionOut|None)
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
