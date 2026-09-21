@@ -27,6 +27,7 @@ type Props = {
   conflicted?: Set<number>
   selectedId?: number | null
   selectedIds?: number[]
+  selectedIds?: number[]
   readOnly?: boolean
   zoom?: number
   dense?: boolean
@@ -34,6 +35,7 @@ type Props = {
   timeFormat?: '24h' | '12h'
   timeLayout?: 'split' | 'single'
   onSelect?: (lesson: Lesson) => void
+  onSelectionChange?: (ids: number[]) => void
   onSelectionChange?: (ids: number[]) => void
   onMove?: (lesson: Lesson, day: number, period: number) => void
   onResize?: (lesson: Lesson, duration: number) => void
@@ -107,6 +109,7 @@ export function TimetableGrid({
   conflicted,
   selectedId,
   selectedIds = [],
+  selectedIds = [],
   readOnly = false,
   zoom = 100,
   dense = false,
@@ -114,6 +117,7 @@ export function TimetableGrid({
   timeFormat = '24h',
   timeLayout = 'split',
   onSelect,
+  onSelectionChange,
   onSelectionChange,
   onMove,
   onResize,
@@ -288,6 +292,7 @@ export function TimetableGrid({
     const subjectCode = subject?.code || subjectName
     const color = getSubjectColor(subject)
     const conflict = conflicted?.has(lesson.id) ?? false
+    const isSelected = selectedIds.includes(lesson.id) || selectedId === lesson.id
     const period = teachingPeriods.find((item) => item.index === lesson.period_index)
     const title = `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}`
     const style = { backgroundColor: conflict ? '#FBE8E5' : color, borderColor: conflict ? '#9A2F24' : color, '--subject-colour': color } as CSSProperties
@@ -318,6 +323,12 @@ export function TimetableGrid({
         data-period={lesson.period_index}
         onClick={(event) => {
           event.stopPropagation()
+          if (event.shiftKey || event.ctrlKey || event.metaKey) {
+            const next = selectedIds.includes(lesson.id) ? selectedIds.filter((id) => id !== lesson.id) : [...selectedIds, lesson.id]
+            onSelectionChange?.(next)
+          } else {
+            onSelectionChange?.([lesson.id])
+          }
           onSelect?.(lesson)
           selectAppearanceCell('lesson', subjectName, { day: lesson.day_index, period: lesson.period_index, lessonId: lesson.id })
         }}
