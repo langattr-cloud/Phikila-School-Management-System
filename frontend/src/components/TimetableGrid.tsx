@@ -26,6 +26,7 @@ type Props = {
   view?: ViewKind
   conflicted?: Set<number>
   selectedId?: number | null
+  selectedIds?: number[]
   readOnly?: boolean
   zoom?: number
   dense?: boolean
@@ -33,6 +34,7 @@ type Props = {
   timeFormat?: '24h' | '12h'
   timeLayout?: 'split' | 'single'
   onSelect?: (lesson: Lesson) => void
+  onSelectionChange?: (ids: number[]) => void
   onMove?: (lesson: Lesson, day: number, period: number) => void
   onResize?: (lesson: Lesson, duration: number) => void
   onDropUnassigned?: (unassignedId: number, day: number, period: number) => void
@@ -104,6 +106,7 @@ export function TimetableGrid({
   view = 'whole-school',
   conflicted,
   selectedId,
+  selectedIds = [],
   readOnly = false,
   zoom = 100,
   dense = false,
@@ -111,6 +114,7 @@ export function TimetableGrid({
   timeFormat = '24h',
   timeLayout = 'split',
   onSelect,
+  onSelectionChange,
   onMove,
   onResize,
   onDropUnassigned,
@@ -291,12 +295,12 @@ export function TimetableGrid({
     return (
       <div
         key={lesson.id}
-        className={`lesson-card ${selectedId === lesson.id ? 'lesson-card--selected' : ''} ${conflict ? 'lesson-card--conflict' : ''} ${lesson.is_locked ? 'lesson-card--locked' : ''}`}
+        className={`lesson-card ${isSelected ? 'lesson-card--selected' : ''} ${conflict ? 'lesson-card--conflict' : ''} ${lesson.is_locked ? 'lesson-card--locked' : ''}`}
         style={style}
         title={title}
         aria-label={title}
         role="button"
-        tabIndex={selectedId === lesson.id ? 0 : -1}
+        tabIndex={isSelected ? 0 : -1}
         draggable={!readOnly && !lesson.is_locked}
         onMouseEnter={() => setHoveredLesson(lesson)}
         onMouseLeave={() => setHoveredLesson((value) => value?.id === lesson.id ? null : value)}
