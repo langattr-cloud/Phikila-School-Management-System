@@ -272,20 +272,19 @@ function NormalLayout({ pathname }: { pathname: string }) {
 }
 
 function ProtectedRoutes({ pathname }: { pathname: string }) {
-  const isWholeSchool = normalisePath(pathname) === '/timetable/whole-school'
+  const isTimetable = normalisePath(pathname) === '/timetable' || normalisePath(pathname) === '/timetable/whole-school'
   return <RequireAuth><AccessGate>
-    {isWholeSchool
-      ? <FullscreenLayout>
+    {isTimetable
+      ? <>
           <Suspense fallback={<FullPageLoader label="Loading timetable…" />}>
             {routeFor(pathname)}
           </Suspense>
           <TimetableCellToolbar />
           <TimetableContextMenu />
-        </FullscreenLayout>
+        </>
       : <NormalLayout pathname={pathname} />}
   </AccessGate></RequireAuth>
 }
-
 function LandingRedirect() {
   const { session, initialising } = useAuth()
   if (initialising) return <FullPageLoader label="Checking your session…" />
