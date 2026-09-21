@@ -202,6 +202,7 @@ export function TimetableGrid({
 
   const pageCount = Math.max(1, printEntities.length)
   const printEntity = printEntities[Math.min(printPage, pageCount - 1)]
+  const printTitle = isSummaryReport ? printReport : (printEntity?.label || 'Whole School')
 
   const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => {
     window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } }))
@@ -390,7 +391,10 @@ export function TimetableGrid({
     const summary = printReport === 'Summary timetable of classes' ? 'class' : printReport === 'Summary timetable of teachers' ? 'teacher' : printReport === 'Summary timetable of classrooms' ? 'room' : null
     const wall = printReport.startsWith('Wall poster')
     if (summary) return <>{renderSummaryGrid(summary)}</>
-    if (wall) return <>{renderSummaryGrid(printReport.endsWith('classes') ? 'class' : 'teacher')}</>
+    if (wall) {
+      const wallKind = printReport.endsWith('classes') ? 'class' : printReport.endsWith('teachers') ? 'teacher' : 'room'
+      return <>{renderSummaryGrid(wallKind)}</>
+    }
     return renderPrintTable(printEntity?.id ?? 0)
   }
 
@@ -446,7 +450,7 @@ export function TimetableGrid({
           </div>
           <div className="timetable-print-preview__pages">
             <div className="timetable-print-preview__paper">
-              <h1 className="timetable-print-preview__title">{printEntity?.label || 'Whole School'}</h1>
+              <h1 className="timetable-print-preview__title">{printTitle}</h1>
               <p className="timetable-print-preview__subtitle">{printReport}</p>
               <div className="timetable-print-preview__meta"><span>{activeDays.map(dayLabel).join(' · ')}</span><span>Page {printPage + 1} of {pageCount}</span></div>
               {renderPrintPage()}
