@@ -103,6 +103,7 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
                     pair=model.NewBoolVar(f"double_{r.id}_{d}_{left}_{right}")
                     model.Add(pair<=a);model.Add(pair<=b);model.Add(pair>=a+b-1)
                     pairs.append((pair,a,b))
+            if len(pairs)<required_doubles:return SolverOutput("infeasible",[],{}, {},[f"Requirement {r.id} needs {required_doubles} double lesson(s), but fewer consecutive slot pairs are available."])
             model.Add(sum(pair for pair,_,_ in pairs)==required_doubles)
             for slot_var in vals:
                 touching=[pair for pair,a,b in pairs if a is slot_var or b is slot_var]
