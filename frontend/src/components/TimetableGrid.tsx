@@ -137,10 +137,11 @@ export function TimetableGrid({
       : Number.isFinite(dayIndex) && Number.isFinite(periodIndex)
         ? lessons.find((item) => item.day_index === dayIndex && item.period_index === periodIndex)
         : undefined
-    if (!lesson) return
+    const contextLesson = lesson ?? lessons[0]
+    if (!contextLesson) return
     event.preventDefault()
     event.stopPropagation()
-    setSelectedPrintLesson(lesson)
+    setSelectedPrintLesson(contextLesson)
   }
 
   useEffect(() => {
