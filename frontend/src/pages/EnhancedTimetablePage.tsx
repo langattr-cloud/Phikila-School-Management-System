@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from '../lib/router'
 import { TimetableMainToolbar } from '../components/TimetableMainToolbar'
+import { TimetablePrintSetLauncher } from '../components/TimetablePrintSetLauncher'
 import { TimetablePage } from './TimetablePage'
 
 /**
@@ -9,6 +10,75 @@ import { TimetablePage } from './TimetablePage'
  * over the viewport so the grid gets the same screen-first treatment as a
  * desktop scheduling application.
  */
+function FloatingTimetableNavigator() {
+  const [scope, setScope] = useState('all')
+  const [target, setTarget] = useState('')
+  const [targets, setTargets] = useState<{ value: string; label: string }[]>([])
+
+  function syncFromPage() {
+    const scopeEl = document.getElementById('tt-scope') as HTMLSelectElement | null
+    const targetEl = document.getElementById('tt-target') as HTMLSelectElement | null
+    setScope(scopeEl?.value ?? 'all')
+    setTarget(targetEl?.value ?? '')
+    setTargets(targetEl ? Array.from(targetEl.options).filter((o) => o.value).map((o) => ({ value: o.value, label: o.text })) : [])
+  }
+
+  useEffect(() => {
+    syncFromPage()
+    const timer = window.setInterval(syncFromPage, 300)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  function changeScope(value: string) {
+    const el = document.getElementById('tt-scope') as HTMLSelectElement | null
+    if (!el) return
+    el.value = value
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+    window.setTimeout(syncFromPage, 80)
+  }
+
+  function changeTarget(value: string) {
+    const el = document.getElementById('tt-target') as HTMLSelectElement | null
+    if (!el) return
+    el.value = value
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+    setTarget(value)
+  }
+
+  function move(delta: number) {
+    if (!targets.length) return
+    const index = Math.max(0, targets.findIndex((item) => item.value === target))
+    const nextIndex = (index + delta + targets.length) % targets.length
+    changeTarget(targets[nextIndex].value)
+  }
+
+  const currentLabel = targets.find((item) => item.value === target)?.label ?? (scope === 'all' ? 'Whole school' : 'Choose…')
+
+  return <div className="timetable-floating-nav" aria-label="Timetable report navigation">
+    <div className="timetable-floating-nav__report">
+      <span className="timetable-floating-nav__caption">Select your report</span>
+      <select aria-label="Report type" value={scope} onChange={(event) => changeScope(event.target.value)}>
+        <option value="all">Whole school</option>
+        <option value="class">Classes</option>
+        <option value="teacher">Teachers</option>
+        <option value="room">Rooms</option>
+        <option value="subject">Subjects</option>
+      </select>
+    </div>
+    <div className="timetable-floating-nav__target">
+      <select aria-label="Selected timetable" value={target} disabled={scope === 'all' || !targets.length} onChange={(event) => changeTarget(event.target.value)}>
+        {scope === 'all' ? <option value="">Whole school timetable</option> : <><option value="">Choose…</option>{targets.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</>}
+      </select>
+    </div>
+    <div className="timetable-floating-nav__arrows">
+      <button type="button" aria-label="Previous report" title="Previous report" disabled={scope === 'all' || !targets.length} onClick={() => move(-1)}>‹</button>
+      <span aria-live="polite">{currentLabel}</span>
+      <button type="button" aria-label="Next report" title="Next report" disabled={scope === 'all' || !targets.length} onClick={() => move(1)}>›</button>
+    </div>
+    <div className="timetable-floating-nav__print"><TimetablePrintSetLauncher /></div>
+  </div>
+}
+
 export function EnhancedTimetablePage() {
   const navigate = useNavigate()
 
@@ -38,6 +108,7 @@ export function EnhancedTimetablePage() {
 
     <main className="timetable-workspace__content">
       <TimetableMainToolbar />
+      <FloatingTimetableNavigator />
       <TimetablePage />
     </main>
 
@@ -102,7 +173,7 @@ export function EnhancedTimetablePage() {
         min-height:calc(100vh - 42px);
         padding:8px 14px 18px;
       }
-      .timetable-workspace .timetable-main-toolbar {
+      .timetable-floating-nav {\n        position:sticky;\n        top:50px;\n        z-index:80;\n        display:flex;\n        align-items:center;\n        gap:8px;\n        min-height:42px;\n        margin:0 0 8px;\n        padding:5px 8px;\n        background:#fff;\n        border:1px solid #cfd6df;\n        border-radius:5px;\n        box-shadow:0 2px 5px rgba(15,23,42,.08);\n        font:11px Arial,Helvetica,sans-serif;\n      }\n      .timetable-floating-nav__caption { font-weight:700; color:#475569; white-space:nowrap; }\n      .timetable-floating-nav select { height:28px; min-width:150px; padding:3px 7px; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#1f2937; font-size:11px; }\n      .timetable-floating-nav__target { flex:1 1 auto; min-width:150px; }\n      .timetable-floating-nav__target select { width:100%; }\n      .timetable-floating-nav__arrows { display:flex; align-items:center; gap:4px; min-width:190px; }\n      .timetable-floating-nav__arrows button { width:30px; height:28px; padding:0; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc; color:#1f2937; font-size:22px; line-height:20px; cursor:pointer; }\n      .timetable-floating-nav__arrows button:hover:not(:disabled) { background:#e2e8f0; }\n      .timetable-floating-nav__arrows button:disabled { opacity:.45; cursor:default; }\n      .timetable-floating-nav__arrows span { min-width:105px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; color:#334155; font-weight:600; }\n      .timetable-floating-nav__print { flex:0 0 auto; }\n\n      .timetable-workspace .timetable-main-toolbar {
         min-height:68px;
         margin:0 0 8px;
         padding:0 4px;
@@ -189,7 +260,7 @@ export function EnhancedTimetablePage() {
         .timetable-workspace__title { justify-content:flex-start; }
         .timetable-workspace__mode { display:none; }
         .timetable-workspace__content { padding:7px 6px 12px; }
-        .timetable-workspace .timetable-main-toolbar { overflow-x:auto; }
+        .timetable-floating-nav { top:49px; flex-wrap:wrap; }\n        .timetable-floating-nav__caption { flex-basis:100%; }\n        .timetable-floating-nav__report, .timetable-floating-nav__target, .timetable-floating-nav__arrows { flex:1 1 150px; }\n        .timetable-floating-nav__print { margin-left:auto; }\n        .timetable-workspace .timetable-main-toolbar { overflow-x:auto; }
         .timetable-workspace .timetable-main-toolbar__item,
         .timetable-workspace .timetable-main-toolbar__setup { min-width:68px; }
         .timetable-workspace .timetable-enhanced-page .page-header { display:none; }
