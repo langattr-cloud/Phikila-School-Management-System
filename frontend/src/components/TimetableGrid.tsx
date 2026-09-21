@@ -220,7 +220,29 @@ export function TimetableGrid({
   }
 
   const handleCellKeyDown = (event: KeyboardEvent, day: number, period: number, cellLessons: Lesson[]) => {
-    if (readOnly || (event.key !== 'Enter' && event.key !== ' ')) return
+    if (readOnly) return
+    if (event.key === 'Escape' && carrying) {
+      event.preventDefault()
+      setCarrying(null)
+      setHovered(null)
+      return
+    }
+    if (carrying && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault()
+      const dayIndex = activeDays.findIndex((item) => item.index === day)
+      const periodIndex = teachingPeriods.findIndex((item) => item.index === period)
+      let nextDayIndex = dayIndex
+      let nextPeriodIndex = periodIndex
+      if (event.key === 'ArrowLeft') nextPeriodIndex -= 1
+      if (event.key === 'ArrowRight') nextPeriodIndex += 1
+      if (event.key === 'ArrowUp') nextDayIndex -= 1
+      if (event.key === 'ArrowDown') nextDayIndex += 1
+      if (nextDayIndex >= 0 && nextDayIndex < activeDays.length && nextPeriodIndex >= 0 && nextPeriodIndex < teachingPeriods.length) {
+        moveLesson(carrying, activeDays[nextDayIndex].index, teachingPeriods[nextPeriodIndex].index)
+      }
+      return
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
     if (carrying) return moveLesson(carrying, day, period)
     const lesson = cellLessons.find((item) => !item.is_locked) ?? cellLessons[0]
