@@ -80,6 +80,7 @@ export function TimetableMainToolbar() {
           <ToolItem label="Verification" onClick={() => command('verification')} />
           <ToolItem label="Statistics" onClick={() => command('statistics')} />
           <ToolItem label="Assign classrooms" onClick={() => command('assign-classrooms')} />
+          <ToolItem label="Duplicate lesson" onClick={() => command('duplicate-lesson')} />
           <ToolItem label="Lock" onClick={() => command('lock')} />
           <ToolItem label="Unlock" onClick={() => command('unlock')} />
           <ToolItem label="Remove timetable" onClick={() => command('remove-timetable')} />
