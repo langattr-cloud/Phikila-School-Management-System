@@ -29,6 +29,7 @@ export function TimetableMainToolbar() {
   const [tab, setTab] = useState<Tab>('Main')
 
   function saveView() {
+    command('save')
     const scope = document.getElementById('tt-scope') as HTMLSelectElement | null
     const target = document.getElementById('tt-target') as HTMLSelectElement | null
     localStorage.setItem('phikila:timetable-view', JSON.stringify({ scope: scope?.value ?? 'all', target: target?.value ?? '' }))
