@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { PageHeader } from '../components/PageHeader'
 import { TimetableGrid } from '../components/TimetableGrid'
 import { useToast } from '../components/Toast'
