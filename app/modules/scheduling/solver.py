@@ -49,13 +49,15 @@ def preflight(data:SolverInput)->list[str]:
     if not data.requirements:
         problems.append("No lesson requirements are configured. Add at least one class, subject and weekly lesson requirement before generating a timetable.")
         return problems
-    hc={};ht={}
+    blocked={scope:{} for scope in ("class","teacher","subject","room")}
     for rule in data.avoid_rules:
-        if rule.is_hard:(hc if rule.scope=="class" else ht).setdefault(rule.target_id,set()).update(rule.slots)
+        if rule.is_hard and rule.scope in blocked:
+            blocked[rule.scope].setdefault(rule.target_id,set()).update(rule.slots)
+    hc=blocked["class"]; ht=blocked["teacher"]; hs=blocked["subject"]; hr=blocked["room"]
     pc={}
     for r in data.requirements:pc[r.class_id]=pc.get(r.class_id,0)+r.periods_per_week
     for cid,total in pc.items():
-        s=data.classes.get(cid);blocked=(set(s.unavailable) if s else set())|hc.get(cid,set());free=capacity-len(blocked)
+        s=data.classes.get(cid);blocked_slots=(set(s.unavailable) if s else set())|hc.get(cid,set());free=capacity-len(blocked_slots)
         if total>free:problems.append(f"{s.name if s else f'Class {cid}'} needs {total} lessons a week but only has {free} available slots.")
     pt={}
     for r in data.requirements:
@@ -81,7 +83,8 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
         if r.teacher_id and data.teachers.get(r.teacher_id) and (d,p) in data.teachers[r.teacher_id].unavailable:return False
         if r.room_id and data.rooms.get(r.room_id) and (d,p) in data.rooms[r.room_id].unavailable:return False
         for rule in data.avoid_rules:
-            if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False
+            matches=(rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and rule.target_id==r.subject_id) or (rule.scope=="room" and r.room_id==rule.target_id)
+            if rule.is_hard and matches and (d,p) in rule.slots:return False
         return True
     for r in data.requirements:
         for d,p in slots:
@@ -169,7 +172,7 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
         for rule in data.avoid_rules:
             if rule.is_hard:continue
             for r in data.requirements:
-                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)
+                match=(rule.scope=="class" and r.class_id==rule.target_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id) or (rule.scope=="subject" and r.subject_id==rule.target_id) or (rule.scope=="room" and r.room_id==rule.target_id)
                 if match:
                     for d,p in rule.slots:
                         if (r.id,d,p) in x:penalties.append((x[(r.id,d,p)],rule.weight or w.avoid_slots))
