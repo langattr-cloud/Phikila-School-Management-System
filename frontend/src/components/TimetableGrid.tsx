@@ -274,10 +274,11 @@ export function TimetableGrid({
         title={title}
         aria-label={title}
         role="button"
-        tabIndex={-1}
+        tabIndex={selectedId === lesson.id ? 0 : -1}
         draggable={!readOnly && !lesson.is_locked}
         onMouseEnter={() => setHoveredLesson(lesson)}
         onMouseLeave={() => setHoveredLesson((value) => value?.id === lesson.id ? null : value)}
+        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect?.(lesson); if (!readOnly && !lesson.is_locked) setCarrying(lesson); } }}
         onDragStart={(event) => {
           if (lesson.is_locked) { event.preventDefault(); return }
           setDragging(lesson)
