@@ -414,8 +414,8 @@ export function TimetableGrid({
             .timetable-print-preview__toolbar{background:#f1f5f9;border-bottom:1px solid #cbd5e1;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:12px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
             .timetable-print-preview__toolbar button,.timetable-print-preview__toolbar select{height:30px;border:1px solid #94a3b8;background:#fff;border-radius:3px;padding:0 10px;font-size:12px}
             .timetable-print-preview__toolbar button{cursor:pointer}.timetable-print-preview__toolbar .primary{background:#2563eb;color:#fff;border-color:#2563eb}.timetable-print-preview__toolbar .close{margin-left:auto;background:#dc2626;color:#fff;border-color:#dc2626}
-            .timetable-print-preview__pages{flex:1;overflow:auto;padding:28px;display:flex;justify-content:center;align-items:flex-start}
-            .timetable-print-preview__paper{width:297mm;min-height:210mm;background:#fff;box-sizing:border-box;padding:10mm;box-shadow:0 8px 28px rgba(0,0,0,.28);color:#111827}
+            .timetable-print-preview__pages{flex:1;overflow:hidden;padding:16px;display:flex;justify-content:center;align-items:center;min-height:0}
+            .timetable-print-preview__paper{width:min(297mm, calc((100vh - 92px) * 1.4142857));height:min(210mm, calc(100vh - 92px));max-width:100%;max-height:100%;background:#fff;box-sizing:border-box;padding:8mm;box-shadow:0 8px 28px rgba(0,0,0,.28);color:#111827;overflow:hidden}
             .timetable-print-preview__title{text-align:center;margin:0 0 3px;font-size:18px;font-weight:800}.timetable-print-preview__subtitle{text-align:center;margin:0 0 12px;font-size:11px;color:#475569}.timetable-print-preview__meta{display:flex;justify-content:space-between;gap:12px;border-bottom:2px solid #111827;padding-bottom:6px;margin-bottom:8px;font-size:11px;font-weight:700}
             .print-table{display:grid;grid-template-columns:58px repeat(var(--print-periods),minmax(48px,1fr));border-top:1px solid #111827;border-left:1px solid #111827}.print-table{--print-periods:${printPeriods.length || 1}}
             .print-table__corner,.print-table__period,.print-table__day,.print-table__cell{border-right:1px solid #111827;border-bottom:1px solid #111827;box-sizing:border-box}.print-table__corner,.print-table__period{background:#1e293b;color:#fff;text-align:center;min-height:42px;padding:4px 2px}.print-table__period{display:flex;flex-direction:column;justify-content:center;font-size:9px}.print-table__period span{font-size:6px;font-weight:400}.print-table__break{background:#64748b!important}.print-table__row{display:contents}.print-table__day{background:#e2e8f0;font-size:9px;font-weight:800;padding:5px;display:flex;align-items:center}.print-table__cell{min-height:42px;padding:4px;text-align:center;display:flex;flex-direction:column;justify-content:center;overflow:hidden}.print-table__cell strong{font-size:10px;line-height:1.05}.print-table__cell small{font-size:7px;line-height:1.1;margin-top:2px}.print-table__break-cell{background:#e2e8f0!important}.print-table--dense .print-table__cell{min-height:30px;padding:2px}.print-table--dense .print-table__cell small{display:none}
@@ -430,14 +430,13 @@ export function TimetableGrid({
             <select value={printReport} onChange={(event) => changeReport(event.target.value as Report)} aria-label="Select your report">
               {REPORTS.map((report) => <option key={report} value={report}>{report}</option>)}
             </select>
-            <span>Page: {Math.min(printPage + 1, pageCount)}/{pageCount}</span>
             <button type="button" className="close" onClick={() => setShowPrintPreview(false)}>Close preview</button>
           </div>
           <div className="timetable-print-preview__pages">
             <div className="timetable-print-preview__paper">
               <h1 className="timetable-print-preview__title">{printEntity?.label || 'Whole School'}</h1>
               <p className="timetable-print-preview__subtitle">{printReport}</p>
-              <div className="timetable-print-preview__meta"><span>{activeDays.map(dayLabel).join(' · ')}</span><span>Page {printPage + 1} of {pageCount}</span></div>
+              <div className="timetable-print-preview__meta"><span>{activeDays.map(dayLabel).join(' · ')}</span></div>
               {renderPrintPage()}
             </div>
           </div>
