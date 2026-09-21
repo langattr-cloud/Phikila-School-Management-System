@@ -54,7 +54,7 @@ export function TimetableMainToolbar() {
       <ToolItem label="Generate" href="/scheduling/generate" />
       <ToolItem label="Verification" href="/versions" />
       <ToolItem label="School" href="/setup/school" />
-      <ToolItem label="Timetables Online" href="/timetable" />
+      <ToolItem label="Timetables Online" href="/timetable/whole-school" />
     </div>
 
     <div className="timetable-main-toolbar__group timetable-main-toolbar__group--output">
