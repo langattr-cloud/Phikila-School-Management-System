@@ -23,7 +23,7 @@ class SubjectSpec: id:int; name:str; spread_across_week:bool=True; required_room
 class RequirementSpec: id:int; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; periods_per_week:int; double_periods:int=0
 @dataclass
 class Weights:
-    teacher_gaps:int=20; subject_distribution:int=15; consecutive_lessons:int=30; workload_balance:int=15; room_utilisation:int=5; avoid_slots:int=25
+    teacher_gaps:int=20; subject_distribution:int=15; consecutive_lessons:int=30; workload_balance:int=15; room_utilisation:int=5; avoid_slots:int=25; morning_preferences:int=10
     @classmethod
     def from_mapping(cls,data:dict|None)->"Weights":
         base=cls()
@@ -160,6 +160,14 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
                     window=row[start:start+run+1]
                     if len(window)>run:
                         over=model.NewBoolVar(f"run_{tid}_{d}_{start}");model.Add(sum(window)-run<=over*len(window));model.Add(over<=sum(window));penalties.append((over,w.consecutive_lessons))
+    if w.morning_preferences>0:
+        morning=set(data.morning_periods)
+        for r in data.requirements:
+            subject=data.subjects.get(r.subject_id)
+            if not subject or not subject.prefers_morning: continue
+            for d in data.days:
+                for p in data.teaching_periods:
+                    if p not in morning and (r.id,d,p) in x: penalties.append((x[(r.id,d,p)],w.morning_preferences))
     if w.subject_distribution>0:
         for r in data.requirements:
             subject=data.subjects.get(r.subject_id)
