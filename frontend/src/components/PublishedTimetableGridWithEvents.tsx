@@ -33,7 +33,7 @@ function buildLessonForPrint(lesson:TimetableView['lessons'][number], index:numb
  return {lesson:synthetic,meta}
 }
 
-export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
+// Right-clicking a populated class/teacher lesson opens Print Setup directly.\nexport function PublishedTimetableGridWithEvents({view,mode,events}:Props){
  const [printSetup,setPrintSetup]=useState<MenuState|null>(null)
  const sortedPeriods=useMemo(()=>[...view.periods].sort((a,b)=>minutes(a.start_time)-minutes(b.start_time)||a.index-b.index),[view.periods])
  const days=view.days
