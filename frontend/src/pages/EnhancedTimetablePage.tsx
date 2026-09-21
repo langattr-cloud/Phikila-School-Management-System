@@ -46,6 +46,12 @@ function FloatingTimetableNavigator() {
   }
 
   function move(delta: number) {
+    if (scope === 'all') {
+      const order = ['all', 'class', 'teacher', 'room', 'subject']
+      const index = Math.max(0, order.indexOf(scope))
+      changeScope(order[(index + delta + order.length) % order.length])
+      return
+    }
     if (!targets.length) return
     const index = Math.max(0, targets.findIndex((item) => item.value === target))
     const nextIndex = (index + delta + targets.length) % targets.length
@@ -71,9 +77,9 @@ function FloatingTimetableNavigator() {
       </select>
     </div>
     <div className="timetable-floating-nav__arrows">
-      <button type="button" aria-label="Previous report" title="Previous report" disabled={scope === 'all' || !targets.length} onClick={() => move(-1)}>‹</button>
+      <button type="button" aria-label="Previous report" title="Previous report" onClick={() => move(-1)}>‹</button>
       <span aria-live="polite">{currentLabel}</span>
-      <button type="button" aria-label="Next report" title="Next report" disabled={scope === 'all' || !targets.length} onClick={() => move(1)}>›</button>
+      <button type="button" aria-label="Next report" title="Next report" onClick={() => move(1)}>›</button>
     </div>
     <div className="timetable-floating-nav__print"><TimetablePrintSetLauncher /></div>
   </div>
@@ -173,7 +179,23 @@ export function EnhancedTimetablePage() {
         min-height:calc(100vh - 42px);
         padding:8px 14px 18px;
       }
-      .timetable-floating-nav {\n        position:sticky;\n        top:50px;\n        z-index:80;\n        display:flex;\n        align-items:center;\n        gap:8px;\n        min-height:42px;\n        margin:0 0 8px;\n        padding:5px 8px;\n        background:#fff;\n        border:1px solid #cfd6df;\n        border-radius:5px;\n        box-shadow:0 2px 5px rgba(15,23,42,.08);\n        font:11px Arial,Helvetica,sans-serif;\n      }\n      .timetable-floating-nav__caption { font-weight:700; color:#475569; white-space:nowrap; }\n      .timetable-floating-nav select { height:28px; min-width:150px; padding:3px 7px; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#1f2937; font-size:11px; }\n      .timetable-floating-nav__target { flex:1 1 auto; min-width:150px; }\n      .timetable-floating-nav__target select { width:100%; }\n      .timetable-floating-nav__arrows { display:flex; align-items:center; gap:4px; min-width:190px; }\n      .timetable-floating-nav__arrows button { width:30px; height:28px; padding:0; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc; color:#1f2937; font-size:22px; line-height:20px; cursor:pointer; }\n      .timetable-floating-nav__arrows button:hover:not(:disabled) { background:#e2e8f0; }\n      .timetable-floating-nav__arrows button:disabled { opacity:.45; cursor:default; }\n      .timetable-floating-nav__arrows span { min-width:105px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; color:#334155; font-weight:600; }\n      .timetable-floating-nav__print { flex:0 0 auto; }\n\n      .timetable-workspace .timetable-main-toolbar {
+      .timetable-floating-nav {
+        position:fixed;
+        left:14px;
+        top:50%;
+        transform:translateY(-50%);
+        z-index:1200;
+        display:flex;
+        flex-direction:column;
+        gap:7px;
+        width:210px;
+        padding:9px;
+        background:#f4f4f1;
+        border:1px solid #8d8d86;
+        border-radius:3px;
+        box-shadow:4px 5px 0 rgba(0,0,0,.12),0 8px 24px rgba(15,23,42,.16);
+        font:11px Arial,Helvetica,sans-serif;
+      }\n      .timetable-floating-nav__caption { display:block; margin-bottom:2px; color:#555; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }\n      .timetable-floating-nav select { height:28px; min-width:150px; padding:3px 7px; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#1f2937; font-size:11px; }\n      .timetable-floating-nav__target { flex:1 1 auto; min-width:150px; }\n      .timetable-floating-nav__target select { width:100%; }\n      .timetable-floating-nav__arrows { display:grid; grid-template-columns:38px 1fr 38px; align-items:center; gap:5px; }\n      .timetable-floating-nav__arrows button { width:38px; height:34px; padding:0; border:1px solid #777b75; border-radius:2px; background:#e6e6e2; color:#111; font-family:Georgia,'Times New Roman',serif; font-size:29px; line-height:29px; cursor:pointer; box-shadow:inset 0 1px #fff; }\n      .timetable-floating-nav__arrows button:hover { background:#d7d7d2; }\n      .timetable-floating-nav__arrows span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; color:#333; font-weight:700; }\n      .timetable-floating-nav__print { flex:0 0 auto; }\n\n      .timetable-workspace .timetable-main-toolbar {
         min-height:68px;
         margin:0 0 8px;
         padding:0 4px;
@@ -260,7 +282,7 @@ export function EnhancedTimetablePage() {
         .timetable-workspace__title { justify-content:flex-start; }
         .timetable-workspace__mode { display:none; }
         .timetable-workspace__content { padding:7px 6px 12px; }
-        .timetable-floating-nav { top:49px; flex-wrap:wrap; }\n        .timetable-floating-nav__caption { flex-basis:100%; }\n        .timetable-floating-nav__report, .timetable-floating-nav__target, .timetable-floating-nav__arrows { flex:1 1 150px; }\n        .timetable-floating-nav__print { margin-left:auto; }\n        .timetable-workspace .timetable-main-toolbar { overflow-x:auto; }
+        .timetable-floating-nav { left:6px; right:6px; top:auto; bottom:8px; transform:none; width:auto; }\n        .timetable-floating-nav__report, .timetable-floating-nav__target { flex:1 1 auto; }\n        .timetable-floating-nav__print { margin-left:auto; }\n        .timetable-workspace .timetable-main-toolbar { overflow-x:auto; }
         .timetable-workspace .timetable-main-toolbar__item,
         .timetable-workspace .timetable-main-toolbar__setup { min-width:68px; }
         .timetable-workspace .timetable-enhanced-page .page-header { display:none; }
