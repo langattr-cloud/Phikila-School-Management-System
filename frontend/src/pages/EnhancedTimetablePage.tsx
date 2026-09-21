@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { useNavigate } from '../lib/router'
-import { TimetableMainToolbar } from '../components/TimetableMainToolbar'
 import { TimetablePage } from './TimetablePage'
 
 /**
@@ -37,7 +36,6 @@ export function EnhancedTimetablePage() {
     </div>
 
     <main className="timetable-workspace__content">
-      <TimetableMainToolbar />
       <TimetablePage />
     </main>
 
@@ -120,7 +118,6 @@ export function EnhancedTimetablePage() {
 
       /* Compress the page chrome so the matrix, not cards and headings, owns the screen. */
       .timetable-workspace .timetable-enhanced-page { min-height:calc(100vh - 42px); background:transparent; }
-      .timetable-workspace .timetable-enhanced-page > .timetable-main-toolbar { display:none; }
       .timetable-workspace .timetable-enhanced-page .timetable-page-shell { gap:8px; }
       .timetable-workspace .timetable-enhanced-page .page-header {
         margin:0;

@@ -54,12 +54,15 @@ export function TimetableMainToolbar() {
       <ToolItem label="Generate" href="/scheduling/generate" />
       <ToolItem label="Verification" href="/versions" />
       <ToolItem label="School" href="/setup/school" />
-      <ToolItem label="Timetables Online" href="/timetable" />
+      <ToolItem label="Timetables Online" href="/timetable/whole-school" />
     </div>
 
     <div className="timetable-main-toolbar__group timetable-main-toolbar__group--output">
       <span className="timetable-main-toolbar__label">Output</span>
-      <ToolItem label="Print Preview" onClick={() => window.print()} />
+      <ToolItem label="Print Preview" onClick={() => {
+        const previewButton = document.querySelector('.timetable__asc-button--primary') as HTMLButtonElement | null
+        previewButton?.click()
+      }} />
       <ToolItem label="CSV" onClick={() => clickExisting('CSV')} icon={<GridIcon width={20} height={20} />} />
       <ToolItem label="Calendar" onClick={() => clickExisting('Calendar')} icon={<CalendarIcon width={20} height={20} />} />
       <ToolItem label="PNG" onClick={() => clickExisting('PNG')} icon={<DownloadIcon width={20} height={20} />} />

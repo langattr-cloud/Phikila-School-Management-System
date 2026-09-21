@@ -26,7 +26,7 @@ const PLATFORM_NAV: NavGroup = {
 }
 
 const NAV: NavGroup[] = [
-  { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }, { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> }, { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> }] },
+  { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }, { to: '/timetable/whole-school', label: 'Timetable', icon: <CalendarIcon /> }, { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> }] },
   { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> }, { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Classes', icon: <LayersIcon /> }, { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> }] },
   { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> }] },
   { label: 'Operations', items: [{ to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> }, { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
@@ -236,7 +236,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="topbar__title"><LogoMark size={26} /><span>Phikila</span></span>
           {pathname === '/students' && <><button type="button" className="button button--secondary button--sm" onClick={exportStudents}>Export Students</button><Link className="button button--secondary button--sm" to="/students/import">Import Students</Link></>}
           {drawerJob && <Link className="button button--secondary button--sm" to="/scheduling/generate" title={`${drawerJob.stage || 'Generating'} · ${drawerJob.progress}%`}>Generating… {drawerJob.progress}%</Link>}
-          {completedJob?.status === 'completed' && <Link className="button button--primary button--sm" to="/timetable" aria-label="Timetable ready, open timetable">Timetable ready →</Link>}
+          {completedJob?.status === 'completed' && <Link className="button button--primary button--sm" to="/timetable/whole-school" aria-label="Timetable ready, open timetable">Timetable ready →</Link>}
           {offline && <span className="topbar__offline" role="status">Offline</span>}
           <button type="button" className="icon-button topbar__theme" onClick={() => setTheme(x => x === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
             {theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}
