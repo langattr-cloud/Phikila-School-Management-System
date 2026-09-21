@@ -104,6 +104,8 @@ export function TimetableGrid({
   view = 'whole-school',
   conflicted,
   selectedId,
+  selectedIds = [],
+  onSelectionChange,
   readOnly = false,
   zoom = 100,
   dense = false,
@@ -291,12 +293,12 @@ export function TimetableGrid({
     return (
       <div
         key={lesson.id}
-        className={`lesson-card ${selectedId === lesson.id ? 'lesson-card--selected' : ''} ${conflict ? 'lesson-card--conflict' : ''} ${lesson.is_locked ? 'lesson-card--locked' : ''}`}
+        className={`lesson-card ${(selectedIds.includes(lesson.id) || selectedId === lesson.id) ? 'lesson-card--selected' : ''} ${conflict ? 'lesson-card--conflict' : ''} ${lesson.is_locked ? 'lesson-card--locked' : ''}`}
         style={style}
         title={title}
         aria-label={title}
         role="button"
-        tabIndex={selectedId === lesson.id ? 0 : -1}
+        tabIndex={(selectedIds.includes(lesson.id) || selectedId === lesson.id) ? 0 : -1}
         draggable={!readOnly && !lesson.is_locked}
         onMouseEnter={() => setHoveredLesson(lesson)}
         onMouseLeave={() => setHoveredLesson((value) => value?.id === lesson.id ? null : value)}
@@ -314,6 +316,14 @@ export function TimetableGrid({
         data-period={lesson.period_index}
         onClick={(event) => {
           event.stopPropagation()
+          if (event.shiftKey || event.ctrlKey || event.metaKey) {
+            const next = selectedIds.includes(lesson.id)
+              ? selectedIds.filter((id) => id !== lesson.id)
+              : [...selectedIds, lesson.id]
+            onSelectionChange?.(next)
+          } else {
+            onSelectionChange?.([lesson.id])
+          }
           onSelect?.(lesson)
           selectAppearanceCell('lesson', subjectName, { day: lesson.day_index, period: lesson.period_index, lessonId: lesson.id })
         }}
