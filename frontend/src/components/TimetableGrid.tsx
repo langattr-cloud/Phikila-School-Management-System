@@ -190,13 +190,15 @@ export function TimetableGrid({
 
   const getSubjectColor = (subject: Subject | undefined) => (subject && subjectColorMap.get(subject.id)) || '#E5E7EB'
 
+  const isSummaryReport = printReport.startsWith('Summary timetable') || printReport.startsWith('Wall poster')
   const printEntities = useMemo<PrintEntity[]>(() => {
+    if (isSummaryReport) return [{ id: 0, label: 'Whole School' }]
+    if (printReport.includes('classroom')) return [...meta.rooms.values()].sort((a, b) => a.name.localeCompare(b.name)).map((item) => ({ id: item.id, label: item.name }))
     if (printReport.includes('class')) return wholeRows.map((item) => ({ id: item.id, label: timetableClassLabel(item) }))
     if (printReport.includes('teacher')) return [...meta.teachers.values()].sort((a, b) => a.name.localeCompare(b.name)).map((item) => ({ id: item.id, label: item.name || item.code || item.staff_number || `Teacher ${item.id}` }))
-    if (printReport.includes('classroom')) return [...meta.rooms.values()].sort((a, b) => a.name.localeCompare(b.name)).map((item) => ({ id: item.id, label: item.name }))
     if (printReport.includes('subject')) return [...meta.subjects.values()].sort((a, b) => a.name.localeCompare(b.name)).map((item) => ({ id: item.id, label: item.name || item.code || `Subject ${item.id}` }))
     return [{ id: 0, label: 'Whole School' }]
-  }, [printReport, wholeRows, meta.teachers, meta.rooms, meta.subjects])
+  }, [isSummaryReport, printReport, wholeRows, meta.teachers, meta.rooms, meta.subjects])
 
   const pageCount = Math.max(1, printEntities.length)
   const printEntity = printEntities[Math.min(printPage, pageCount - 1)]
@@ -347,9 +349,9 @@ export function TimetableGrid({
   )
 
   const lessonsForEntity = (entityId: number) => {
+    if (printReport.includes('classroom')) return lessons.filter((lesson) => lesson.room_id === entityId)
     if (printReport.includes('class')) return lessons.filter((lesson) => lesson.class_id === entityId)
     if (printReport.includes('teacher')) return lessons.filter((lesson) => lesson.teacher_id === entityId)
-    if (printReport.includes('classroom')) return lessons.filter((lesson) => lesson.room_id === entityId)
     if (printReport.includes('subject')) return lessons.filter((lesson) => lesson.subject_id === entityId)
     return lessons
   }
@@ -401,7 +403,7 @@ export function TimetableGrid({
       onContextMenuCapture={(event) => openPrintSetupFromContext(event.nativeEvent)}
     >
       <div className="timetable__asc-toolbar">
-        <span className="timetable__asc-view">Whole</span>
+        <span className="timetable__asc-view">{view === 'whole-school' ? 'Whole' : view === 'class' ? 'Class' : view === 'teacher' ? 'Teacher' : 'Lessons'}</span>
         <button type="button" className="timetable__asc-button" onClick={() => window.print()}>Print</button>
         <button type="button" className="timetable__asc-button timetable__asc-button--primary" onClick={openPrintPreview}>Print preview</button>
       </div>
