@@ -26,6 +26,8 @@ type Props = {
   view?: ViewKind
   conflicted?: Set<number>
   selectedId?: number | null
+  selectedIds?: number[]
+  onSelectionChange?: (ids: number[]) => void
   readOnly?: boolean
   zoom?: number
   dense?: boolean
