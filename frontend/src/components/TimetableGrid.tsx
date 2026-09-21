@@ -105,6 +105,8 @@ export function TimetableGrid({
   conflicted,
   selectedId,
   readOnly = false,
+  zoom = 100,
+  dense = false,
   currentSlot,
   timeFormat = '24h',
   timeLayout = 'split',
