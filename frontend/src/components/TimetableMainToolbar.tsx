@@ -72,15 +72,15 @@ export function TimetableMainToolbar() {
       case 'Timetable':
         return <>
           <ToolItem label="Back" onClick={() => command('back')} icon={<LayersIcon width={20} height={20} />} />
-          <ToolItem label="Test" href="/analytics" />
+          <ToolItem label="Test" onClick={() => command('verification')} />
           <ToolItem label="Generate new" href="/scheduling/generate" icon={<PlusIcon width={20} height={20} />} />
           <ToolItem label="Improve" onClick={() => command('improve')} />
           <ToolItem label="Parameters" onClick={() => command('parameters')} />
-          <ToolItem label="Verification" href="/versions" />
-          <ToolItem label="Statistics" href="/analytics" />
+          <ToolItem label="Verification" onClick={() => command('verification')} />
+          <ToolItem label="Statistics" onClick={() => command('statistics')} />
           <ToolItem label="Assign classrooms" onClick={() => command('assign-classrooms')} />
-          <ToolItem label="Lock" onClick={() => clickExisting('Lock')} />
-          <ToolItem label="Unlock" onClick={() => clickExisting('Unlock')} />
+          <ToolItem label="Lock" onClick={() => command('lock')} />
+          <ToolItem label="Unlock" onClick={() => command('unlock')} />
           <ToolItem label="Remove timetable" onClick={() => command('remove-timetable')} />
         </>
       case 'Options':
