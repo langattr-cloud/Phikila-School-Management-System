@@ -50,6 +50,123 @@ _crud("teachers", m.TtTeacher, s.TeacherIn, s.TeacherOut, "teacher")
 _crud("subjects", m.TtSubject, s.SubjectIn, s.SubjectOut, "subject")
 _crud("rooms", m.TtRoom, s.RoomIn, s.RoomOut, "room")
 _crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class", update_schema=s.ClassUpdateIn)
+
+def _owned_version(db: Session, principal: Principal, version_id: int):
+    return _owned(db, m.TtVersion, principal.school_id, version_id)
+
+def _owned_lesson(db: Session, principal: Principal, lesson_id: int):
+    row = db.query(m.TtLesson).filter(
+        m.TtLesson.id == lesson_id,
+        m.TtLesson.school_id == principal.school_id,
+    ).first()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Lesson not found")
+    return row
+
+def _ensure_editable_version(version: m.TtVersion) -> None:
+    if version.status == "published":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Published timetables are read-only. Restore the version as a draft before editing.")
+
+def _duplicate_lesson(db: Session, principal: Principal, lesson: m.TtLesson) -> m.TtLesson:
+    options = suggest_slots(db, principal.school_id, lesson, limit=1)
+    if not options:
+        raise HTTPException(status.HTTP_409_CONFLICT, "No available slot exists for this lesson.")
+    target = options[0]
+    copy = m.TtLesson(
+        school_id=principal.school_id,
+        version_id=lesson.version_id,
+        requirement_id=lesson.requirement_id,
+        class_id=lesson.class_id,
+        subject_id=lesson.subject_id,
+        teacher_id=lesson.teacher_id,
+        room_id=lesson.room_id,
+        day_index=target["day"],
+        period_index=target["period"],
+        duration=lesson.duration,
+        is_locked=False,
+    )
+    db.add(copy)
+    db.flush()
+    _audit(
+        db, principal, "duplicate", "lesson", copy.id,
+        f"Duplicated lesson {lesson.id} to day {copy.day_index}, period {copy.period_index}",
+        before={"source_id": lesson.id},
+        after={"id": copy.id, "day_index": copy.day_index, "period_index": copy.period_index},
+    )
+    return copy
+
+@router.post("/lessons/{lesson_id}/duplicate", response_model=s.LessonOut, status_code=201, name="duplicate_lesson")
+def duplicate_lesson(lesson_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    lesson = _owned_lesson(db, principal, lesson_id)
+    version = _owned_version(db, principal, lesson.version_id)
+    _ensure_editable_version(version)
+    try:
+        copy = _duplicate_lesson(db, principal, lesson)
+        db.commit()
+        db.refresh(copy)
+        return copy
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Lesson could not be duplicated.")
+
+@router.post("/lessons/{lesson_id}/delete", status_code=204, name="delete_lesson")
+def delete_lesson(lesson_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    lesson = _owned_lesson(db, principal, lesson_id)
+    version = _owned_version(db, principal, lesson.version_id)
+    _ensure_editable_version(version)
+    _audit(db, principal, "delete", "lesson", lesson.id, f"Deleted lesson {lesson.id}")
+    db.delete(lesson)
+    db.commit()
+
+@router.post("/versions/{version_id}/lessons/bulk-duplicate", response_model=list[s.LessonOut], status_code=201, name="bulk_duplicate_lessons")
+def bulk_duplicate_lessons(version_id: int, payload: s.BulkLessonIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    version = _owned_version(db, principal, version_id)
+    _ensure_editable_version(version)
+    ids = list(dict.fromkeys(int(i) for i in payload.lesson_ids))
+    lessons = db.query(m.TtLesson).filter(
+        m.TtLesson.school_id == principal.school_id,
+        m.TtLesson.version_id == version.id,
+        m.TtLesson.id.in_(ids),
+    ).order_by(m.TtLesson.id).all()
+    if len(lessons) != len(ids):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "One or more selected lessons were not found in this timetable version.")
+    try:
+        copies = [_duplicate_lesson(db, principal, lesson) for lesson in lessons]
+        db.commit()
+        for copy in copies:
+            db.refresh(copy)
+        return copies
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bulk lesson duplication failed; no changes were applied.")
+
+@router.post("/versions/{version_id}/lessons/bulk-delete", status_code=204, name="bulk_delete_lessons")
+def bulk_delete_lessons(version_id: int, payload: s.BulkLessonIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    version = _owned_version(db, principal, version_id)
+    _ensure_editable_version(version)
+    ids = list(dict.fromkeys(int(i) for i in payload.lesson_ids))
+    lessons = db.query(m.TtLesson).filter(
+        m.TtLesson.school_id == principal.school_id,
+        m.TtLesson.version_id == version.id,
+        m.TtLesson.id.in_(ids),
+    ).all()
+    if len(lessons) != len(ids):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "One or more selected lessons were not found in this timetable version.")
+    try:
+        for lesson in lessons:
+            _audit(db, principal, "delete", "lesson", lesson.id, f"Bulk deleted lesson {lesson.id}")
+            db.delete(lesson)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bulk lesson deletion failed; no changes were applied.")
+
 @router.patch("/classes/{ident}/teacher", response_model=s.ClassOut, name="assign_class_teacher")
 def assign_class_teacher(ident: int, payload: s.ClassTeacherAssignmentIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
     row = _owned(db, m.TtClass, principal.school_id, ident); teacher = None
