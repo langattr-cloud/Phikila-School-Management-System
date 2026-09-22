@@ -101,14 +101,18 @@ def _persist(db,school_id,result,actor,config):
     if version is None:
         latest=db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id).order_by(m.TtVersion.id.desc()).first()
         next_number=(latest.number+1) if latest and latest.number is not None else 1
-        version=m.TtVersion(school_id=school_id,number=next_number,name=config.get('label') or 'Timetable',label=config.get('label') or 'Current',status='draft',timetable_type_id=timetable_type_id)
+        version=m.TtVersion(school_id=school_id,project_id=config.get('project_id'),number=next_number,name=config.get('label') or 'Timetable',label=config.get('label') or 'Current',status='draft',timetable_type_id=timetable_type_id)
         db.add(version); db.flush()
     locked_meta={}
     for lesson in db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==version.id,m.TtLesson.is_locked.is_(True)).all():
         locked_meta[(lesson.requirement_id,lesson.day_index,lesson.period_index)]={"duration":lesson.duration or 1,"room_id":lesson.room_id}
     db.query(m.TtLesson).filter(m.TtLesson.version_id==version.id).delete(synchronize_session=False)
-    version.name=config.get('label') or 'Timetable'; version.label=config.get('label') or 'Current'; version.status='draft'; version.quality=result.quality; version.stats=result.stats; version.created_by=actor; version.day_indexes=indexes; version.day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes]; version.display_mode=display_mode; version.timetable_type_id=timetable_type_id; version.published_at=None; version.effective_from=None
+    version.project_id=config.get('project_id'); version.name=config.get('label') or 'Timetable'; version.label=config.get('label') or 'Current'; version.status='draft'; version.quality=result.quality; version.stats=result.stats; version.created_by=actor; version.day_indexes=indexes; version.day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes]; version.display_mode=display_mode; version.timetable_type_id=timetable_type_id; version.published_at=None; version.effective_from=None
     for p in result.placements:
         locked=locked_meta.get((p.requirement_id,p.day,p.period))
         db.add(m.TtLesson(school_id=school_id,version_id=version.id,requirement_id=p.requirement_id,class_id=p.class_id,subject_id=p.subject_id,teacher_id=p.teacher_id,room_id=(locked["room_id"] if locked and locked["room_id"] is not None else p.room_id),day_index=p.day,period_index=p.period,duration=(locked["duration"] if locked else p.duration),is_locked=bool(locked)))
+    db.commit();
+    if version.project_id is not None:
+        project=db.query(m.TtProject).filter(m.TtProject.id==version.project_id,m.TtProject.school_id==school_id).first()
+        if project is not None: project.current_version_id=version.id
     db.commit();from .engine import assign_rooms_to_lessons;assign_rooms_to_lessons(db,school_id,version.id);db.refresh(version);return version
