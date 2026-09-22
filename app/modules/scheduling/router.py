@@ -292,7 +292,7 @@ def validate_version(version_id:int,db:Session=Depends(get_db),principal:Princip
         if lesson.requirement_id is not None: counts[int(lesson.requirement_id)]=counts.get(int(lesson.requirement_id),0)+1
     unassigned=sum(max(0,int(req.periods_per_week or 1)-counts.get(int(req.id),0)) for req in requirements)
     calendar=load_calendar(db,principal.school_id)
-    selected_periods=set(version.period_indexes or calendar.teaching_indexes)
+    selected_periods=set(calendar.teaching_indexes)
     missing_periods=sum(1 for req in requirements if (req.periods_per_week or 1)>0 and not selected_periods)
     valid=hard==0 and unassigned==0 and missing_periods==0
     message="Timetable is valid and ready for publication." if valid else f"Validation found {hard} hard conflict(s), {unassigned} unassigned lesson slot(s), and {missing_periods} missing period scope issue(s)."
