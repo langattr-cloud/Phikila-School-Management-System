@@ -61,3 +61,9 @@
     letter-spacing: .02em;
   }
 }
+
+/* aSc-style duration controls: compact, keyboard-visible lesson resizing. */
+.lesson-card__resize-group{position:absolute;right:3px;bottom:3px;display:flex;gap:2px;z-index:4}
+.lesson-card__resize{width:18px;height:18px;padding:0;border:1px solid rgba(255,255,255,.65);border-radius:2px;background:rgba(15,23,42,.72);color:#fff;font-weight:800;line-height:16px;cursor:pointer}
+.lesson-card__resize:hover,.lesson-card__resize:focus-visible{background:rgba(15,23,42,.95);outline:2px solid #fff;outline-offset:1px}
+@media (max-width:700px){.lesson-card__resize{width:16px;height:16px;font-size:10px;line-height:14px}}
