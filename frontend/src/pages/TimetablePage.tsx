@@ -69,6 +69,12 @@ export function TimetablePage() {
      <button type="button" className="timetable-command-ribbon__button" onClick={exportIcs}>Calendar</button>
    </div>
    <div className="timetable-command-ribbon__group">
+     <span className="timetable-command-ribbon__label">Selection</span>
+     <span className="timetable-command-ribbon__status">{selectedIds.size} selected</span>
+     <button type="button" className="timetable-command-ribbon__button" disabled={readOnly||selectedIds.size===0} onClick={handleBulkDuplicate}>Duplicate selected</button>
+     <button type="button" className="timetable-command-ribbon__button" disabled={readOnly||selectedIds.size===0} onClick={handleBulkDelete}>Delete selected</button>
+   </div>
+   <div className="timetable-command-ribbon__group">
      <span className="timetable-command-ribbon__label">Output</span>
      <button type="button" className="timetable-command-ribbon__button" onClick={()=>window.print()}>Print preview</button>
      <button type="button" className="timetable-command-ribbon__button" onClick={exportPng}><DownloadIcon width={14} height={14}/> PNG</button>
