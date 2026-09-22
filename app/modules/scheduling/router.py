@@ -335,10 +335,10 @@ def cancel_job(job_id:int,db:Session=Depends(get_db),principal:Principal=Depends
     job.cancel_requested=True; db.commit(); db.refresh(job); return job
 @router.get("/versions",response_model=list[s.VersionOut])
 def list_versions(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
-    version=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
-    if version is None:return []
-    if not principal.at_least("scheduler") and version.status!="published":return []
-    return [version]
+    query=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc())
+    if not principal.at_least("scheduler"):
+        query=query.filter(m.TtVersion.status=="published")
+    return query.all()
 @router.get("/versions/current",response_model=s.VersionOut|None)
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
@@ -351,6 +351,15 @@ def publish_version(version_id: int, db: Session = Depends(get_db), principal: P
     hard_conflicts = [c for c in conflicts if getattr(c, "severity", None) == "hard"]
     if hard_conflicts:
         raise HTTPException(status.HTTP_409_CONFLICT, f"Cannot publish timetable: {len(hard_conflicts)} hard conflict(s) remain.")
+    requirements=db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==principal.school_id).all()
+    placed=db.query(m.TtLesson).filter(m.TtLesson.school_id==principal.school_id,m.TtLesson.version_id==version.id).all()
+    counts={}
+    for lesson in placed:
+        if lesson.requirement_id is not None:
+            counts[int(lesson.requirement_id)]=counts.get(int(lesson.requirement_id),0)+1
+    unassigned=sum(max(0,int(req.periods_per_week or 1)-counts.get(int(req.id),0)) for req in requirements)
+    if unassigned:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Cannot publish timetable: {unassigned} lesson slot(s) remain unassigned.")
 
     before = {"status": version.status, "published_at": version.published_at.isoformat() if version.published_at else None}
     now = datetime.utcnow()
