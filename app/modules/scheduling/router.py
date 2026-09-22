@@ -279,6 +279,25 @@ def generate(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal
             owned=db.query(model.id).filter(model.school_id==principal.school_id,model.id.in_(ids)).all()
             if len(owned)!=len(set(ids)): raise HTTPException(status.HTTP_404_NOT_FOUND,f"One or more selected {label}s were not found.")
     job=job_queue.create_job(db,principal.school_id,principal.email,config=config); job_queue.enqueue(job.id,principal.school_id,payload.max_seconds); return job
+@router.get("/versions/{version_id}/validate",response_model=s.ValidationSummaryOut,name="validate_version")
+def validate_version(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
+    version=_owned_version(db,principal,version_id)
+    conflicts=detect_conflicts(db,principal.school_id,version.id)
+    hard=sum(1 for item in conflicts if item.severity=="hard")
+    soft=len(conflicts)-hard
+    requirements=db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==principal.school_id).all()
+    placed=db.query(m.TtLesson).filter(m.TtLesson.school_id==principal.school_id,m.TtLesson.version_id==version.id).all()
+    counts={}
+    for lesson in placed:
+        if lesson.requirement_id is not None: counts[int(lesson.requirement_id)]=counts.get(int(lesson.requirement_id),0)+1
+    unassigned=sum(max(0,int(req.periods_per_week or 1)-counts.get(int(req.id),0)) for req in requirements)
+    calendar=load_calendar(db,principal.school_id)
+    selected_periods=set(version.period_indexes or calendar.teaching_indexes)
+    missing_periods=sum(1 for req in requirements if (req.periods_per_week or 1)>0 and not selected_periods)
+    valid=hard==0 and unassigned==0 and missing_periods==0
+    message="Timetable is valid and ready for publication." if valid else f"Validation found {hard} hard conflict(s), {unassigned} unassigned lesson slot(s), and {missing_periods} missing period scope issue(s)."
+    return {"valid":valid,"hard_conflicts":hard,"soft_conflicts":soft,"unassigned_requirements":unassigned,"missing_periods":missing_periods,"message":message}
+
 @router.get("/versions/{version_id}/conflicts",response_model=s.ConflictSummaryOut,name="version_conflicts")
 def version_conflicts(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     version=_owned_version(db,principal,version_id)
