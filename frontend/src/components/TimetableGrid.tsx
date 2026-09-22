@@ -370,6 +370,7 @@ export function TimetableGrid({
       >
         <span className="lesson-card__subject">{subjectCode}</span>
         <span className="lesson-card__class">{view === 'teacher' ? classCode : teacherCode}</span>
+        {duration > 1 && <span className="lesson-card__duration" aria-label={`${duration} periods`}>{duration}P</span>}
         {timeLayout === 'single' && period && <span className="lesson-card__time">{formatTime(period.start_time, timeFormat)}–{formatTime(period.end_time, timeFormat)}</span>}
         {timeLayout === 'split' && period && <span className="lesson-card__time lesson-card__time--split"><span>{formatTime(period.start_time, timeFormat)}</span><span>{formatTime(period.end_time, timeFormat)}</span></span>}
         {lesson.room_id && meta.rooms.get(lesson.room_id) && <span className="lesson-card__room">{meta.rooms.get(lesson.room_id)?.name}</span>}
