@@ -86,6 +86,14 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
     for r in data.requirements:
         for d,p in slots:
             if allowed(r,d,p):x[(r.id,d,p)]=model.NewBoolVar(f"x_{r.id}_{d}_{p}")
+        locked_slots=list(dict.fromkeys(data.locked.get(r.id, [])))
+        if len(locked_slots)>r.periods_per_week:
+            return SolverOutput("infeasible",[],{}, {},[f"Requirement {r.id} has {len(locked_slots)} locked lessons but only {r.periods_per_week} weekly lessons are required."])
+        for d,p in locked_slots:
+            locked_var=x.get((r.id,d,p))
+            if locked_var is None:
+                return SolverOutput("infeasible",[],{}, {},[f"Locked lesson for requirement {r.id} is outside an available teaching slot at day {d}, period {p}."])
+            model.Add(locked_var==1)
         vals=[x[(r.id,d,p)] for d,p in slots if (r.id,d,p) in x]
         if len(vals)<r.periods_per_week:return SolverOutput("infeasible",[],{}, {},[f"Requirement {r.id} cannot fit its weekly lessons into the available timetable slots."])
         model.Add(sum(vals)==r.periods_per_week)
