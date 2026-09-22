@@ -31,19 +31,16 @@ def _actor_uuid(db,school_id,actor):
     membership=db.query(TtMembership).filter(TtMembership.school_id==school_id,TtMembership.email==actor,TtMembership.is_active.is_(True)).first()
     return membership.user_id if membership else None
 def _run_job(job_id,school_id,max_seconds,day_indexes=None):
-    db=SessionLocal(); original_days=None
+    db=SessionLocal()
     try:
         job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
         if not job or job.status not in {"queued","running"}: return
         config=job.config if isinstance(job.config,dict) else {}; job.status="running"; job.stage="Loading school data"; job.progress=max(job.progress or 0,4); job.started_at=job.started_at or utcnow(); db.commit()
         if not ORTOOLS_AVAILABLE:return _fail(db,job,"The scheduling engine is not available on this server.")
         _ensure_calendar(db,school_id)
-        requested_days=set(int(i) for i in (config.get('day_indexes') or day_indexes or []))
-        if requested_days:
-            days=db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all(); original_days={d.id:d.is_active for d in days}
-            for d in days:d.is_active=d.index in requested_days
-            db.commit()
-        data=build_input(db,school_id,max_seconds=max_seconds)
+        requested_days=list(dict.fromkeys(int(i) for i in (config.get('day_indexes') or day_indexes or []))) or None
+        requested_periods=list(dict.fromkeys(int(i) for i in (config.get('period_indexes') or []))) or None
+        data=build_input(db,school_id,max_seconds=max_seconds,day_indexes=requested_days,period_indexes=requested_periods)
         problems=preflight(data)
         if problems:return _fail(db,job," ".join(problems))
         def cancelled():
@@ -84,18 +81,11 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
             if job:_fail(db,job,str(exc) or "The scheduling engine hit an unexpected problem.")
         except Exception:logger.exception("Could not record solver job %s failure",job_id)
     finally:
-        if original_days is not None:
-            try:
-                for ident,active in original_days.items():
-                    row=db.query(m.TtDay).filter(m.TtDay.id==ident).first()
-                    if row:row.is_active=active
-                db.commit()
-            except Exception:db.rollback()
         db.close()
 def _fail(db,job,message):job.status="failed";job.stage="Failed";job.message=message;job.finished_at=utcnow();db.commit();logger.error("Solver job %s failed: %s",job.id,message)
 def _persist(db,school_id,result,actor,config):
     timetable_type_id=config.get('timetable_type_id')
-    indexes=list(config.get('day_indexes') or []); names=config.get('day_names') or {}; display_mode=config.get('display_mode') or 'day'
+    indexes=list(config.get('day_indexes') or []); names=config.get('day_names') or {}; display_mode=config.get('display_mode') or 'day'; period_indexes=list(config.get('period_indexes') or [])
     fallback={d.index:d.name for d in db.query(m.TtDay).filter(m.TtDay.school_id==school_id).all()}
     version=db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id, m.TtVersion.status=="draft").order_by(m.TtVersion.id.desc()).first()
     if version is None:
@@ -107,7 +97,7 @@ def _persist(db,school_id,result,actor,config):
     for lesson in db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==version.id,m.TtLesson.is_locked.is_(True)).all():
         locked_meta[(lesson.requirement_id,lesson.day_index,lesson.period_index)]={"duration":lesson.duration or 1,"room_id":lesson.room_id}
     db.query(m.TtLesson).filter(m.TtLesson.version_id==version.id).delete(synchronize_session=False)
-    version.project_id=config.get('project_id'); version.name=config.get('label') or 'Timetable'; version.label=config.get('label') or 'Current'; version.status='draft'; version.quality=result.quality; version.stats=result.stats; version.created_by=actor; version.day_indexes=indexes; version.day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes]; version.display_mode=display_mode; version.timetable_type_id=timetable_type_id; version.published_at=None; version.effective_from=None
+    version.project_id=config.get('project_id'); version.name=config.get('label') or 'Timetable'; version.label=config.get('label') or 'Current'; version.status='draft'; version.quality=result.quality; version.stats=result.stats; version.created_by=actor; version.day_indexes=indexes; version.day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes]; version.display_mode=display_mode; version.timetable_type_id=timetable_type_id; version.period_indexes=period_indexes; version.published_at=None; version.effective_from=None
     for p in result.placements:
         locked=locked_meta.get((p.requirement_id,p.day,p.period))
         db.add(m.TtLesson(school_id=school_id,version_id=version.id,requirement_id=p.requirement_id,class_id=p.class_id,subject_id=p.subject_id,teacher_id=p.teacher_id,room_id=(locked["room_id"] if locked and locked["room_id"] is not None else p.room_id),day_index=p.day,period_index=p.period,duration=(locked["duration"] if locked else p.duration),is_locked=bool(locked)))
