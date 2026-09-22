@@ -63,8 +63,10 @@ def load_calendar(db: Session, school_id: int) -> SchoolCalendar:
     periods=db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).order_by(m.TtPeriod.index).all()
     return SchoolCalendar(days=days, periods=periods)
 
-def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0) -> SolverInput:
+def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0, day_indexes: list[int] | None = None, period_indexes: list[int] | None = None) -> SolverInput:
     calendar=load_calendar(db, school_id)
+    selected_days=set(int(i) for i in day_indexes) if day_indexes else set(calendar.day_indexes)
+    selected_periods=set(int(i) for i in period_indexes) if period_indexes else set(calendar.teaching_indexes)
     teachers={t.id: TeacherSpec(id=t.id,name=t.name,max_per_day=t.max_lessons_per_day or 7,max_consecutive=t.max_consecutive or 4,unavailable=_slots_from_json(t.unavailable)) for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id==school_id,m.TtTeacher.is_active.is_(True))}
     rooms={r.id: RoomSpec(id=r.id,name=r.name,capacity=r.capacity or 40,room_type=r.room_type or "classroom",unavailable=_slots_from_json(r.unavailable)) for r in db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id)}
     classes={c.id: ClassSpec(id=c.id,name=c.name,student_count=c.student_count or 40,unavailable=_slots_from_json(c.unavailable)) for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}
@@ -77,7 +79,7 @@ def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0) -> So
             if lesson.requirement_id is not None:
                 locked.setdefault(int(lesson.requirement_id),[]).append((int(lesson.day_index),int(lesson.period_index)))
     weights,avoid_rules=load_constraints(db,school_id)
-    return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,locked=locked,max_seconds=max_seconds,workers=2)
+    return SolverInput(days=[i for i in calendar.day_indexes if i in selected_days],periods=[p.index for p in calendar.periods if p.index in selected_periods],teaching_periods=[i for i in calendar.teaching_indexes if i in selected_periods],morning_periods=[i for i in calendar.morning_indexes if i in selected_periods],teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,locked=locked,max_seconds=max_seconds,workers=2)
 
 def load_constraints(db: Session, school_id: int) -> tuple[Weights,list[AvoidRule]]:
     weights=Weights(); avoid=[]
