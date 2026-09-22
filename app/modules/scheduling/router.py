@@ -112,12 +112,27 @@ def create_constraint(payload:s.ConstraintIn,db:Session=Depends(get_db),principa
     db.commit(); db.refresh(row); _audit(db,principal,"create","constraint",row.id,f"Created constraint {row.kind}"); db.commit(); return row
 
 @router.put("/constraints/{ident}",response_model=s.ConstraintOut)
-def update_constraint(ident:int,payload:s.ConstraintIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+def update_constraint(ident:int,payload:s.ConstraintUpdate,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
     row=_owned(db,m.TtConstraint,principal.school_id,ident)
-    _validate_constraint_target(db, principal, payload)
-    data=payload.model_dump()
-    if data["is_hard"]: data["weight"]=0
+    data=payload.model_dump(exclude_unset=True)
+    merged={
+        "kind": row.kind,
+        "scope": row.scope,
+        "target_id": row.target_id,
+        "is_hard": row.is_hard,
+        "weight": row.weight,
+        "params": row.params,
+        "enabled": row.enabled,
+        "note": row.note,
+    }
+    merged.update(data)
+    validation=s.ConstraintIn(**merged)
+    _validate_constraint_target(db, principal, validation)
+    if validation.is_hard:
+        merged["weight"]=0
     for key,value in data.items(): setattr(row,key,value)
+    if validation.is_hard:
+        row.weight=0
     db.commit(); db.refresh(row); _audit(db,principal,"update","constraint",row.id,f"Updated constraint {row.kind}"); db.commit(); return row
 
 @router.delete("/constraints/{ident}",status_code=204)
