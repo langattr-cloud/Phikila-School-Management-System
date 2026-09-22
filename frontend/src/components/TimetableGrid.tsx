@@ -231,7 +231,12 @@ export function TimetableGrid({
       period: item.period_index + periodDelta,
     }))
     if (moved.some((item) => !activeDays.some((value) => value.index === item.day) || !teachingIndexes.has(item.period))) return
-    moved.forEach((item) => onMove?.(item.lesson, item.day, item.period))
+    if (moved.length > 1) {
+      const anchor = moved.find((item) => item.lesson.id === lesson.id) ?? moved[0]
+      onMove?.(anchor.lesson, anchor.day, anchor.period)
+    } else {
+      moved.forEach((item) => onMove?.(item.lesson, item.day, item.period))
+    }
     setDraggingGroup([])
     setDragging(null)
     setCarrying(null)
