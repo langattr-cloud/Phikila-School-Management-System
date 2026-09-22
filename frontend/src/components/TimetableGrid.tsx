@@ -122,6 +122,7 @@ export function TimetableGrid({
   teacherInitials = false,
 }: Props) {
   const [dragging, setDragging] = useState<Lesson | null>(null)
+  const [draggingGroup, setDraggingGroup] = useState<Lesson[]>([])
   const [carrying, setCarrying] = useState<Lesson | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
   const [hoveredLesson, setHoveredLesson] = useState<Lesson | null>(null)
@@ -218,9 +219,23 @@ export function TimetableGrid({
 
   const moveLesson = (lesson: Lesson, day: number, period: number) => {
     if (readOnly || lesson.is_locked) return
-    onMove?.(lesson, day, period)
+    const group = draggingGroup.length > 0 && draggingGroup.some((item) => item.id === lesson.id) ? draggingGroup : [lesson]
+    const anchorDay = lesson.day_index
+    const anchorPeriod = lesson.period_index
+    const dayDelta = day - anchorDay
+    const periodDelta = period - anchorPeriod
+    const teachingIndexes = new Set(teachingPeriods.map((item) => item.index))
+    const moved = group.filter((item) => !item.is_locked).map((item) => ({
+      lesson: item,
+      day: item.day_index + dayDelta,
+      period: item.period_index + periodDelta,
+    }))
+    if (moved.some((item) => !activeDays.some((value) => value.index === item.day) || !teachingIndexes.has(item.period))) return
+    moved.forEach((item) => onMove?.(item.lesson, item.day, item.period))
+    setDraggingGroup([])
     setDragging(null)
     setCarrying(null)
+    setDraggingGroup([])
     setHovered(null)
   }
 
@@ -309,11 +324,15 @@ export function TimetableGrid({
         onDragStart={(event) => {
           if (lesson.is_locked) { event.preventDefault(); return }
           setDragging(lesson)
+          const group = selectedIds.includes(lesson.id)
+            ? lessons.filter((item) => selectedIds.includes(item.id) && !item.is_locked)
+            : [lesson]
+          setDraggingGroup(group)
           setHoveredLesson(lesson)
           event.dataTransfer.effectAllowed = 'move'
           event.dataTransfer.setData('text/plain', String(lesson.id))
         }}
-        onDragEnd={() => { setDragging(null); setHoveredLesson(null) }}
+        onDragEnd={() => { setDragging(null); setDraggingGroup([]); setHoveredLesson(null) }}
         data-lesson-id={lesson.id}
         data-day={lesson.day_index}
         data-period={lesson.period_index}
