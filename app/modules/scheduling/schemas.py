@@ -141,6 +141,7 @@ class Alternative(BaseModel): day:int; period:int; day_name:str|None=None; perio
 class Explanation(BaseModel): allowed:bool; reasons:list[ExplanationReason]; alternatives:list[Alternative]
 class ConflictOut(BaseModel): severity:str; kind:str; message:str; lesson_ids:list[int]; day:int|None=None; period:int|None=None
 class ConflictSummaryOut(BaseModel): total:int; hard:int; soft:int; conflicts:list[ConflictOut]
+class ValidationSummaryOut(BaseModel): valid:bool; hard_conflicts:int; soft_conflicts:int; unassigned_requirements:int; missing_periods:int; message:str
 class EventIn(BaseModel): name:str=Field(min_length=1,max_length=80); start_time:str=Field(pattern=r'^\d{2}:\d{2}$'); end_time:str=Field(pattern=r'^\d{2}:\d{2}$'); day_indexes:list[int]=Field(min_length=1,max_length=31); event_type:str=Field(default='break',min_length=1,max_length=40); note:str|None=None
 class EventOut(ORMModel, EventIn): id:int
 class ExplainIn(BaseModel): day_index:int=Field(ge=0,le=30); period_index:int=Field(ge=0,le=30)
