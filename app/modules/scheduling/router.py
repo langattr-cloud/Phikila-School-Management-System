@@ -167,6 +167,31 @@ def bulk_delete_lessons(version_id: int, payload: s.BulkLessonIn, db: Session = 
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "Bulk lesson deletion failed; no changes were applied.")
 
+@router.post("/versions/{version_id}/lessons/bulk-lock", status_code=204, name="bulk_lock_lessons")
+def bulk_lock_lessons(version_id: int, payload: s.BulkLessonLockIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    version = _owned_version(db, principal, version_id)
+    _ensure_editable_version(version)
+    ids = list(dict.fromkeys(int(i) for i in payload.lesson_ids))
+    lessons = db.query(m.TtLesson).filter(
+        m.TtLesson.school_id == principal.school_id,
+        m.TtLesson.version_id == version.id,
+        m.TtLesson.id.in_(ids),
+    ).all()
+    if len(lessons) != len(ids):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "One or more selected lessons were not found in this timetable version.")
+    try:
+        for lesson in lessons:
+            previous = bool(lesson.is_locked)
+            lesson.is_locked = payload.locked
+            action = "lock" if payload.locked else "unlock"
+            state = "locked" if payload.locked else "unlocked"
+            _audit(db, principal, action, "lesson", lesson.id, f"Bulk {state} lesson {lesson.id}",
+                   before={"is_locked": previous}, after={"is_locked": bool(payload.locked)})
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bulk lesson lock update failed; no changes were applied.")
+
 @router.patch("/classes/{ident}/teacher", response_model=s.ClassOut, name="assign_class_teacher")
 def assign_class_teacher(ident: int, payload: s.ClassTeacherAssignmentIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
     row = _owned(db, m.TtClass, principal.school_id, ident); teacher = None
