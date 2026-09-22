@@ -131,6 +131,7 @@ export function TimetableGrid({
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const [printReport, setPrintReport] = useState<Report>('Timetable for each class')
   const [printPage, setPrintPage] = useState(0)
+  const [resizing, setResizing] = useState<{ lessonId: number; duration: number } | null>(null)
   const density = dense ? ' timetable--dense' : ''
 
   const openPrintSetupFromContext = (event: MouseEvent) => {
@@ -215,6 +216,37 @@ export function TimetableGrid({
 
   const selectAppearanceCell = (type: 'lesson' | 'period' | 'day', label: string, details: { day?: number; period?: number; lessonId?: number } = {}) => {
     window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } }))
+  }
+
+  const beginResize = (lesson: Lesson, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (readOnly || lesson.is_locked || !onResize) return
+    event.preventDefault()
+    event.stopPropagation()
+    const startDuration = Math.max(1, lesson.duration ?? 1)
+    setResizing({ lessonId: lesson.id, duration: startDuration })
+    const update = (clientX: number, clientY: number) => {
+      const target = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+      const cell = target?.closest?.('[data-day][data-period]') as HTMLElement | null
+      if (!cell) return
+      const day = Number(cell.dataset.day)
+      const period = Number(cell.dataset.period)
+      if (day !== lesson.day_index || !Number.isFinite(period)) return
+      const next = Math.max(1, Math.min(10, period - lesson.period_index + 1))
+      setResizing({ lessonId: lesson.id, duration: next })
+    }
+    const finish = () => {
+      setResizing((current) => {
+        if (current?.lessonId === lesson.id && current.duration !== startDuration) onResize(lesson, current.duration)
+        return null
+      })
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', finish)
+      window.removeEventListener('pointercancel', finish)
+    }
+    const onMove = (moveEvent: PointerEvent) => update(moveEvent.clientX, moveEvent.clientY)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', finish, { once: true })
+    window.addEventListener('pointercancel', finish, { once: true })
   }
 
   const moveLesson = (lesson: Lesson, day: number, period: number) => {
@@ -311,7 +343,7 @@ export function TimetableGrid({
     const conflict = conflicted?.has(lesson.id) ?? false
     const period = teachingPeriods.find((item) => item.index === lesson.period_index)
     const title = `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}`
-    const duration = Math.max(1, lesson.duration ?? 1)
+    const duration = resizing?.lessonId === lesson.id ? resizing.duration : Math.max(1, lesson.duration ?? 1)
     const style = { backgroundColor: conflict ? '#FBE8E5' : color, borderColor: conflict ? '#9A2F24' : color, '--subject-colour': color, '--lesson-duration': String(duration) } as CSSProperties
 
     return (
@@ -378,6 +410,7 @@ export function TimetableGrid({
         {!readOnly && !lesson.is_locked && onResize && <span className="lesson-card__resize-group" onClick={(event) => event.stopPropagation()}>
         {(lesson.duration ?? 1) > 1 && <button type="button" className="lesson-card__resize lesson-card__resize--shrink" title="Shorten lesson" aria-label="Shorten lesson" onClick={() => onResize(lesson, Math.max(1, (lesson.duration ?? 1) - 1))}>−</button>}
         <button type="button" className="lesson-card__resize lesson-card__resize--extend" title="Extend lesson" aria-label="Extend lesson" onClick={() => onResize(lesson, Math.min(10, (lesson.duration ?? 1) + 1))}>+</button>
+        <button type="button" className="lesson-card__resize-handle" title="Drag to resize lesson" aria-label="Drag to resize lesson" onPointerDown={(event) => beginResize(lesson, event)}>⋮</button>
       </span>}
       </div>
     )
@@ -412,7 +445,7 @@ export function TimetableGrid({
               {activeDays.flatMap((day) => teachingPeriods.map((period, index) => {
                 const key = `whole:${row.id}:${day.index}:${period.index}`
                 const cellLessons = lessons.filter((lesson) => lesson.class_id === row.id && lesson.day_index === day.index && lesson.period_index === period.index)
-                return <div key={`${row.id}-${day.index}-${period.index}`} className={`timetable__whole-slot ${currentSlot?.day === day.index && currentSlot.period === period.index ? 'timetable__whole-slot--now' : ''} ${hovered === key && Boolean(dragging || carrying) ? 'timetable__cell--target' : ''}`} aria-label={`${timetableClassLabel(row)}, ${dayLabel(day)}, period ${index + 1}`} tabIndex={readOnly ? -1 : 0} onClick={() => { if (cellLessons[0]) onSelect?.(cellLessons[0]); selectAppearanceCell('period', `Period ${index + 1}`, { day: day.index, period: period.index }) }} onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)} {...slotHandlers(key, day.index, period.index)}>{cellLessons.map(renderCard)}</div>
+                return <div key={`${row.id}-${day.index}-${period.index}`} className={`timetable__whole-slot ${currentSlot?.day === day.index && currentSlot.period === period.index ? 'timetable__whole-slot--now' : ''} ${hovered === key && Boolean(dragging || carrying) ? 'timetable__cell--target' : ''}`} aria-label={`${timetableClassLabel(row)}, ${dayLabel(day)}, period ${index + 1}`} data-day={day.index} data-period={period.index} tabIndex={readOnly ? -1 : 0} onClick={() => { if (cellLessons[0]) onSelect?.(cellLessons[0]); selectAppearanceCell('period', `Period ${index + 1}`, { day: day.index, period: period.index }) }} onKeyDown={(event) => handleCellKeyDown(event, day.index, period.index, cellLessons)} {...slotHandlers(key, day.index, period.index)}>{cellLessons.map(renderCard)}</div>
               }))}
             </div>
           ))}
