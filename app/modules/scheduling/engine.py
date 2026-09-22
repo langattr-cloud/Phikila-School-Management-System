@@ -70,8 +70,14 @@ def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0) -> So
     classes={c.id: ClassSpec(id=c.id,name=c.name,student_count=c.student_count or 40,unavailable=_slots_from_json(c.unavailable)) for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}
     subjects={s.id: SubjectSpec(id=s.id,name=s.name,prefers_morning=bool(s.prefers_morning),spread_across_week=bool(s.spread_across_week),required_room_type=s.required_room_type) for s in db.query(m.TtSubject).filter(m.TtSubject.school_id==school_id)}
     requirements=[RequirementSpec(id=r.id,class_id=r.class_id,subject_id=r.subject_id,teacher_id=r.teacher_id,room_id=r.room_id,periods_per_week=r.periods_per_week or 1,double_periods=r.double_periods or 0) for r in db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==school_id)]
+    draft=db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id,m.TtVersion.status=="draft").order_by(m.TtVersion.id.desc()).first()
+    locked={}
+    if draft is not None:
+        for lesson in db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==draft.id,m.TtLesson.is_locked.is_(True)).all():
+            if lesson.requirement_id is not None:
+                locked.setdefault(int(lesson.requirement_id),[]).append((int(lesson.day_index),int(lesson.period_index)))
     weights,avoid_rules=load_constraints(db,school_id)
-    return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,max_seconds=max_seconds,workers=2)
+    return SolverInput(days=calendar.day_indexes,periods=[p.index for p in calendar.periods],teaching_periods=calendar.teaching_indexes,morning_periods=calendar.morning_indexes,teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,locked=locked,max_seconds=max_seconds,workers=2)
 
 def load_constraints(db: Session, school_id: int) -> tuple[Weights,list[AvoidRule]]:
     weights=Weights(); avoid=[]
