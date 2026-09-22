@@ -256,6 +256,51 @@ def publish_version(version_id: int, db: Session = Depends(get_db), principal: P
     db.refresh(version)
     return version
 
+@router.post("/lessons/swap", response_model=list[s.LessonOut], name="swap_lessons")
+def swap_lessons(payload: s.LessonSwapIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    if payload.lesson_id_a == payload.lesson_id_b:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Select two different lessons to swap.")
+    ids = [payload.lesson_id_a, payload.lesson_id_b]
+    lessons = db.query(m.TtLesson).filter(m.TtLesson.school_id == principal.school_id, m.TtLesson.id.in_(ids)).all()
+    by_id = {lesson.id: lesson for lesson in lessons}
+    if len(by_id) != 2:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "One or both selected lessons were not found.")
+    first, second = by_id[payload.lesson_id_a], by_id[payload.lesson_id_b]
+    if first.is_locked or second.is_locked:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Locked lessons cannot be swapped.")
+    if first.version_id != second.version_id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Selected lessons must belong to the same timetable version.")
+    version_id = first.version_id
+    calendar = load_calendar(db, principal.school_id)
+    active_days = {day.index for day in calendar.days if day.is_active}
+    teaching = set(calendar.teaching_indexes)
+    original = ((first, first.day_index, first.period_index), (second, second.day_index, second.period_index))
+    try:
+        with db.no_autoflush:
+            before = detect_conflicts(db, principal.school_id, version_id)
+            first.day_index, second.day_index = second.day_index, first.day_index
+            first.period_index, second.period_index = second.period_index, first.period_index
+            if ((first.day_index not in active_days or first.period_index not in teaching) or
+                (second.day_index not in active_days or second.period_index not in teaching)):
+                raise HTTPException(status.HTTP_409_CONFLICT, "The swap leaves the active timetable or teaching periods.")
+            after = detect_conflicts(db, principal.school_id, version_id)
+            before_hard = {(c.kind, tuple(c.lesson_ids), c.day, c.period) for c in before if c.severity == "hard"}
+            new_hard = [c for c in after if c.severity == "hard" and (c.kind, tuple(c.lesson_ids), c.day, c.period) not in before_hard]
+            if new_hard:
+                raise HTTPException(status.HTTP_409_CONFLICT, new_hard[0].message)
+            for lesson, old_day, old_period in original:
+                _audit(db, principal, "swap", "lesson", lesson.id, f"Swapped lesson with {second.id if lesson.id == first.id else first.id}", before={"day_index": old_day, "period_index": old_period}, after={"day_index": lesson.day_index, "period_index": lesson.period_index})
+            db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(first)
+    db.refresh(second)
+    return [first, second]
+
 @router.post("/lessons/bulk-move", response_model=list[s.LessonOut], name="bulk_move_lessons")
 def bulk_move_lessons(payload: s.BulkLessonMoveIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
     ids = list(dict.fromkeys(payload.lesson_ids))
