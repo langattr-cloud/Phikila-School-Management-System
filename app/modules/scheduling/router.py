@@ -279,6 +279,19 @@ def generate(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal
             owned=db.query(model.id).filter(model.school_id==principal.school_id,model.id.in_(ids)).all()
             if len(owned)!=len(set(ids)): raise HTTPException(status.HTTP_404_NOT_FOUND,f"One or more selected {label}s were not found.")
     job=job_queue.create_job(db,principal.school_id,principal.email,config=config); job_queue.enqueue(job.id,principal.school_id,payload.max_seconds); return job
+@router.get("/versions/{version_id}/conflicts",response_model=s.ConflictSummaryOut,name="version_conflicts")
+def version_conflicts(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
+    version=_owned_version(db,principal,version_id)
+    conflicts=detect_conflicts(db,principal.school_id,version.id)
+    hard=sum(1 for item in conflicts if item.severity=="hard")
+    return {"total":len(conflicts),"hard":hard,"soft":len(conflicts)-hard,"conflicts":[item.as_dict() for item in conflicts]}
+
+@router.post("/lessons/{lesson_id}/explain",response_model=s.Explanation,name="explain_lesson_move")
+def explain_lesson_move(lesson_id:int,payload:s.ExplainIn,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
+    lesson=_owned_lesson(db,principal,lesson_id)
+    _owned_version(db,principal,lesson.version_id)
+    return explain_move(db,principal.school_id,lesson.id,payload.day_index,payload.period_index)
+
 @router.get("/solver/jobs/active",response_model=s.JobOut|None)
 def active_job(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     return db.query(m.TtSolverJob).filter(
