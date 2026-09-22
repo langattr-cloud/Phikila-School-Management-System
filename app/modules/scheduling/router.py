@@ -89,7 +89,40 @@ def list_classes_with_academic_setup(db: Session = Depends(get_db), principal: P
             item.school_class_id=int(setup.id)
         out.append(item)
     return out
-_crud("constraints", m.TtConstraint, s.ConstraintIn, s.ConstraintOut, "constraint")
+@router.get("/constraints",response_model=list[s.ConstraintOut])
+def list_constraints(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
+    return db.query(m.TtConstraint).filter(m.TtConstraint.school_id == principal.school_id).order_by(m.TtConstraint.id).all()
+
+def _validate_constraint_target(db: Session, principal: Principal, payload):
+    target_models = {"teacher": m.TtTeacher, "class": m.TtClass, "subject": m.TtSubject, "room": m.TtRoom}
+    if payload.scope == "school":
+        if payload.target_id is not None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "School constraints cannot have a target.")
+    else:
+        if payload.target_id is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{payload.scope} constraints require a target.")
+        _owned(db, target_models[payload.scope], principal.school_id, payload.target_id)
+
+@router.post("/constraints",response_model=s.ConstraintOut,status_code=201)
+def create_constraint(payload:s.ConstraintIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    _validate_constraint_target(db, principal, payload)
+    data=payload.model_dump()
+    if data["is_hard"]: data["weight"]=0
+    row=m.TtConstraint(school_id=principal.school_id,**data); db.add(row)
+    db.commit(); db.refresh(row); _audit(db,principal,"create","constraint",row.id,f"Created constraint {row.kind}"); db.commit(); return row
+
+@router.put("/constraints/{ident}",response_model=s.ConstraintOut)
+def update_constraint(ident:int,payload:s.ConstraintIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    row=_owned(db,m.TtConstraint,principal.school_id,ident)
+    _validate_constraint_target(db, principal, payload)
+    data=payload.model_dump()
+    if data["is_hard"]: data["weight"]=0
+    for key,value in data.items(): setattr(row,key,value)
+    db.commit(); db.refresh(row); _audit(db,principal,"update","constraint",row.id,f"Updated constraint {row.kind}"); db.commit(); return row
+
+@router.delete("/constraints/{ident}",status_code=204)
+def delete_constraint(ident:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    row=_owned(db,m.TtConstraint,principal.school_id,ident); db.delete(row); _audit(db,principal,"delete","constraint",ident,f"Deleted constraint {row.kind}"); db.commit()
 @router.get("/me")
 def whoami(principal: Principal = Depends(resolve_principal)):
     return {"user_id":principal.user_id,"email":principal.email,"school_id":principal.school_id,"role":principal.role,"teacher_id":principal.teacher_id,"class_id":principal.class_id,"solver_available":ORTOOLS_AVAILABLE}
