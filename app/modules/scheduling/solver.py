@@ -79,7 +79,11 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
         c=data.classes.get(r.class_id)
         if c and (d,p) in c.unavailable:return False
         if r.teacher_id and data.teachers.get(r.teacher_id) and (d,p) in data.teachers[r.teacher_id].unavailable:return False
-        if r.room_id and data.rooms.get(r.room_id) and (d,p) in data.rooms[r.room_id].unavailable:return False
+        room=data.rooms.get(r.room_id) if r.room_id else None
+        if room and (d,p) in room.unavailable:return False
+        if room and c and c.student_count and room.capacity and c.student_count>room.capacity:return False
+        subject=data.subjects.get(r.subject_id)
+        if room and subject and subject.required_room_type and room.room_type!=subject.required_room_type:return False
         for rule in data.avoid_rules:
             if rule.is_hard and ((rule.scope=="class" and rule.target_id==r.class_id) or (rule.scope=="teacher" and r.teacher_id==rule.target_id)) and (d,p) in rule.slots:return False
         return True
@@ -173,6 +177,12 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
                 v=[x[(r.id,d,p)] for p in data.teaching_periods if (r.id,d,p) in x]
                 if len(v)>1:
                     excess=model.NewIntVar(0,len(v),f"clump_{r.id}_{d}");model.Add(excess>=sum(v)-1);penalties.append((excess,w.subject_distribution))
+    for r in data.requirements:
+        subject=data.subjects.get(r.subject_id)
+        if subject and subject.prefers_morning and data.morning_periods:
+            for d,p in slots:
+                if p not in data.morning_periods and (r.id,d,p) in x:
+                    penalties.append((x[(r.id,d,p)],w.avoid_slots))
     if w.avoid_slots>0:
         for rule in data.avoid_rules:
             if rule.is_hard:continue
