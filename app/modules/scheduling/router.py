@@ -339,6 +339,25 @@ def list_versions(db:Session=Depends(get_db),principal:Principal=Depends(resolve
     if not principal.at_least("scheduler"):
         query=query.filter(m.TtVersion.status=="published")
     return query.all()
+@router.post("/versions/{version_id}/restore", response_model=s.VersionOut, name="restore_version")
+def restore_version(version_id:int, db:Session=Depends(get_db), principal:Principal=Depends(require_role("admin","scheduler"))):
+    version=_owned_version(db,principal,version_id)
+    if version.status=="published":
+        return version
+    before={"status":version.status}
+    version.status="draft"
+    _audit(db,principal,"restore","version",version.id,f"Restored timetable version {version.number} as draft",before=before,after={"status":"draft"})
+    db.commit(); db.refresh(version)
+    return version
+
+@router.delete("/versions/{version_id}", status_code=204, name="delete_version")
+def delete_version(version_id:int, db:Session=Depends(get_db), principal:Principal=Depends(require_role("admin","scheduler"))):
+    version=_owned_version(db,principal,version_id)
+    if version.status=="published":
+        raise HTTPException(status.HTTP_409_CONFLICT,"Published timetables cannot be deleted.")
+    _audit(db,principal,"delete","version",version.id,f"Deleted timetable version {version.number}")
+    db.delete(version); db.commit()
+
 @router.get("/versions/current",response_model=s.VersionOut|None)
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
