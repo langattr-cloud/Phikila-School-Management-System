@@ -36,7 +36,7 @@ type Props = {
   timeLayout?: 'split' | 'single'
   onSelect?: (lesson: Lesson) => void
   onMove?: (lesson: Lesson, day: number, period: number) => void
-  onMoveMany?: (lessons: Lesson[], dayDelta: number, periodDelta: number) => void | Promise<void>
+  onMoveMany?: (lessons: Lesson[], dayDelta: number, periodDelta: number) => void
   onResize?: (lesson: Lesson, duration: number) => void
   onDropUnassigned?: (unassignedId: number, day: number, period: number) => void
   secondary?: (lesson: Lesson) => string | null | undefined
@@ -233,7 +233,7 @@ export function TimetableGrid({
     }))
     if (moved.some((item) => !activeDays.some((value) => value.index === item.day) || !teachingIndexes.has(item.period))) return
     if (moved.length > 1 && onMoveMany) {
-      void onMoveMany(moved.map((item) => item.lesson), dayDelta, periodDelta)
+      onMoveMany(moved.map((item) => item.lesson), dayDelta, periodDelta)
     } else {
       moved.forEach((item) => onMove?.(item.lesson, item.day, item.period))
     }
