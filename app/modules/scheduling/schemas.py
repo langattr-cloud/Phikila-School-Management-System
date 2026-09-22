@@ -134,6 +134,10 @@ class BulkLessonMoveIn(BaseModel):
     day_delta: int = Field(ge=-30, le=30)
     period_delta: int = Field(ge=-30, le=30)
 
+class BulkLessonLockIn(BaseModel):
+    lesson_ids: list[int] = Field(min_length=1, max_length=100)
+    is_locked: bool
+
 class LessonSwapIn(BaseModel):
     lesson_id_a: int
     lesson_id_b: int
