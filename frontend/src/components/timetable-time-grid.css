@@ -67,3 +67,5 @@
 .lesson-card__resize{width:18px;height:18px;padding:0;border:1px solid rgba(255,255,255,.65);border-radius:2px;background:rgba(15,23,42,.72);color:#fff;font-weight:800;line-height:16px;cursor:pointer}
 .lesson-card__resize:hover,.lesson-card__resize:focus-visible{background:rgba(15,23,42,.95);outline:2px solid #fff;outline-offset:1px}
 @media (max-width:700px){.lesson-card__resize{width:16px;height:16px;font-size:10px;line-height:14px}}
+
+.timetable__time-grid .lesson-card__duration{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(.28rem,.34vw,.33rem);line-height:.38;font-weight:900;color:#fff!important;opacity:.9}
