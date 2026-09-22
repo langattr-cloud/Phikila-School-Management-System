@@ -36,6 +36,7 @@ type Props = {
   timeLayout?: 'split' | 'single'
   onSelect?: (lesson: Lesson) => void
   onMove?: (lesson: Lesson, day: number, period: number) => void
+  onMoveMany?: (lessons: Lesson[], dayDelta: number, periodDelta: number) => void | Promise<void>
   onResize?: (lesson: Lesson, duration: number) => void
   onDropUnassigned?: (unassignedId: number, day: number, period: number) => void
   secondary?: (lesson: Lesson) => string | null | undefined
@@ -231,7 +232,11 @@ export function TimetableGrid({
       period: item.period_index + periodDelta,
     }))
     if (moved.some((item) => !activeDays.some((value) => value.index === item.day) || !teachingIndexes.has(item.period))) return
-    moved.forEach((item) => onMove?.(item.lesson, item.day, item.period))
+    if (moved.length > 1 && onMoveMany) {
+      void onMoveMany(moved.map((item) => item.lesson), dayDelta, periodDelta)
+    } else {
+      moved.forEach((item) => onMove?.(item.lesson, item.day, item.period))
+    }
     setDraggingGroup([])
     setDragging(null)
     setCarrying(null)
@@ -325,7 +330,7 @@ export function TimetableGrid({
           if (lesson.is_locked) { event.preventDefault(); return }
           setDragging(lesson)
           const group = selectedIds.includes(lesson.id)
-            ? lessons.filter((item) => selectedIds.includes(item.id) && !item.is_locked)
+            ? [lesson, ...lessons.filter((item) => item.id !== lesson.id && selectedIds.includes(item.id) && !item.is_locked)]
             : [lesson]
           setDraggingGroup(group)
           setHoveredLesson(lesson)
