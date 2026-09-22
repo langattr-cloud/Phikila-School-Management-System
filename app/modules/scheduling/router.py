@@ -349,6 +349,30 @@ def swap_lessons(payload: s.LessonSwapIn, db: Session = Depends(get_db), princip
     db.refresh(second)
     return [first, second]
 
+@router.post("/lessons/bulk-lock", response_model=list[s.LessonOut], name="bulk_lock_lessons")
+def bulk_lock_lessons(payload: s.BulkLessonLockIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    ids = list(dict.fromkeys(payload.lesson_ids))
+    lessons = db.query(m.TtLesson).filter(m.TtLesson.school_id == principal.school_id, m.TtLesson.id.in_(ids)).all()
+    if len(lessons) != len(ids):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "One or more selected lessons were not found.")
+    version_ids = {lesson.version_id for lesson in lessons}
+    if len(version_ids) != 1:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Selected lessons must belong to the same timetable version.")
+    try:
+        for lesson in lessons:
+            lesson.is_locked = payload.is_locked
+            _audit(db, principal, "lock" if payload.is_locked else "unlock", "lesson", lesson.id, f"{'Locked' if payload.is_locked else 'Unlocked'} lesson")
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    for lesson in lessons:
+        db.refresh(lesson)
+    return lessons
+
 @router.post("/lessons/bulk-move", response_model=list[s.LessonOut], name="bulk_move_lessons")
 def bulk_move_lessons(payload: s.BulkLessonMoveIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
     ids = list(dict.fromkeys(payload.lesson_ids))
