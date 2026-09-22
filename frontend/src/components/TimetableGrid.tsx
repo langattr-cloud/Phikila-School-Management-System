@@ -230,7 +230,7 @@ export function TimetableGrid({
       day: item.day_index + dayDelta,
       period: item.period_index + periodDelta,
     }))
-    if (moved.some((item) => !activeDays.some((value) => value.index === item.day) || !teachingIndexes.has(item.period))) return
+    if (moved.some((item) => { const duration = Math.max(1, item.lesson.duration ?? 1); const span = Array.from({ length: duration }, (_, offset) => item.period + offset); return !activeDays.some((value) => value.index === item.day) || span.some(index => !teachingIndexes.has(index)) })) return
     if (moved.length > 1) {
       const anchor = moved.find((item) => item.lesson.id === lesson.id) ?? moved[0]
       onMove?.(anchor.lesson, anchor.day, anchor.period)
