@@ -266,7 +266,34 @@ def generate(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal
     if not ORTOOLS_AVAILABLE: raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,"The scheduling engine is not available on this server.")
     running=db.query(m.TtSolverJob).filter(m.TtSolverJob.school_id==principal.school_id,m.TtSolverJob.status.in_(["queued","running","optimizing","validating"])).first()
     if running: raise HTTPException(status.HTTP_409_CONFLICT,"A timetable is already being generated.")
-    job=job_queue.create_job(db,principal.school_id,principal.email); job_queue.enqueue(job.id,principal.school_id,payload.max_seconds); return job
+    config=payload.model_dump(exclude_none=True)
+    if payload.timetable_type_id is not None:
+        timetable_type=_owned(db,m.TtTimetableType,principal.school_id,payload.timetable_type_id)
+        if not timetable_type.is_active: raise HTTPException(status.HTTP_409_CONFLICT,"The selected timetable type is inactive.")
+        config.setdefault("day_indexes", list(timetable_type.day_indexes or []))
+        config.setdefault("period_indexes", list(timetable_type.period_indexes or []))
+        config.setdefault("display_mode", timetable_type.display_mode or "day")
+    if payload.project_id is not None: _owned(db,m.TtProject,principal.school_id,payload.project_id)
+    for ids,model,label in ((payload.class_ids,m.TtClass,"class"),(payload.teacher_ids,m.TtTeacher,"teacher")):
+        if ids:
+            owned=db.query(model.id).filter(model.school_id==principal.school_id,model.id.in_(ids)).all()
+            if len(owned)!=len(set(ids)): raise HTTPException(status.HTTP_404_NOT_FOUND,f"One or more selected {label}s were not found.")
+    job=job_queue.create_job(db,principal.school_id,principal.email,config=config); job_queue.enqueue(job.id,principal.school_id,payload.max_seconds); return job
+@router.get("/solver/jobs/active",response_model=s.JobOut|None)
+def active_job(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
+    return db.query(m.TtSolverJob).filter(
+        m.TtSolverJob.school_id==principal.school_id,
+        m.TtSolverJob.status.in_(["queued","running","optimizing","validating"]),
+    ).order_by(m.TtSolverJob.id.desc()).first()
+
+@router.post("/solver/generate-async",response_model=s.JobOut,status_code=202)
+def generate_async(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    return generate(payload,db,principal)
+
+@router.post("/solver/generate-profile",response_model=s.JobOut,status_code=202)
+def generate_profile(payload:s.GenerateProfileIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    return generate(payload,db,principal)
+
 @router.get("/solver/jobs/{job_id}",response_model=s.JobOut)
 def job_status(job_id:int,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)): return _owned(db,m.TtSolverJob,principal.school_id,job_id)
 @router.post("/solver/jobs/{job_id}/cancel",response_model=s.JobOut)
