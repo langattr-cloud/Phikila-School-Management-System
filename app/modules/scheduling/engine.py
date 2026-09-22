@@ -63,7 +63,7 @@ def load_calendar(db: Session, school_id: int) -> SchoolCalendar:
     periods=db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).order_by(m.TtPeriod.index).all()
     return SchoolCalendar(days=days, periods=periods)
 
-def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0, day_indexes: list[int] | None = None, period_indexes: list[int] | None = None) -> SolverInput:
+def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0, day_indexes: list[int] | None = None, period_indexes: list[int] | None = None, class_ids: list[int] | None = None, teacher_ids: list[int] | None = None) -> SolverInput:
     calendar=load_calendar(db, school_id)
     selected_days=set(int(i) for i in day_indexes) if day_indexes else set(calendar.day_indexes)
     selected_periods=set(int(i) for i in period_indexes) if period_indexes else set(calendar.teaching_indexes)
@@ -71,13 +71,39 @@ def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0, day_i
     rooms={r.id: RoomSpec(id=r.id,name=r.name,capacity=r.capacity or 40,room_type=r.room_type or "classroom",unavailable=_slots_from_json(r.unavailable)) for r in db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id)}
     classes={c.id: ClassSpec(id=c.id,name=c.name,student_count=c.student_count or 40,unavailable=_slots_from_json(c.unavailable)) for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}
     subjects={s.id: SubjectSpec(id=s.id,name=s.name,prefers_morning=bool(s.prefers_morning),spread_across_week=bool(s.spread_across_week),required_room_type=s.required_room_type) for s in db.query(m.TtSubject).filter(m.TtSubject.school_id==school_id)}
-    requirements=[RequirementSpec(id=r.id,class_id=r.class_id,subject_id=r.subject_id,teacher_id=r.teacher_id,room_id=r.room_id,periods_per_week=r.periods_per_week or 1,double_periods=r.double_periods or 0) for r in db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==school_id)]
+    all_requirements=db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==school_id).all()
+    selected_classes={int(i) for i in class_ids} if class_ids else set()
+    selected_teachers={int(i) for i in teacher_ids} if teacher_ids else set()
+    scoped=bool(selected_classes or selected_teachers)
+    def in_scope(row):
+        if not scoped: return True
+        return (row.class_id in selected_classes) or (row.teacher_id is not None and row.teacher_id in selected_teachers)
     draft=db.query(m.TtVersion).filter(m.TtVersion.school_id==school_id,m.TtVersion.status=="draft").order_by(m.TtVersion.id.desc()).first()
-    locked={}
+    existing=[]
     if draft is not None:
-        for lesson in db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==draft.id,m.TtLesson.is_locked.is_(True)).all():
-            if lesson.requirement_id is not None:
-                locked.setdefault(int(lesson.requirement_id),[]).append((int(lesson.day_index),int(lesson.period_index)))
+        existing=db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==draft.id).all()
+    existing_by_requirement={}
+    for lesson in existing:
+        if lesson.requirement_id is not None:
+            existing_by_requirement.setdefault(int(lesson.requirement_id),[]).append(lesson)
+    requirements=[]
+    for row in all_requirements:
+        preserved=existing_by_requirement.get(int(row.id),[])
+        if scoped and not in_scope(row) and not preserved:
+            continue
+        weekly=int(row.periods_per_week or 1)
+        doubles=int(row.double_periods or 0)
+        if scoped and not in_scope(row):
+            weekly=len(preserved)
+            doubles=0
+        requirements.append(RequirementSpec(id=row.id,class_id=row.class_id,subject_id=row.subject_id,teacher_id=row.teacher_id,room_id=row.room_id,periods_per_week=max(0,weekly),double_periods=max(0,doubles)))
+    locked={}
+    for lesson in existing:
+        if lesson.requirement_id is None: continue
+        req_id=int(lesson.requirement_id)
+        req_row=next((r for r in all_requirements if int(r.id)==req_id),None)
+        if req_row is not None and (bool(lesson.is_locked) or (scoped and not in_scope(req_row))):
+            locked.setdefault(req_id,[]).append((int(lesson.day_index),int(lesson.period_index)))
     weights,avoid_rules=load_constraints(db,school_id)
     return SolverInput(days=[i for i in calendar.day_indexes if i in selected_days],periods=[p.index for p in calendar.periods if p.index in selected_periods],teaching_periods=[i for i in calendar.teaching_indexes if i in selected_periods],morning_periods=[i for i in calendar.morning_indexes if i in selected_periods],teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,locked=locked,max_seconds=max_seconds,workers=2)
 
