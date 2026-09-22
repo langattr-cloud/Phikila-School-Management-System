@@ -311,7 +311,8 @@ export function TimetableGrid({
     const conflict = conflicted?.has(lesson.id) ?? false
     const period = teachingPeriods.find((item) => item.index === lesson.period_index)
     const title = `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}`
-    const style = { backgroundColor: conflict ? '#FBE8E5' : color, borderColor: conflict ? '#9A2F24' : color, '--subject-colour': color } as CSSProperties
+    const duration = Math.max(1, lesson.duration ?? 1)
+    const style = { backgroundColor: conflict ? '#FBE8E5' : color, borderColor: conflict ? '#9A2F24' : color, '--subject-colour': color, '--lesson-duration': String(duration) } as CSSProperties
 
     return (
       <div
