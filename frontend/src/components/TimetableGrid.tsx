@@ -349,7 +349,10 @@ export function TimetableGrid({
         {timeLayout === 'split' && period && <span className="lesson-card__time lesson-card__time--split"><span>{formatTime(period.start_time, timeFormat)}</span><span>{formatTime(period.end_time, timeFormat)}</span></span>}
         {lesson.room_id && meta.rooms.get(lesson.room_id) && <span className="lesson-card__room">{meta.rooms.get(lesson.room_id)?.name}</span>}
         {lesson.is_locked && <span className="lesson-card__lock" title="Locked"><LockIcon width={12} height={12} /></span>}
-        {!readOnly && !lesson.is_locked && onResize && <button type="button" className="lesson-card__resize" title="Extend lesson" aria-label="Extend lesson" onClick={(event) => { event.stopPropagation(); onResize(lesson, Math.min(10, (lesson.duration ?? 1) + 1)) }} />}
+        {!readOnly && !lesson.is_locked && onResize && <span className="lesson-card__resize-group" onClick={(event) => event.stopPropagation()}>
+        {(lesson.duration ?? 1) > 1 && <button type="button" className="lesson-card__resize lesson-card__resize--shrink" title="Shorten lesson" aria-label="Shorten lesson" onClick={() => onResize(lesson, Math.max(1, (lesson.duration ?? 1) - 1))}>−</button>}
+        <button type="button" className="lesson-card__resize lesson-card__resize--extend" title="Extend lesson" aria-label="Extend lesson" onClick={() => onResize(lesson, Math.min(10, (lesson.duration ?? 1) + 1))}>+</button>
+      </span>}
       </div>
     )
   }
