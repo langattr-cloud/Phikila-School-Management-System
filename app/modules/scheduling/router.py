@@ -256,6 +256,45 @@ def publish_version(version_id: int, db: Session = Depends(get_db), principal: P
     db.refresh(version)
     return version
 
+@router.post("/lessons/bulk-move", response_model=list[s.LessonOut], name="bulk_move_lessons")
+def bulk_move_lessons(payload: s.BulkLessonMoveIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+    ids = list(dict.fromkeys(payload.lesson_ids))
+    lessons = db.query(m.TtLesson).filter(m.TtLesson.school_id == principal.school_id, m.TtLesson.id.in_(ids)).all()
+    if len(lessons) != len(ids):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "One or more selected lessons were not found.")
+    if any(lesson.is_locked for lesson in lessons):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Locked lessons cannot be moved.")
+    version_ids = {lesson.version_id for lesson in lessons}
+    if len(version_ids) != 1:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Selected lessons must belong to the same timetable version.")
+    version_id = next(iter(version_ids))
+    calendar = load_calendar(db, principal.school_id)
+    active_days = {day.index for day in calendar.days if day.is_active}
+    teaching = set(calendar.teaching_indexes)
+    before = detect_conflicts(db, principal.school_id, version_id)
+    original = [(lesson, lesson.day_index, lesson.period_index) for lesson in lessons]
+    for lesson in lessons:
+        lesson.day_index += payload.day_delta
+        lesson.period_index += payload.period_delta
+        if lesson.day_index not in active_days or lesson.period_index not in teaching:
+            for row, day, period in original:
+                row.day_index, row.period_index = day, period
+            raise HTTPException(status.HTTP_409_CONFLICT, "The grouped move leaves the active timetable or teaching periods.")
+    after = detect_conflicts(db, principal.school_id, version_id)
+    before_hard = {(c.kind, tuple(c.lesson_ids), c.day, c.period) for c in before if c.severity == "hard"}
+    new_hard = [c for c in after if c.severity == "hard" and (c.kind, tuple(c.lesson_ids), c.day, c.period) not in before_hard]
+    if new_hard:
+        for row, day, period in original:
+            row.day_index, row.period_index = day, period
+        raise HTTPException(status.HTTP_409_CONFLICT, new_hard[0].message)
+    for lesson in lessons:
+        before_row = next(row for row, day, period in original if row.id == lesson.id)
+        _audit(db, principal, "move", "lesson", lesson.id, f"Moved lesson by ({payload.day_delta}, {payload.period_delta})", before={"day_index": before_row.day_index, "period_index": before_row.period_index}, after={"day_index": lesson.day_index, "period_index": lesson.period_index})
+    db.commit()
+    for lesson in lessons:
+        db.refresh(lesson)
+    return lessons
+
 @router.post("/lessons/{lesson_id}/explain", name="explain_lesson_move")
 def explain_lesson_move(lesson_id: int, day_index: int, period_index: int, db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
     lesson = _owned(db, m.TtLesson, principal.school_id, lesson_id)
