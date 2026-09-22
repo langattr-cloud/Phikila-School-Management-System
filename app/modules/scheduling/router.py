@@ -271,26 +271,30 @@ def bulk_move_lessons(payload: s.BulkLessonMoveIn, db: Session = Depends(get_db)
     calendar = load_calendar(db, principal.school_id)
     active_days = {day.index for day in calendar.days if day.is_active}
     teaching = set(calendar.teaching_indexes)
-    before = detect_conflicts(db, principal.school_id, version_id)
     original = [(lesson, lesson.day_index, lesson.period_index) for lesson in lessons]
-    for lesson in lessons:
-        lesson.day_index += payload.day_delta
-        lesson.period_index += payload.period_delta
-        if lesson.day_index not in active_days or lesson.period_index not in teaching:
-            for row, day, period in original:
-                row.day_index, row.period_index = day, period
-            raise HTTPException(status.HTTP_409_CONFLICT, "The grouped move leaves the active timetable or teaching periods.")
-    after = detect_conflicts(db, principal.school_id, version_id)
-    before_hard = {(c.kind, tuple(c.lesson_ids), c.day, c.period) for c in before if c.severity == "hard"}
-    new_hard = [c for c in after if c.severity == "hard" and (c.kind, tuple(c.lesson_ids), c.day, c.period) not in before_hard]
-    if new_hard:
-        for row, day, period in original:
-            row.day_index, row.period_index = day, period
-        raise HTTPException(status.HTTP_409_CONFLICT, new_hard[0].message)
-    for lesson in lessons:
-        before_row = next(row for row, day, period in original if row.id == lesson.id)
-        _audit(db, principal, "move", "lesson", lesson.id, f"Moved lesson by ({payload.day_delta}, {payload.period_delta})", before={"day_index": before_row.day_index, "period_index": before_row.period_index}, after={"day_index": lesson.day_index, "period_index": lesson.period_index})
-    db.commit()
+    try:
+        with db.no_autoflush:
+            before = detect_conflicts(db, principal.school_id, version_id)
+            for lesson in lessons:
+                lesson.day_index += payload.day_delta
+                lesson.period_index += payload.period_delta
+                if lesson.day_index not in active_days or lesson.period_index not in teaching:
+                    raise HTTPException(status.HTTP_409_CONFLICT, "The grouped move leaves the active timetable or teaching periods.")
+            after = detect_conflicts(db, principal.school_id, version_id)
+            before_hard = {(c.kind, tuple(c.lesson_ids), c.day, c.period) for c in before if c.severity == "hard"}
+            new_hard = [c for c in after if c.severity == "hard" and (c.kind, tuple(c.lesson_ids), c.day, c.period) not in before_hard]
+            if new_hard:
+                raise HTTPException(status.HTTP_409_CONFLICT, new_hard[0].message)
+            for lesson in lessons:
+                before_row = next(row for row, day, period in original if row.id == lesson.id)
+                _audit(db, principal, "move", "lesson", lesson.id, f"Moved lesson by ({payload.day_delta}, {payload.period_delta})", before={"day_index": before_row.day_index, "period_index": before_row.period_index}, after={"day_index": lesson.day_index, "period_index": lesson.period_index})
+            db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
     for lesson in lessons:
         db.refresh(lesson)
     return lessons
