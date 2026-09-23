@@ -5,6 +5,7 @@ on:
     paths:
       - 'app/**'
       - 'tests/**'
+      - 'conftest.py'
       - 'requirements.txt'
       - '.github/workflows/backend-tests.yml'
   push:
@@ -24,8 +25,8 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install backend dependencies
-        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt && pip install pytest
       - name: Run complete backend unittest suite
         run: python -m unittest discover -s app -t . -p 'test*.py' -v
-      - name: Run repository regression tests
-        run: python -m unittest discover -s tests -t . -p 'test*.py' -v
+      - name: Run repository pytest suite
+        run: python -m pytest tests -q
