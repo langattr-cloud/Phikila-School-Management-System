@@ -368,14 +368,27 @@ def restore_version(version_id:int, db:Session=Depends(get_db), principal:Princi
     return version
 
 @router.delete("/versions/{version_id}", status_code=204, name="delete_version")
-def delete_version(version_id:int, db:Session=Depends(get_db), principal:Principal=Depends(require_role("admin","scheduler"))):
+def delete_version(version_id:int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin","scheduler"))):
     version=_owned_version(db,principal,version_id)
     if version.status=="published":
         raise HTTPException(status.HTTP_409_CONFLICT,"Published timetables cannot be deleted.")
+    if version.project_id is not None:
+        project = db.query(m.TtProject).filter(
+            m.TtProject.id == version.project_id,
+            m.TtProject.school_id == principal.school_id,
+        ).first()
+        if project is not None and project.current_version_id == version.id:
+            replacement = db.query(m.TtVersion).filter(
+                m.TtVersion.school_id == principal.school_id,
+                m.TtVersion.project_id == project.id,
+                m.TtVersion.id != version.id,
+            ).order_by(m.TtVersion.id.desc()).first()
+            project.current_version_id = replacement.id if replacement else None
+            if replacement is None:
+                project.status = "draft"
     _audit(db,principal,"delete","version",version.id,f"Deleted timetable version {version.number}")
     db.delete(version); db.commit()
 
-@router.get("/versions/current",response_model=s.VersionOut|None)
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
 
@@ -383,6 +396,8 @@ def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resol
 def publish_version(version_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
     """Validate and publish a generated timetable for the caller's school."""
     version = _owned(db, m.TtVersion, principal.school_id, version_id)
+    if version.status == "published":
+        raise HTTPException(status.HTTP_409_CONFLICT, "This timetable version is already published.")
     conflicts = detect_conflicts(db, principal.school_id, version.id)
     hard_conflicts = [c for c in conflicts if getattr(c, "severity", None) == "hard"]
     if hard_conflicts:
