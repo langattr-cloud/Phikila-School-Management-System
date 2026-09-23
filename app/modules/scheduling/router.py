@@ -331,6 +331,28 @@ def version_conflicts(version_id:int,db:Session=Depends(get_db),principal:Princi
     hard=sum(1 for item in conflicts if item.severity=="hard")
     return {"total":len(conflicts),"hard":hard,"soft":len(conflicts)-hard,"conflicts":[item.as_dict() for item in conflicts]}
 
+@router.patch("/lessons/{lesson_id}",response_model=s.LessonOut,name="update_lesson")
+def update_lesson(lesson_id:int,payload:s.LessonUpdateIn,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    lesson=_owned_lesson(db,principal,lesson_id)
+    version=_owned_version(db,principal,lesson.version_id)
+    _ensure_editable_version(version)
+    if lesson.is_locked and (payload.day_index is not None or payload.period_index is not None or payload.duration is not None):
+        raise HTTPException(status.HTTP_409_CONFLICT,"Locked lessons cannot be moved or resized. Unlock the lesson first.")
+    day=lesson.day_index if payload.day_index is None else payload.day_index
+    period=lesson.period_index if payload.period_index is None else payload.period_index
+    duration=lesson.duration if payload.duration is None else payload.duration
+    reasons=_blockers(db,principal.school_id,lesson,day,period,duration=duration)
+    if reasons:
+        raise HTTPException(status.HTTP_409_CONFLICT,detail={"message":"Lesson move or resize is blocked.","reasons":reasons})
+    before={"day_index":lesson.day_index,"period_index":lesson.period_index,"duration":lesson.duration}
+    lesson.day_index=day; lesson.period_index=period; lesson.duration=duration
+    _audit(db,principal,"update","lesson",lesson.id,"Moved/resized lesson",before=before,after={"day_index":day,"period_index":period,"duration":duration})
+    try:
+        db.commit(); db.refresh(lesson); return lesson
+    except Exception:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT,"Lesson update failed; no changes were applied.")
+
 @router.post("/lessons/{lesson_id}/explain",response_model=s.Explanation,name="explain_lesson_move")
 def explain_lesson_move(lesson_id:int,payload:s.ExplainIn,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     lesson=_owned_lesson(db,principal,lesson_id)
