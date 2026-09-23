@@ -127,6 +127,10 @@ class VersionOut(ORMModel):
     @classmethod
     def serialize_created_by(cls, value): return str(value) if value is not None else None
 class LessonOut(ORMModel): id:int; version_id:int; requirement_id:int|None; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day_index:int; period_index:int; duration:int; is_locked:bool
+class LessonUpdateIn(BaseModel):
+    day_index: int | None = Field(default=None, ge=0, le=30)
+    period_index: int | None = Field(default=None, ge=0, le=30)
+    duration: int | None = Field(default=None, ge=1, le=10)
 class BulkLessonIn(BaseModel):
     lesson_ids: list[int] = Field(min_length=1, max_length=500)
 class BulkLessonLockIn(BaseModel):
