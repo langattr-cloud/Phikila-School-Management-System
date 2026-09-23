@@ -69,3 +69,5 @@
 /* Allow multi-period cards to extend into their reserved adjacent teaching cells. */
 .timetable__time-grid .timetable__cell:has(.lesson-card--multi),.timetable__whole-school-grid .timetable__whole-slot:has(.lesson-card--multi){overflow:visible;z-index:4}
 .timetable__time-grid .lesson-card--multi,.timetable__whole-school-grid .lesson-card--multi{position:relative;z-index:10}
+
+.lesson-card__resize-controls{position:absolute;right:4px;bottom:4px;display:flex;gap:2px;z-index:12}.lesson-card__resize{display:inline-flex;align-items:center;justify-content:center;width:20px;height:18px;padding:0;border:1px solid rgba(0,0,0,.2);border-radius:4px;background:rgba(255,255,255,.9);color:inherit;font-size:14px;font-weight:800;line-height:1;cursor:pointer}.lesson-card__resize:disabled{opacity:.35;cursor:not-allowed}.lesson-card__resize:hover:not(:disabled){background:#fff}
