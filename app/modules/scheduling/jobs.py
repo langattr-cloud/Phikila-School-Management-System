@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from . import models as m
-from .engine import build_input, detect_conflicts
+from .engine import _teaching_slots, build_input, detect_conflicts, load_calendar
 from .generation_rules import enforce_double_lessons
 from .solver import ORTOOLS_AVAILABLE, preflight, solve
 from .tenancy import TtMembership
@@ -107,13 +107,20 @@ def _persist(db,school_id,result,actor,config):
     preserved_meta={(lesson.requirement_id,lesson.day_index,lesson.period_index):{"duration":lesson.duration or 1,"room_id":lesson.room_id,"is_locked":bool(lesson.is_locked)} for lesson in existing_lessons if not scoped or not lesson_in_scope(lesson)}
     locked_meta={(lesson.requirement_id,lesson.day_index,lesson.period_index):{"duration":lesson.duration or 1,"room_id":lesson.room_id,"is_locked":True} for lesson in existing_lessons if lesson.is_locked}
     locked_meta.update(preserved_meta)
+    calendar=load_calendar(db,school_id)
     locked_spans={}
+    locked_occupied={}
     for lesson in existing_lessons:
         if not lesson.is_locked: continue
         duration=max(1,int(lesson.duration or 1))
-        span=[(lesson.day_index,p) for p in _teaching_slots(load_calendar(db,school_id),lesson.day_index,lesson.period_index,duration)]
+        span=_teaching_slots(calendar,lesson.day_index,lesson.period_index,duration)
         if len(span)!=duration:
             raise ValueError(f"Locked lesson {lesson.id} no longer fits the current teaching calendar.")
+        for slot in span:
+            prior=locked_occupied.get(slot)
+            if prior is not None and prior != lesson.id:
+                raise ValueError(f"Locked lessons {prior} and {lesson.id} overlap at day {slot[0]}, period {slot[1]}.")
+            locked_occupied[slot]=lesson.id
         locked_spans[lesson.id]=span
     db.query(m.TtLesson).filter(m.TtLesson.version_id==version.id).delete(synchronize_session=False)
     version.project_id=config.get('project_id'); version.name=config.get('label') or 'Timetable'; version.label=config.get('label') or 'Current'; version.status='draft'; version.quality=result.quality; version.stats=result.stats; version.created_by=actor; version.day_indexes=indexes; version.day_names=[str(names.get(i,fallback.get(i,str(i)))) for i in indexes]; version.display_mode=display_mode; version.timetable_type_id=timetable_type_id; version.published_at=None; version.effective_from=None
