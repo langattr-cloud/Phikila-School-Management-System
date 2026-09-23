@@ -324,6 +324,18 @@ def validate_version(version_id:int,db:Session=Depends(get_db),principal:Princip
     message="Timetable is valid and ready for publication." if valid else f"Validation found {hard} hard conflict(s), {unassigned} unassigned lesson slot(s), and {missing_periods} missing period scope issue(s)."
     return {"valid":valid,"hard_conflicts":hard,"soft_conflicts":soft,"unassigned_requirements":unassigned,"missing_periods":missing_periods,"message":message}
 
+@router.post("/versions/{version_id}/assign-rooms",response_model=dict,name="assign_rooms")
+def assign_rooms(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
+    version=_owned_version(db,principal,version_id)
+    _ensure_editable_version(version)
+    room_count=db.query(m.TtRoom).filter(m.TtRoom.school_id==principal.school_id).count()
+    if room_count==0:
+        raise HTTPException(status.HTTP_409_CONFLICT,"No classrooms are configured. Add classrooms before assigning rooms.")
+    assigned=assign_rooms_to_lessons(db,principal.school_id,version.id)
+    _audit(db,principal,"assign_rooms","version",version.id,f"Assigned rooms to {assigned} lessons",after={"assigned":assigned,"room_count":room_count})
+    db.commit()
+    return {"assigned":assigned,"room_count":room_count}
+
 @router.get("/versions/{version_id}/conflicts",response_model=s.ConflictSummaryOut,name="version_conflicts")
 def version_conflicts(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     version=_owned_version(db,principal,version_id)
