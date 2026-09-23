@@ -205,8 +205,23 @@ export function TimetableGrid({
     window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } }))
   }
 
+  const spanIsContiguous = (lesson: Lesson, day: number, period: number) => {
+    const duration = Math.max(1, lesson.duration ?? 1)
+    const ordered = [...displayPeriods].sort((a, b) => a.index - b.index)
+    const teaching = ordered.filter((item) => item.is_teaching)
+    const start = teaching.findIndex((item) => item.index === period)
+    if (start < 0 || start + duration > teaching.length) return false
+    const span = teaching.slice(start, start + duration)
+    const positions = span.map((item) => ordered.findIndex((candidate) => candidate.index === item.index))
+    return positions.every((position, index) => index === 0 || position === positions[index - 1] + 1)
+  }
+
   const moveLesson = (lesson: Lesson, day: number, period: number) => {
     if (readOnly || lesson.is_locked) return
+    if (!spanIsContiguous(lesson, day, period)) {
+      window.dispatchEvent(new CustomEvent('phikila:timetable-error', { detail: { message: 'A multi-period lesson must occupy consecutive teaching periods and cannot cross a break.' } }))
+      return
+    }
     onMove?.(lesson, day, period)
     setDragging(null)
     setCarrying(null)
@@ -228,7 +243,7 @@ export function TimetableGrid({
     onDragOver: (event: DragEvent) => {
       if (readOnly || !dragging) return
       event.preventDefault()
-      setHovered(key)
+      if (dragging && !spanIsContiguous(dragging, day, period)) return\n      setHovered(key)
     },
     onDragLeave: () => setHovered((value) => value === key ? null : value),
     onDrop: (event: DragEvent) => {
