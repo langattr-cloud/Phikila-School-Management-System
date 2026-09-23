@@ -65,3 +65,7 @@
 /* Multi-period lessons render once at their start cell and visually span the occupied teaching columns. */
 .timetable__time-grid .lesson-card--multi,.timetable__whole-school-grid .lesson-card--multi{width:calc(100% + (var(--lesson-span,1) - 1) * 100%);position:relative;z-index:5}
 .timetable__time-grid .lesson-card--invalid-span,.timetable__whole-school-grid .lesson-card--invalid-span{width:100%;outline:2px solid #b91c1c;outline-offset:-2px}
+
+/* Allow multi-period cards to extend into their reserved adjacent teaching cells. */
+.timetable__time-grid .timetable__cell:has(.lesson-card--multi),.timetable__whole-school-grid .timetable__whole-slot:has(.lesson-card--multi){overflow:visible;z-index:4}
+.timetable__time-grid .lesson-card--multi,.timetable__whole-school-grid .lesson-card--multi{position:relative;z-index:10}
