@@ -34,7 +34,7 @@ class Weights:
 @dataclass
 class AvoidRule: scope:str; target_id:int; slots:set[tuple[int,int]]; is_hard:bool=False; weight:int=25; note:str=""
 @dataclass
-class SolverInput: days:list[int]; periods:list[int]; teaching_periods:list[int]; morning_periods:list[int]; teachers:dict[int,TeacherSpec]; rooms:dict[int,RoomSpec]; classes:dict[int,ClassSpec]; subjects:dict[int,SubjectSpec]; requirements:list[RequirementSpec]; weights:Weights=field(default_factory=Weights); avoid_rules:list[AvoidRule]=field(default_factory=list); locked:dict[int,list[tuple[int,int]]]=field(default_factory=dict); max_seconds:float=30.0; workers:int=1
+class SolverInput: days:list[int]; periods:list[int]; teaching_periods:list[int]; morning_periods:list[int]; teachers:dict[int,TeacherSpec]; rooms:dict[int,RoomSpec]; classes:dict[int,ClassSpec]; subjects:dict[int,SubjectSpec]; requirements:list[RequirementSpec]; weights:Weights=field(default_factory=Weights); avoid_rules:list[AvoidRule]=field(default_factory=list); locked:dict[int,list[tuple[int,int]]]=field(default_factory=dict);locked_durations:dict[tuple[int,int,int],int]=field(default_factory=dict); max_seconds:float=30.0; workers:int=1
 @dataclass
 class Placement: requirement_id:int; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day:int; period:int; duration:int=1
 @dataclass
@@ -94,10 +94,18 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
         if len(locked_slots)>r.periods_per_week:
             return SolverOutput("infeasible",[],{}, {},[f"Requirement {r.id} has {len(locked_slots)} locked lessons but only {r.periods_per_week} weekly lessons are required."])
         for d,p in locked_slots:
-            locked_var=x.get((r.id,d,p))
-            if locked_var is None:
+            duration=max(1,int(data.locked_durations.get((r.id,d,p),1)))
+            span=data.teaching_periods
+            try: start=span.index(p)
+            except ValueError:
                 return SolverOutput("infeasible",[],{}, {},[f"Locked lesson for requirement {r.id} is outside an available teaching slot at day {d}, period {p}."])
-            model.Add(locked_var==1)
+            if start+duration>len(span):
+                return SolverOutput("infeasible",[],{}, {},[f"Locked {duration}-period lesson for requirement {r.id} does not fit from day {d}, period {p}."])
+            for offset in range(duration):
+                locked_var=x.get((r.id,d,span[start+offset]))
+                if locked_var is None:
+                    return SolverOutput("infeasible",[],{}, {},[f"Locked {duration}-period lesson for requirement {r.id} crosses a break or unavailable period."])
+                model.Add(locked_var==1)
         vals=[x[(r.id,d,p)] for d,p in slots if (r.id,d,p) in x]
         if len(vals)<r.periods_per_week:return SolverOutput("infeasible",[],{}, {},[f"Requirement {r.id} cannot fit its weekly lessons into the available timetable slots."])
         model.Add(sum(vals)==r.periods_per_week)
