@@ -63,6 +63,23 @@ def _owned_lesson(db: Session, principal: Principal, lesson_id: int):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Lesson not found")
     return row
 
+def _version_requirements(db: Session, version: m.TtVersion, school_id: int):
+    """Return only lesson requirements applicable to this timetable version."""
+    query = db.query(m.TtLessonRequirement).join(
+        m.TtClass, m.TtClass.id == m.TtLessonRequirement.class_id
+    ).filter(
+        m.TtLessonRequirement.school_id == school_id,
+        m.TtClass.school_id == school_id,
+    )
+    if version.project_id is not None:
+        project = db.query(m.TtProject).filter(
+            m.TtProject.id == version.project_id,
+            m.TtProject.school_id == school_id,
+        ).first()
+        if project is not None and project.academic_year_id is not None:
+            query = query.filter(m.TtClass.academic_year_id == project.academic_year_id)
+    return query.all()
+
 def _ensure_editable_version(version: m.TtVersion) -> None:
     if version.status == "published":
         raise HTTPException(status.HTTP_409_CONFLICT, "Published timetables are read-only. Restore the version as a draft before editing.")
@@ -285,7 +302,7 @@ def validate_version(version_id:int,db:Session=Depends(get_db),principal:Princip
     conflicts=detect_conflicts(db,principal.school_id,version.id)
     hard=sum(1 for item in conflicts if item.severity=="hard")
     soft=len(conflicts)-hard
-    requirements=db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==principal.school_id).all()
+    requirements=_version_requirements(db, version, principal.school_id)
     placed=db.query(m.TtLesson).filter(m.TtLesson.school_id==principal.school_id,m.TtLesson.version_id==version.id).all()
     counts={}
     for lesson in placed:
@@ -370,7 +387,7 @@ def publish_version(version_id: int, db: Session = Depends(get_db), principal: P
     hard_conflicts = [c for c in conflicts if getattr(c, "severity", None) == "hard"]
     if hard_conflicts:
         raise HTTPException(status.HTTP_409_CONFLICT, f"Cannot publish timetable: {len(hard_conflicts)} hard conflict(s) remain.")
-    requirements=db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id==principal.school_id).all()
+    requirements=_version_requirements(db, version, principal.school_id)
     placed=db.query(m.TtLesson).filter(m.TtLesson.school_id==principal.school_id,m.TtLesson.version_id==version.id).all()
     counts={}
     for lesson in placed:
