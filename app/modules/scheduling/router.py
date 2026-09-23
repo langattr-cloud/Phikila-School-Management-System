@@ -422,7 +422,10 @@ def delete_version(version_id:int, db: Session = Depends(get_db), principal: Pri
 
 @router.get("/versions/current",response_model=s.VersionOut | None,name="current_version")
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
-    return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
+    query=db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id)
+    if not principal.at_least("scheduler"):
+        query=query.filter(m.TtVersion.status=="published")
+    return query.order_by(m.TtVersion.id.desc()).first()
 
 @router.post("/versions/{version_id}/publish", response_model=s.VersionOut, name="publish_version")
 def publish_version(version_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
