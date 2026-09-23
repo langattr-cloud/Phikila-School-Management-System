@@ -63,6 +63,28 @@ def load_calendar(db: Session, school_id: int) -> SchoolCalendar:
     periods=db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).order_by(m.TtPeriod.index).all()
     return SchoolCalendar(days=days, periods=periods)
 
+
+def normalize_period_scope(calendar: SchoolCalendar, requested: list[int] | None) -> list[int]:
+    """Return a chronological display scope while keeping breaks display-only.
+
+    Timetable types store display periods, so a break between two selected
+    teaching periods must remain visible. Unknown indexes and break-only
+    scopes are rejected rather than silently producing a misleading timetable.
+    """
+    all_periods = sorted(calendar.periods, key=lambda p: p.index)
+    by_index = {p.index: p for p in all_periods}
+    if requested is None:
+        return [p.index for p in all_periods]
+    indexes = list(dict.fromkeys(int(i) for i in requested))
+    unknown = [i for i in indexes if i not in by_index]
+    if unknown:
+        raise ValueError(f"Unknown period index(es): {', '.join(map(str, unknown))}.")
+    teaching = [i for i in indexes if by_index[i].is_teaching]
+    if not teaching:
+        raise ValueError("A timetable period scope must include at least one teaching period.")
+    lo, hi = min(teaching), max(teaching)
+    return [p.index for p in all_periods if lo <= p.index <= hi]
+
 def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0, day_indexes: list[int] | None = None, period_indexes: list[int] | None = None, class_ids: list[int] | None = None, teacher_ids: list[int] | None = None) -> SolverInput:
     calendar=load_calendar(db, school_id)
     selected_days=set(int(i) for i in day_indexes) if day_indexes else set(calendar.day_indexes)
