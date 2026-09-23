@@ -205,21 +205,57 @@ export function TimetableGrid({
     window.dispatchEvent(new CustomEvent('phikila:timetable-cell-selected', { detail: { type, label, ...details } }))
   }
 
-  const spanIsContiguous = (lesson: Lesson, day: number, period: number) => {
+  const targetTeachingPeriods = (lesson: Lesson, period: number) => {
     const duration = Math.max(1, lesson.duration ?? 1)
     const ordered = [...displayPeriods].sort((a, b) => a.index - b.index)
     const teaching = ordered.filter((item) => item.is_teaching)
     const start = teaching.findIndex((item) => item.index === period)
-    if (start < 0 || start + duration > teaching.length) return false
+    if (start < 0 || start + duration > teaching.length) return null
     const span = teaching.slice(start, start + duration)
     const positions = span.map((item) => ordered.findIndex((candidate) => candidate.index === item.index))
-    return positions.every((position, index) => index === 0 || position === positions[index - 1] + 1)
+    if (!positions.every((position, index) => index === 0 || position === positions[index - 1] + 1)) return null
+    return span
+  }
+
+  const spanIsContiguous = (lesson: Lesson, day: number, period: number) => Boolean(targetTeachingPeriods(lesson, period))
+
+  const lessonOccupiesSlot = (lesson: Lesson, day: number, period: number) => {
+    if (lesson.day_index !== day) return false
+    const span = targetTeachingPeriods(lesson, lesson.period_index)
+    return Boolean(span?.some((item) => item.index === period))
+  }
+
+  const lessonsShareMoveLane = (lesson: Lesson, candidate: Lesson) => {
+    if (view === 'whole-school' || view === 'class') return lesson.class_id === candidate.class_id
+    if (view === 'teacher') return lesson.teacher_id != null && lesson.teacher_id === candidate.teacher_id
+    return true
+  }
+
+  const moveBlocker = (lesson: Lesson, day: number, period: number) => {
+    const span = targetTeachingPeriods(lesson, period)
+    if (!span) return { kind: 'span' as const, lesson: null as Lesson | null }
+    for (const candidate of lessons) {
+      if (candidate.id === lesson.id || !lessonsShareMoveLane(lesson, candidate)) continue
+      if (span.some((slot) => lessonOccupiesSlot(candidate, day, slot.index))) {
+        return { kind: 'occupied' as const, lesson: candidate }
+      }
+    }
+    return null
   }
 
   const moveLesson = (lesson: Lesson, day: number, period: number) => {
     if (readOnly || lesson.is_locked) return
     if (!spanIsContiguous(lesson, day, period)) {
       window.dispatchEvent(new CustomEvent('phikila:timetable-error', { detail: { message: 'A multi-period lesson must occupy consecutive teaching periods and cannot cross a break.' } }))
+      return
+    }
+    const blocker = moveBlocker(lesson, day, period)
+    if (blocker?.kind === 'occupied') {
+      window.dispatchEvent(new CustomEvent('phikila:timetable-error', { detail: { message: 'The full lesson span overlaps an existing lesson. Move it to a completely free span.' } }))
+      return
+    }
+    if (blocker?.kind === 'span') {
+      window.dispatchEvent(new CustomEvent('phikila:timetable-error', { detail: { message: 'The full lesson span cannot fit in the selected timetable range.' } }))
       return
     }
     onMove?.(lesson, day, period)
@@ -243,7 +279,7 @@ export function TimetableGrid({
     onDragOver: (event: DragEvent) => {
       if (readOnly || !dragging) return
       event.preventDefault()
-      if (dragging && !spanIsContiguous(dragging, day, period)) return
+      if (dragging && (!spanIsContiguous(dragging, day, period) || Boolean(moveBlocker(dragging, day, period)))) return
       setHovered(key)
     },
     onDragLeave: () => setHovered((value) => value === key ? null : value),
