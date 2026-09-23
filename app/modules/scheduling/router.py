@@ -16,7 +16,7 @@ from . import copilot as ai
 from . import jobs as job_queue
 from . import models as m
 from . import schemas as s
-from .engine import DEFAULT_DAYS, _blockers, _name_lookup, assign_rooms_to_lessons, detect_conflicts, explain_move, load_calendar, suggest_slots
+from .engine import DEFAULT_DAYS, _blockers, _name_lookup, assign_rooms_to_lessons, detect_conflicts, explain_move, load_calendar, normalize_period_scope, suggest_slots
 from .solver import ORTOOLS_AVAILABLE
 from .tenancy import Principal, require_role, resolve_principal
 router = APIRouter()
