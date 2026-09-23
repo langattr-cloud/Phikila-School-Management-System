@@ -17,8 +17,8 @@ export interface Teacher extends Loose { id: number; name: string; code?: string
 export interface TeacherInput extends Loose {}
 export interface Subject extends Loose { id: number; name: string; code?: string; colour?: string; unavailable?: Slots }
 export interface SubjectInput extends Loose {}
-export interface Room extends Loose { id: number; name: string; code?: string; room_type?: string }
-export interface RoomInput extends Loose {}
+export interface Room extends Loose { id: number; name: string; code?: string; building?: string | null; capacity?: number; room_type?: string; is_accessible?: boolean; unavailable?: Slots; is_active: boolean }
+export interface RoomInput extends Loose { name: string; code: string; building?: string | null; capacity?: number; room_type?: string; is_accessible?: boolean; unavailable?: Slots; is_active?: boolean }
 export interface SchoolClass extends Loose { id: number; name: string; code: string; school_class_id?: number; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; level_id?: number | null; academic_year_id?: number | null; unavailable?: Slots }
 export interface SchoolClassInput extends Loose { name?: string; code?: string; student_count?: number; home_room_id?: number | null; class_teacher_id?: number | null; unavailable?: Slots; level_id?: number | null; academic_year_id?: number | null }
 export interface Requirement extends Loose { id: number; class_id: number; class_name?: string; subject_id: number; subject_name?: string; teacher_id: number | null; teacher_name?: string | null; room_id?: number | null; room_name?: string | null; periods_per_week: number; double_periods?: number }
