@@ -287,8 +287,17 @@ def generate(payload:s.GenerateIn,db:Session=Depends(get_db),principal:Principal
     if payload.timetable_type_id is not None:
         timetable_type=_owned(db,m.TtTimetableType,principal.school_id,payload.timetable_type_id)
         if not timetable_type.is_active: raise HTTPException(status.HTTP_409_CONFLICT,"The selected timetable type is inactive.")
-        config.setdefault("day_indexes", list(timetable_type.day_indexes or []))
-        config.setdefault("period_indexes", list(timetable_type.period_indexes or []))
+        calendar=load_calendar(db,principal.school_id)
+        configured_days={d.index for d in calendar.days if d.is_active}
+        requested_days=list(dict.fromkeys(int(i) for i in (timetable_type.day_indexes or [])))
+        if not requested_days or any(i not in configured_days for i in requested_days):
+            raise HTTPException(status.HTTP_409_CONFLICT,"The selected timetable type contains a day that is not active in the school calendar.")
+        try:
+            normalized_periods=normalize_period_scope(calendar,list(timetable_type.period_indexes or []))
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT,str(exc)) from exc
+        config.setdefault("day_indexes", requested_days)
+        config.setdefault("period_indexes", normalized_periods)
         config.setdefault("display_mode", timetable_type.display_mode or "day")
     if payload.project_id is not None: _owned(db,m.TtProject,principal.school_id,payload.project_id)
     for ids,model,label in ((payload.class_ids,m.TtClass,"class"),(payload.teacher_ids,m.TtTeacher,"teacher")):
