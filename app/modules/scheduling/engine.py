@@ -238,7 +238,7 @@ def detect_conflicts(db: Session, school_id: int, version_id: int|m.TtVersion) -
 
 def assign_rooms_to_lessons(db: Session, school_id: int, version_id: int) -> int:
     lessons=db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==version_id).order_by(m.TtLesson.duration.desc(),m.TtLesson.day_index,m.TtLesson.period_index,m.TtLesson.class_id).all()
-    calendar=load_calendar(db,school_id); rooms=db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id).order_by(m.TtRoom.id).all(); classes={c.id:c for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}; subjects={s.id:s for s in db.query(m.TtSubject).filter(m.TtSubject.school_id==school_id)}
+    calendar=load_calendar(db,school_id); rooms=db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id,m.TtRoom.is_active.is_(True)).order_by(m.TtRoom.id).all(); classes={c.id:c for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}; subjects={s.id:s for s in db.query(m.TtSubject).filter(m.TtSubject.school_id==school_id)}
     occupied={}; usage={room.id:0 for room in rooms}; assigned=0
     def covered(lesson): return _teaching_slots(calendar,lesson.day_index,lesson.period_index,lesson.duration or 1)
     for lesson in lessons:
