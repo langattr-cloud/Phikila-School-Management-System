@@ -180,6 +180,21 @@ def detect_conflicts(db: Session, school_id: int, version_id: int|m.TtVersion) -
             reported.add(pair); who=label(key_name,ident); others=", ".join(sorted({label("class",l.class_id) for l in group}))
             conflicts.append(Conflict("hard",f"{key_name}_double_booked",f"{who} is booked for {len(unique)} lessons at the same time ({others}).",sorted(unique),day,period))
     teaching_indexes=set(calendar.teaching_indexes)
+    # Report locked-span collisions explicitly. Generic resource collisions below
+    # remain useful, but this identifies the integrity violation at its source.
+    locked_lessons=[lesson for lesson in lessons if lesson.is_locked]
+    locked_buckets={}
+    for lesson in locked_lessons:
+        for slot in covered(lesson):
+            locked_buckets.setdefault(slot,[]).append(lesson)
+    for (day,period),group in locked_buckets.items():
+        unique={l.id for l in group}
+        if len(unique)>1:
+            conflicts.append(Conflict(
+                "hard","locked_span_collision",
+                f"Locked lessons {', '.join(str(i) for i in sorted(unique))} overlap at day {day}, period {period}; locked lesson spans cannot overlap.",
+                sorted(unique),day,period
+            ))
     for lesson in lessons:
         slot=(lesson.day_index,lesson.period_index)
         if lesson.period_index not in teaching_indexes:
