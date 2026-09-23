@@ -328,7 +328,7 @@ def validate_version(version_id:int,db:Session=Depends(get_db),principal:Princip
 def assign_rooms(version_id:int,db:Session=Depends(get_db),principal:Principal=Depends(require_role("admin","scheduler"))):
     version=_owned_version(db,principal,version_id)
     _ensure_editable_version(version)
-    room_count=db.query(m.TtRoom).filter(m.TtRoom.school_id==principal.school_id).count()
+    room_count=db.query(m.TtRoom).filter(m.TtRoom.school_id==principal.school_id,m.TtRoom.is_active.is_(True)).count()
     if room_count==0:
         raise HTTPException(status.HTTP_409_CONFLICT,"No classrooms are configured. Add classrooms before assigning rooms.")
     assigned=assign_rooms_to_lessons(db,principal.school_id,version.id)
