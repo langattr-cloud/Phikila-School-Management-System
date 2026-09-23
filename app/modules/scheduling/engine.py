@@ -249,10 +249,10 @@ def assign_rooms_to_lessons(db: Session, school_id: int, version_id: int) -> int
         if lesson.room_id: continue
         slots=covered(lesson)
         if not slots: continue
-        subject=subjects.get(lesson.subject_id); klass=classes.get(lesson.class_id); required_type=subject.required_room_type if subject else None
+        subject=subjects.get(lesson.subject_id); klass=classes.get(lesson.class_id); required_type=(subject.required_room_type.strip().lower() if subject and subject.required_room_type else None)
         def compatible(room):
-            if required_type is not None and room.room_type!=required_type: return False
-            if required_type is None and room.room_type not in ("classroom","hall"): return False
+            if required_type is not None and (room.room_type or "").strip().lower()!=required_type: return False
+            if required_type is None and (room.room_type or "").strip().lower() not in ("classroom","hall"): return False
             if any((room.id,d,p) in occupied for d,p in slots): return False
             if any((d,p) in _slots_from_json(room.unavailable) for d,p in slots): return False
             return True
