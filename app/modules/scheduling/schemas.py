@@ -29,7 +29,7 @@ class SubjectIn(BaseModel):
     name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); colour: str = Field(default='#0F2A47', max_length=9); prefers_morning: bool = False; prefers_double: bool = False; spread_across_week: bool = True; required_room_type: str | None = None
 class SubjectOut(ORMModel, SubjectIn): id: int
 class RoomIn(BaseModel):
-    name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); building: str | None = None; capacity: int = Field(default=40, ge=1, le=2000); room_type: str = Field(default='classroom', max_length=40); is_accessible: bool = True; unavailable: Slots = Field(default_factory=dict)
+    name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); building: str | None = None; capacity: int = Field(default=40, ge=1, le=2000); room_type: str = Field(default='classroom', max_length=40); is_accessible: bool = True; unavailable: Slots = Field(default_factory=dict); is_active: bool = True
 class RoomOut(ORMModel, RoomIn): id: int
 class ClassIn(BaseModel):
     name: str = Field(min_length=1, max_length=120); code: str = Field(min_length=1, max_length=30); academic_year_id: int | None = None; level_id: int | None = None; grade_id: int | None = None; stream_id: int | None = None; school_class_id: int | None = None; student_count: int = Field(default=40, ge=0, le=500); home_room_id: int | None = None; class_teacher_id: int | None = None; unavailable: Slots = Field(default_factory=dict)
