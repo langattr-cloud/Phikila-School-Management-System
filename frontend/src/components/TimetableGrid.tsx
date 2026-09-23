@@ -297,7 +297,7 @@ export function TimetableGrid({
       if (readOnly || !dragging) return
       event.preventDefault()
       if (dragging && (!spanIsContiguous(dragging, day, period) || Boolean(moveBlocker(dragging, day, period)))) {
-        setHovered((value) => value === key ? null : value)
+        setHovered(key)
         return
       }
       setHovered(key)
@@ -320,12 +320,14 @@ export function TimetableGrid({
     const subjectCode = subject?.code || subjectName
     const color = getSubjectColor(subject)
     const conflict = conflicted?.has(lesson.id) ?? false
-    const previewPeriod = hovered ? Number(hovered.split(':')[1]) : lesson.period_index
-    const effectivePeriodIndex = preview ? previewPeriod : lesson.period_index
+    const [hoveredDay, hoveredPeriod] = hovered ? hovered.split(':').map(Number) : [lesson.day_index, lesson.period_index]
+    const effectivePeriodIndex = preview ? hoveredPeriod : lesson.period_index
+    const effectiveDayIndex = preview ? hoveredDay : lesson.day_index
     const period = teachingPeriods.find((item) => item.index === effectivePeriodIndex)
     const duration = Math.max(1, lesson.duration ?? 1)
-    const span = displayPeriods.filter((item) => item.is_teaching && item.index >= effectivePeriodIndex && item.index < effectivePeriodIndex + duration)
-    const contiguousSpan = span.length === duration && span.every((item, index) => index === 0 || displayPeriods[displayPeriods.findIndex((p) => p.index === span[index - 1].index) + 1]?.index === item.index)
+    const targetSpan = targetTeachingPeriods(lesson, effectivePeriodIndex)
+    const span = targetSpan ?? []
+    const contiguousSpan = Boolean(targetSpan)
     const startTeachingIndex = teachingPeriods.findIndex((item) => item.index === effectivePeriodIndex)
     const maxContiguousDuration = startTeachingIndex < 0 ? 1 : (() => {
       let count = 1
