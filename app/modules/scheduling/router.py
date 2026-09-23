@@ -420,6 +420,7 @@ def delete_version(version_id:int, db: Session = Depends(get_db), principal: Pri
     _audit(db,principal,"delete","version",version.id,f"Deleted timetable version {version.number}")
     db.delete(version); db.commit()
 
+@router.get("/versions/current",response_model=s.VersionOut | None,name="current_version")
 def current_version(db:Session=Depends(get_db),principal:Principal=Depends(resolve_principal)):
     return db.query(m.TtVersion).filter(m.TtVersion.school_id==principal.school_id).order_by(m.TtVersion.id.desc()).first()
 
