@@ -127,7 +127,7 @@ def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0, day_i
         if req_row is not None and (bool(lesson.is_locked) or (scoped and not in_scope(req_row))):
             locked.setdefault(req_id,[]).append((int(lesson.day_index),int(lesson.period_index)))
     weights,avoid_rules=load_constraints(db,school_id)
-    return SolverInput(days=[i for i in calendar.day_indexes if i in selected_days],periods=[p.index for p in calendar.periods if p.index in selected_periods],teaching_periods=[i for i in calendar.teaching_indexes if i in selected_periods],morning_periods=[i for i in calendar.morning_indexes if i in selected_periods],teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,locked=locked,max_seconds=max_seconds,workers=2)
+    return SolverInput(days=[i for i in calendar.day_indexes if i in selected_days],periods=[p.index for p in calendar.periods if p.index in selected_periods],teaching_periods=[i for i in calendar.teaching_indexes if i in selected_periods],double_pairs=[(a,b) for a,b in zip(calendar.teaching_indexes, calendar.teaching_indexes[1:]) if a in selected_periods and b in selected_periods and next((p for p in calendar.periods if p.index==b),None) is not None and next((p for p in calendar.periods if p.index==b),None).index == a+1],morning_periods=[i for i in calendar.morning_indexes if i in selected_periods],teachers=teachers,rooms=rooms,classes=classes,subjects=subjects,requirements=requirements,weights=weights,avoid_rules=avoid_rules,locked=locked,max_seconds=max_seconds,workers=2)
 
 def load_constraints(db: Session, school_id: int) -> tuple[Weights,list[AvoidRule]]:
     weights=Weights(); avoid=[]
