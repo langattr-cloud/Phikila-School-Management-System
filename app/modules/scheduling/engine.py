@@ -255,11 +255,15 @@ def _name_lookup(db: Session, school_id: int) -> dict[str,dict[int,str]]:
     return {"teacher":{t.id:t.name for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id==school_id)},"class":{c.id:c.name for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)},"room":{r.id:r.name for r in db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id)},"subject":{s.id:s.name for s in db.query(m.TtSubject).filter(m.TtSubject.school_id==school_id)}}
 
 def _teaching_slots(calendar: SchoolCalendar, day: int, period: int, duration: int) -> list[tuple[int,int]]:
-    ordered=[p.index for p in calendar.periods if p.is_teaching]
-    try: start=ordered.index(period)
-    except ValueError: return []
-    if start+duration>len(ordered): return []
-    return [(day,p) for p in ordered[start:start+duration]]
+    ordered=sorted(calendar.periods, key=lambda p: p.index)
+    teaching=[p for p in ordered if p.is_teaching]
+    try: start=next(i for i,p in enumerate(teaching) if p.index==period)
+    except StopIteration: return []
+    span=teaching[start:start+duration]
+    if len(span)!=duration: return []
+    positions=[ordered.index(p) for p in span]
+    if any(right != left+1 for left,right in zip(positions,positions[1:])): return []
+    return [(day,p.index) for p in span]
 
 def explain_move(db: Session, school_id: int, lesson_id: int, day: int, period: int) -> dict:
     lesson=db.query(m.TtLesson).filter(m.TtLesson.id==lesson_id,m.TtLesson.school_id==school_id).first()
