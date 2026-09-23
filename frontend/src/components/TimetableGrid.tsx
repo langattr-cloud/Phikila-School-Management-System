@@ -268,6 +268,17 @@ export function TimetableGrid({
     const duration = Math.max(1, lesson.duration ?? 1)
     const span = displayPeriods.filter((item) => item.is_teaching && item.index >= lesson.period_index && item.index < lesson.period_index + duration)
     const contiguousSpan = span.length === duration && span.every((item, index) => index === 0 || displayPeriods[displayPeriods.findIndex((p) => p.index === span[index - 1].index) + 1]?.index === item.index)
+    const startTeachingIndex = teachingPeriods.findIndex((item) => item.index === lesson.period_index)
+    const maxContiguousDuration = startTeachingIndex < 0 ? 1 : (() => {
+      let count = 1
+      for (let index = startTeachingIndex + 1; index < teachingPeriods.length; index += 1) {
+        const previous = displayPeriods.findIndex((item) => item.index === teachingPeriods[index - 1].index)
+        const current = displayPeriods.findIndex((item) => item.index === teachingPeriods[index].index)
+        if (current !== previous + 1) break
+        count += 1
+      }
+      return count
+    })()
     const title = `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}${duration > 1 ? ` · ${duration} periods` : ''}`
     const spanLength = contiguousSpan ? duration : 1
     const style = { backgroundColor: conflict ? '#FBE8E5' : color, borderColor: conflict ? '#9A2F24' : color, '--subject-colour': color, '--lesson-span': spanLength } as CSSProperties
@@ -306,7 +317,7 @@ export function TimetableGrid({
         {timeLayout === 'single' && period && <span className="lesson-card__time">{formatTime(period.start_time, timeFormat)}–{formatTime(period.end_time, timeFormat)}</span>}
         {timeLayout === 'split' && period && <span className="lesson-card__time lesson-card__time--split"><span>{formatTime(period.start_time, timeFormat)}</span><span>{formatTime(period.end_time, timeFormat)}</span></span>}
         {lesson.is_locked && <span className="lesson-card__lock" title="Locked"><LockIcon width={12} height={12} /></span>}
-        {!readOnly && !lesson.is_locked && onResize && <button type="button" className="lesson-card__resize" title="Extend lesson" aria-label="Extend lesson" onClick={(event) => { event.stopPropagation(); onResize(lesson, Math.min(10, (lesson.duration ?? 1) + 1)) }} />}
+        {!readOnly && !lesson.is_locked && onResize && <button type="button" className="lesson-card__resize" title={duration < maxContiguousDuration && duration < 10 ? 'Extend lesson' : 'Maximum contiguous duration'} aria-label={duration < maxContiguousDuration && duration < 10 ? 'Extend lesson' : 'Maximum contiguous duration'} disabled={duration >= maxContiguousDuration || duration >= 10} onClick={(event) => { event.stopPropagation(); if (duration < maxContiguousDuration && duration < 10) onResize(lesson, duration + 1) }} />}
       </div>
     )
   }
