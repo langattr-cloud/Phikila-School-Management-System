@@ -243,7 +243,8 @@ export function TimetableGrid({
     onDragOver: (event: DragEvent) => {
       if (readOnly || !dragging) return
       event.preventDefault()
-      if (dragging && !spanIsContiguous(dragging, day, period)) return\n      setHovered(key)
+      if (dragging && !spanIsContiguous(dragging, day, period)) return
+      setHovered(key)
     },
     onDragLeave: () => setHovered((value) => value === key ? null : value),
     onDrop: (event: DragEvent) => {
@@ -267,7 +268,7 @@ export function TimetableGrid({
     const duration = Math.max(1, lesson.duration ?? 1)
     const span = displayPeriods.filter((item) => item.is_teaching && item.index >= lesson.period_index && item.index < lesson.period_index + duration)
     const contiguousSpan = span.length === duration && span.every((item, index) => index === 0 || displayPeriods[displayPeriods.findIndex((p) => p.index === span[index - 1].index) + 1]?.index === item.index)
-    const title = `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}${duration > 1 ? ` · ${duration} periods` : ''}` `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}`
+    const title = `${subjectName} · ${classLabel} · ${teacher?.name || teacherCode}${duration > 1 ? ` · ${duration} periods` : ''}`
     const style = { backgroundColor: conflict ? '#FBE8E5' : color, borderColor: conflict ? '#9A2F24' : color, '--subject-colour': color } as CSSProperties
 
     return (
