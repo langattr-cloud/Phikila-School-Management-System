@@ -105,8 +105,7 @@ def solve(data:SolverInput,on_progress:Callable[[int,str],None]|None=None,should
         if required_doubles:
             pairs=[]
             for d in data.days:
-                for left_index in range(len(data.teaching_periods)-1):
-                    left=data.teaching_periods[left_index];right=data.teaching_periods[left_index+1]
+                for left,right in data.double_pairs:
                     a=x.get((r.id,d,left));b=x.get((r.id,d,right))
                     if a is None or b is None:continue
                     pair=model.NewBoolVar(f"double_{r.id}_{d}_{left}_{right}")
