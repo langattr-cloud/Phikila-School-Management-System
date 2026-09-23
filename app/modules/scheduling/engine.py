@@ -88,7 +88,7 @@ def normalize_period_scope(calendar: SchoolCalendar, requested: list[int] | None
 def build_input(db: Session, school_id: int, *, max_seconds: float = 30.0, day_indexes: list[int] | None = None, period_indexes: list[int] | None = None, class_ids: list[int] | None = None, teacher_ids: list[int] | None = None) -> SolverInput:
     calendar=load_calendar(db, school_id)
     selected_days=set(int(i) for i in day_indexes) if day_indexes else set(calendar.day_indexes)
-    selected_periods=set(int(i) for i in period_indexes) if period_indexes else set(calendar.teaching_indexes)
+    selected_periods=set(normalize_period_scope(calendar, period_indexes))
     teachers={t.id: TeacherSpec(id=t.id,name=t.name,max_per_day=t.max_lessons_per_day or 7,max_consecutive=t.max_consecutive or 4,unavailable=_slots_from_json(t.unavailable)) for t in db.query(m.TtTeacher).filter(m.TtTeacher.school_id==school_id,m.TtTeacher.is_active.is_(True))}
     rooms={r.id: RoomSpec(id=r.id,name=r.name,capacity=r.capacity or 40,room_type=r.room_type or "classroom",unavailable=_slots_from_json(r.unavailable)) for r in db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id)}
     classes={c.id: ClassSpec(id=c.id,name=c.name,student_count=c.student_count or 40,unavailable=_slots_from_json(c.unavailable)) for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}
