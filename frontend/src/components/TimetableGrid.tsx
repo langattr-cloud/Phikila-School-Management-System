@@ -226,9 +226,12 @@ export function TimetableGrid({
   }
 
   const lessonsShareMoveLane = (lesson: Lesson, candidate: Lesson) => {
-    if (view === 'whole-school' || view === 'class') return lesson.class_id === candidate.class_id
-    if (view === 'teacher') return lesson.teacher_id != null && lesson.teacher_id === candidate.teacher_id
-    return true
+    const sameClass = lesson.class_id === candidate.class_id
+    const sameTeacher = lesson.teacher_id != null && lesson.teacher_id === candidate.teacher_id
+    const sameRoom = lesson.room_id != null && lesson.room_id === candidate.room_id
+    if (view === 'whole-school' || view === 'class') return sameClass || sameTeacher || sameRoom
+    if (view === 'teacher') return sameTeacher || sameClass || sameRoom
+    return sameClass || sameTeacher || sameRoom
   }
 
   const moveBlocker = (lesson: Lesson, day: number, period: number) => {
