@@ -69,7 +69,18 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
         if not result.solved:return _fail(db,job," ".join(result.messages) or "No feasible timetable was found.")
         double_problems=enforce_double_lessons(data,result.placements)
         if double_problems:job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"failed");db.commit();return _fail(db,job," ".join(double_problems))
-        job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"passed");db.commit();timetable=_persist(db,school_id,result,_actor_uuid(db,school_id,job.created_by),config);conflicts=detect_conflicts(db,school_id,timetable.id);hard_conflicts=[c for c in conflicts if c.severity=="hard"]
+        job.checks=_set_checks(job.checks or initial_checks(),["double_lessons"],"passed");db.commit();timetable=_persist(db,school_id,result,_actor_uuid(db,school_id,job.created_by),config)
+        roomless=db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==timetable.id,m.TtLesson.room_id.is_(None)).count()
+        if roomless:
+            job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
+            if job:
+                job.checks=_set_checks(job.checks or initial_checks(),["room_conflicts"],"failed")
+                job.result_version_id=timetable.id
+                _fail(db,job,f"Generation produced {roomless} lesson(s) without a suitable classroom. Configure compatible active classrooms and generate again.")
+            return
+        job.checks=_set_checks(job.checks or initial_checks(),["room_conflicts"],"passed")
+        db.commit()
+        conflicts=detect_conflicts(db,school_id,timetable.id);hard_conflicts=[c for c in conflicts if c.severity=="hard"]
         if hard_conflicts:
             job=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first()
             if job:job.result_version_id=timetable.id;job.message=f"Generation completed but {len(hard_conflicts)} hard conflict(s) remain. The timetable was saved as a draft and cannot be put into force.";db.commit();_fail(db,job,job.message)
@@ -131,4 +142,8 @@ def _persist(db,school_id,result,actor,config):
     if version.project_id is not None:
         project=db.query(m.TtProject).filter(m.TtProject.id==version.project_id,m.TtProject.school_id==school_id).first()
         if project is not None: project.current_version_id=version.id
-    db.commit();from .engine import assign_rooms_to_lessons;assign_rooms_to_lessons(db,school_id,version.id);db.refresh(version);return version
+    db.commit()
+    from .engine import assign_rooms_to_lessons
+    assign_rooms_to_lessons(db, school_id, version.id)
+    db.refresh(version)
+    return version
