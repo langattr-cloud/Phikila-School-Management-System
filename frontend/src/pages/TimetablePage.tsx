@@ -7,7 +7,7 @@ import { TimetableGrid, UNASSIGNED_DRAG_TYPE, type LessonMeta } from '../compone
 import { CalendarIcon, CloseIcon, DuplicateIcon, TrashIcon, LockIcon, UnlockIcon, PrintIcon, DownloadIcon, MinusIcon, PlusIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { Link } from '../lib/router'
-import { AscReportViewer, type AscReportDefinition } from '../components/timetable/AscReportViewer'
+import { AscReportViewer } from '../components/timetable/AscReportViewer'
 import { ApiError, friendlyApiError } from '../lib/api'
 import { cachedFetch, formatSavedAt } from '../lib/offline'
 import { activeDays, scheduling, type Alternative, type Calendar, type Conflict, type Explanation, type Lesson, type Room, type SchoolClass, type Subject, type Teacher, type Unassigned, type Version } from '../lib/scheduling'
@@ -125,7 +125,7 @@ export function TimetablePage() {
     {scope:'teacher',label:'For each teacher',items:bundle!.teachers.map(item=>({id:item.id,name:item.name}))},
     {scope:'room',label:'For each classroom',items:bundle!.rooms.map(item=>({id:item.id,name:item.name}))},
     {scope:'subject',label:'For each subject',items:bundle!.subjects.map(item=>({id:item.id,name:item.name}))},
-  ] as AscReportDefinition[]}
+  ]}
   onScopeChange={scope=>{setReportFilter({scope,id:null});setReportIndex(0)}}
   onPrevious={()=>moveReport(-1)}
   onNext={()=>moveReport(1)}
