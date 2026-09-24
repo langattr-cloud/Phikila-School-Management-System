@@ -31,8 +31,8 @@ def make_input(requirements, avoid_rules):
 def test_subject_time_off_blocks_only_matching_subject():
     data = make_input(
         [
-            RequirementSpec(1, 1, 1, 1, None, 1),
-            RequirementSpec(2, 1, 2, 1, None, 1),
+            RequirementSpec(1, 1, 1, None, None, 1),
+            RequirementSpec(2, 1, 2, None, None, 1),
         ],
         [AvoidRule("subject", 1, {(1, 1)}, is_hard=True)],
     )
