@@ -1,10 +1,31 @@
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.modules.scheduling import models as m
 from app.modules.scheduling import router
 from app.modules.scheduling import schemas as s
 from app.modules.scheduling.tenancy import Principal
+from app.core.database import Base
+
+
+@pytest.fixture()
+def room_db_session():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    tables = [m.TtCalendarConfig.__table__, m.TtDay.__table__, m.TtPeriod.__table__, m.TtRoom.__table__, m.TtAuditEntry.__table__]
+    Base.metadata.create_all(engine, tables=tables)
+    session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
 
 
 def seed_calendar(db_session, school_id=1):
@@ -27,23 +48,23 @@ def validate(db_session, value):
     router._validate_unavailable_slots(db_session, 1, value)
 
 
-def test_valid_classroom_availability_is_accepted(db_session):
-    seed_calendar(db_session)
-    validate(db_session, {"0": [0, 1], "1": [1]})
+def test_valid_classroom_availability_is_accepted(room_db_session):
+    seed_calendar(room_db_session)
+    validate(room_db_session, {"0": [0, 1], "1": [1]})
 
 
-def test_unknown_day_index_is_rejected(db_session):
-    seed_calendar(db_session)
+def test_unknown_day_index_is_rejected(room_db_session):
+    seed_calendar(room_db_session)
     with pytest.raises(HTTPException) as exc:
-        validate(db_session, {"7": [0]})
+        validate(room_db_session, {"7": [0]})
     assert exc.value.status_code == 400
     assert "unknown day index" in str(exc.value.detail)
 
 
-def test_unknown_period_index_is_rejected(db_session):
-    seed_calendar(db_session)
+def test_unknown_period_index_is_rejected(room_db_session):
+    seed_calendar(room_db_session)
     with pytest.raises(HTTPException) as exc:
-        validate(db_session, {"0": [99]})
+        validate(room_db_session, {"0": [99]})
     assert exc.value.status_code == 400
     assert "unknown period slot" in str(exc.value.detail)
 
@@ -53,12 +74,12 @@ def test_malformed_availability_is_rejected_by_room_schema():
         s.RoomIn(name="Room A", code="ROOM-A", unavailable={"0": ["not-a-period"]})
 
 
-def test_updating_existing_classroom_without_availability_keeps_existing_value(db_session):
-    seed_calendar(db_session)
+def test_updating_existing_classroom_without_availability_keeps_existing_value(room_db_session):
+    seed_calendar(room_db_session)
     room = m.TtRoom(school_id=1, name="Room A", code="ROOM-A", unavailable={"0": [1]})
-    db_session.add(room)
-    db_session.commit()
-    db_session.refresh(room)
+    room_db_session.add(room)
+    room_db_session.commit()
+    room_db_session.refresh(room)
 
     route = next(
         route for route in router.router.routes
@@ -79,10 +100,10 @@ def test_updating_existing_classroom_without_availability_keeps_existing_value(d
             is_accessible=True,
             is_active=True,
         ),
-        db_session,
+        room_db_session,
         principal,
     )
 
-    db_session.refresh(room)
+    room_db_session.refresh(room)
     assert room.name == "Room A Updated"
     assert room.unavailable == {"0": [1]}
