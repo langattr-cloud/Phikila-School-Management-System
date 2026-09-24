@@ -37,7 +37,17 @@ def _crud(path: str, model, schema_in, schema_out, entity: str, update_schema=No
         db.refresh(row); _audit(db, principal, "create", entity, row.id, f"Created {entity} {getattr(row, 'name', row.id)}"); db.commit(); return row
     def _update(ident: int, payload, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
         row = _owned(db, model, principal.school_id, ident)
-        for key, value in payload.model_dump(exclude_unset=True).items(): setattr(row, key, value)
+        values = payload.model_dump(exclude_unset=True)
+        if entity == "class" and ("home_room_id" in values or "student_count" in values):
+            room_id = values.get("home_room_id", row.home_room_id)
+            if room_id is not None:
+                room = _owned(db, m.TtRoom, principal.school_id, room_id)
+                student_count = values.get("student_count", row.student_count)
+                if room.is_active is False:
+                    raise HTTPException(status.HTTP_409_CONFLICT, "An inactive classroom cannot be assigned as a home room.")
+                if room.capacity and student_count and room.capacity < student_count:
+                    raise HTTPException(status.HTTP_409_CONFLICT, f"Class has {student_count} students but classroom capacity is {room.capacity}.")
+        for key, value in values.items(): setattr(row, key, value)
         try: db.commit()
         except Exception: db.rollback(); raise HTTPException(status.HTTP_409_CONFLICT, f"A {entity} with that code already exists.")
         db.refresh(row); _audit(db, principal, "update", entity, row.id, f"Updated {entity} {getattr(row, 'name', row.id)}"); db.commit(); return row
@@ -50,33 +60,6 @@ _crud("teachers", m.TtTeacher, s.TeacherIn, s.TeacherOut, "teacher")
 _crud("subjects", m.TtSubject, s.SubjectIn, s.SubjectOut, "subject")
 _crud("rooms", m.TtRoom, s.RoomIn, s.RoomOut, "room")
 _crud("classes", m.TtClass, s.ClassIn, s.ClassOut, "class", update_schema=s.ClassUpdateIn)
-
-
-def _validate_class_room(db: Session, principal: Principal, class_id: int, room_id: int | None) -> None:
-    if room_id is None:
-        return
-    room = _owned(db, m.TtRoom, principal.school_id, room_id)
-    klass = _owned(db, m.TtClass, principal.school_id, class_id)
-    if room.is_active is False:
-        raise HTTPException(status.HTTP_409_CONFLICT, "An inactive classroom cannot be assigned as a home room.")
-    if room.capacity and klass.student_count and room.capacity < klass.student_count:
-        raise HTTPException(status.HTTP_409_CONFLICT, f"Class has {klass.student_count} students but classroom capacity is {room.capacity}.")
-
-@router.put("/classes/{ident}", response_model=s.ClassOut, name="update_class_validated")
-def update_class_validated(ident: int, payload: s.ClassUpdateIn, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
-    row = _owned(db, m.TtClass, principal.school_id, ident)
-    values = payload.model_dump(exclude_unset=True)
-    if "home_room_id" in values:
-        _validate_class_room(db, principal, ident, values["home_room_id"])
-    if "student_count" in values and "home_room_id" not in values and row.home_room_id is not None:
-        _validate_class_room(db, principal, ident, row.home_room_id)
-    for key, value in values.items():
-        setattr(row, key, value)
-    db.commit()
-    db.refresh(row)
-    _audit(db, principal, "update", "class", row.id, f"Updated class {row.name}", after={"home_room_id": row.home_room_id, "student_count": row.student_count})
-    db.commit()
-    return row
 
 def _owned_version(db: Session, principal: Principal, version_id: int):
     return _owned(db, m.TtVersion, principal.school_id, version_id)
