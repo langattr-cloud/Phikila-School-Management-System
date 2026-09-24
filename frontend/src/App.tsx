@@ -213,8 +213,6 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
           <Suspense fallback={<FullPageLoader label="Loading timetable…" />}>
             {routeFor(pathname)}
           </Suspense>
-          <TimetableCellToolbar />
-          <TimetableContextMenu />
         </FullscreenLayout>
       : <NormalLayout pathname={pathname} />}
   </AccessGate></RequireAuth>
