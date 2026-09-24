@@ -55,10 +55,11 @@ export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
   <div className="timetable__personal-title">{title}</div>
   <div className="entity-timetable-grid" style={{'--tt-period-count':periodCount,'--tt-day-count':dayCount,'--tt-column-template':columnTemplate,gridTemplateRows:rowTemplate,gridTemplateColumns:columnTemplate} as CSSProperties}>
    <div className="entity-timetable-corner">Day / Date</div>
-   {periods.map((p,column)=><div className={`entity-timetable-period ${p.kind==='gap'?'entity-timetable-period--gap':'entity-timetable-period--break'}`} style={{gridColumn:column+2,gridRow:1}} key={`${p.kind}-${p.index}-${p.start_time}`}><span>{p.kind==='gap'?'Gap':p.name}</span><small>{p.start_time}–{p.end_time}</small></div>)}
+   {periods.map((p,column)=><div className={`entity-timetable-period ${p.kind==='gap'?'entity-timetable-period--gap':'entity-timetable-period--break'}`} style={{gridColumn:column+2,gridRow:1}} key={`${p.kind}-${p.index}-${p.start_time}`}><span>{p.kind==='gap'?'BREAK':p.name}</span><small>{p.start_time}–{p.end_time}</small></div>)}
    {days.map((day,row)=><div className="entity-timetable-day" style={{gridColumn:1,gridRow:row+2}} key={day.index} title={day.name}>{shortDayName(day.name)}</div>)}
-   {days.flatMap((day,row)=>periods.map((period,column)=>{
-    if(period.kind==='gap')return <div className="entity-timetable-cell entity-timetable-cell--gap" style={{gridColumn:column+2,gridRow:row+2}} key={`${day.index}-gap-${period.start_time}`}/>
+   {periods.flatMap((period,column)=>{
+    if(period.kind==='gap')return <div className="entity-timetable-cell entity-timetable-cell--gap entity-timetable-cell--break-span" style={{gridColumn:column+2,gridRow:`2 / span ${dayCount}`}} key={`gap-${period.start_time}`} aria-label={`BREAK ${period.start_time}–${period.end_time}`}/>
+    return days.map((day,row)=>{
     const lesson=view.lessons.find(item=>item.day===day.index&&item.period===period.index)
     const event=events.find(item=>item.day_indexes.includes(day.index)&&item.start_time===period.start_time&&item.end_time===period.end_time)
     const isBreak=!lesson&&(!period.is_teaching||Boolean(event))
@@ -67,7 +68,8 @@ export function PublishedTimetableGridWithEvents({view,mode,events}:Props){
     return <div className={`entity-timetable-cell ${isBreak?'entity-timetable-cell--break':''}`} style={{gridColumn:column+2,gridRow:row+2}} key={`${day.index}-${period.index}`} onContextMenu={lesson?(event)=>openMenu(event,lesson,lessonIndex):undefined}>
       {lesson?<div className="entity-lesson-card" style={{'--subject-colour':colour??'#0F2A47'} as CSSProperties}><strong>{lesson.subject}</strong><span>{mode==='class'?(lesson.teacher||'—'):compactClass(lesson.class)}</span></div>:event?<span className="entity-break-letter" aria-label={`${event.name} ${event.start_time}–${event.end_time}`}>{eventLetter(event,day.index)}</span>:null}
     </div>
-   }))}
+   })
+  })}
   </div>
   <div className="timetable__print-footer"><span className="timetable__print-brand">@Phikila Timetables</span><span className="timetable__print-generated" suppressHydrationWarning>{generatedTimestamp}</span></div>
   {menu&&<div role="menu" aria-label="Timetable context menu" style={{position:'fixed',left:menu.x,top:menu.y,zIndex:2000,minWidth:170,padding:4,border:'1px solid #94a3b8',borderRadius:4,background:'#fff',boxShadow:'0 8px 24px rgba(0,0,0,.18)'}} onClick={event=>event.stopPropagation()}>
