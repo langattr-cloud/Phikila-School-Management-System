@@ -26,18 +26,57 @@ def _owned(db: Session, model, school_id: int, ident: int):
     return row
 def _audit(db: Session, principal: Principal, action: str, entity: str, entity_id: int | None, summary: str, before: dict | None = None, after: dict | None = None) -> None:
     db.add(m.TtAuditEntry(school_id=principal.school_id, actor=principal.email or principal.user_id, action=action, entity=entity, entity_id=entity_id, summary=summary, before=before, after=after))
+def _validate_unavailable_slots(db: Session, school_id: int, raw: dict[str, list[int]] | None) -> None:
+    """Reject availability slots that do not exist in the school's calendar."""
+    if raw in (None, {}):
+        return
+    calendar = load_calendar(db, school_id)
+    valid_days = {int(day.index) for day in calendar.days}
+    valid_periods = {int(period.index) for period in calendar.periods}
+    invalid_days: list[str] = []
+    invalid_periods: list[str] = []
+    for day, periods in raw.items():
+        try:
+            day_index = int(day)
+        except (TypeError, ValueError):
+            invalid_days.append(str(day))
+            continue
+        if day_index not in valid_days:
+            invalid_days.append(str(day))
+            continue
+        for period in periods or []:
+            try:
+                period_index = int(period)
+            except (TypeError, ValueError):
+                invalid_periods.append(str(day) + ":" + str(period))
+                continue
+            if period_index not in valid_periods:
+                invalid_periods.append(str(day) + ":" + str(period))
+    if invalid_days or invalid_periods:
+        details = []
+        if invalid_days:
+            details.append("unknown day index(es): " + ", ".join(invalid_days[:10]))
+        if invalid_periods:
+            details.append("unknown period slot(s): " + ", ".join(invalid_periods[:10]))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid classroom unavailable slots (" + "; ".join(details) + ").")
+
 def _crud(path: str, model, schema_in, schema_out, entity: str, update_schema=None) -> None:
     update_schema = update_schema or schema_in
     def _list(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
         return db.query(model).filter(model.school_id == principal.school_id).order_by(model.id).all()
     def _create(payload, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
-        row = model(school_id=principal.school_id, **payload.model_dump()); db.add(row)
+        values = payload.model_dump()
+        if entity == "room":
+            _validate_unavailable_slots(db, principal.school_id, values.get("unavailable"))
+        row = model(school_id=principal.school_id, **values); db.add(row)
         try: db.commit()
         except Exception: db.rollback(); raise HTTPException(status.HTTP_409_CONFLICT, f"A {entity} with that code already exists.")
         db.refresh(row); _audit(db, principal, "create", entity, row.id, f"Created {entity} {getattr(row, 'name', row.id)}"); db.commit(); return row
     def _update(ident: int, payload, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
         row = _owned(db, model, principal.school_id, ident)
         values = payload.model_dump(exclude_unset=True)
+        if entity == "room" and "unavailable" in values:
+            _validate_unavailable_slots(db, principal.school_id, values.get("unavailable"))
         if entity == "class" and ("home_room_id" in values or "student_count" in values):
             room_id = values.get("home_room_id", row.home_room_id)
             if room_id is not None:
