@@ -512,6 +512,13 @@ def publish_version(version_id: int, db: Session = Depends(get_db), principal: P
     if unassigned:
         raise HTTPException(status.HTTP_409_CONFLICT, f"Cannot publish timetable: {unassigned} lesson slot(s) remain unassigned.")
 
+    roomless = [lesson for lesson in placed if lesson.room_id is None]
+    if roomless:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Cannot publish timetable: {len(roomless)} lesson(s) have no assigned classroom.",
+        )
+
     before = {"status": version.status, "published_at": version.published_at.isoformat() if version.published_at else None}
     now = datetime.utcnow()
     db.query(m.TtVersion).filter(
