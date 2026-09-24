@@ -258,9 +258,8 @@ def assign_rooms_to_lessons(db: Session, school_id: int, version_id: int) -> int
             return True
         def fits(room): return klass is None or not klass.student_count or not room.capacity or room.capacity>=klass.student_count
         candidates=[room for room in rooms if compatible(room) and fits(room)]
-        if not candidates: candidates=[room for room in rooms if fits(room) and not any((room.id,d,p) in occupied for d,p in slots)]
-        if not candidates: candidates=[room for room in rooms if compatible(room)]
-        if not candidates: continue
+        if not candidates:
+            continue
         candidates.sort(key=lambda room:(usage.get(room.id,0),room.id)); chosen=candidates[0]; lesson.room_id=chosen.id; usage[chosen.id]=usage.get(chosen.id,0)+1
         for slot in slots: occupied[(chosen.id,slot[0],slot[1])]=lesson.id
         assigned+=1
