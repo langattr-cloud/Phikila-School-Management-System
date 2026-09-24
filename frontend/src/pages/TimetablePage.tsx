@@ -110,8 +110,8 @@ export function TimetablePage() {
     period_index:lesson.period_index,
     subject:meta.subjects.get(lesson.subject_id)?.name??'Lesson',
     secondary:activeReportFilter.scope==='class'
-      ? meta.teachers.get(lesson.teacher_id)?.name??''
-      : meta.classes.get(lesson.class_id)?.name??''
+      ? (lesson.teacher_id ? meta.teachers.get(lesson.teacher_id)?.name ?? '' : '')
+      : (meta.classes.get(lesson.class_id)?.name ?? '')
   }))}
   reportDefinitions={[
     {scope:'all',label:'Whole school',items:[]},
