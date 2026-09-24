@@ -303,8 +303,10 @@ def _blockers(db: Session, school_id: int, lesson: m.TtLesson, day: int, period:
     if teacher:
         for occupied in span:
             if occupied in _slots_from_json(teacher.unavailable): reasons.append({"factor":teacher.name,"detail":"Marked unavailable at this time."}); break
-    room=db.query(m.TtRoom).filter(m.TtRoom.id==candidate_room).first()
+    room=db.query(m.TtRoom).filter(m.TtRoom.id==candidate_room,m.TtRoom.school_id==school_id).first()
     if room:
+        if room.is_active is False:
+            reasons.append({"factor":room.name,"detail":"Classroom is inactive and cannot be assigned to a lesson."})
         for occupied in span:
             if occupied in _slots_from_json(room.unavailable): reasons.append({"factor":room.name,"detail":"Not available at this time."}); break
     klass=db.query(m.TtClass).filter(m.TtClass.id==candidate_class).first()
@@ -319,6 +321,7 @@ def _blockers(db: Session, school_id: int, lesson: m.TtLesson, day: int, period:
         if not rule.is_hard or not (set(rule.slots)&span_set): continue
         if rule.scope=="class" and rule.target_id==candidate_class: reasons.append({"factor":"Scheduling rule","detail":rule.note or "This slot must stay free for the class."})
         if rule.scope=="teacher" and rule.target_id==candidate_teacher: reasons.append({"factor":"Scheduling rule","detail":rule.note or "This slot must stay free for the teacher."})
+        if rule.scope=="subject" and rule.target_id==candidate_subject: reasons.append({"factor":"Scheduling rule","detail":rule.note or "This slot must stay free for the subject."})
     if teacher:
         same_day_lessons=db.query(m.TtLesson).filter(m.TtLesson.school_id==school_id,m.TtLesson.version_id==lesson.version_id,m.TtLesson.teacher_id==teacher.id,m.TtLesson.day_index==day,m.TtLesson.id!=lesson.id).all()
         if len(same_day_lessons)>=(teacher.max_lessons_per_day or 7): reasons.append({"factor":teacher.name,"detail":f"Already at the daily limit of {teacher.max_lessons_per_day} lessons."})
