@@ -113,7 +113,13 @@ export function TimetablePage() {
     subject:meta.subjects.get(lesson.subject_id)?.name??'Lesson',
     secondary:activeReportFilter.scope==='class'
       ? (lesson.teacher_id ? meta.teachers.get(lesson.teacher_id)?.name ?? '' : '')
-      : (meta.classes.get(lesson.class_id)?.name ?? '')
+      : activeReportFilter.scope==='teacher'
+        ? (meta.classes.get(lesson.class_id)?.name ?? '')
+        : activeReportFilter.scope==='room'
+          ? [meta.classes.get(lesson.class_id)?.name ?? '', lesson.teacher_id ? meta.teachers.get(lesson.teacher_id)?.name ?? '' : ''].filter(Boolean).join(' · ')
+          : activeReportFilter.scope==='subject'
+            ? [meta.classes.get(lesson.class_id)?.name ?? '', lesson.teacher_id ? meta.teachers.get(lesson.teacher_id)?.name ?? '' : ''].filter(Boolean).join(' · ')
+            : (meta.classes.get(lesson.class_id)?.name ?? '')
   }))}
   reportDefinitions={[
     {scope:'all',label:'Whole school',items:[]},
