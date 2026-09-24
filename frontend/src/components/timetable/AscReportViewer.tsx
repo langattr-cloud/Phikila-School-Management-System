@@ -54,14 +54,20 @@ export function AscReportViewer({
   const [showTimes, setShowTimes] = useState(true)
   const [fit, setFit] = useState<'paper' | 'wide'>('paper')
   const [selectedDays, setSelectedDays] = useState(() => new Set(days.map(day => day.index)))
+  const [selectedPeriodRange, setSelectedPeriodRange] = useState(() => ({ start: 0, end: Math.max(0, periods.length - 1) }))
 
   const activeItems = reportItems
   const pageCount = Math.max(1, activeItems.length)
   const pageNumber = activeItems.length ? Math.min(reportIndex + 1, activeItems.length) : 1
 
+  const visiblePeriods = useMemo(
+    () => periods.filter((_, index) => index >= selectedPeriodRange.start && index <= selectedPeriodRange.end),
+    [periods, selectedPeriodRange],
+  )
+
   const visibleLessons = useMemo(
-    () => lessons.filter(lesson => selectedDays.has(lesson.day_index)),
-    [lessons, selectedDays],
+    () => lessons.filter(lesson => selectedDays.has(lesson.day_index) && lesson.period_index >= selectedPeriodRange.start && lesson.period_index <= selectedPeriodRange.end),
+    [lessons, selectedDays, selectedPeriodRange],
   )
 
   if (!open) return null
@@ -128,14 +134,24 @@ export function AscReportViewer({
 
       {filterOpen && (
         <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f6f6f6', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
-          <strong style={{ fontSize: 11 }}>Filter days:</strong>
+          <strong style={{ fontSize: 11 }}>Filter:</strong>
           {days.map(day => (
             <label key={day.index} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
               <input type="checkbox" checked={selectedDays.has(day.index)} onChange={() => toggleDay(day.index)} />
               {day.name}
             </label>
           ))}
-          <button type="button" onClick={() => setSelectedDays(new Set(days.map(day => day.index)))} style={buttonStyle}>Clear filter — Print ALL</button>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>Period from
+            <select value={selectedPeriodRange.start} onChange={event => setSelectedPeriodRange(current => ({ start: Math.min(Number(event.target.value), current.end), end: current.end }))} style={{ height: 26, fontSize: 11 }}>
+              {periods.map((period, index) => <option key={period.id} value={index}>{period.short_form || period.name}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>to
+            <select value={selectedPeriodRange.end} onChange={event => setSelectedPeriodRange(current => ({ start: current.start, end: Math.max(current.start, Number(event.target.value)) }))} style={{ height: 26, fontSize: 11 }}>
+              {periods.map((period, index) => <option key={period.id} value={index}>{period.short_form || period.name}</option>)}
+            </select>
+          </label>
+          <button type="button" onClick={() => { setSelectedDays(new Set(days.map(day => day.index))); setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) }) }} style={buttonStyle}>Clear filter — Print ALL</button>
         </div>
       )}
 
@@ -153,7 +169,7 @@ export function AscReportViewer({
             <thead>
               <tr>
                 <th style={{ width: 92, border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
-                {periods.map(period => (
+                {visiblePeriods.map(period => (
                   <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
                     <div style={{ fontSize: 12, fontWeight: 800 }}>{period.is_teaching ? (period.short_form || period.name) : (period.short_form || period.name)}</div>
                     {showTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
@@ -162,10 +178,10 @@ export function AscReportViewer({
               </tr>
             </thead>
             <tbody>
-              {days.map(day => (
+              {days.filter(day => selectedDays.has(day.index)).map(day => (
                 <tr key={day.index}>
                   <th style={{ border: '1px solid #777', background: '#e6e6e6', padding: 8, textAlign: 'left', fontSize: 11 }}>{day.name.toUpperCase()}</th>
-                  {periods.map(period => {
+                  {visiblePeriods.map(period => {
                     const items = visibleLessons.filter(lesson => lesson.day_index === day.index && lesson.period_index === period.index)
                     return (
                       <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: 70, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
