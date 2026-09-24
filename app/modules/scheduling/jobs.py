@@ -24,6 +24,26 @@ def _ensure_calendar(db,school_id):
     if db.query(m.TtDay).filter(m.TtDay.school_id==school_id).count()==0: raise RuntimeError('School timetable days are not configured.')
     if db.query(m.TtPeriod).filter(m.TtPeriod.school_id==school_id).count()==0: raise RuntimeError('School timetable periods are not configured.')
 def _set_checks(checks,keys,state): return [{**c,"state":state} if c["key"] in keys else c for c in checks]
+def _resource_preflight(db, school_id: int, data) -> list[str]:
+    rooms=db.query(m.TtRoom).filter(m.TtRoom.school_id==school_id,m.TtRoom.is_active.is_(True)).all()
+    if not rooms:
+        return ["No active classrooms are configured. Add classrooms before generating a timetable."]
+    classes={c.id:c for c in db.query(m.TtClass).filter(m.TtClass.school_id==school_id)}
+    subjects={s.id:s for s in db.query(m.TtSubject).filter(m.TtSubject.school_id==school_id)}
+    shortages=[]
+    for req in data.requirements:
+        klass=classes.get(req.class_id)
+        subject=subjects.get(req.subject_id)
+        required=(subject.required_room_type or "").strip().lower() if subject else ""
+        candidates=[r for r in rooms if (not required or (r.room_type or "").strip().lower()==required) and (not r.capacity or not klass or not klass.student_count or r.capacity>=klass.student_count)]
+        if not candidates:
+            name=subject.name if subject else f"subject {req.subject_id}"
+            class_name=klass.name if klass else f"class {req.class_id}"
+            shortages.append(f"No suitable active classroom for {name} / {class_name}.")
+            if len(shortages)>=10:
+                break
+    return shortages
+
 def _actor_uuid(db,school_id,actor):
     if not actor:return None
     membership=db.query(TtMembership).filter(TtMembership.school_id==school_id,TtMembership.user_id==actor,TtMembership.is_active.is_(True)).first()
@@ -44,6 +64,8 @@ def _run_job(job_id,school_id,max_seconds,day_indexes=None):
         requested_teachers=list(dict.fromkeys(int(i) for i in (config.get("teacher_ids") or []))) or None
         data=build_input(db,school_id,max_seconds=max_seconds,day_indexes=requested_days,period_indexes=requested_periods,class_ids=requested_classes,teacher_ids=requested_teachers)
         problems=preflight(data)
+        resource_problems=_resource_preflight(db,school_id,data)
+        problems.extend(resource_problems)
         if problems:return _fail(db,job," ".join(problems))
         def cancelled():
             try: db.expire_all(); row=db.query(m.TtSolverJob).filter(m.TtSolverJob.id==job_id).first(); return bool(row and row.cancel_requested)
