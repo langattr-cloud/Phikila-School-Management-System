@@ -173,23 +173,33 @@ export function EnhancedTimetablePage() {
         min-height:calc(100vh - 42px);
         padding:8px 14px 18px;
       }
-      .timetable-floating-nav {
-        position:fixed;
-        left:14px;
-        top:50%;
-        transform:translateY(-50%);
-        z-index:1200;
-        display:flex;
-        flex-direction:column;
-        gap:7px;
-        width:210px;
-        padding:9px;
-        background:#f4f4f1;
-        border:1px solid #8d8d86;
-        border-radius:3px;
-        box-shadow:4px 5px 0 rgba(0,0,0,.12),0 8px 24px rgba(15,23,42,.16);
+      .timetable-report-nav {
+        position:sticky;
+        top:50px;
+        z-index:80;
+        display:grid;
+        grid-template-columns:minmax(180px,240px) 34px minmax(120px,1fr) 34px auto;
+        align-items:center;
+        gap:6px;
+        width:100%;
+        min-height:40px;
+        margin:0 0 8px;
+        padding:5px 7px;
+        background:#fff;
+        border:1px solid #dfe4ea;
+        border-radius:4px;
+        box-shadow:0 1px 2px rgba(15,23,42,.06);
         font:11px Arial,Helvetica,sans-serif;
-      }\n      .timetable-floating-nav__caption { display:block; margin-bottom:2px; color:#555; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }\n      .timetable-floating-nav select { height:28px; min-width:150px; padding:3px 7px; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#1f2937; font-size:11px; }\n      .timetable-floating-nav__target { flex:1 1 auto; min-width:150px; }\n      .timetable-floating-nav__target select { width:100%; }\n      .timetable-floating-nav__arrows { display:grid; grid-template-columns:38px 1fr 38px; align-items:center; gap:5px; }\n      .timetable-floating-nav__arrows button { width:38px; height:34px; padding:0; border:1px solid #777b75; border-radius:2px; background:#e6e6e2; color:#111; font-family:Georgia,'Times New Roman',serif; font-size:29px; line-height:29px; cursor:pointer; box-shadow:inset 0 1px #fff; }\n      .timetable-floating-nav__arrows button:hover { background:#d7d7d2; }\n      .timetable-floating-nav__arrows span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; color:#333; font-weight:700; }\n      .timetable-floating-nav__print { flex:0 0 auto; }\n\n      .timetable-workspace .timetable-main-toolbar {
+      }
+      .timetable-report-nav__selectors { display:flex; gap:5px; min-width:0; }
+      .timetable-report-nav select { height:28px; min-width:0; flex:1; padding:3px 7px; border:1px solid #cbd5e1; border-radius:3px; background:#fff; color:#1f2937; font-size:11px; }
+      .timetable-report-nav button { width:32px; height:30px; padding:0; border:1px solid #aeb5bd; border-radius:3px; background:#f5f6f7; color:#111827; font:28px/24px Georgia,'Times New Roman',serif; cursor:pointer; }
+      .timetable-report-nav button:hover { background:#e9edf1; }
+      .timetable-report-nav__current { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; color:#334155; font-weight:700; }
+      .timetable-report-nav > button:first-of-type { grid-column:2; }
+      .timetable-report-nav > button:last-of-type { grid-column:4; }
+      .timetable-report-nav > .timetable-print-set-launcher { grid-column:5; }
+      .timetable-workspace .timetable-main-toolbar {
         min-height:68px;
         margin:0 0 8px;
         padding:0 4px;
