@@ -1,4 +1,4 @@
-import type { Lesson, Period } from '../../lib/scheduling'
+import type { Period } from '../../lib/scheduling'
 
 type GridDay = { index: number; name: string }
 type GridLesson = {
