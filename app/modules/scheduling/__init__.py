@@ -24,8 +24,8 @@ _engine.load_constraints = _load_constraints
 
 _original_build_input = _engine.build_input
 
-def _scoped_build_input(db, school_id, *, max_seconds=30.0, class_ids=None, teacher_ids=None, period_indexes=None):
-    data = _original_build_input(db, school_id, max_seconds=max_seconds)
+def _scoped_build_input(db, school_id, *, max_seconds=30.0, day_indexes=None, class_ids=None, teacher_ids=None, period_indexes=None):
+    data = _original_build_input(db, school_id, max_seconds=max_seconds, day_indexes=day_indexes, period_indexes=period_indexes, class_ids=class_ids, teacher_ids=teacher_ids)
     selected_classes = set(int(v) for v in class_ids or []) or None
     selected_teachers = set(int(v) for v in teacher_ids or []) or None
     selected_periods = set(int(v) for v in period_indexes or []) or None
