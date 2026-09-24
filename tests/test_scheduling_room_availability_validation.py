@@ -1,4 +1,6 @@
 import pytest
+from datetime import time
+
 from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -34,11 +36,11 @@ def seed_calendar(db_session, school_id=1):
         m.TtDay(school_id=school_id, index=1, day_of_week=2, name="Tuesday"),
         m.TtPeriod(
             school_id=school_id, index=0, name="P1", short_form="P1",
-            start_time="08:00", end_time="08:40",
+            start_time=time(8, 0), end_time=time(8, 40),
         ),
         m.TtPeriod(
             school_id=school_id, index=1, name="P2", short_form="P2",
-            start_time="08:40", end_time="09:20",
+            start_time=time(8, 40), end_time=time(9, 20),
         ),
     ])
     db_session.commit()
