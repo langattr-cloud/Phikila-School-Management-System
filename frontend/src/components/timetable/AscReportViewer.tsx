@@ -61,6 +61,11 @@ export function AscReportViewer({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [rowHeight, setRowHeight] = useState<'compact' | 'standard' | 'large'>('standard')
   const [showNonTeaching, setShowNonTeaching] = useState(true)
+  const [printSettingsOpen, setPrintSettingsOpen] = useState(false)
+  const [printOrientation, setPrintOrientation] = useState<'landscape' | 'portrait'>('landscape')
+  const [printMargins, setPrintMargins] = useState<'narrow' | 'standard' | 'wide'>('standard')
+  const [printHeader, setPrintHeader] = useState(true)
+  const [printFooter, setPrintFooter] = useState(true)
 
   useEffect(() => {
     setSelectedDays(new Set(days.map(day => day.index)))
@@ -85,7 +90,7 @@ export function AscReportViewer({
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
       return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
     }),
-    [lessons, selectedDays, selectedPeriodRange],
+    [lessons, periods, selectedDays, selectedPeriodRange],
   )
 
   if (!open) return null
@@ -109,7 +114,7 @@ export function AscReportViewer({
     >
       <style>{`
         @media print {
-          @page { size: landscape; margin: 8mm; }
+          @page { size: ${printOrientation}; margin: ${printMargins === 'narrow' ? '4mm' : printMargins === 'wide' ? '14mm' : '8mm'}; }
           body.printing-timetable-report > *:not(.timetable-report-float) { display: none !important; }
           body.printing-timetable-report .asc-report-viewer {
             position: static !important;
@@ -121,6 +126,10 @@ export function AscReportViewer({
           }
           body.printing-timetable-report .asc-report-viewer > header,
           body.printing-timetable-report .asc-report-viewer > div[style*="background: #f6f6f6"] {
+            display: none !important;
+          }
+          body.printing-timetable-report .asc-report-viewer .asc-report-paper-header[data-print-header="false"],
+          body.printing-timetable-report .asc-report-viewer .asc-report-paper-footer[data-print-footer="false"] {
             display: none !important;
           }
           body.printing-timetable-report .asc-report-viewer > main {
@@ -181,6 +190,7 @@ export function AscReportViewer({
           <select aria-label="Layout" value={layout} onChange={event => setLayout(event.target.value as typeof layout)} style={{ ...buttonStyle, width: 88 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide columns</option></select>
           <button type="button" onClick={() => setBellTimes(value => !value)} style={buttonStyle}>{bellTimes ? 'Bell times' : 'No times'}</button>
           <button type="button" onClick={() => setSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={settingsOpen}>Settings</button>
+          <button type="button" onClick={() => setPrintSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={printSettingsOpen}>Print settings</button>
           <button type="button" onClick={onPrint} style={buttonStyle}>Print</button>
           <button type="button" onClick={onClose} title="Close preview" aria-label="Close preview" style={{ ...buttonStyle, fontSize: 17, lineHeight: 1 }}>×</button>
         </div>
@@ -192,6 +202,17 @@ export function AscReportViewer({
           <label style={{ fontSize: 11 }}>Rows <select value={rowHeight} onChange={event => setRowHeight(event.target.value as typeof rowHeight)} style={{ height: 26, fontSize: 11 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="large">Large</option></select></label>
           <label style={{ fontSize: 11 }}>Columns <select value={layout} onChange={event => setLayout(event.target.value as typeof layout)} style={{ height: 26, fontSize: 11 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
           <label style={{ fontSize: 11 }}><input type="checkbox" checked={showNonTeaching} onChange={event => setShowNonTeaching(event.target.checked)} /> Show non-teaching periods</label>
+        </div>
+      )}
+
+      {printSettingsOpen && (
+        <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '6px 10px', background: '#f6f6f6', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
+          <strong style={{ fontSize: 11 }}>Print settings:</strong>
+          <label style={{ fontSize: 11 }}>Orientation <select value={printOrientation} onChange={event => setPrintOrientation(event.target.value as typeof printOrientation)} style={{ height: 26, fontSize: 11 }}><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label>
+          <label style={{ fontSize: 11 }}>Margins <select value={printMargins} onChange={event => setPrintMargins(event.target.value as typeof printMargins)} style={{ height: 26, fontSize: 11 }}><option value="narrow">Narrow</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
+          <label style={{ fontSize: 11 }}><input type="checkbox" checked={printHeader} onChange={event => setPrintHeader(event.target.checked)} /> Print header</label>
+          <label style={{ fontSize: 11 }}><input type="checkbox" checked={printFooter} onChange={event => setPrintFooter(event.target.checked)} /> Print footer</label>
+          <button type="button" onClick={onPrint} style={buttonStyle}>Print now</button>
         </div>
       )}
 
@@ -220,7 +241,7 @@ export function AscReportViewer({
 
       <main style={{ flex: 1, overflow: 'auto', padding: fit === 'paper' ? 24 : 10 }}>
         <section style={{ width: fit === 'paper' ? (layout === 'compact' ? 820 : layout === 'wide' ? 1040 : 900) : 'min(1400px, calc(100vw - 20px))', minHeight: 650, margin: '0 auto', background: '#fff', boxShadow: '0 2px 14px rgba(0,0,0,.35)', padding: 22, boxSizing: 'border-box', fontFamily: 'Arial,Helvetica,sans-serif' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
+          <div className="asc-report-paper-header" data-print-header={String(printHeader)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
               <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{versionLabel}</div>
@@ -306,7 +327,7 @@ export function AscReportViewer({
             </table>
           )}
 
-          <footer style={{ marginTop: 10, paddingTop: 6, borderTop: '1px solid #aaa', display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#555' }}>
+          <footer className="asc-report-paper-footer" data-print-footer={String(printFooter)} style={{ marginTop: 10, paddingTop: 6, borderTop: '1px solid #aaa', display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#555' }}>
             <span>Phikila timetable report</span>
             <span>Page {pageNumber} / {pageCount}</span>
           </footer>
