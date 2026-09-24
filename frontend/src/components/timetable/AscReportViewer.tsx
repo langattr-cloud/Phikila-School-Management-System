@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
-export type AscReportScope = 'all' | 'class' | 'teacher' | 'room' | 'subject'
+export type AscReportScope = 'all' | 'class' | 'teacher' | 'room' | 'subject' | 'summary-class' | 'summary-teacher' | 'summary-room' | 'summary-subject' | 'lesson-grid' | 'modify'
 
 export type AscReportItem = { id: number; name: string }
 export type AscReportDay = { index: number; name: string }
@@ -58,6 +58,11 @@ export function AscReportViewer({
   const [layout, setLayout] = useState<'compact' | 'standard' | 'wide'>('standard')
   const [bellTimes, setBellTimes] = useState(true)
 
+  useEffect(() => {
+    setSelectedDays(new Set(days.map(day => day.index)))
+    setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) })
+  }, [days, periods])
+
   const activeItems = reportItems
   const pageCount = Math.max(1, activeItems.length)
   const pageNumber = activeItems.length ? Math.min(reportIndex + 1, activeItems.length) : 1
@@ -68,7 +73,10 @@ export function AscReportViewer({
   )
 
   const visibleLessons = useMemo(
-    () => lessons.filter(lesson => selectedDays.has(lesson.day_index) && lesson.period_index >= selectedPeriodRange.start && lesson.period_index <= selectedPeriodRange.end),
+    () => lessons.filter(lesson => {
+      const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
+      return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
+    }),
     [lessons, selectedDays, selectedPeriodRange],
   )
 
@@ -85,7 +93,7 @@ export function AscReportViewer({
 
   return (
     <div
-      className="asc-report-viewer"
+      className="asc-report-viewer timetable-report-float"
       role="dialog"
       aria-modal="true"
       aria-label="aSc-style print preview"
