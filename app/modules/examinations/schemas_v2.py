@@ -1,7 +1,7 @@
 """Examination schemas using canonical academic context."""
 from __future__ import annotations
 from datetime import date, datetime
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from .grading import EDUCATION_LEVELS
 
 class SeriesCreate(BaseModel):
@@ -10,6 +10,7 @@ class SeriesCreate(BaseModel):
     term_id: int | None = None
 
 class SeriesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: str | None = Field(default=None, min_length=1, max_length=100)
     academic_year_id: int | None = None
     term_id: int | None = None
@@ -39,6 +40,7 @@ class ExaminationCreate(BaseModel):
         return self
 
 class ExaminationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: str | None = Field(default=None, min_length=1, max_length=150)
     description: str | None = None
     exam_date: date | None = None
