@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
 export type AscReportScope = 'all' | 'class' | 'teacher' | 'room' | 'subject' | 'summary-class' | 'summary-teacher' | 'summary-room' | 'summary-subject' | 'lesson-grid' | 'modify'
+export type AscReportSettings = { rowHeight: 'compact' | 'standard' | 'large'; columnWidth: 'compact' | 'standard' | 'wide'; showTimes: boolean; showNonTeaching: boolean }
 
 export type AscReportItem = { id: number; name: string }
 export type AscReportDay = { index: number; name: string }
@@ -57,6 +58,9 @@ export function AscReportViewer({
   const [selectedPeriodRange, setSelectedPeriodRange] = useState(() => ({ start: 0, end: Math.max(0, periods.length - 1) }))
   const [layout, setLayout] = useState<'compact' | 'standard' | 'wide'>('standard')
   const [bellTimes, setBellTimes] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [rowHeight, setRowHeight] = useState<'compact' | 'standard' | 'large'>('standard')
+  const [showNonTeaching, setShowNonTeaching] = useState(true)
 
   useEffect(() => {
     setSelectedDays(new Set(days.map(day => day.index)))
@@ -68,9 +72,11 @@ export function AscReportViewer({
   const pageNumber = activeItems.length ? Math.min(reportIndex + 1, activeItems.length) : 1
 
   const visiblePeriods = useMemo(
-    () => periods.filter((_, index) => index >= selectedPeriodRange.start && index <= selectedPeriodRange.end),
-    [periods, selectedPeriodRange],
+    () => periods.filter((period, index) => index >= selectedPeriodRange.start && index <= selectedPeriodRange.end && (showNonTeaching || period.is_teaching)),
+    [periods, selectedPeriodRange, showNonTeaching],
   )
+
+  const rowHeightPx = rowHeight === 'compact' ? 54 : rowHeight === 'large' ? 88 : 70
 
   const visibleLessons = useMemo(
     () => lessons.filter(lesson => {
@@ -172,10 +178,20 @@ export function AscReportViewer({
           <button type="button" onClick={() => setFit(value => value === 'paper' ? 'wide' : 'paper')} style={buttonStyle}>{fit === 'paper' ? 'Fit paper' : 'Fit wide'}</button>
           <select aria-label="Layout" value={layout} onChange={event => setLayout(event.target.value as typeof layout)} style={{ ...buttonStyle, width: 88 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide columns</option></select>
           <button type="button" onClick={() => setBellTimes(value => !value)} style={buttonStyle}>{bellTimes ? 'Bell times' : 'No times'}</button>
+          <button type="button" onClick={() => setSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={settingsOpen}>Settings</button>
           <button type="button" onClick={onPrint} style={buttonStyle}>Print</button>
           <button type="button" onClick={onClose} title="Close preview" aria-label="Close preview" style={{ ...buttonStyle, fontSize: 17, lineHeight: 1 }}>×</button>
         </div>
       </header>
+
+      {settingsOpen && (
+        <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: '#ededed', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
+          <strong style={{ fontSize: 11 }}>Report settings:</strong>
+          <label style={{ fontSize: 11 }}>Rows <select value={rowHeight} onChange={event => setRowHeight(event.target.value as typeof rowHeight)} style={{ height: 26, fontSize: 11 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="large">Large</option></select></label>
+          <label style={{ fontSize: 11 }}>Columns <select value={layout} onChange={event => setLayout(event.target.value as typeof layout)} style={{ height: 26, fontSize: 11 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
+          <label style={{ fontSize: 11 }}><input type="checkbox" checked={showNonTeaching} onChange={event => setShowNonTeaching(event.target.checked)} /> Show non-teaching periods</label>
+        </div>
+      )}
 
       {filterOpen && (
         <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f6f6f6', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
@@ -229,7 +245,7 @@ export function AscReportViewer({
                   {visiblePeriods.map(period => {
                     const items = visibleLessons.filter(lesson => lesson.day_index === day.index && lesson.period_index === period.index)
                     return (
-                      <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: 70, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
+                      <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: rowHeightPx, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
                         {period.is_teaching
                           ? items.map(lesson => (
                             <div key={lesson.id} style={{ fontSize: 12, lineHeight: 1.15, fontWeight: 800, marginBottom: 3 }}>
