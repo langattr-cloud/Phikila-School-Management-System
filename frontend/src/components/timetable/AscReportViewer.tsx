@@ -99,6 +99,39 @@ export function AscReportViewer({
       aria-label="aSc-style print preview"
       style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', flexDirection: 'column', background: '#aeb4bf', overflow: 'hidden' }}
     >
+      <style>{`
+        @media print {
+          @page { size: landscape; margin: 8mm; }
+          body.printing-timetable-report > *:not(.timetable-report-float) { display: none !important; }
+          body.printing-timetable-report .asc-report-viewer {
+            position: static !important;
+            inset: auto !important;
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            background: #fff !important;
+          }
+          body.printing-timetable-report .asc-report-viewer > header,
+          body.printing-timetable-report .asc-report-viewer > div[style*="background: #f6f6f6"] {
+            display: none !important;
+          }
+          body.printing-timetable-report .asc-report-viewer > main {
+            overflow: visible !important;
+            padding: 0 !important;
+          }
+          body.printing-timetable-report .asc-report-viewer section {
+            width: 100% !important;
+            min-height: auto !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            padding: 8mm !important;
+            break-inside: avoid;
+          }
+          body.printing-timetable-report .asc-report-viewer table {
+            break-inside: avoid;
+          }
+        }
+      `}</style>
       <header style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, minHeight: 42, padding: '5px 8px', background: '#ececec', borderBottom: '1px solid #8f8f8f', boxShadow: '0 1px 2px rgba(0,0,0,.18)', fontFamily: 'Arial,Helvetica,sans-serif' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
           <button type="button" onClick={onPrevious} disabled={!activeItems.length} title="Previous page" style={buttonStyle}>‹</button>
