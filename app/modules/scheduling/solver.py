@@ -34,7 +34,7 @@ class Weights:
 @dataclass
 class AvoidRule: scope:str; target_id:int; slots:set[tuple[int,int]]; is_hard:bool=False; weight:int=25; note:str=""
 @dataclass
-class SolverInput: days:list[int]; periods:list[int]; teaching_periods:list[int]; morning_periods:list[int]; teachers:dict[int,TeacherSpec]; rooms:dict[int,RoomSpec]; classes:dict[int,ClassSpec]; subjects:dict[int,SubjectSpec]; requirements:list[RequirementSpec]; weights:Weights=field(default_factory=Weights); avoid_rules:list[AvoidRule]=field(default_factory=list); locked:dict[int,list[tuple[int,int]]]=field(default_factory=dict);locked_durations:dict[tuple[int,int,int],int]=field(default_factory=dict); max_seconds:float=30.0; workers:int=1
+class SolverInput: days:list[int]; periods:list[int]; teaching_periods:list[int]; morning_periods:list[int]; teachers:dict[int,TeacherSpec]; rooms:dict[int,RoomSpec]; classes:dict[int,ClassSpec]; subjects:dict[int,SubjectSpec]; requirements:list[RequirementSpec]; weights:Weights=field(default_factory=Weights); avoid_rules:list[AvoidRule]=field(default_factory=list); locked:dict[int,list[tuple[int,int]]]=field(default_factory=dict);locked_durations:dict[tuple[int,int,int],int]=field(default_factory=dict); double_pairs:list[tuple[int,int]]=field(default_factory=list); max_seconds:float=30.0; workers:int=1
 @dataclass
 class Placement: requirement_id:int; class_id:int; subject_id:int; teacher_id:int|None; room_id:int|None; day:int; period:int; duration:int=1
 @dataclass
