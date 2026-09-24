@@ -44,12 +44,15 @@ type Props = {
   onNext: () => void
   onSelectIndex: (index: number) => void
   onPrint: () => void
+  onVersionChange?: (versionId: number) => void
+  reportVersions?: Array<{ id: number; label: string }>
+  activeVersionId?: number | null
   onClose: () => void
 }
 
 export function AscReportViewer({
   open, title, versionLabel, scope, reportIndex, reportItems, days, periods, lessons,
-  reportDefinitions, onScopeChange, onPrevious, onNext, onSelectIndex, onPrint, onClose,
+  reportDefinitions, onScopeChange, onPrevious, onNext, onSelectIndex, onPrint, onVersionChange, reportVersions = [], activeVersionId, onClose,
 }: Props) {
   const [filterOpen, setFilterOpen] = useState(false)
   const [showTimes, setShowTimes] = useState(true)
@@ -157,6 +160,17 @@ export function AscReportViewer({
         </div>
 
         <div style={{ height: 24, borderLeft: '1px solid #bbb' }} />
+
+        {reportVersions.length > 0 && onVersionChange && (
+          <select
+            aria-label="Timetable version"
+            value={activeVersionId == null ? '' : String(activeVersionId)}
+            onChange={event => onVersionChange(Number(event.target.value))}
+            style={{ height: 28, maxWidth: 170, border: '1px solid #999', background: '#fff', fontSize: 11, padding: '0 5px' }}
+          >
+            {reportVersions.map(version => <option key={version.id} value={String(version.id)}>{version.label}</option>)}
+          </select>
+        )}
 
         <select
           aria-label="Report"
