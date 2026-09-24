@@ -41,13 +41,14 @@ type Props = {
   onScopeChange: (scope: AscReportScope) => void
   onPrevious: () => void
   onNext: () => void
+  onSelectIndex: (index: number) => void
   onPrint: () => void
   onClose: () => void
 }
 
 export function AscReportViewer({
   open, title, versionLabel, scope, reportIndex, reportItems, days, periods, lessons,
-  reportDefinitions, onScopeChange, onPrevious, onNext, onPrint, onClose,
+  reportDefinitions, onScopeChange, onPrevious, onNext, onSelectIndex, onPrint, onClose,
 }: Props) {
   const [filterOpen, setFilterOpen] = useState(false)
   const [showTimes, setShowTimes] = useState(true)
@@ -106,13 +107,7 @@ export function AscReportViewer({
             value={String(activeItems[Math.min(reportIndex, activeItems.length - 1)].id)}
             onChange={event => {
               const index = activeItems.findIndex(item => item.id === Number(event.target.value))
-              if (index >= 0) {
-                // Navigation is deliberately expressed through the same next/previous state in the parent.
-                while (false) onNext()
-                const delta = index - reportIndex
-                if (delta > 0) for (let i = 0; i < delta; i += 1) onNext()
-                if (delta < 0) for (let i = 0; i > delta; i -= 1) onPrevious()
-              }
+              if (index >= 0) onSelectIndex(index)
             }}
             style={{ height: 28, maxWidth: 180, border: '1px solid #999', background: '#fff', fontSize: 11, padding: '0 5px' }}
           >
