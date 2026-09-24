@@ -1,12 +1,10 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { PlatformSessionProvider, usePlatformSession } from './lib/session'
 import { RouterProvider, normalisePath, useNavigate, useRouter } from './lib/router'
 import { ToastProvider } from './components/Toast'
 import { AppShell } from './components/AppShell'
 import { FullPageLoader } from './components/States'
-import { TimetableAppearanceEditor, type SelectedCell } from './components/TimetableAppearanceEditor'
-import { TimetableContextMenu } from './components/TimetableContextMenu'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { SignUpPage } from './pages/SignUpPage'
@@ -90,68 +88,6 @@ function AccessGate({ children }: { children: ReactNode }) {
   if (error) return <>{children}</>
   if (session && !session.has_access) return <Suspense fallback={<FullPageLoader label="Loading…" />}><AwaitingApprovalPage /></Suspense>
   return <>{children}</>
-}
-
-function applyTitleStyle(style: Record<string, unknown> | undefined) {
-  if (!style) return
-  const titles = document.querySelectorAll<HTMLElement>('.timetable-print-header h1, .page-header__title')
-  titles.forEach((title) => {
-    if (typeof style.font === 'string') title.style.fontFamily = style.font
-    if (typeof style.size === 'number') title.style.fontSize = `${style.size}px`
-    if (typeof style.bold === 'boolean') title.style.fontWeight = style.bold ? '700' : '400'
-    if (typeof style.italic === 'boolean') title.style.fontStyle = style.italic ? 'italic' : 'normal'
-    if (typeof style.color === 'string') title.style.color = style.color
-    if (typeof style.horizontal === 'string') title.style.textAlign = style.horizontal
-    if (typeof style.vertical === 'string') title.style.alignItems = style.vertical === 'top' ? 'flex-start' : style.vertical === 'bottom' ? 'flex-end' : 'center'
-    if (typeof style.wrap === 'boolean') title.style.whiteSpace = style.wrap ? 'normal' : 'nowrap'
-  })
-}
-
-function TimetableCellToolbar() {
-  const { pathname } = useRouter()
-  const route = normalisePath(pathname)
-  const isTimetable = route === '/timetable' || route === '/timetable/whole-school' || route === '/my-timetable'
-  const [open, setOpen] = useState(false)
-  const [editorOpen, setEditorOpen] = useState(false)
-  const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  useEffect(() => {
-    if (!isTimetable) return
-    const onSelected = (event: Event) => {
-      const detail = (event as CustomEvent<SelectedCell>).detail
-      if (detail) {
-        setSelectedCell(detail)
-        setPosition({ x: window.innerWidth / 2, y: 120 })
-        setOpen(true)
-      }
-    }
-    const onAppearance = (event: Event) => {
-      const detail = (event as CustomEvent<{ selectedCell?: SelectedCell; style?: Record<string, unknown> }>).detail
-      if (detail?.selectedCell && (detail.selectedCell as SelectedCell & { targetType?: string }).targetType === 'title') applyTitleStyle(detail.style)
-    }
-    window.addEventListener('phikila:timetable-cell-selected', onSelected)
-    window.addEventListener('phikila:timetable-appearance-changed', onAppearance)
-    return () => {
-      window.removeEventListener('phikila:timetable-cell-selected', onSelected)
-      window.removeEventListener('phikila:timetable-appearance-changed', onAppearance)
-    }
-  }, [isTimetable])
-  useEffect(() => {
-    if (!isTimetable) return
-    try {
-      const saved = JSON.parse(localStorage.getItem('phikila:timetable-title-style:v1') || 'null')
-      if (saved) applyTitleStyle(saved)
-    } catch {}
-  }, [isTimetable])
-  if (!isTimetable) return null
-  return <>
-    {open && selectedCell && <div data-timetable-context-toolbar style={{ position: 'fixed', left: '50%', top: position.y, transform: 'translateX(-50%)', zIndex: 1200, display: 'flex', gap: 8, alignItems: 'center', padding: '8px 10px', background: 'var(--color-surface,#fff)', border: '1px solid var(--color-line,#ddd)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.14)' }}>
-      <span>{selectedCell.label}</span>
-      <button className="button button--secondary button--sm" onClick={() => { setOpen(false); setEditorOpen(true) }}>Format</button>
-      <button className="button button--ghost button--sm" onClick={() => setOpen(false)}>Close</button>
-    </div>}
-    <div data-timetable-appearance-editor><TimetableAppearanceEditor open={editorOpen} onClose={() => setEditorOpen(false)} selectedCell={selectedCell} /></div>
-  </>
 }
 
 function FullscreenLayout({ children }: { children: ReactNode }) {
@@ -266,8 +202,6 @@ function NormalLayout({ pathname }: { pathname: string }) {
     <Suspense fallback={<FullPageLoader label="Loading page…" />}>
       {routeFor(pathname)}
     </Suspense>
-    <TimetableCellToolbar />
-    <TimetableContextMenu />
   </AppShell>
 }
 
