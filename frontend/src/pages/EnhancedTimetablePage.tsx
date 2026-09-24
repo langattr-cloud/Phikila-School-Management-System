@@ -10,7 +10,7 @@ import { TimetablePage } from './TimetablePage'
  * over the viewport so the grid gets the same screen-first treatment as a
  * desktop scheduling application.
  */
-function FloatingTimetableNavigator() {
+function TimetableNavigator() {
   const [scope, setScope] = useState('all')
   const [target, setTarget] = useState('')
   const [targets, setTargets] = useState<{ value: string; label: string }[]>([])
@@ -54,15 +54,13 @@ function FloatingTimetableNavigator() {
     }
     if (!targets.length) return
     const index = Math.max(0, targets.findIndex((item) => item.value === target))
-    const nextIndex = (index + delta + targets.length) % targets.length
-    changeTarget(targets[nextIndex].value)
+    changeTarget(targets[(index + delta + targets.length) % targets.length].value)
   }
 
   const currentLabel = targets.find((item) => item.value === target)?.label ?? (scope === 'all' ? 'Whole school' : 'Choose…')
 
-  return <div className="timetable-floating-nav" aria-label="Timetable report navigation">
-    <div className="timetable-floating-nav__report">
-      <span className="timetable-floating-nav__caption">Select your report</span>
+  return <div className="timetable-report-nav" aria-label="Timetable navigation">
+    <div className="timetable-report-nav__selectors">
       <select aria-label="Report type" value={scope} onChange={(event) => changeScope(event.target.value)}>
         <option value="all">Whole school</option>
         <option value="class">Classes</option>
@@ -70,18 +68,14 @@ function FloatingTimetableNavigator() {
         <option value="room">Rooms</option>
         <option value="subject">Subjects</option>
       </select>
-    </div>
-    <div className="timetable-floating-nav__target">
       <select aria-label="Selected timetable" value={target} disabled={scope === 'all' || !targets.length} onChange={(event) => changeTarget(event.target.value)}>
         {scope === 'all' ? <option value="">Whole school timetable</option> : <><option value="">Choose…</option>{targets.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</>}
       </select>
     </div>
-    <div className="timetable-floating-nav__arrows">
-      <button type="button" aria-label="Previous report" title="Previous report" onClick={() => move(-1)}>‹</button>
-      <span aria-live="polite">{currentLabel}</span>
-      <button type="button" aria-label="Next report" title="Next report" onClick={() => move(1)}>›</button>
-    </div>
-    <div className="timetable-floating-nav__print"><TimetablePrintSetLauncher /></div>
+    <button type="button" aria-label="Previous timetable" title="Previous" onClick={() => move(-1)}>‹</button>
+    <span className="timetable-report-nav__current" aria-live="polite">{currentLabel}</span>
+    <button type="button" aria-label="Next timetable" title="Next" onClick={() => move(1)}>›</button>
+    <TimetablePrintSetLauncher />
   </div>
 }
 
@@ -114,7 +108,7 @@ export function EnhancedTimetablePage() {
 
     <main className="timetable-workspace__content">
       <TimetableMainToolbar />
-      <FloatingTimetableNavigator />
+      <TimetableNavigator />
       <TimetablePage />
     </main>
 
