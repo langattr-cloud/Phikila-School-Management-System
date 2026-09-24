@@ -55,6 +55,8 @@ export function AscReportViewer({
   const [fit, setFit] = useState<'paper' | 'wide'>('paper')
   const [selectedDays, setSelectedDays] = useState(() => new Set(days.map(day => day.index)))
   const [selectedPeriodRange, setSelectedPeriodRange] = useState(() => ({ start: 0, end: Math.max(0, periods.length - 1) }))
+  const [layout, setLayout] = useState<'compact' | 'standard' | 'wide'>('standard')
+  const [bellTimes, setBellTimes] = useState(true)
 
   const activeItems = reportItems
   const pageCount = Math.max(1, activeItems.length)
@@ -127,6 +129,8 @@ export function AscReportViewer({
           <button type="button" onClick={() => setFilterOpen(value => !value)} style={buttonStyle} aria-expanded={filterOpen}>Filter</button>
           <button type="button" onClick={() => setShowTimes(value => !value)} style={buttonStyle}>{showTimes ? 'Hide times' : 'Show times'}</button>
           <button type="button" onClick={() => setFit(value => value === 'paper' ? 'wide' : 'paper')} style={buttonStyle}>{fit === 'paper' ? 'Fit paper' : 'Fit wide'}</button>
+          <select aria-label="Layout" value={layout} onChange={event => setLayout(event.target.value as typeof layout)} style={{ ...buttonStyle, width: 88 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide columns</option></select>
+          <button type="button" onClick={() => setBellTimes(value => !value)} style={buttonStyle}>{bellTimes ? 'Bell times' : 'No times'}</button>
           <button type="button" onClick={onPrint} style={buttonStyle}>Print</button>
           <button type="button" onClick={onClose} title="Close preview" aria-label="Close preview" style={{ ...buttonStyle, fontSize: 17, lineHeight: 1 }}>×</button>
         </div>
@@ -156,7 +160,7 @@ export function AscReportViewer({
       )}
 
       <main style={{ flex: 1, overflow: 'auto', padding: fit === 'paper' ? 24 : 10 }}>
-        <section style={{ width: fit === 'paper' ? 900 : 'min(1400px, calc(100vw - 20px))', minHeight: 650, margin: '0 auto', background: '#fff', boxShadow: '0 2px 14px rgba(0,0,0,.35)', padding: 22, boxSizing: 'border-box', fontFamily: 'Arial,Helvetica,sans-serif' }}>
+        <section style={{ width: fit === 'paper' ? (layout === 'compact' ? 820 : layout === 'wide' ? 1040 : 900) : 'min(1400px, calc(100vw - 20px))', minHeight: 650, margin: '0 auto', background: '#fff', boxShadow: '0 2px 14px rgba(0,0,0,.35)', padding: 22, boxSizing: 'border-box', fontFamily: 'Arial,Helvetica,sans-serif' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
@@ -172,7 +176,7 @@ export function AscReportViewer({
                 {visiblePeriods.map(period => (
                   <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
                     <div style={{ fontSize: 12, fontWeight: 800 }}>{period.is_teaching ? (period.short_form || period.name) : (period.short_form || period.name)}</div>
-                    {showTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
+                    {showTimes && bellTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
                   </th>
                 ))}
               </tr>
