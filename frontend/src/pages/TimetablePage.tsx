@@ -137,4 +137,4 @@ export function TimetablePage() {
       </div>
     </div>
   </div>
-</div>}{confirmingDelete&&<ConfirmDialog open title="Delete this lesson?" description="The selected lesson will be removed from the timetable." confirmLabel="Delete lesson" destructive onConfirm={handleDelete} onCancel={()=>setConfirmingDelete(null)}/>}</> }{confirmingDelete&&<ConfirmDialog open title="Delete this lesson?" description="The selected lesson will be removed from the timetable." confirmLabel="Delete lesson" destructive onConfirm={handleDelete} onCancel={()=>setConfirmingDelete(null)}/>}</> }
+</div>}{confirmingDelete&&<ConfirmDialog open title="Delete this lesson?" description="The selected lesson will be removed from the timetable." confirmLabel="Delete lesson" destructive onConfirm={handleDelete} onCancel={()=>setConfirmingDelete(null)}/>}</> }
