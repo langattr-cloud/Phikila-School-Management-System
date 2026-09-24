@@ -100,7 +100,7 @@ export function TimetablePage() {
     <div className="timetable-report-float__actions">
       <button type="button" onClick={()=>setReportOpen(false)} className="timetable-report-float__close">Close</button>
     </div>
-    <div className="timetable-report-float__title"><strong>{reportTitle}</strong><span>{version?\`Version ${version.number} · ${version.status}\`:'Timetable report'}</span></div>
+    <div className="timetable-report-float__title"><strong>{reportTitle}</strong><span>{version?`Version ${version.number} · ${version.status}`:'Timetable report'}</span></div>
     <div className="timetable-report-float__actions">
       <button type="button" onClick={()=>moveReport(-1)} disabled={!reportItems.length} aria-label="Previous report">‹ Previous</button>
       {reportItems.length>0&&<span style={{fontSize:11,fontWeight:700}}>{reportIndex+1} / {reportItems.length}</span>}
