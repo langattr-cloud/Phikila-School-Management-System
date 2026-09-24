@@ -358,6 +358,8 @@ def update_lesson(lesson_id:int,payload:s.LessonUpdateIn,db:Session=Depends(get_
     lesson=_owned_lesson(db,principal,lesson_id)
     version=_owned_version(db,principal,lesson.version_id)
     _ensure_editable_version(version)
+    if payload.room_id is not None:
+        _validate_lesson_room(db, principal, lesson, payload.room_id)
     if lesson.is_locked and (payload.day_index is not None or payload.period_index is not None or payload.duration is not None):
         raise HTTPException(status.HTTP_409_CONFLICT,"Locked lessons cannot be moved or resized. Unlock the lesson first.")
     day=lesson.day_index if payload.day_index is None else payload.day_index
@@ -366,9 +368,11 @@ def update_lesson(lesson_id:int,payload:s.LessonUpdateIn,db:Session=Depends(get_
     reasons=_blockers(db,principal.school_id,lesson,day,period,duration=duration)
     if reasons:
         raise HTTPException(status.HTTP_409_CONFLICT,detail={"message":"Lesson move or resize is blocked.","reasons":reasons})
-    before={"day_index":lesson.day_index,"period_index":lesson.period_index,"duration":lesson.duration}
+    before={"day_index":lesson.day_index,"period_index":lesson.period_index,"duration":lesson.duration,"room_id":lesson.room_id}
     lesson.day_index=day; lesson.period_index=period; lesson.duration=duration
-    _audit(db,principal,"update","lesson",lesson.id,"Moved/resized lesson",before=before,after={"day_index":day,"period_index":period,"duration":duration})
+    if payload.room_id is not None:
+        lesson.room_id=payload.room_id
+    _audit(db,principal,"update","lesson",lesson.id,"Moved/resized lesson",before=before,after={"day_index":day,"period_index":period,"duration":duration,"room_id":lesson.room_id})
     try:
         db.commit(); db.refresh(lesson); return lesson
     except Exception:
