@@ -68,8 +68,10 @@ export function AscReportViewer({
   }, [days, periods])
 
   const activeItems = reportItems
-  const pageCount = Math.max(1, activeItems.length)
-  const pageNumber = activeItems.length ? Math.min(reportIndex + 1, activeItems.length) : 1
+  const isSummary = scope.startsWith('summary-')
+  const isSpecialReport = isSummary || scope === 'lesson-grid' || scope === 'modify'
+  const pageCount = isSpecialReport ? 1 : Math.max(1, activeItems.length)
+  const pageNumber = isSpecialReport ? 1 : (activeItems.length ? Math.min(reportIndex + 1, activeItems.length) : 1)
 
   const visiblePeriods = useMemo(
     () => periods.filter((period, index) => index >= selectedPeriodRange.start && index <= selectedPeriodRange.end && (showNonTeaching || period.is_teaching)),
@@ -156,7 +158,7 @@ export function AscReportViewer({
           {reportDefinitions.map(definition => <option key={definition.scope} value={definition.scope}>{definition.label}</option>)}
         </select>
 
-        {scope !== 'all' && activeItems.length > 0 && (
+        {!isSpecialReport && scope !== 'all' && activeItems.length > 0 && (
           <select
             aria-label="Report item"
             value={String(activeItems[Math.min(reportIndex, activeItems.length - 1)].id)}
@@ -226,41 +228,83 @@ export function AscReportViewer({
             <div style={{ fontSize: 9, color: '#555' }}>Page {pageNumber} / {pageCount}</div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <thead>
-              <tr>
-                <th style={{ width: 92, border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
-                {visiblePeriods.map(period => (
-                  <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
-                    <div style={{ fontSize: 12, fontWeight: 800 }}>{period.is_teaching ? (period.short_form || period.name) : (period.short_form || period.name)}</div>
-                    {showTimes && bellTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {days.filter(day => selectedDays.has(day.index)).map(day => (
-                <tr key={day.index}>
-                  <th style={{ border: '1px solid #777', background: '#e6e6e6', padding: 8, textAlign: 'left', fontSize: 11 }}>{day.name.toUpperCase()}</th>
-                  {visiblePeriods.map(period => {
-                    const items = visibleLessons.filter(lesson => lesson.day_index === day.index && lesson.period_index === period.index)
-                    return (
-                      <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: rowHeightPx, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
-                        {period.is_teaching
-                          ? items.map(lesson => (
-                            <div key={lesson.id} style={{ fontSize: 12, lineHeight: 1.15, fontWeight: 800, marginBottom: 3 }}>
-                              <div>{lesson.subject}</div>
-                              {lesson.secondary && <div style={{ fontSize: 9, fontWeight: 600, color: '#555', marginTop: 2 }}>{lesson.secondary}</div>}
-                            </div>
-                          ))
-                          : <span style={{ fontSize: 8, fontWeight: 800 }}>{period.short_form || period.name}</span>}
-                      </td>
-                    )
+          {scope === 'lesson-grid' ? (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '70px 110px 1fr 1fr', border: '1px solid #777', fontSize: 10 }}>
+                {['#', 'Day', 'Period', 'Lesson'].map(header => <div key={header} style={{ padding: 7, fontWeight: 800, background: '#e6e6e6', borderRight: '1px solid #aaa' }}>{header}</div>)}
+                {visibleLessons.map((lesson, index) => {
+                  const day = days.find(item => item.index === lesson.day_index)
+                  const period = periods.find(item => item.index === lesson.period_index)
+                  return <React.Fragment key={lesson.id}>
+                    <div style={{ padding: 7, borderTop: '1px solid #aaa' }}>{index + 1}</div>
+                    <div style={{ padding: 7, borderTop: '1px solid #aaa' }}>{day?.name || '—'}</div>
+                    <div style={{ padding: 7, borderTop: '1px solid #aaa' }}>{period?.name || '—'}</div>
+                    <div style={{ padding: 7, borderTop: '1px solid #aaa' }}><strong>{lesson.subject}</strong>{lesson.secondary ? <span> · {lesson.secondary}</span> : null}</div>
+                  </React.Fragment>
+                })}
+              </div>
+            </div>
+          ) : scope === 'modify' ? (
+            <div style={{ border: '1px solid #aaa', padding: 16, fontSize: 11 }}>
+              <strong>Modify current report</strong>
+              <p style={{ margin: '8px 0' }}>Adjust the current report presentation without changing timetable data.</p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <label>Row size <select value={rowHeight} onChange={event => setRowHeight(event.target.value as typeof rowHeight)}><option value="compact">Compact</option><option value="standard">Standard</option><option value="large">Large</option></select></label>
+                <label>Column size <select value={layout} onChange={event => setLayout(event.target.value as typeof layout)}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
+                <label><input type="checkbox" checked={showTimes} onChange={event => setShowTimes(event.target.checked)} /> Show times</label>
+                <label><input type="checkbox" checked={bellTimes} onChange={event => setBellTimes(event.target.checked)} /> Print bell times</label>
+              </div>
+            </div>
+          ) : isSummary ? (
+            <div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                <thead><tr><th style={summaryCellStyle}>Day</th><th style={summaryCellStyle}>Period</th><th style={summaryCellStyle}>Subject</th><th style={summaryCellStyle}>Details</th></tr></thead>
+                <tbody>
+                  {visibleLessons.map(lesson => {
+                    const day = days.find(item => item.index === lesson.day_index)
+                    const period = periods.find(item => item.index === lesson.period_index)
+                    return <tr key={lesson.id}><td style={summaryCellStyle}>{day?.name || '—'}</td><td style={summaryCellStyle}>{period?.short_form || period?.name || '—'}</td><td style={summaryCellStyle}><strong>{lesson.subject}</strong></td><td style={summaryCellStyle}>{lesson.secondary || '—'}</td></tr>
                   })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 92, border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
+                  {visiblePeriods.map(period => (
+                    <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800 }}>{period.short_form || period.name}</div>
+                      {showTimes && bellTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {days.filter(day => selectedDays.has(day.index)).map(day => (
+                  <tr key={day.index}>
+                    <th style={{ border: '1px solid #777', background: '#e6e6e6', padding: 8, textAlign: 'left', fontSize: 11 }}>{day.name.toUpperCase()}</th>
+                    {visiblePeriods.map(period => {
+                      const items = visibleLessons.filter(lesson => lesson.day_index === day.index && lesson.period_index === period.index)
+                      return (
+                        <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: rowHeightPx, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
+                          {period.is_teaching
+                            ? items.map(lesson => (
+                              <div key={lesson.id} style={{ fontSize: 12, lineHeight: 1.15, fontWeight: 800, marginBottom: 3 }}>
+                                <div>{lesson.subject}</div>
+                                {lesson.secondary && <div style={{ fontSize: 9, fontWeight: 600, color: '#555', marginTop: 2 }}>{lesson.secondary}</div>}
+                              </div>
+                            ))
+                            : <span style={{ fontSize: 8, fontWeight: 800 }}>{period.short_form || period.name}</span>}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           <footer style={{ marginTop: 10, paddingTop: 6, borderTop: '1px solid #aaa', display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#555' }}>
             <span>Phikila timetable report</span>
@@ -271,6 +315,8 @@ export function AscReportViewer({
     </div>
   )
 }
+
+const summaryCellStyle: React.CSSProperties = { border: '1px solid #777', padding: 7, textAlign: 'left' }
 
 const buttonStyle: React.CSSProperties = {
   height: 28,
