@@ -1,0 +1,212 @@
+import React, { useMemo, useState } from 'react'
+
+export type AscReportScope = 'all' | 'class' | 'teacher' | 'room' | 'subject'
+
+export type AscReportItem = { id: number; name: string }
+export type AscReportDay = { index: number; name: string }
+export type AscReportPeriod = {
+  id: number | string
+  index: number
+  name: string
+  short_form?: string | null
+  start_time: string
+  end_time: string
+  is_teaching: boolean
+}
+export type AscReportLesson = {
+  id: number
+  day_index: number
+  period_index: number
+  subject: string
+  secondary?: string | null
+}
+
+export type AscReportDefinition = {
+  scope: AscReportScope
+  label: string
+  items: AscReportItem[]
+}
+
+type Props = {
+  open: boolean
+  title: string
+  versionLabel: string
+  scope: AscReportScope
+  reportIndex: number
+  reportItems: AscReportItem[]
+  days: AscReportDay[]
+  periods: AscReportPeriod[]
+  lessons: AscReportLesson[]
+  reportDefinitions: AscReportDefinition[]
+  onScopeChange: (scope: AscReportScope) => void
+  onPrevious: () => void
+  onNext: () => void
+  onPrint: () => void
+  onClose: () => void
+}
+
+export function AscReportViewer({
+  open, title, versionLabel, scope, reportIndex, reportItems, days, periods, lessons,
+  reportDefinitions, onScopeChange, onPrevious, onNext, onPrint, onClose,
+}: Props) {
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [showTimes, setShowTimes] = useState(true)
+  const [fit, setFit] = useState<'paper' | 'wide'>('paper')
+  const [selectedDays, setSelectedDays] = useState(() => new Set(days.map(day => day.index)))
+
+  const activeItems = reportItems
+  const pageCount = Math.max(1, activeItems.length)
+  const pageNumber = activeItems.length ? Math.min(reportIndex + 1, activeItems.length) : 1
+
+  const visibleLessons = useMemo(
+    () => lessons.filter(lesson => selectedDays.has(lesson.day_index)),
+    [lessons, selectedDays],
+  )
+
+  if (!open) return null
+
+  const toggleDay = (index: number) => {
+    setSelectedDays(current => {
+      const next = new Set(current)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }
+
+  return (
+    <div
+      className="asc-report-viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-label="aSc-style print preview"
+      style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', flexDirection: 'column', background: '#aeb4bf', overflow: 'hidden' }}
+    >
+      <header style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, minHeight: 42, padding: '5px 8px', background: '#ececec', borderBottom: '1px solid #8f8f8f', boxShadow: '0 1px 2px rgba(0,0,0,.18)', fontFamily: 'Arial,Helvetica,sans-serif' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <button type="button" onClick={onPrevious} disabled={!activeItems.length} title="Previous page" style={buttonStyle}>‹</button>
+          <span style={{ minWidth: 62, textAlign: 'center', fontSize: 11, fontWeight: 700 }}>{pageNumber} / {pageCount}</span>
+          <button type="button" onClick={onNext} disabled={!activeItems.length} title="Next page" style={buttonStyle}>›</button>
+        </div>
+
+        <div style={{ height: 24, borderLeft: '1px solid #bbb' }} />
+
+        <select
+          aria-label="Report"
+          value={scope}
+          onChange={event => onScopeChange(event.target.value as AscReportScope)}
+          style={{ height: 28, border: '1px solid #999', background: '#fff', fontSize: 11, padding: '0 5px' }}
+        >
+          {reportDefinitions.map(definition => <option key={definition.scope} value={definition.scope}>{definition.label}</option>)}
+        </select>
+
+        {scope !== 'all' && activeItems.length > 0 && (
+          <select
+            aria-label="Report item"
+            value={String(activeItems[Math.min(reportIndex, activeItems.length - 1)].id)}
+            onChange={event => {
+              const index = activeItems.findIndex(item => item.id === Number(event.target.value))
+              if (index >= 0) {
+                // Navigation is deliberately expressed through the same next/previous state in the parent.
+                while (false) onNext()
+                const delta = index - reportIndex
+                if (delta > 0) for (let i = 0; i < delta; i += 1) onNext()
+                if (delta < 0) for (let i = 0; i > delta; i -= 1) onPrevious()
+              }
+            }}
+            style={{ height: 28, maxWidth: 180, border: '1px solid #999', background: '#fff', fontSize: 11, padding: '0 5px' }}
+          >
+            {activeItems.map(item => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
+          </select>
+        )}
+
+        <strong style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', fontSize: 12 }}>{title}</strong>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button type="button" onClick={() => setFilterOpen(value => !value)} style={buttonStyle} aria-expanded={filterOpen}>Filter</button>
+          <button type="button" onClick={() => setShowTimes(value => !value)} style={buttonStyle}>{showTimes ? 'Hide times' : 'Show times'}</button>
+          <button type="button" onClick={() => setFit(value => value === 'paper' ? 'wide' : 'paper')} style={buttonStyle}>{fit === 'paper' ? 'Fit paper' : 'Fit wide'}</button>
+          <button type="button" onClick={onPrint} style={buttonStyle}>Print</button>
+          <button type="button" onClick={onClose} title="Close preview" aria-label="Close preview" style={{ ...buttonStyle, fontSize: 17, lineHeight: 1 }}>×</button>
+        </div>
+      </header>
+
+      {filterOpen && (
+        <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f6f6f6', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
+          <strong style={{ fontSize: 11 }}>Filter days:</strong>
+          {days.map(day => (
+            <label key={day.index} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+              <input type="checkbox" checked={selectedDays.has(day.index)} onChange={() => toggleDay(day.index)} />
+              {day.name}
+            </label>
+          ))}
+          <button type="button" onClick={() => setSelectedDays(new Set(days.map(day => day.index)))} style={buttonStyle}>Clear filter — Print ALL</button>
+        </div>
+      )}
+
+      <main style={{ flex: 1, overflow: 'auto', padding: fit === 'paper' ? 24 : 10 }}>
+        <section style={{ width: fit === 'paper' ? 900 : 'min(1400px, calc(100vw - 20px))', minHeight: 650, margin: '0 auto', background: '#fff', boxShadow: '0 2px 14px rgba(0,0,0,.35)', padding: 22, boxSizing: 'border-box', fontFamily: 'Arial,Helvetica,sans-serif' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
+              <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{versionLabel}</div>
+            </div>
+            <div style={{ fontSize: 9, color: '#555' }}>Page {pageNumber} / {pageCount}</div>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <thead>
+              <tr>
+                <th style={{ width: 92, border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
+                {periods.map(period => (
+                  <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800 }}>{period.is_teaching ? (period.short_form || period.name) : (period.short_form || period.name)}</div>
+                    {showTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {days.map(day => (
+                <tr key={day.index}>
+                  <th style={{ border: '1px solid #777', background: '#e6e6e6', padding: 8, textAlign: 'left', fontSize: 11 }}>{day.name.toUpperCase()}</th>
+                  {periods.map(period => {
+                    const items = visibleLessons.filter(lesson => lesson.day_index === day.index && lesson.period_index === period.index)
+                    return (
+                      <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: 70, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
+                        {period.is_teaching
+                          ? items.map(lesson => (
+                            <div key={lesson.id} style={{ fontSize: 12, lineHeight: 1.15, fontWeight: 800, marginBottom: 3 }}>
+                              <div>{lesson.subject}</div>
+                              {lesson.secondary && <div style={{ fontSize: 9, fontWeight: 600, color: '#555', marginTop: 2 }}>{lesson.secondary}</div>}
+                            </div>
+                          ))
+                          : <span style={{ fontSize: 8, fontWeight: 800 }}>{period.short_form || period.name}</span>}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <footer style={{ marginTop: 10, paddingTop: 6, borderTop: '1px solid #aaa', display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#555' }}>
+            <span>Phikila timetable report</span>
+            <span>Page {pageNumber} / {pageCount}</span>
+          </footer>
+        </section>
+      </main>
+    </div>
+  )
+}
+
+const buttonStyle: React.CSSProperties = {
+  height: 28,
+  padding: '3px 8px',
+  border: '1px solid #999',
+  background: '#fff',
+  borderRadius: 2,
+  cursor: 'pointer',
+  fontSize: 11,
+  fontWeight: 700,
+}
