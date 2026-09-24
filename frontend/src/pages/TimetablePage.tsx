@@ -126,4 +126,4 @@ export function TimetablePage() {
   onSelectIndex={index=>setReportIndex(index)}
   onPrint={printReport}
   onClose={()=>setReportOpen(false)}
-/>}}{confirmingDelete&&<ConfirmDialog open title="Delete this lesson?" description="The selected lesson will be removed from the timetable." confirmLabel="Delete lesson" destructive onConfirm={handleDelete} onCancel={()=>setConfirmingDelete(null)}/>}</> }
+/>}{confirmingDelete&&<ConfirmDialog open title="Delete this lesson?" description="The selected lesson will be removed from the timetable." confirmLabel="Delete lesson" destructive onConfirm={handleDelete} onCancel={()=>setConfirmingDelete(null)}/>}</> }
