@@ -317,7 +317,17 @@ export function AscReportViewer({
             break-inside: avoid;
           }
           body.printing-timetable-report .asc-report-viewer table {
+            break-inside: auto;
+          }
+          body.printing-timetable-report .asc-report-viewer thead {
+            display: table-header-group;
+          }
+          body.printing-timetable-report .asc-report-viewer tfoot {
+            display: table-footer-group;
+          }
+          body.printing-timetable-report .asc-report-viewer tr {
             break-inside: avoid;
+            break-after: auto;
           }
         }
       `}</style>
