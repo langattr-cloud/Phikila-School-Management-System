@@ -83,6 +83,11 @@ export function AscReportViewer({
     const week = datedWeeks.find(([key]) => key === selectedWeek)?.[1] ?? []
     setSelectedDays(new Set(week.map(day => day.index)))
   }, [selectedWeek, datedWeeks])
+
+  useEffect(() => {
+    if (selectedWeek === 'all') return
+    if (!datedWeeks.some(([key]) => key === selectedWeek)) setSelectedWeek('all')
+  }, [days, selectedWeek, datedWeeks])
   const [layout, setLayout] = useState<'compact' | 'standard' | 'wide'>('standard')
   const [bellTimes, setBellTimes] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
