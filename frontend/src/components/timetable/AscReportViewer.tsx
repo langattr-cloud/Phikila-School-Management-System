@@ -76,6 +76,7 @@ export function AscReportViewer({
     return [...weekMap.entries()].sort(([a], [b]) => a.localeCompare(b))
   }, [days])
   const [selectedWeek, setSelectedWeek] = useState('all')
+  const [selectedEntityIds, setSelectedEntityIds] = useState<Set<number>>(new Set())
   useEffect(() => {
     if (selectedWeek === 'all') return
     const week = datedWeeks.find(([key]) => key === selectedWeek)?.[1] ?? []
@@ -102,10 +103,22 @@ export function AscReportViewer({
     setSelectedDays(new Set(days.map(day => day.index)))
     setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) })
   }, [days, periods])
+  useEffect(() => {
+    const definition = reportDefinitions.find(item => item.scope === scope)
+    setSelectedEntityIds(new Set((definition?.items ?? []).map(item => item.id)))
+  }, [scope, reportDefinitions])
 
   const activeItems = reportItems
   const isSummary = scope.startsWith('summary-')
   const isSpecialReport = isSummary || scope === 'lesson-grid' || scope === 'modify'
+  const entityFilteredLessons = useMemo(() => {
+    if (scope === 'all' || isSpecialReport || selectedEntityIds.size === 0) return filteredLessons
+    return filteredLessons.filter(lesson => {
+      const id = scope === 'class' ? lesson.class_id : scope === 'teacher' ? lesson.teacher_id : scope === 'room' ? lesson.room_id : scope === 'subject' ? lesson.subject_id : null
+      return id != null && selectedEntityIds.has(id)
+    })
+  }, [filteredLessons, scope, isSpecialReport, selectedEntityIds])
+
   const filteredLessons = useMemo(
     () => lessons.filter(lesson => {
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
@@ -116,14 +129,14 @@ export function AscReportViewer({
   const filteredItemIds = useMemo(() => {
     if (scope === 'all' || isSpecialReport) return new Set(activeItems.map(item => item.id))
     const ids = new Set<number>()
-    for (const lesson of filteredLessons) {
+    for (const lesson of entityFilteredLessons) {
       if (scope === 'class' && lesson.class_id != null) ids.add(lesson.class_id)
       if (scope === 'teacher' && lesson.teacher_id != null) ids.add(lesson.teacher_id)
       if (scope === 'room' && lesson.room_id != null) ids.add(lesson.room_id)
       if (scope === 'subject' && lesson.subject_id != null) ids.add(lesson.subject_id)
     }
     return ids
-  }, [scope, isSpecialReport, activeItems, filteredLessons])
+  }, [scope, isSpecialReport, activeItems, entityFilteredLessons])
   const pagedItems = isSpecialReport ? activeItems : activeItems.filter(item => filteredItemIds.has(item.id))
   const pageCount = isSpecialReport ? 1 : Math.max(1, pagedItems.length)
   const pageNumber = isSpecialReport ? 1 : (pagedItems.length ? Math.min(Math.max(0, pagedItems.findIndex(item => item.id === activeItems[reportIndex]?.id)) + 1, pagedItems.length) : 1)
@@ -137,13 +150,15 @@ export function AscReportViewer({
 
   const visibleLessons = useMemo(
     () => lessons.filter(lesson => {
+      if (scope !== 'all' && !isSpecialReport && selectedEntityIds.size > 0) {
+        const id = scope === 'class' ? lesson.class_id : scope === 'teacher' ? lesson.teacher_id : scope === 'room' ? lesson.room_id : scope === 'subject' ? lesson.subject_id : null
+        if (id == null || !selectedEntityIds.has(id)) return false
+      }
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
       return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
     }),
     [lessons, periods, selectedDays, selectedPeriodRange],
   )
-
-  if (!open) return null
 
   useEffect(() => {
     if (isSpecialReport || pagedItems.length === 0) return
@@ -151,6 +166,20 @@ export function AscReportViewer({
     const nextIndex = pagedItems.findIndex(item => item.id === currentId)
     if (nextIndex < 0) onSelectIndex(0)
   }, [isSpecialReport, pagedItems, activeItems, reportIndex, onSelectIndex])
+
+  if (!open) return null
+
+  const toggleEntity = (id: number) => {
+    setSelectedEntityIds(current => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const entityDefinition = reportDefinitions.find(item => item.scope === scope)
+  const entityLabel = scope === 'class' ? 'Classes' : scope === 'teacher' ? 'Teachers' : scope === 'room' ? 'Classrooms' : scope === 'subject' ? 'Subjects' : ''
 
   const toggleDay = (index: number) => {
     setSelectedDays(current => {
@@ -287,6 +316,19 @@ export function AscReportViewer({
       {filterOpen && (
         <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f6f6f6', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
           <strong style={{ fontSize: 11 }}>Filter:</strong>
+          {entityDefinition && entityDefinition.items.length > 0 && entityLabel && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', width: '100%', marginTop: 4, paddingTop: 5, borderTop: '1px solid #ddd' }}>
+              <strong style={{ fontSize: 11 }}>{entityLabel}:</strong>
+              {entityDefinition.items.map(item => (
+                <label key={item.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+                  <input type="checkbox" checked={selectedEntityIds.has(item.id)} onChange={() => toggleEntity(item.id)} />
+                  {item.name}
+                </label>
+              ))}
+              <button type="button" onClick={() => setSelectedEntityIds(new Set(entityDefinition.items.map(item => item.id)))} style={buttonStyle}>All</button>
+              <button type="button" onClick={() => setSelectedEntityIds(new Set())} style={buttonStyle}>None</button>
+            </div>
+          )}
           {datedWeeks.length > 0 && (
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>Week
               <select value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} style={{ height: 26, fontSize: 11 }}>
@@ -317,7 +359,7 @@ export function AscReportViewer({
               {periods.map((period, index) => <option key={period.id} value={index}>{period.short_form || period.name}</option>)}
             </select>
           </label>
-          <button type="button" onClick={() => { setSelectedWeek('all'); setSelectedDays(new Set(days.map(day => day.index))); setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) }) }} style={buttonStyle}>Clear filter — Print ALL</button>
+          <button type="button" onClick={() => { setSelectedWeek('all'); setSelectedDays(new Set(days.map(day => day.index))); setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) }); setSelectedEntityIds(new Set((entityDefinition?.items ?? []).map(item => item.id))) }} style={buttonStyle}>Clear filter — Print ALL</button>
         </div>
       )}
 
