@@ -102,8 +102,27 @@ export function AscReportViewer({
   const activeItems = reportItems
   const isSummary = scope.startsWith('summary-')
   const isSpecialReport = isSummary || scope === 'lesson-grid' || scope === 'modify'
-  const pageCount = isSpecialReport ? 1 : Math.max(1, activeItems.length)
-  const pageNumber = isSpecialReport ? 1 : (activeItems.length ? Math.min(reportIndex + 1, activeItems.length) : 1)
+  const filteredLessons = useMemo(
+    () => lessons.filter(lesson => {
+      const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
+      return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
+    }),
+    [lessons, periods, selectedDays, selectedPeriodRange],
+  )
+  const filteredItemIds = useMemo(() => {
+    if (scope === 'all' || isSpecialReport) return new Set(activeItems.map(item => item.id))
+    const ids = new Set<number>()
+    for (const lesson of filteredLessons) {
+      if (scope === 'class' && lesson.class_id != null) ids.add(lesson.class_id)
+      if (scope === 'teacher' && lesson.teacher_id != null) ids.add(lesson.teacher_id)
+      if (scope === 'room' && lesson.room_id != null) ids.add(lesson.room_id)
+      if (scope === 'subject' && lesson.subject_id != null) ids.add(lesson.subject_id)
+    }
+    return ids
+  }, [scope, isSpecialReport, activeItems, filteredLessons])
+  const pagedItems = isSpecialReport ? activeItems : activeItems.filter(item => filteredItemIds.has(item.id))
+  const pageCount = isSpecialReport ? 1 : Math.max(1, pagedItems.length)
+  const pageNumber = isSpecialReport ? 1 : (pagedItems.length ? Math.min(Math.max(0, pagedItems.findIndex(item => item.id === activeItems[reportIndex]?.id)) + 1, pagedItems.length) : 1)
 
   const visiblePeriods = useMemo(
     () => periods.filter((period, index) => index >= selectedPeriodRange.start && index <= selectedPeriodRange.end && (showNonTeaching || period.is_teaching)),
@@ -121,6 +140,13 @@ export function AscReportViewer({
   )
 
   if (!open) return null
+
+  useEffect(() => {
+    if (isSpecialReport || pagedItems.length === 0) return
+    const currentId = activeItems[reportIndex]?.id
+    const nextIndex = pagedItems.findIndex(item => item.id === currentId)
+    if (nextIndex < 0) onSelectIndex(0)
+  }, [isSpecialReport, pagedItems, activeItems, reportIndex, onSelectIndex])
 
   const toggleDay = (index: number) => {
     setSelectedDays(current => {
