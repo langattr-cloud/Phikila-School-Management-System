@@ -59,6 +59,7 @@ export function AscReportViewer({
   reportDefinitions, onScopeChange, onPrevious, onNext, onSelectIndex, onPrint, onVersionChange, reportVersions = [], activeVersionId, onClose,
 }: Props) {
   const [filterOpen, setFilterOpen] = useState(false)
+  const [entitySearch, setEntitySearch] = useState('')
   const [showTimes, setShowTimes] = useState(true)
   const [fit, setFit] = useState<'paper' | 'wide'>('paper')
   const [selectedDays, setSelectedDays] = useState(() => new Set(days.map(day => day.index)))
@@ -185,6 +186,12 @@ export function AscReportViewer({
 
   const entityDefinition = reportDefinitions.find(item => item.scope === scope)
   const entityLabel = scope === 'class' ? 'Classes' : scope === 'teacher' ? 'Teachers' : scope === 'room' ? 'Classrooms' : scope === 'subject' ? 'Subjects' : ''
+  const filteredEntityItems = useMemo(() => {
+    const query = entitySearch.trim().toLowerCase()
+    return (entityDefinition?.items ?? []).filter(item => !query || item.name.toLowerCase().includes(query))
+  }, [entityDefinition, entitySearch])
+  const selectedEntityCount = selectedEntityIds.size
+  const totalEntityCount = entityDefinition?.items.length ?? 0
   const navigateFiltered = (delta: number) => {
     if (isSpecialReport || pagedItems.length === 0) return
     const currentId = activeItems[reportIndex]?.id
@@ -330,52 +337,24 @@ export function AscReportViewer({
       )}
 
       {filterOpen && (
-        <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f6f6f6', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
-          <strong style={{ fontSize: 11 }}>Filter:</strong>
+        <div style={{ position: 'absolute', top: 42, right: 8, zIndex: 20, width: 720, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 60px)', overflow: 'auto', background: '#f5f5f5', border: '1px solid #777', boxShadow: '0 4px 16px rgba(0,0,0,.3)', padding: 12, fontFamily: 'Arial,Helvetica,sans-serif' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><div><strong style={{ fontSize: 13 }}>Filter report</strong><div style={{ fontSize: 9, color: '#555' }}>{selectedEntityCount} of {totalEntityCount} {entityLabel.toLowerCase() || 'items'} selected</div></div><button type="button" onClick={() => setFilterOpen(false)} style={buttonStyle}>Done</button></div>
           {entityDefinition && entityDefinition.items.length > 0 && entityLabel && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', width: '100%', marginTop: 4, paddingTop: 5, borderTop: '1px solid #ddd' }}>
-              <strong style={{ fontSize: 11 }}>{entityLabel}:</strong>
-              {entityDefinition.items.map(item => (
-                <label key={item.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
-                  <input type="checkbox" checked={selectedEntityIds.has(item.id)} onChange={() => toggleEntity(item.id)} />
-                  {item.name}
-                </label>
-              ))}
-              <button type="button" onClick={() => setSelectedEntityIds(new Set(entityDefinition.items.map(item => item.id)))} style={buttonStyle}>All</button>
-              <button type="button" onClick={() => setSelectedEntityIds(new Set())} style={buttonStyle}>None</button>
+            <div style={{ border: '1px solid #aaa', background: '#fff', padding: 8, marginBottom: 10 }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7 }}><strong style={{ flex: 1, fontSize: 11 }}>{entityLabel}</strong><button type="button" onClick={() => setSelectedEntityIds(new Set(entityDefinition.items.map(item => item.id)))} style={buttonStyle}>Select all</button><button type="button" onClick={() => setSelectedEntityIds(new Set())} style={buttonStyle}>Clear all</button></div>
+              <input value={entitySearch} onChange={event => setEntitySearch(event.target.value)} placeholder={'Search ' + entityLabel.toLowerCase() + '…'} style={{ width: '100%', height: 28, boxSizing: 'border-box', border: '1px solid #999', padding: '0 7px', fontSize: 11, marginBottom: 7 }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 4, maxHeight: 180, overflow: 'auto' }}>
+                {filteredEntityItems.map(item => <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '4px 5px', background: selectedEntityIds.has(item.id) ? '#e8eef8' : '#fafafa', border: '1px solid #ddd' }}><input type="checkbox" checked={selectedEntityIds.has(item.id)} onChange={() => toggleEntity(item.id)} />{item.name}</label>)}
+                {filteredEntityItems.length === 0 && <span style={{ gridColumn: '1 / -1', fontSize: 11, color: '#666', padding: 8 }}>No matches.</span>}
+              </div>
             </div>
           )}
-          {datedWeeks.length > 0 && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>Week
-              <select value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} style={{ height: 26, fontSize: 11 }}>
-                <option value="all">All weeks</option>
-                {datedWeeks.map(([key, weekDays]) => {
-                  const values = weekDays.map(day => day.date_value).filter(Boolean).sort()
-                  const first = values[0]
-                  const last = values[values.length - 1]
-                  const format = (value: string) => new Date(value + 'T00:00:00').toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
-                  return <option key={key} value={key}>{first === last ? format(first) : format(first) + ' – ' + format(last)}</option>
-                })}
-              </select>
-            </label>
-          )}
-          {days.map(day => (
-            <label key={day.index} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
-              <input type="checkbox" checked={selectedDays.has(day.index)} onChange={() => toggleDay(day.index)} />
-              {day.name}
-            </label>
-          ))}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>Period from
-            <select value={selectedPeriodRange.start} onChange={event => setSelectedPeriodRange(current => ({ start: Math.min(Number(event.target.value), current.end), end: current.end }))} style={{ height: 26, fontSize: 11 }}>
-              {periods.map((period, index) => <option key={period.id} value={index}>{period.short_form || period.name}</option>)}
-            </select>
-          </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>to
-            <select value={selectedPeriodRange.end} onChange={event => setSelectedPeriodRange(current => ({ start: current.start, end: Math.max(current.start, Number(event.target.value)) }))} style={{ height: 26, fontSize: 11 }}>
-              {periods.map((period, index) => <option key={period.id} value={index}>{period.short_form || period.name}</option>)}
-            </select>
-          </label>
-          <button type="button" onClick={() => { setSelectedWeek('all'); setSelectedDays(new Set(days.map(day => day.index))); setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) }); setSelectedEntityIds(new Set((entityDefinition?.items ?? []).map(item => item.id))) }} style={buttonStyle}>Clear filter — Print ALL</button>
+          <div style={{ border: '1px solid #aaa', background: '#fff', padding: 8, marginBottom: 10 }}><strong style={{ display: 'block', fontSize: 11, marginBottom: 7 }}>Date and day range</strong><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {datedWeeks.length > 0 && <label style={{ fontSize: 11 }}>Week <select value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} style={{ height: 26, fontSize: 11 }}><option value="all">All weeks</option>{datedWeeks.map(([key, weekDays]) => { const values = weekDays.map(day => day.date_value).filter(Boolean).sort(); const first = values[0]; const last = values[values.length - 1]; const format = (value: string) => new Date(value + 'T00:00:00').toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }); return <option key={key} value={key}>{first === last ? format(first) : format(first) + ' – ' + format(last)}</option> })}</select></label>}
+            {days.map(day => <label key={day.index} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}><input type="checkbox" checked={selectedDays.has(day.index)} onChange={() => toggleDay(day.index)} />{day.name}</label>)}
+          </div></div>
+          <div style={{ border: '1px solid #aaa', background: '#fff', padding: 8, marginBottom: 10 }}><strong style={{ display: 'block', fontSize: 11, marginBottom: 7 }}>Period range</strong><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><label style={{ fontSize: 11 }}>From <select value={selectedPeriodRange.start} onChange={event => setSelectedPeriodRange(current => ({ start: Math.min(Number(event.target.value), current.end), end: current.end }))} style={{ height: 26, fontSize: 11 }}>{periods.map((period, index) => <option key={period.id} value={index}>{period.short_form || period.name}</option>)}</select></label><label style={{ fontSize: 11 }}>To <select value={selectedPeriodRange.end} onChange={event => setSelectedPeriodRange(current => ({ start: current.start, end: Math.max(current.start, Number(event.target.value)) }))} style={{ height: 26, fontSize: 11 }}>{periods.map((period, index) => <option key={period.id} value={index}>{period.short_form || period.name}</option>)}</select></label></div></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><button type="button" onClick={() => { setSelectedWeek('all'); setSelectedDays(new Set(days.map(day => day.index))); setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) }); setSelectedEntityIds(new Set((entityDefinition?.items ?? []).map(item => item.id))); setEntitySearch('') }} style={buttonStyle}>Clear filter — Print ALL</button><button type="button" onClick={() => setFilterOpen(false)} style={{ ...buttonStyle, fontWeight: 800 }}>Apply filter</button></div>
         </div>
       )}
 
