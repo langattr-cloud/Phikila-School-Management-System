@@ -95,3 +95,11 @@
 @media print{
  .timetable__time-grid .lesson-card,.timetable__whole-school-grid .lesson-card{box-shadow:none;transform:none;margin:1px;height:calc(100% - 2px);min-height:calc(100% - 2px)}
 }
+
+/* aSc final polish: make lesson blocks unmistakably floating rather than cell-filled. */
+.timetable__time-grid .lesson-card,.timetable__whole-school-grid .lesson-card{margin:3px 4px!important;width:calc(100% - 8px);min-height:calc(100% - 6px);height:calc(100% - 6px);border-radius:6px!important;box-shadow:0 3px 7px rgb(15 23 42 / .22),0 1px 2px rgb(15 23 42 / .12)!important;transform:translateY(-2px);}
+.timetable__time-grid .lesson-card--multi,.timetable__whole-school-grid .lesson-card--multi{width:calc(100% + (var(--lesson-span,1) - 1) * 100% - 8px)!important;}
+.timetable__time-grid .timetable__cell,.timetable__whole-school-grid .timetable__whole-slot{background:#f1f3f6!important;padding:3px 4px!important;overflow:visible!important;}
+.timetable__time-grid .lesson-card:hover,.timetable__whole-school-grid .lesson-card:hover{transform:translateY(-4px);box-shadow:0 7px 14px rgb(15 23 42 / .25),0 2px 4px rgb(15 23 42 / .14)!important;}
+@media(max-width:767px){.timetable__time-grid .lesson-card,.timetable__whole-school-grid .lesson-card{margin:2px!important;width:calc(100% - 4px);min-height:calc(100% - 4px);height:calc(100% - 4px)}.timetable__time-grid .lesson-card--multi,.timetable__whole-school-grid .lesson-card--multi{width:calc(100% + (var(--lesson-span,1) - 1) * 100% - 4px)!important}}
+@media print{.timetable__time-grid .lesson-card,.timetable__whole-school-grid .lesson-card{margin:2px!important;transform:none;box-shadow:none!important}}
