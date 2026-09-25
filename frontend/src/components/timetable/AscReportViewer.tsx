@@ -117,7 +117,7 @@ export function AscReportViewer({
   useEffect(() => {
     const definition = reportDefinitions.find(item => item.scope === scope)
     setSelectedEntityIds(new Set((definition?.items ?? []).map(item => item.id)))
-  }, [scope, reportDefinitions])
+  }, [scope])
 
   const activeItems = reportItems
   const modifyDefinition = reportDefinitions.find(item => item.scope === modifySourceScope)
