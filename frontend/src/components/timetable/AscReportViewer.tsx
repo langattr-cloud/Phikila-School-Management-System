@@ -95,6 +95,7 @@ export function AscReportViewer({
   const [printFooter, setPrintFooter] = useState(true)
   const [modifySourceScope, setModifySourceScope] = useState<AscReportScope>('all')
   const [modifySourceIndex, setModifySourceIndex] = useState(0)
+  const [summaryPage, setSummaryPage] = useState(0)
   const reportDateRange = useMemo(() => {
     const dated = days.filter(day => day.date_value).map(day => day.date_value as string).sort()
     if (!dated.length) return ''
@@ -152,8 +153,8 @@ export function AscReportViewer({
     return ids
   }, [scope, isSpecialReport, activeItems, entityFilteredLessons])
   const pagedItems = isSpecialReport ? activeItems : activeItems.filter(item => filteredItemIds.has(item.id))
-  const pageCount = isSpecialReport ? 1 : Math.max(1, pagedItems.length)
-  const pageNumber = isSpecialReport ? 1 : (pagedItems.length ? Math.min(Math.max(0, pagedItems.findIndex(item => item.id === activeItems[reportIndex]?.id)) + 1, pagedItems.length) : 1)
+  const pageCount = isSummary ? summaryPageCount : isSpecialReport ? 1 : Math.max(1, pagedItems.length)
+  const pageNumber = isSummary ? summaryPageNumber : isSpecialReport ? 1 : (pagedItems.length ? Math.min(Math.max(0, pagedItems.findIndex(item => item.id === activeItems[reportIndex]?.id)) + 1, pagedItems.length) : 1)
 
   const visiblePeriods = useMemo(
     () => periods.filter((period, index) => index >= selectedPeriodRange.start && index <= selectedPeriodRange.end && (showNonTeaching || period.is_teaching)),
@@ -202,6 +203,11 @@ export function AscReportViewer({
     return [...rows.values()].map(row => ({ id: row.id, name: row.name, lessons: row.lessons, days: row.days.size, subjects: row.subjects.size, periods: row.periods.size }))
   }, [isSummary, scope, entityDefinition, selectedEntityIds, visibleLessons])
 
+  const summaryPageSize = 20
+  const summaryPageCount = Math.max(1, Math.ceil(summaryRows.length / summaryPageSize))
+  const pagedSummaryRows = summaryRows.slice(summaryPage * summaryPageSize, (summaryPage + 1) * summaryPageSize)
+  const summaryPageNumber = Math.min(summaryPage + 1, summaryPageCount)
+
   useEffect(() => {
     if (isSpecialReport || pagedItems.length === 0) return
     const currentId = activeItems[reportIndex]?.id
@@ -231,6 +237,10 @@ export function AscReportViewer({
   const selectedEntityCount = selectedEntityIds.size
   const totalEntityCount = entityDefinition?.items.length ?? 0
   const navigateFiltered = (delta: number) => {
+    if (isSummary) {
+      setSummaryPage(current => Math.max(0, current + delta))
+      return
+    }
     if (isSpecialReport || pagedItems.length === 0) return
     const currentId = activeItems[reportIndex]?.id
     const currentPosition = pagedItems.findIndex(item => item.id === currentId)
@@ -241,6 +251,10 @@ export function AscReportViewer({
     if (nextIndex >= 0) onSelectIndex(nextIndex)
   }
 
+
+  useEffect(() => {
+    setSummaryPage(current => Math.min(current, Math.max(0, Math.ceil(summaryRows.length / summaryPageSize) - 1)))
+  }, [scope, selectedEntityIds, selectedDays, selectedPeriodRange, summaryRows.length])
 
   const toggleDay = (index: number) => {
     setSelectedDays(current => {
@@ -511,7 +525,7 @@ export function AscReportViewer({
                   <th style={summaryCellStyle}>Periods used</th>
                 </tr></thead>
                 <tbody>
-                  {summaryRows.map(row => (
+                  {pagedSummaryRows.map(row => (
                     <tr key={row.id}>
                       <td style={summaryCellStyle}><strong>{row.name}</strong></td>
                       <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{row.lessons}</td>
