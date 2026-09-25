@@ -374,19 +374,31 @@ export function AscReportViewer({
 
           {scope === 'lesson-grid' ? (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '70px 110px 1fr 1fr', border: '1px solid #777', fontSize: 10 }}>
-                {['#', 'Day', 'Period', 'Lesson'].map(header => <div key={header} style={{ padding: 7, fontWeight: 800, background: '#e6e6e6', borderRight: '1px solid #aaa' }}>{header}</div>)}
-                {visibleLessons.map((lesson, index) => {
-                  const day = days.find(item => item.index === lesson.day_index)
-                  const period = periods.find(item => item.index === lesson.period_index)
-                  return <React.Fragment key={lesson.id}>
-                    <div style={{ padding: 7, borderTop: '1px solid #aaa' }}>{index + 1}</div>
-                    <div style={{ padding: 7, borderTop: '1px solid #aaa' }}>{day?.name || '—'}</div>
-                    <div style={{ padding: 7, borderTop: '1px solid #aaa' }}>{period?.name || '—'}</div>
-                    <div style={{ padding: 7, borderTop: '1px solid #aaa' }}><strong>{lesson.subject}</strong>{lesson.secondary ? <span> · {lesson.secondary}</span> : null}</div>
-                  </React.Fragment>
-                })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                <strong style={{ fontSize: 12 }}>Lesson grid</strong>
+                <span style={{ fontSize: 9, color: '#555' }}>{visibleLessons.length} lessons</span>
               </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, tableLayout: 'fixed' }}>
+                <thead><tr>
+                  <th style={{ ...summaryCellStyle, width: 42 }}>#</th>
+                  <th style={{ ...summaryCellStyle, width: 110 }}>Day</th>
+                  <th style={{ ...summaryCellStyle, width: 105 }}>Period</th>
+                  <th style={summaryCellStyle}>Subject</th>
+                  <th style={{ ...summaryCellStyle, width: 190 }}>Details</th>
+                </tr></thead>
+                <tbody>
+                  {days.filter(day => selectedDays.has(day.index)).flatMap(day => visiblePeriods.map(period => ({ day, period, lessons: visibleLessons.filter(lesson => lesson.day_index === day.index && lesson.period_index === period.index) }))).filter(group => group.lessons.length > 0).flatMap(group => group.lessons.map(lesson => ({ ...group, lesson }))).map((entry, index) => (
+                    <tr key={entry.lesson.id}>
+                      <td style={summaryCellStyle}>{index + 1}</td>
+                      <td style={summaryCellStyle}>{entry.day.name}</td>
+                      <td style={summaryCellStyle}>{entry.period.name}{showTimes && bellTimes ? <div style={{ fontSize: 8, color: '#666' }}>{entry.period.start_time.slice(0,5)}–{entry.period.end_time.slice(0,5)}</div> : null}</td>
+                      <td style={summaryCellStyle}><strong>{entry.lesson.subject}</strong></td>
+                      <td style={summaryCellStyle}>{entry.lesson.secondary || '—'}</td>
+                    </tr>
+                  ))}
+                  {visibleLessons.length === 0 && <tr><td colSpan={5} style={{ ...summaryCellStyle, textAlign: 'center', color: '#666', padding: 18 }}>No lessons match the current filters.</td></tr>}
+                </tbody>
+              </table>
             </div>
           ) : scope === 'modify' ? (
             <div style={{ border: '1px solid #aaa', padding: 16, fontSize: 11 }}>
