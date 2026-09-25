@@ -104,7 +104,7 @@ export function TimetablePage() {
   scope={reportFilter.scope}
   reportIndex={reportIndex}
   reportItems={reportItems}
-  days={days.map(day=>({index:day.index,name:day.name}))}
+  days={days.map(day=>({index:day.index,name:day.name,date_value:day.date_value}))}
   periods={bundle!.calendar.periods.map(period=>({id:period.id,index:period.index,name:period.name,short_form:period.short_form,start_time:period.start_time,end_time:period.end_time,is_teaching:period.is_teaching}))}
   lessons={reportLessons.map(lesson=>({
     id:lesson.id,
