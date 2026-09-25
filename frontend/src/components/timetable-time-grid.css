@@ -344,3 +344,37 @@
     background:var(--subject-colour,#64748b)!important;
   }
 }
+
+/* Final aSc density pass: cards breathe inside cells while headers stay compact. */
+.timetable__time-grid .lesson-card,
+.timetable__whole-school-grid .lesson-card{
+  line-height:1;
+  text-rendering:optimizeLegibility;
+}
+.timetable__time-grid .lesson-card strong,
+.timetable__whole-school-grid .lesson-card strong{
+  max-width:100%;
+}
+.timetable__time-grid .lesson-card span,
+.timetable__whole-school-grid .lesson-card span{
+  max-width:100%;
+}
+@media(min-width:1200px){
+  .timetable__time-grid .lesson-card,
+  .timetable__whole-school-grid .lesson-card{
+    margin-left:5px!important;
+    margin-right:5px!important;
+    width:calc(100% - 10px);
+  }
+  .timetable__time-grid .lesson-card--multi,
+  .timetable__whole-school-grid .lesson-card--multi{
+    width:calc(100% + (var(--lesson-span,1) - 1) * 100% - 10px)!important;
+  }
+}
+@media print{
+  .timetable__time-grid .lesson-card,
+  .timetable__whole-school-grid .lesson-card{
+    border-radius:2px!important;
+    padding:0 1px;
+  }
+}
