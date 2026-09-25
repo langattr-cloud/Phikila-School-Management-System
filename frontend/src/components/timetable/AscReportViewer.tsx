@@ -107,7 +107,7 @@ export function AscReportViewer({
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
       return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end && (showNonTeaching || periods[periodPosition]?.is_teaching)
     }),
-    [lessons, periods, selectedDays, selectedPeriodRange],
+    [lessons, periods, selectedDays, selectedPeriodRange, showNonTeaching],
   )
   const entityFilteredLessons = useMemo(() => {
     if (scope === 'all' || isSpecialReport) return filteredLessons
