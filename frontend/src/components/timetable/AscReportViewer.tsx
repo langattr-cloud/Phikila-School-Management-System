@@ -556,7 +556,7 @@ export function AscReportViewer({
                     </tr>
                   ))}
                   {pagedSummaryRows.length > 0 && <tr style={{ fontWeight: 800, background: '#f0f0f0' }}>
-                    <td style={summaryCellStyle}>Displayed total</td>
+                    <td style={summaryCellStyle}>Displayed lesson total</td>
                     <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{pagedSummaryRows.reduce((total, row) => total + row.lessons, 0)}</td>
                     <td style={{ ...summaryCellStyle, textAlign: 'center', color: '#777' }}>—</td>
                     <td style={{ ...summaryCellStyle, textAlign: 'center', color: '#777' }}>—</td>
