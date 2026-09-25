@@ -129,7 +129,7 @@ export function AscReportViewer({
   const filteredLessons = useMemo(
     () => lessons.filter(lesson => {
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
-      return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
+      return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end && (showNonTeaching || periods[periodPosition]?.is_teaching)
     }),
     [lessons, periods, selectedDays, selectedPeriodRange],
   )
@@ -176,7 +176,7 @@ export function AscReportViewer({
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
       return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
     }),
-    [lessons, periods, selectedDays, selectedPeriodRange, scope, isSpecialReport, selectedEntityIds, activeItemId],
+    [lessons, periods, selectedDays, selectedPeriodRange, showNonTeaching, scope, isSpecialReport, selectedEntityIds, activeItemId],
   )
 
   const summaryRows = useMemo(() => {
