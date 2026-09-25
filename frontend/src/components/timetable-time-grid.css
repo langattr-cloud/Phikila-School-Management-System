@@ -71,3 +71,27 @@
 .timetable__time-grid .lesson-card--multi,.timetable__whole-school-grid .lesson-card--multi{position:relative;z-index:10}
 
 .lesson-card__resize-controls{position:absolute;right:4px;bottom:4px;display:flex;gap:2px;z-index:12}.lesson-card__resize{display:inline-flex;align-items:center;justify-content:center;width:20px;height:18px;padding:0;border:1px solid rgba(0,0,0,.2);border-radius:4px;background:rgba(255,255,255,.9);color:inherit;font-size:14px;font-weight:800;line-height:1;cursor:pointer}.lesson-card__resize:disabled{opacity:.35;cursor:not-allowed}.lesson-card__resize:hover:not(:disabled){background:#fff}
+
+
+/* aSc-style floating lesson cards: cards sit above the timetable cells instead of reading as cell contents. */
+.timetable__time-grid .timetable__cell,
+.timetable__whole-school-grid .timetable__whole-slot{background:#f8fafc;padding:.2rem .22rem;overflow:visible}
+.timetable__time-grid .lesson-card,
+.timetable__whole-school-grid .lesson-card{margin:2px 2px;min-height:calc(100% - 4px);height:calc(100% - 4px);border:1px solid color-mix(in srgb,var(--subject-colour,#64748b) 72%,#111 28%);border-radius:5px;background:var(--subject-colour,#64748b)!important;box-shadow:0 2px 5px rgb(15 23 42 / .16),0 1px 1px rgb(15 23 42 / .08);transform:translateY(-1px);transition:box-shadow .12s ease,transform .12s ease}
+.timetable__time-grid .lesson-card:hover,
+.timetable__whole-school-grid .lesson-card:hover{z-index:30;transform:translateY(-2px);box-shadow:0 5px 12px rgb(15 23 42 / .2),0 2px 3px rgb(15 23 42 / .1)}
+.timetable__time-grid .lesson-card__subject,
+.timetable__whole-school-grid .lesson-card__subject{font-size:clamp(.5rem,.62vw,.62rem);line-height:.72;font-weight:900;letter-spacing:.01em}
+.timetable__time-grid .lesson-card__class,
+.timetable__whole-school-grid .lesson-card__class{font-size:clamp(.39rem,.48vw,.48rem);line-height:.58;font-weight:800;opacity:.96}
+.timetable__time-grid .lesson-card--multi,
+.timetable__whole-school-grid .lesson-card--multi{width:calc(100% + (var(--lesson-span,1) - 1) * 100% - 4px);}
+.timetable__time-grid .lesson-card--conflict,
+.timetable__whole-school-grid .lesson-card--conflict{box-shadow:0 0 0 2px #9a2f24,0 3px 8px rgb(15 23 42 / .16)}
+@media(max-width:767px){
+ .timetable__time-grid .timetable__cell,.timetable__whole-school-grid .timetable__whole-slot{padding:.16rem}
+ .timetable__time-grid .lesson-card,.timetable__whole-school-grid .lesson-card{margin:1px;min-height:calc(100% - 2px);height:calc(100% - 2px);border-radius:4px}
+}
+@media print{
+ .timetable__time-grid .lesson-card,.timetable__whole-school-grid .lesson-card{box-shadow:none;transform:none;margin:1px;height:calc(100% - 2px);min-height:calc(100% - 2px)}
+}
