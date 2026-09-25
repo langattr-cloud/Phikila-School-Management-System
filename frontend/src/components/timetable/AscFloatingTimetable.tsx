@@ -77,7 +77,7 @@ export function AscFloatingTimetable({
           <strong>DAY / PERIOD</strong>
         </div>
 
-        {orderedPeriods.map((period, index) => (
+        {orderedPeriods.map(period => (
           <div
             key={period.id}
             className={`asc-floating-timetable__period-head ${period.is_teaching ? '' : 'asc-floating-timetable__period-head--break'}`}
