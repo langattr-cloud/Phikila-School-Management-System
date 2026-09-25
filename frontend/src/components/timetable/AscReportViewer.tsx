@@ -20,6 +20,7 @@ export type AscReportLesson = {
   day_index: number
   period_index: number
   subject: string
+  duration?: number | null
   secondary?: string | null
   class_id?: number | null
   teacher_id?: number | null
