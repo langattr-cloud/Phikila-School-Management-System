@@ -93,6 +93,8 @@ export function AscReportViewer({
   const [printMargins, setPrintMargins] = useState<'narrow' | 'standard' | 'wide'>('standard')
   const [printHeader, setPrintHeader] = useState(true)
   const [printFooter, setPrintFooter] = useState(true)
+  const [modifySourceScope, setModifySourceScope] = useState<AscReportScope>('all')
+  const [modifySourceIndex, setModifySourceIndex] = useState(0)
   const reportDateRange = useMemo(() => {
     const dated = days.filter(day => day.date_value).map(day => day.date_value as string).sort()
     if (!dated.length) return ''
@@ -105,11 +107,21 @@ export function AscReportViewer({
     setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) })
   }, [days, periods])
   useEffect(() => {
+    if (scope !== 'modify') {
+      setModifySourceScope(scope)
+      setModifySourceIndex(reportIndex)
+    }
+  }, [scope, reportIndex])
+
+  useEffect(() => {
     const definition = reportDefinitions.find(item => item.scope === scope)
     setSelectedEntityIds(new Set((definition?.items ?? []).map(item => item.id)))
   }, [scope, reportDefinitions])
 
   const activeItems = reportItems
+  const modifyDefinition = reportDefinitions.find(item => item.scope === modifySourceScope)
+  const modifyItem = modifyDefinition?.items[modifySourceIndex] ?? reportItems[modifySourceIndex]
+  const modifyScopeLabel = modifyDefinition?.label ?? 'Current report'
   const isSummary = scope.startsWith('summary-')
   const isSpecialReport = isSummary || scope === 'lesson-grid' || scope === 'modify'
   const filteredLessons = useMemo(
@@ -401,15 +413,66 @@ export function AscReportViewer({
               </table>
             </div>
           ) : scope === 'modify' ? (
-            <div style={{ border: '1px solid #aaa', padding: 16, fontSize: 11 }}>
-              <strong>Modify current report</strong>
-              <p style={{ margin: '8px 0' }}>Adjust the current report presentation without changing timetable data.</p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <label>Row size <select value={rowHeight} onChange={event => setRowHeight(event.target.value as typeof rowHeight)}><option value="compact">Compact</option><option value="standard">Standard</option><option value="large">Large</option></select></label>
-                <label>Column size <select value={layout} onChange={event => setLayout(event.target.value as typeof layout)}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
-                <label><input type="checkbox" checked={showTimes} onChange={event => setShowTimes(event.target.checked)} /> Show times</label>
-                <label><input type="checkbox" checked={bellTimes} onChange={event => setBellTimes(event.target.checked)} /> Print bell times</label>
+            <div>
+              <div style={{ border: '1px solid #aaa', background: '#f7f7f7', padding: 12, marginBottom: 12, fontSize: 11 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+                  <div>
+                    <strong>Modify current report</strong>
+                    <div style={{ color: '#555', marginTop: 2 }}>{modifyScopeLabel}{modifyItem ? ` · ${modifyItem.name}` : ''}</div>
+                  </div>
+                  <span style={{ color: '#555' }}>Changes apply to this preview and print output.</span>
+                </div>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label>Row size <select value={rowHeight} onChange={event => setRowHeight(event.target.value as typeof rowHeight)}><option value="compact">Compact</option><option value="standard">Standard</option><option value="large">Large</option></select></label>
+                  <label>Column size <select value={layout} onChange={event => setLayout(event.target.value as typeof layout)}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
+                  <label><input type="checkbox" checked={showTimes} onChange={event => setShowTimes(event.target.checked)} /> Show times</label>
+                  <label><input type="checkbox" checked={bellTimes} onChange={event => setBellTimes(event.target.checked)} /> Print bell times</label>
+                  <label><input type="checkbox" checked={showNonTeaching} onChange={event => setShowNonTeaching(event.target.checked)} /> Show non-teaching</label>
+                  <label>Fit <select value={fit} onChange={event => setFit(event.target.value as typeof fit)}><option value="paper">Paper</option><option value="wide">Wide</option></select></label>
+                </div>
               </div>
+
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 92, border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
+                    {visiblePeriods.map(period => (
+                      <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
+                        <div style={{ fontSize: 12, fontWeight: 800 }}>{period.short_form || period.name}</div>
+                        {showTimes && bellTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {days.filter(day => selectedDays.has(day.index)).map(day => (
+                    <tr key={day.index}>
+                      <th style={{ border: '1px solid #777', background: '#e6e6e6', padding: 8, textAlign: 'left', fontSize: 11 }}>{day.name.toUpperCase()}</th>
+                      {visiblePeriods.map(period => {
+                        const sourceScope = modifySourceScope
+                        const sourceId = modifyItem?.id
+                        const items = visibleLessons.filter(lesson => {
+                          if (sourceScope === 'all' || sourceScope.startsWith('summary-') || sourceScope === 'lesson-grid' || sourceScope === 'modify') return lesson.day_index === day.index && lesson.period_index === period.index
+                          const id = sourceScope === 'class' ? lesson.class_id : sourceScope === 'teacher' ? lesson.teacher_id : sourceScope === 'room' ? lesson.room_id : sourceScope === 'subject' ? lesson.subject_id : null
+                          return lesson.day_index === day.index && lesson.period_index === period.index && id === sourceId
+                        })
+                        return (
+                          <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: rowHeightPx, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
+                            {period.is_teaching
+                              ? items.map(lesson => (
+                                <div key={lesson.id} style={{ fontSize: 12, lineHeight: 1.15, fontWeight: 800, marginBottom: 3 }}>
+                                  <div>{lesson.subject}</div>
+                                  {lesson.secondary && <div style={{ fontSize: 9, fontWeight: 600, color: '#555', marginTop: 2 }}>{lesson.secondary}</div>}
+                                </div>
+                              ))
+                              : <span style={{ fontSize: 8, fontWeight: 800 }}>{period.short_form || period.name}</span>}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : isSummary ? (
             <div>
