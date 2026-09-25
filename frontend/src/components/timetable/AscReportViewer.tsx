@@ -153,9 +153,6 @@ export function AscReportViewer({
     return ids
   }, [scope, isSpecialReport, activeItems, entityFilteredLessons])
   const pagedItems = isSpecialReport ? activeItems : activeItems.filter(item => filteredItemIds.has(item.id))
-  const pageCount = isSummary ? summaryPageCount : isSpecialReport ? 1 : Math.max(1, pagedItems.length)
-  const pageNumber = isSummary ? summaryPageNumber : isSpecialReport ? 1 : (pagedItems.length ? Math.min(Math.max(0, pagedItems.findIndex(item => item.id === activeItems[reportIndex]?.id)) + 1, pagedItems.length) : 1)
-
   const visiblePeriods = useMemo(
     () => periods.filter((period, index) => index >= selectedPeriodRange.start && index <= selectedPeriodRange.end && (showNonTeaching || period.is_teaching)),
     [periods, selectedPeriodRange, showNonTeaching],
@@ -207,6 +204,9 @@ export function AscReportViewer({
   const summaryPageCount = Math.max(1, Math.ceil(summaryRows.length / summaryPageSize))
   const pagedSummaryRows = summaryRows.slice(summaryPage * summaryPageSize, (summaryPage + 1) * summaryPageSize)
   const summaryPageNumber = Math.min(summaryPage + 1, summaryPageCount)
+
+  const pageCount = isSummary ? summaryPageCount : isSpecialReport ? 1 : Math.max(1, pagedItems.length)
+  const pageNumber = isSummary ? summaryPageNumber : isSpecialReport ? 1 : (pagedItems.length ? Math.min(Math.max(0, pagedItems.findIndex(item => item.id === activeItems[reportIndex]?.id)) + 1, pagedItems.length) : 1)
 
   useEffect(() => {
     if (isSpecialReport || pagedItems.length === 0) return
