@@ -111,6 +111,13 @@ export function AscReportViewer({
   const activeItems = reportItems
   const isSummary = scope.startsWith('summary-')
   const isSpecialReport = isSummary || scope === 'lesson-grid' || scope === 'modify'
+  const filteredLessons = useMemo(
+    () => lessons.filter(lesson => {
+      const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
+      return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
+    }),
+    [lessons, periods, selectedDays, selectedPeriodRange],
+  )
   const entityFilteredLessons = useMemo(() => {
     if (scope === 'all' || isSpecialReport || selectedEntityIds.size === 0) return filteredLessons
     return filteredLessons.filter(lesson => {
@@ -119,13 +126,6 @@ export function AscReportViewer({
     })
   }, [filteredLessons, scope, isSpecialReport, selectedEntityIds])
 
-  const filteredLessons = useMemo(
-    () => lessons.filter(lesson => {
-      const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
-      return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
-    }),
-    [lessons, periods, selectedDays, selectedPeriodRange],
-  )
   const filteredItemIds = useMemo(() => {
     if (scope === 'all' || isSpecialReport) return new Set(activeItems.map(item => item.id))
     const ids = new Set<number>()
