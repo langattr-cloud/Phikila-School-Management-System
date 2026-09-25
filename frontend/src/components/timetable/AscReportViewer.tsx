@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { AscFloatingTimetable } from './AscFloatingTimetable'
 
 export type AscReportScope = 'all' | 'class' | 'teacher' | 'room' | 'subject' | 'summary-class' | 'summary-teacher' | 'summary-room' | 'summary-subject' | 'lesson-grid' | 'modify'
 export type AscReportSettings = { rowHeight: 'compact' | 'standard' | 'large'; columnWidth: 'compact' | 'standard' | 'wide'; showTimes: boolean; showNonTeaching: boolean }
@@ -574,41 +575,14 @@ export function AscReportViewer({
               </table>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: 92, border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
-                  {visiblePeriods.map(period => (
-                    <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
-                      <div style={{ fontSize: 12, fontWeight: 800 }}>{period.short_form || period.name}</div>
-                      {showTimes && bellTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {days.filter(day => selectedDays.has(day.index)).map(day => (
-                  <tr key={day.index}>
-                    <th style={{ border: '1px solid #777', background: '#e6e6e6', padding: 8, textAlign: 'left', fontSize: 11 }}>{day.name.toUpperCase()}</th>
-                    {visiblePeriods.map(period => {
-                      const items = visibleLessons.filter(lesson => lesson.day_index === day.index && lesson.period_index === period.index)
-                      return (
-                        <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: rowHeightPx, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
-                          {period.is_teaching
-                            ? items.map(lesson => (
-                              <div key={lesson.id} style={{ fontSize: 12, lineHeight: 1.15, fontWeight: 800, marginBottom: 3 }}>
-                                <div>{lesson.subject}</div>
-                                {lesson.secondary && <div style={{ fontSize: 9, fontWeight: 600, color: '#555', marginTop: 2 }}>{lesson.secondary}</div>}
-                              </div>
-                            ))
-                            : <span style={{ fontSize: 8, fontWeight: 800 }}>{period.short_form || period.name}</span>}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <AscFloatingTimetable
+              days={days.filter(day => selectedDays.has(day.index))}
+              periods={visiblePeriods}
+              lessons={visibleLessons}
+              showTimes={showTimes}
+              bellTimes={bellTimes}
+              rowHeight={rowHeight}
+            />
           )}
 
           <footer className="asc-report-paper-footer" data-print-footer={String(printFooter)} style={{ marginTop: 10, paddingTop: 6, borderTop: '1px solid #aaa', display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#555' }}>
