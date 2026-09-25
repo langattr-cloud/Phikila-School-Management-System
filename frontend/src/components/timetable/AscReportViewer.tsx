@@ -97,17 +97,41 @@ export function AscReportViewer({
   const [modifySourceIndex, setModifySourceIndex] = useState(0)
   const [summaryPage, setSummaryPage] = useState(0)
   const reportDateRange = useMemo(() => {
-    const dated = days.filter(day => selectedDays.has(day.index) && day.date_value).map(day => day.date_value as string).sort()
+    const dated = days.filter(day => day.date_value).map(day => day.date_value as string).sort()
     if (!dated.length) return ''
     const format = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
-    return dated.length === 1 ? format(dated[0]) : `${format(dated[0])} – ${format(dated[dated.length - 1])}`
-  }, [days, selectedDays])
+    return dated[0] === dated[dated.length - 1] ? format(dated[0]) : `${format(dated[0])} – ${format(dated[dated.length - 1])}`
+  }, [days])
+
+  useEffect(() => {
+    setSelectedDays(new Set(days.map(day => day.index)))
+    setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) })
+  }, [days, periods])
+  useEffect(() => {
+    if (scope !== 'modify') {
+      setModifySourceScope(scope)
+      setModifySourceIndex(reportIndex)
+    }
+  }, [scope, reportIndex])
+
+  useEffect(() => {
+    const definition = reportDefinitions.find(item => item.scope === scope)
+    setSelectedEntityIds(new Set((definition?.items ?? []).map(item => item.id)))
+  }, [scope])
+
+  const activeItems = reportItems
+  const modifyDefinition = reportDefinitions.find(item => item.scope === modifySourceScope)
+  const modifyItem = modifyDefinition?.items[modifySourceIndex] ?? reportItems[modifySourceIndex]
+  const modifyScopeLabel = modifyDefinition?.label ?? 'Current report'
+  const isSummary = scope.startsWith('summary-')
+  const isSpecialReport = isSummary || scope === 'lesson-grid' || scope === 'modify'
+  const entityDefinition = reportDefinitions.find(item => item.scope === scope)
   const filteredLessons = useMemo(
     () => lessons.filter(lesson => {
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
-      return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end && (showNonTeaching || periods[periodPosition]?.is_teaching)
+      return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
     }),
-    [lessons, periods, selectedDays, selectedPeriodRange, showNonTeaching],
+    [lessons, periods, selectedDays, selectedPeriodRange],
   )
   const entityFilteredLessons = useMemo(() => {
     if (scope === 'all' || isSpecialReport) return filteredLessons
@@ -152,7 +176,7 @@ export function AscReportViewer({
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
       return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
     }),
-    [lessons, periods, selectedDays, selectedPeriodRange, showNonTeaching, scope, isSpecialReport, selectedEntityIds, activeItemId],
+    [lessons, periods, selectedDays, selectedPeriodRange, scope, isSpecialReport, selectedEntityIds, activeItemId],
   )
 
   const summaryRows = useMemo(() => {
