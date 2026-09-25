@@ -271,6 +271,7 @@ export function AscReportViewer({
   }, [scope, selectedEntityIds, selectedDays, selectedPeriodRange, showNonTeaching, isSummary])
 
   const toggleDay = (index: number) => {
+    setSelectedWeek('all')
     setSelectedDays(current => {
       const next = new Set(current)
       if (next.has(index)) next.delete(index)
