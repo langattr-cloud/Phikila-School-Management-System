@@ -210,6 +210,7 @@ export function AscReportViewer({
 
   const pageCount = isSummary ? summaryPageCount : isSpecialReport ? 1 : Math.max(1, pagedItems.length)
   const pageNumber = isSummary ? summaryPageNumber : isSpecialReport ? 1 : (pagedItems.length ? Math.min(Math.max(0, pagedItems.findIndex(item => item.id === activeItems[reportIndex]?.id)) + 1, pagedItems.length) : 1)
+  const activeReportItemName = !isSpecialReport ? (activeItems[reportIndex]?.name || '') : ''
 
   useEffect(() => {
     if (isSpecialReport || pagedItems.length === 0) return
@@ -433,7 +434,7 @@ export function AscReportViewer({
           <div className="asc-report-paper-header" data-print-header={String(printHeader)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
-              <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{versionLabel}{reportDateRange ? ` · ${reportDateRange}` : ''}</div>
+              <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{versionLabel}{reportDateRange ? ` · ${reportDateRange}` : ''}{activeReportItemName ? ` · ${activeReportItemName}` : ''}</div>
             </div>
             <div style={{ fontSize: 9, color: '#555' }}>Page {pageNumber} / {pageCount}</div>
           </div>
