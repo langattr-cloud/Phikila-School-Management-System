@@ -59,6 +59,24 @@ export function AscReportViewer({
   const [fit, setFit] = useState<'paper' | 'wide'>('paper')
   const [selectedDays, setSelectedDays] = useState(() => new Set(days.map(day => day.index)))
   const [selectedPeriodRange, setSelectedPeriodRange] = useState(() => ({ start: 0, end: Math.max(0, periods.length - 1) }))
+  const datedWeeks = useMemo(() => {
+    const weekMap = new Map<string, AscReportDay[]>()
+    for (const day of days) {
+      if (!day.date_value) continue
+      const date = new Date(day.date_value + 'T00:00:00')
+      const monday = new Date(date)
+      monday.setDate(date.getDate() - ((date.getDay() + 6) % 7))
+      const key = monday.toISOString().slice(0, 10)
+      weekMap.set(key, [...(weekMap.get(key) ?? []), day])
+    }
+    return [...weekMap.entries()].sort(([a], [b]) => a.localeCompare(b))
+  }, [days])
+  const [selectedWeek, setSelectedWeek] = useState('all')
+  useEffect(() => {
+    if (selectedWeek === 'all') return
+    const week = datedWeeks.find(([key]) => key === selectedWeek)?.[1] ?? []
+    setSelectedDays(new Set(week.map(day => day.index)))
+  }, [selectedWeek, datedWeeks])
   const [layout, setLayout] = useState<'compact' | 'standard' | 'wide'>('standard')
   const [bellTimes, setBellTimes] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -239,6 +257,20 @@ export function AscReportViewer({
       {filterOpen && (
         <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f6f6f6', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
           <strong style={{ fontSize: 11 }}>Filter:</strong>
+          {datedWeeks.length > 0 && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>Week
+              <select value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} style={{ height: 26, fontSize: 11 }}>
+                <option value="all">All weeks</option>
+                {datedWeeks.map(([key, weekDays]) => {
+                  const values = weekDays.map(day => day.date_value).filter(Boolean).sort()
+                  const first = values[0]
+                  const last = values[values.length - 1]
+                  const format = (value: string) => new Date(value + 'T00:00:00').toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+                  return <option key={key} value={key}>{first === last ? format(first) : format(first) + ' – ' + format(last)}</option>
+                })}
+              </select>
+            </label>
+          )}
           {days.map(day => (
             <label key={day.index} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
               <input type="checkbox" checked={selectedDays.has(day.index)} onChange={() => toggleDay(day.index)} />
@@ -255,7 +287,7 @@ export function AscReportViewer({
               {periods.map((period, index) => <option key={period.id} value={index}>{period.short_form || period.name}</option>)}
             </select>
           </label>
-          <button type="button" onClick={() => { setSelectedDays(new Set(days.map(day => day.index))); setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) }) }} style={buttonStyle}>Clear filter — Print ALL</button>
+          <button type="button" onClick={() => { setSelectedWeek('all'); setSelectedDays(new Set(days.map(day => day.index))); setSelectedPeriodRange({ start: 0, end: Math.max(0, periods.length - 1) }) }} style={buttonStyle}>Clear filter — Print ALL</button>
         </div>
       )}
 
