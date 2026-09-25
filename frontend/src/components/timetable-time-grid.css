@@ -272,3 +272,39 @@
     font-size:clamp(.36rem,1.6vw,.46rem);
   }
 }
+
+/* aSc multi-period geometry: keep the originating card centered while allowing a clean span. */
+.timetable__time-grid .lesson-card--multi,
+.timetable__whole-school-grid .lesson-card--multi{
+  align-self:stretch;
+  justify-self:stretch;
+  margin-left:4px!important;
+  margin-right:4px!important;
+  width:calc(100% + (var(--lesson-span,1) - 1) * 100% - 8px)!important;
+  max-width:none!important;
+  overflow:hidden;
+}
+.timetable__time-grid .lesson-card--multi + *,
+.timetable__whole-school-grid .lesson-card--multi + *{
+  position:relative;
+}
+.timetable__time-grid .timetable__cell:has(.lesson-card--multi),
+.timetable__whole-school-grid .timetable__whole-slot:has(.lesson-card--multi){
+  padding-right:0!important;
+}
+@media(max-width:767px){
+  .timetable__time-grid .lesson-card--multi,
+  .timetable__whole-school-grid .lesson-card--multi{
+    margin-left:2px!important;
+    margin-right:2px!important;
+    width:calc(100% + (var(--lesson-span,1) - 1) * 100% - 4px)!important;
+  }
+}
+@media print{
+  .timetable__time-grid .lesson-card--multi,
+  .timetable__whole-school-grid .lesson-card--multi{
+    margin-left:1px!important;
+    margin-right:1px!important;
+    width:calc(100% + (var(--lesson-span,1) - 1) * 100% - 2px)!important;
+  }
+}
