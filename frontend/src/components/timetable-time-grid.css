@@ -308,3 +308,39 @@
     width:calc(100% + (var(--lesson-span,1) - 1) * 100% - 2px)!important;
   }
 }
+
+/* aSc state treatment: conflicts and invalid spans remain obvious without destroying card hierarchy. */
+.timetable__time-grid .lesson-card--conflict,
+.timetable__whole-school-grid .lesson-card--conflict{
+  outline:2px solid #9a2f24!important;
+  outline-offset:-2px;
+  box-shadow:0 0 0 2px rgb(154 47 36 / .16),0 3px 8px rgb(15 23 42 / .2)!important;
+}
+.timetable__time-grid .lesson-card--invalid-span,
+.timetable__whole-school-grid .lesson-card--invalid-span{
+  outline:2px dashed #b91c1c!important;
+  outline-offset:-2px;
+  background:repeating-linear-gradient(135deg,
+    var(--subject-colour,#64748b),
+    var(--subject-colour,#64748b) 7px,
+    rgb(255 255 255 / .18) 7px,
+    rgb(255 255 255 / .18) 10px)!important;
+}
+.timetable__time-grid .lesson-card--conflict:hover,
+.timetable__whole-school-grid .lesson-card--conflict:hover,
+.timetable__time-grid .lesson-card--invalid-span:hover,
+.timetable__whole-school-grid .lesson-card--invalid-span:hover{
+  transform:translateY(-4px);
+}
+@media print{
+  .timetable__time-grid .lesson-card--conflict,
+  .timetable__whole-school-grid .lesson-card--conflict{
+    outline:1px solid #111!important;
+    box-shadow:none!important;
+  }
+  .timetable__time-grid .lesson-card--invalid-span,
+  .timetable__whole-school-grid .lesson-card--invalid-span{
+    outline:1px dashed #111!important;
+    background:var(--subject-colour,#64748b)!important;
+  }
+}
