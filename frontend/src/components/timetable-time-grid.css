@@ -227,3 +227,48 @@
 .entity-timetable-cell{
   background:#f1f3f6;
 }
+
+/* aSc card content hierarchy: subject is primary, class/teacher secondary. */
+.timetable__time-grid .lesson-card__subject,
+.timetable__whole-school-grid .lesson-card__subject{
+  display:block;
+  width:100%;
+  text-align:center;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:clamp(.52rem,.68vw,.68rem);
+  line-height:1.05;
+  font-weight:900;
+}
+.timetable__time-grid .lesson-card__class,
+.timetable__whole-school-grid .lesson-card__class{
+  display:block;
+  width:100%;
+  margin-top:.08rem;
+  text-align:center;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:clamp(.4rem,.5vw,.5rem);
+  line-height:1;
+  font-weight:800;
+}
+.timetable__time-grid .lesson-card--multi .lesson-card__subject,
+.timetable__whole-school-grid .lesson-card--multi .lesson-card__subject{
+  font-size:clamp(.54rem,.72vw,.72rem);
+}
+.timetable__time-grid .lesson-card--multi .lesson-card__class,
+.timetable__whole-school-grid .lesson-card--multi .lesson-card__class{
+  font-size:clamp(.41rem,.52vw,.52rem);
+}
+@media(max-width:767px){
+  .timetable__time-grid .lesson-card__subject,
+  .timetable__whole-school-grid .lesson-card__subject{
+    font-size:clamp(.46rem,2vw,.58rem);
+  }
+  .timetable__time-grid .lesson-card__class,
+  .timetable__whole-school-grid .lesson-card__class{
+    font-size:clamp(.36rem,1.6vw,.46rem);
+  }
+}
