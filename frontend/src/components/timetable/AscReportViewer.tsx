@@ -204,6 +204,12 @@ export function AscReportViewer({
   const summaryPageCount = Math.max(1, Math.ceil(summaryRows.length / summaryPageSize))
   const pagedSummaryRows = summaryRows.slice(summaryPage * summaryPageSize, (summaryPage + 1) * summaryPageSize)
   const summaryPageNumber = Math.min(summaryPage + 1, summaryPageCount)
+  const summaryTotalLessons = summaryRows.reduce((total, row) => total + row.lessons, 0)
+  const summaryTotalDays = summaryRows.reduce((total, row) => total + row.days, 0)
+  const summaryTotalSubjects = summaryRows.reduce((total, row) => total + row.subjects, 0)
+  const summaryTotalPeriods = summaryRows.reduce((total, row) => total + row.periods, 0)
+  const selectedDayLabels = days.filter(day => selectedDays.has(day.index)).map(day => day.name)
+  const summaryFilterContext = selectedDayLabels.length === days.length ? 'All days' : selectedDayLabels.length ? selectedDayLabels.join(', ') : 'No days selected'
 
   const pageCount = isSummary ? summaryPageCount : isSpecialReport ? 1 : Math.max(1, pagedItems.length)
   const pageNumber = isSummary ? summaryPageNumber : isSpecialReport ? 1 : (pagedItems.length ? Math.min(Math.max(0, pagedItems.findIndex(item => item.id === activeItems[reportIndex]?.id)) + 1, pagedItems.length) : 1)
@@ -513,8 +519,11 @@ export function AscReportViewer({
           ) : isSummary ? (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                <strong style={{ fontSize: 12 }}>{reportDefinitions.find(item => item.scope === scope)?.label || 'Summary report'}</strong>
-                <span style={{ fontSize: 9, color: '#555' }}>{summaryRows.reduce((total, row) => total + row.lessons, 0)} lessons · {summaryRows.length} entities</span>
+                <div>
+                  <strong style={{ fontSize: 12 }}>{reportDefinitions.find(item => item.scope === scope)?.label || 'Summary report'}</strong>
+                  <div style={{ fontSize: 8, color: '#666', marginTop: 2 }}>{reportDateRange || 'No calendar dates'} · {summaryFilterContext} · {showNonTeaching ? 'All periods' : 'Teaching periods only'}</div>
+                </div>
+                <span style={{ fontSize: 9, color: '#555' }}>{summaryTotalLessons} lessons · {summaryRows.length} entities · page {summaryPageNumber} of {summaryPageCount}</span>
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, tableLayout: 'fixed' }}>
                 <thead><tr>
@@ -534,6 +543,13 @@ export function AscReportViewer({
                       <td style={summaryCellStyle}>{row.periods}</td>
                     </tr>
                   ))}
+                  {pagedSummaryRows.length > 0 && <tr style={{ fontWeight: 800, background: '#f0f0f0' }}>
+                    <td style={summaryCellStyle}>Displayed total</td>
+                    <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{pagedSummaryRows.reduce((total, row) => total + row.lessons, 0)}</td>
+                    <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{pagedSummaryRows.reduce((total, row) => total + row.days, 0)}</td>
+                    <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{pagedSummaryRows.reduce((total, row) => total + row.subjects, 0)}</td>
+                    <td style={summaryCellStyle}>{pagedSummaryRows.reduce((total, row) => total + row.periods, 0)}</td>
+                  </tr>}
                   {summaryRows.length === 0 && <tr><td colSpan={5} style={{ ...summaryCellStyle, textAlign: 'center', color: '#666', padding: 18 }}>No entities match the current filters.</td></tr>}
                 </tbody>
               </table>
