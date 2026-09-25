@@ -4,7 +4,7 @@ export type AscReportScope = 'all' | 'class' | 'teacher' | 'room' | 'subject' | 
 export type AscReportSettings = { rowHeight: 'compact' | 'standard' | 'large'; columnWidth: 'compact' | 'standard' | 'wide'; showTimes: boolean; showNonTeaching: boolean }
 
 export type AscReportItem = { id: number; name: string }
-export type AscReportDay = { index: number; name: string }
+export type AscReportDay = { index: number; name: string; date_value?: string | null }
 export type AscReportPeriod = {
   id: number | string
   index: number
@@ -69,6 +69,12 @@ export function AscReportViewer({
   const [printMargins, setPrintMargins] = useState<'narrow' | 'standard' | 'wide'>('standard')
   const [printHeader, setPrintHeader] = useState(true)
   const [printFooter, setPrintFooter] = useState(true)
+  const reportDateRange = useMemo(() => {
+    const dated = days.filter(day => day.date_value).map(day => day.date_value as string).sort()
+    if (!dated.length) return ''
+    const format = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+    return dated[0] === dated[dated.length - 1] ? format(dated[0]) : `${format(dated[0])} – ${format(dated[dated.length - 1])}`
+  }, [days])
 
   useEffect(() => {
     setSelectedDays(new Set(days.map(day => day.index)))
@@ -195,7 +201,7 @@ export function AscReportViewer({
           </select>
         )}
 
-        <strong style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', fontSize: 12 }}>{title}</strong>
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}><strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>{title}</strong>{reportDateRange && <span style={{ display: 'block', fontSize: 9, color: '#555' }}>{reportDateRange}</span>}</div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button type="button" onClick={() => setFilterOpen(value => !value)} style={buttonStyle} aria-expanded={filterOpen}>Filter</button>
@@ -258,7 +264,7 @@ export function AscReportViewer({
           <div className="asc-report-paper-header" data-print-header={String(printHeader)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
-              <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{versionLabel}</div>
+              <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{versionLabel}{reportDateRange ? ` · ${reportDateRange}` : ''}</div>
             </div>
             <div style={{ fontSize: 9, color: '#555' }}>Page {pageNumber} / {pageCount}</div>
           </div>
