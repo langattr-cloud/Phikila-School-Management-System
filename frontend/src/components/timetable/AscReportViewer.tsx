@@ -323,9 +323,9 @@ export function AscReportViewer({
       `}</style>
       <header style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, minHeight: 42, padding: '5px 8px', background: '#ececec', borderBottom: '1px solid #8f8f8f', boxShadow: '0 1px 2px rgba(0,0,0,.18)', fontFamily: 'Arial,Helvetica,sans-serif' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <button type="button" onClick={() => navigateFiltered(-1)} disabled={isSpecialReport || pagedItems.length === 0} title="Previous page" style={buttonStyle}>‹</button>
+          <button type="button" onClick={() => navigateFiltered(-1)} disabled={(!isSummary && isSpecialReport) || (!isSummary && pagedItems.length === 0)} title="Previous page" style={buttonStyle}>‹</button>
           <span style={{ minWidth: 62, textAlign: 'center', fontSize: 11, fontWeight: 700 }}>{pageNumber} / {pageCount}</span>
-          <button type="button" onClick={() => navigateFiltered(1)} disabled={isSpecialReport || pagedItems.length === 0} title="Next page" style={buttonStyle}>›</button>
+          <button type="button" onClick={() => navigateFiltered(1)} disabled={(!isSummary && isSpecialReport) || (!isSummary && pagedItems.length === 0)} title="Next page" style={buttonStyle}>›</button>
         </div>
 
         <div style={{ height: 24, borderLeft: '1px solid #bbb' }} />
