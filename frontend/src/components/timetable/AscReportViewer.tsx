@@ -157,6 +157,10 @@ export function AscReportViewer({
         if (id == null || !selectedEntityIds.has(id)) return false
         if (activeItemId != null && id !== activeItemId) return false
       }
+      if (isSummary) {
+        const id = scope === 'summary-class' ? lesson.class_id : scope === 'summary-teacher' ? lesson.teacher_id : scope === 'summary-room' ? lesson.room_id : lesson.subject_id
+        if (id != null && selectedEntityIds.size > 0 && !selectedEntityIds.has(id)) return false
+      }
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
       return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
     }),
@@ -398,12 +402,14 @@ export function AscReportViewer({
           ) : isSummary ? (
             <div>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
-                <thead><tr><th style={summaryCellStyle}>Day</th><th style={summaryCellStyle}>Period</th><th style={summaryCellStyle}>Subject</th><th style={summaryCellStyle}>Details</th></tr></thead>
+                <thead><tr><th style={summaryCellStyle}>Entity</th><th style={summaryCellStyle}>Day</th><th style={summaryCellStyle}>Period</th><th style={summaryCellStyle}>Subject</th><th style={summaryCellStyle}>Details</th></tr></thead>
                 <tbody>
                   {visibleLessons.map(lesson => {
                     const day = days.find(item => item.index === lesson.day_index)
                     const period = periods.find(item => item.index === lesson.period_index)
-                    return <tr key={lesson.id}><td style={summaryCellStyle}>{day?.name || '—'}</td><td style={summaryCellStyle}>{period?.short_form || period?.name || '—'}</td><td style={summaryCellStyle}><strong>{lesson.subject}</strong></td><td style={summaryCellStyle}>{lesson.secondary || '—'}</td></tr>
+                    const entityId = scope === 'summary-class' ? lesson.class_id : scope === 'summary-teacher' ? lesson.teacher_id : scope === 'summary-room' ? lesson.room_id : lesson.subject_id
+                    const entityName = entityDefinition?.items.find(item => item.id === entityId)?.name || '—'
+                    return <tr key={lesson.id}><td style={summaryCellStyle}>{entityName}</td><td style={summaryCellStyle}>{day?.name || '—'}</td><td style={summaryCellStyle}>{period?.short_form || period?.name || '—'}</td><td style={summaryCellStyle}><strong>{lesson.subject}</strong></td><td style={summaryCellStyle}>{lesson.secondary || '—'}</td></tr>
                   })}
                 </tbody>
               </table>
