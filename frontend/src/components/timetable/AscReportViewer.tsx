@@ -161,6 +161,8 @@ export function AscReportViewer({
 
   const rowHeightPx = rowHeight === 'compact' ? 54 : rowHeight === 'large' ? 88 : 70
 
+
+  const activeItemId = activeItems[reportIndex]?.id
   const summaryRows = useMemo(() => {
     if (!isSummary) return [] as Array<{ id: number; name: string; lessons: number; days: number; subjects: number; periods: number }>
     const summaryId = (lesson: AscReportLesson) => scope === 'summary-class' ? lesson.class_id : scope === 'summary-teacher' ? lesson.teacher_id : scope === 'summary-room' ? lesson.room_id : lesson.subject_id
@@ -181,8 +183,6 @@ export function AscReportViewer({
     }
     return [...rows.values()].map(row => ({ id: row.id, name: row.name, lessons: row.lessons, days: row.days.size, subjects: row.subjects.size, periods: row.periods.size }))
   }, [isSummary, scope, entityDefinition, selectedEntityIds, visibleLessons])
-
-  const activeItemId = activeItems[reportIndex]?.id
   const visibleLessons = useMemo(
     () => lessons.filter(lesson => {
       if (scope !== 'all' && !isSpecialReport) {
