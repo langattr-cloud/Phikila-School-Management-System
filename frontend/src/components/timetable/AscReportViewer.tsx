@@ -244,7 +244,7 @@ export function AscReportViewer({
   const totalEntityCount = entityDefinition?.items.length ?? 0
   const navigateFiltered = (delta: number) => {
     if (isSummary) {
-      setSummaryPage(current => Math.max(0, current + delta))
+      setSummaryPage(current => Math.max(0, Math.min(summaryPageCount - 1, current + delta)))
       return
     }
     if (isSpecialReport || pagedItems.length === 0) return
@@ -260,7 +260,12 @@ export function AscReportViewer({
 
   useEffect(() => {
     setSummaryPage(current => Math.min(current, Math.max(0, Math.ceil(summaryRows.length / summaryPageSize) - 1)))
-  }, [scope, selectedEntityIds, selectedDays, selectedPeriodRange, summaryRows.length])
+  }, [summaryRows.length])
+
+  useEffect(() => {
+    if (!isSummary) return
+    setSummaryPage(0)
+  }, [scope, selectedEntityIds, selectedDays, selectedPeriodRange, showNonTeaching, isSummary])
 
   const toggleDay = (index: number) => {
     setSelectedDays(current => {
