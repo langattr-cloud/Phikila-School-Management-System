@@ -161,6 +161,27 @@ export function AscReportViewer({
 
   const rowHeightPx = rowHeight === 'compact' ? 54 : rowHeight === 'large' ? 88 : 70
 
+  const summaryRows = useMemo(() => {
+    if (!isSummary) return [] as Array<{ id: number; name: string; lessons: number; days: number; subjects: number; periods: number }>
+    const summaryId = (lesson: AscReportLesson) => scope === 'summary-class' ? lesson.class_id : scope === 'summary-teacher' ? lesson.teacher_id : scope === 'summary-room' ? lesson.room_id : lesson.subject_id
+    const rows = new Map<number, { id: number; name: string; lessons: number; days: Set<number>; subjects: Set<number | string>; periods: Set<number> }>()
+    for (const item of entityDefinition?.items ?? []) {
+      if (selectedEntityIds.size > 0 && !selectedEntityIds.has(item.id)) continue
+      rows.set(item.id, { id: item.id, name: item.name, lessons: 0, days: new Set(), subjects: new Set(), periods: new Set() })
+    }
+    for (const lesson of visibleLessons) {
+      const id = summaryId(lesson)
+      if (id == null) continue
+      const row = rows.get(id)
+      if (!row) continue
+      row.lessons += 1
+      row.days.add(lesson.day_index)
+      row.subjects.add(lesson.subject_id ?? lesson.subject)
+      row.periods.add(lesson.period_index)
+    }
+    return [...rows.values()].map(row => ({ id: row.id, name: row.name, lessons: row.lessons, days: row.days.size, subjects: row.subjects.size, periods: row.periods.size }))
+  }, [isSummary, scope, entityDefinition, selectedEntityIds, visibleLessons])
+
   const activeItemId = activeItems[reportIndex]?.id
   const visibleLessons = useMemo(
     () => lessons.filter(lesson => {
@@ -476,16 +497,29 @@ export function AscReportViewer({
             </div>
           ) : isSummary ? (
             <div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
-                <thead><tr><th style={summaryCellStyle}>Entity</th><th style={summaryCellStyle}>Day</th><th style={summaryCellStyle}>Period</th><th style={summaryCellStyle}>Subject</th><th style={summaryCellStyle}>Details</th></tr></thead>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                <strong style={{ fontSize: 12 }}>{reportDefinitions.find(item => item.scope === scope)?.label || 'Summary report'}</strong>
+                <span style={{ fontSize: 9, color: '#555' }}>{summaryRows.reduce((total, row) => total + row.lessons, 0)} lessons · {summaryRows.length} entities</span>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, tableLayout: 'fixed' }}>
+                <thead><tr>
+                  <th style={{ ...summaryCellStyle, width: 220 }}>Entity</th>
+                  <th style={{ ...summaryCellStyle, width: 90 }}>Lessons</th>
+                  <th style={{ ...summaryCellStyle, width: 100 }}>Teaching days</th>
+                  <th style={{ ...summaryCellStyle, width: 100 }}>Subjects</th>
+                  <th style={summaryCellStyle}>Periods used</th>
+                </tr></thead>
                 <tbody>
-                  {visibleLessons.map(lesson => {
-                    const day = days.find(item => item.index === lesson.day_index)
-                    const period = periods.find(item => item.index === lesson.period_index)
-                    const entityId = scope === 'summary-class' ? lesson.class_id : scope === 'summary-teacher' ? lesson.teacher_id : scope === 'summary-room' ? lesson.room_id : lesson.subject_id
-                    const entityName = entityDefinition?.items.find(item => item.id === entityId)?.name || '—'
-                    return <tr key={lesson.id}><td style={summaryCellStyle}>{entityName}</td><td style={summaryCellStyle}>{day?.name || '—'}</td><td style={summaryCellStyle}>{period?.short_form || period?.name || '—'}</td><td style={summaryCellStyle}><strong>{lesson.subject}</strong></td><td style={summaryCellStyle}>{lesson.secondary || '—'}</td></tr>
-                  })}
+                  {summaryRows.map(row => (
+                    <tr key={row.id}>
+                      <td style={summaryCellStyle}><strong>{row.name}</strong></td>
+                      <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{row.lessons}</td>
+                      <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{row.days}</td>
+                      <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{row.subjects}</td>
+                      <td style={summaryCellStyle}>{row.periods}</td>
+                    </tr>
+                  ))}
+                  {summaryRows.length === 0 && <tr><td colSpan={5} style={{ ...summaryCellStyle, textAlign: 'center', color: '#666', padding: 18 }}>No entities match the current filters.</td></tr>}
                 </tbody>
               </table>
             </div>
