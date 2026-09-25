@@ -119,7 +119,7 @@ export function AscReportViewer({
     [lessons, periods, selectedDays, selectedPeriodRange],
   )
   const entityFilteredLessons = useMemo(() => {
-    if (scope === 'all' || isSpecialReport || selectedEntityIds.size === 0) return filteredLessons
+    if (scope === 'all' || isSpecialReport) return filteredLessons
     return filteredLessons.filter(lesson => {
       const id = scope === 'class' ? lesson.class_id : scope === 'teacher' ? lesson.teacher_id : scope === 'room' ? lesson.room_id : scope === 'subject' ? lesson.subject_id : null
       return id != null && selectedEntityIds.has(id)
@@ -148,23 +148,28 @@ export function AscReportViewer({
 
   const rowHeightPx = rowHeight === 'compact' ? 54 : rowHeight === 'large' ? 88 : 70
 
+  const activeItemId = activeItems[reportIndex]?.id
   const visibleLessons = useMemo(
     () => lessons.filter(lesson => {
-      if (scope !== 'all' && !isSpecialReport && selectedEntityIds.size > 0) {
+      if (scope !== 'all' && !isSpecialReport) {
         const id = scope === 'class' ? lesson.class_id : scope === 'teacher' ? lesson.teacher_id : scope === 'room' ? lesson.room_id : scope === 'subject' ? lesson.subject_id : null
         if (id == null || !selectedEntityIds.has(id)) return false
+        if (activeItemId != null && id !== activeItemId) return false
       }
       const periodPosition = periods.findIndex(period => period.index === lesson.period_index)
       return selectedDays.has(lesson.day_index) && periodPosition >= selectedPeriodRange.start && periodPosition <= selectedPeriodRange.end
     }),
-    [lessons, periods, selectedDays, selectedPeriodRange],
+    [lessons, periods, selectedDays, selectedPeriodRange, scope, isSpecialReport, selectedEntityIds, activeItemId],
   )
 
   useEffect(() => {
     if (isSpecialReport || pagedItems.length === 0) return
     const currentId = activeItems[reportIndex]?.id
     const nextIndex = pagedItems.findIndex(item => item.id === currentId)
-    if (nextIndex < 0) onSelectIndex(0)
+    if (nextIndex < 0 && pagedItems[0]) {
+      const firstIndex = activeItems.findIndex(item => item.id === pagedItems[0].id)
+      if (firstIndex >= 0) onSelectIndex(firstIndex)
+    }
   }, [isSpecialReport, pagedItems, activeItems, reportIndex, onSelectIndex])
 
   if (!open) return null
@@ -183,8 +188,9 @@ export function AscReportViewer({
   const navigateFiltered = (delta: number) => {
     if (isSpecialReport || pagedItems.length === 0) return
     const currentId = activeItems[reportIndex]?.id
-    const currentPosition = Math.max(0, pagedItems.findIndex(item => item.id === currentId))
-    const nextPosition = Math.max(0, Math.min(pagedItems.length - 1, currentPosition + delta))
+    const currentPosition = pagedItems.findIndex(item => item.id === currentId)
+    const basePosition = currentPosition >= 0 ? currentPosition : delta > 0 ? -1 : pagedItems.length
+    const nextPosition = Math.max(0, Math.min(pagedItems.length - 1, basePosition + delta))
     const nextId = pagedItems[nextPosition]?.id
     const nextIndex = activeItems.findIndex(item => item.id === nextId)
     if (nextIndex >= 0) onSelectIndex(nextIndex)
