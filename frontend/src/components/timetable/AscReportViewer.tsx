@@ -205,9 +205,6 @@ export function AscReportViewer({
   const pagedSummaryRows = summaryRows.slice(summaryPage * summaryPageSize, (summaryPage + 1) * summaryPageSize)
   const summaryPageNumber = Math.min(summaryPage + 1, summaryPageCount)
   const summaryTotalLessons = summaryRows.reduce((total, row) => total + row.lessons, 0)
-  const summaryTotalDays = summaryRows.reduce((total, row) => total + row.days, 0)
-  const summaryTotalSubjects = summaryRows.reduce((total, row) => total + row.subjects, 0)
-  const summaryTotalPeriods = summaryRows.reduce((total, row) => total + row.periods, 0)
   const selectedDayLabels = days.filter(day => selectedDays.has(day.index)).map(day => day.name)
   const summaryFilterContext = selectedDayLabels.length === days.length ? 'All days' : selectedDayLabels.length ? selectedDayLabels.join(', ') : 'No days selected'
 
@@ -561,9 +558,9 @@ export function AscReportViewer({
                   {pagedSummaryRows.length > 0 && <tr style={{ fontWeight: 800, background: '#f0f0f0' }}>
                     <td style={summaryCellStyle}>Displayed total</td>
                     <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{pagedSummaryRows.reduce((total, row) => total + row.lessons, 0)}</td>
-                    <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{pagedSummaryRows.reduce((total, row) => total + row.days, 0)}</td>
-                    <td style={{ ...summaryCellStyle, textAlign: 'center' }}>{pagedSummaryRows.reduce((total, row) => total + row.subjects, 0)}</td>
-                    <td style={summaryCellStyle}>{pagedSummaryRows.reduce((total, row) => total + row.periods, 0)}</td>
+                    <td style={{ ...summaryCellStyle, textAlign: 'center', color: '#777' }}>—</td>
+                    <td style={{ ...summaryCellStyle, textAlign: 'center', color: '#777' }}>—</td>
+                    <td style={{ ...summaryCellStyle, color: '#777' }}>—</td>
                   </tr>}
                   {summaryRows.length === 0 && <tr><td colSpan={5} style={{ ...summaryCellStyle, textAlign: 'center', color: '#666', padding: 18 }}>No entities match the current filters.</td></tr>}
                 </tbody>
