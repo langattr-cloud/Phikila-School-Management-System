@@ -180,6 +180,16 @@ export function AscReportViewer({
 
   const entityDefinition = reportDefinitions.find(item => item.scope === scope)
   const entityLabel = scope === 'class' ? 'Classes' : scope === 'teacher' ? 'Teachers' : scope === 'room' ? 'Classrooms' : scope === 'subject' ? 'Subjects' : ''
+  const navigateFiltered = (delta: number) => {
+    if (isSpecialReport || pagedItems.length === 0) return
+    const currentId = activeItems[reportIndex]?.id
+    const currentPosition = Math.max(0, pagedItems.findIndex(item => item.id === currentId))
+    const nextPosition = Math.max(0, Math.min(pagedItems.length - 1, currentPosition + delta))
+    const nextId = pagedItems[nextPosition]?.id
+    const nextIndex = activeItems.findIndex(item => item.id === nextId)
+    if (nextIndex >= 0) onSelectIndex(nextIndex)
+  }
+
 
   const toggleDay = (index: number) => {
     setSelectedDays(current => {
@@ -237,9 +247,9 @@ export function AscReportViewer({
       `}</style>
       <header style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, minHeight: 42, padding: '5px 8px', background: '#ececec', borderBottom: '1px solid #8f8f8f', boxShadow: '0 1px 2px rgba(0,0,0,.18)', fontFamily: 'Arial,Helvetica,sans-serif' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <button type="button" onClick={onPrevious} disabled={!activeItems.length} title="Previous page" style={buttonStyle}>‹</button>
+          <button type="button" onClick={() => navigateFiltered(-1)} disabled={isSpecialReport || pagedItems.length === 0} title="Previous page" style={buttonStyle}>‹</button>
           <span style={{ minWidth: 62, textAlign: 'center', fontSize: 11, fontWeight: 700 }}>{pageNumber} / {pageCount}</span>
-          <button type="button" onClick={onNext} disabled={!activeItems.length} title="Next page" style={buttonStyle}>›</button>
+          <button type="button" onClick={() => navigateFiltered(1)} disabled={isSpecialReport || pagedItems.length === 0} title="Next page" style={buttonStyle}>›</button>
         </div>
 
         <div style={{ height: 24, borderLeft: '1px solid #bbb' }} />
