@@ -230,8 +230,6 @@ export function AscReportViewer({
     }
   }, [isSpecialReport, pagedItems, activeItems, reportIndex, onSelectIndex])
 
-  if (!open) return null
-
   const toggleEntity = (id: number) => {
     setSelectedEntityIds(current => {
       const next = new Set(current)
@@ -272,6 +270,8 @@ export function AscReportViewer({
     if (!isSummary) return
     setSummaryPage(0)
   }, [scope, selectedEntityIds, selectedDays, selectedPeriodRange, showNonTeaching, isSummary])
+
+  if (!open) return null
 
   const toggleDay = (index: number) => {
     setSelectedWeek('all')
