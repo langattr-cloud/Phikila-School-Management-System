@@ -92,10 +92,10 @@ export function AscReportViewer({
   }, [days, selectedWeek, datedWeeks])
   const [layout, setLayout] = useState<'compact' | 'standard' | 'wide'>('standard')
   const [bellTimes, setBellTimes] = useState(true)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [toolPanel, setToolPanel] = useState<'global' | 'modify' | 'extra' | 'sizes' | 'design' | 'colors' | 'print' | null>(null)
   const [rowHeight, setRowHeight] = useState<'compact' | 'standard' | 'large'>('standard')
   const [showNonTeaching, setShowNonTeaching] = useState(true)
-  const [printSettingsOpen, setPrintSettingsOpen] = useState(false)
+  const [colorMode, setColorMode] = useState<'subject' | 'mono'>('subject')
   const [printOrientation, setPrintOrientation] = useState<'landscape' | 'portrait'>('landscape')
   const [printMargins, setPrintMargins] = useState<'narrow' | 'standard' | 'wide'>('standard')
   const [printHeader, setPrintHeader] = useState(true)
@@ -583,6 +583,7 @@ export function AscReportViewer({
               showTimes={showTimes}
               bellTimes={bellTimes}
               rowHeight={rowHeight}
+              colorMode={colorMode}
             />
           )}
 
