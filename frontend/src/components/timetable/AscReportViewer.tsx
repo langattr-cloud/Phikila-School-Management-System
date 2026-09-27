@@ -459,8 +459,10 @@ export function AscReportViewer({
           style={{
             width: '100%',
             maxWidth: fit === 'paper'
-              ? (layout === 'compact' ? '860px' : layout === 'wide' ? '1180px' : '1040px')
-              : '1400px',
+              ? (printOrientation === 'portrait'
+                ? (layout === 'compact' ? '620px' : layout === 'wide' ? '760px' : '700px')
+                : (layout === 'compact' ? '860px' : layout === 'wide' ? '1120px' : '1040px'))
+              : (printOrientation === 'portrait' ? '900px' : '1400px'),
             minHeight: 0,
             minWidth: 0,
             margin: '0 auto',
