@@ -98,6 +98,8 @@ export function AscReportViewer({
   const [printSettingsOpen, setPrintSettingsOpen] = useState(false)
   const [printOrientation, setPrintOrientation] = useState<'landscape' | 'portrait'>('landscape')
   const [printMargins, setPrintMargins] = useState<'narrow' | 'standard' | 'wide'>('standard')
+  const printMarginMm = printMargins === 'narrow' ? 4 : printMargins === 'wide' ? 14 : 8
+  const printablePageWidthPx = Math.round(((printOrientation === 'portrait' ? 210 : 297) - (printMarginMm * 2)) * 96 / 25.4)
   const [printHeader, setPrintHeader] = useState(true)
   const [printFooter, setPrintFooter] = useState(true)
   const [modifySourceScope, setModifySourceScope] = useState<AscReportScope>('all')
@@ -486,9 +488,7 @@ export function AscReportViewer({
           style={{
             width: '100%',
             maxWidth: fit === 'paper'
-              ? (printOrientation === 'portrait'
-                ? (layout === 'compact' ? '620px' : layout === 'wide' ? '760px' : '700px')
-                : (layout === 'compact' ? '860px' : layout === 'wide' ? '1120px' : '1040px'))
+              ? `${printablePageWidthPx}px`
               : (printOrientation === 'portrait' ? '900px' : '1400px'),
             minHeight: 0,
             minWidth: 0,
