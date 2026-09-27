@@ -336,7 +336,28 @@ export function AscReportViewer({
             box-shadow: none !important;
             padding: 0 !important;
             box-sizing: border-box !important;
-            break-inside: avoid;
+            break-inside: auto !important;
+            page-break-inside: auto !important;
+          }
+          body.printing-timetable-report .asc-report-viewer .asc-report-paper-header {
+            break-after: avoid !important;
+            page-break-after: avoid !important;
+          }
+          body.printing-timetable-report .asc-report-viewer .asc-floating-timetable {
+            break-before: avoid !important;
+            page-break-before: avoid !important;
+          }
+          body.printing-timetable-report .asc-report-viewer .asc-floating-timetable__header {
+            break-after: avoid !important;
+            page-break-after: avoid !important;
+          }
+          body.printing-timetable-report .asc-report-viewer .asc-floating-timetable__day-row {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          body.printing-timetable-report .asc-report-viewer .asc-report-paper-footer {
+            break-before: avoid !important;
+            page-break-before: avoid !important;
           }
           body.printing-timetable-report .asc-report-viewer table {
             break-inside: auto;
