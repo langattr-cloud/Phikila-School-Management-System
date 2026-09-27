@@ -295,7 +295,7 @@ export function AscReportViewer({
     >
       <style>{`
         @media print {
-          @page { size: ${printOrientation}; margin: ${printMargins === 'narrow' ? '4mm' : printMargins === 'wide' ? '14mm' : '8mm'}; }
+          @page { size: A4 ${printOrientation}; margin: ${printMargins === 'narrow' ? '4mm' : printMargins === 'wide' ? '14mm' : '8mm'}; }
           body.printing-timetable-report {
             margin: 0 !important;
             padding: 0 !important;
@@ -462,7 +462,6 @@ export function AscReportViewer({
               ? (layout === 'compact' ? '860px' : layout === 'wide' ? '1180px' : '1040px')
               : '1400px',
             minWidth: 0,
-            minHeight: 650,
             margin: '0 auto',
             background: '#fff',
             boxShadow: '0 2px 14px rgba(0,0,0,.35)',
