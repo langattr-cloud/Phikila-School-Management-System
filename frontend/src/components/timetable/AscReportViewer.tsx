@@ -167,8 +167,14 @@ export function AscReportViewer({
 
   // One row model is shared by screen and print; print CSS scales the paper,
   // rather than introducing a second timetable geometry.
-  const rowHeightPx = rowHeight === 'compact' ? 54 : rowHeight === 'large' ? 88 : 70
+  const denseSchedule = selectedDays.size >= 6 || visiblePeriods.length >= 9
+  const rowHeightPx = rowHeight === 'compact'
+    ? (denseSchedule ? 48 : 54)
+    : rowHeight === 'large'
+      ? (denseSchedule ? 78 : 88)
+      : (denseSchedule ? 62 : 70)
   const timetableDensity = layout === 'compact' ? 'compact' : layout === 'wide' ? 'wide' : 'standard'
+  const dayColumnWidth = layout === 'compact' ? 'clamp(60px, 7vw, 72px)' : layout === 'wide' ? 'clamp(76px, 9vw, 92px)' : 'clamp(68px, 8vw, 82px)'
 
 
   const activeItemId = activeItems[reportIndex]?.id
@@ -510,7 +516,7 @@ export function AscReportViewer({
               </table>
             </div>
           ) : scope === 'modify' ? (
-            <div>
+            <div style={{ ['--asc-day-column' as string]: dayColumnWidth, ['--asc-row-height' as string]: rowHeightPx + 'px' }}>
               <div style={{ border: '1px solid #aaa', background: '#f7f7f7', padding: 12, marginBottom: 12, fontSize: 11 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
                   <div>
@@ -532,7 +538,7 @@ export function AscReportViewer({
               <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: 92, border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
+                    <th style={{ width: 'var(--asc-day-column)', border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
                     {visiblePeriods.map(period => (
                       <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
                         <div style={{ fontSize: 12, fontWeight: 800 }}>{period.short_form || period.name}</div>
@@ -554,7 +560,7 @@ export function AscReportViewer({
                           return lesson.day_index === day.index && lesson.period_index === period.index && id === sourceId
                         })
                         return (
-                          <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: rowHeightPx, padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
+                          <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: 'var(--asc-row-height)', padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
                             {period.is_teaching
                               ? items.map(lesson => (
                                 <div key={lesson.id} style={{ fontSize: 12, lineHeight: 1.15, fontWeight: 800, marginBottom: 3 }}>
