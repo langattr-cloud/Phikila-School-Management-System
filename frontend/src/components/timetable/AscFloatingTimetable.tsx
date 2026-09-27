@@ -50,8 +50,18 @@ export function AscFloatingTimetable({
     [periods],
   )
 
-  const rowHeightValue = rowHeight === 'compact' ? 54 : rowHeight === 'large' ? 88 : 70
   const teachingCount = orderedPeriods.filter(period => period.is_teaching).length
+  const scheduleIsDense = activeDays.length >= 6 || orderedPeriods.length >= 9
+  const rowHeightValue = rowHeight === 'compact'
+    ? (scheduleIsDense ? 48 : 54)
+    : rowHeight === 'large'
+      ? (scheduleIsDense ? 78 : 88)
+      : (scheduleIsDense ? 62 : 70)
+  const headerHeightValue = rowHeight === 'compact'
+    ? (scheduleIsDense ? 48 : 52)
+    : rowHeight === 'large'
+      ? 56
+      : (scheduleIsDense ? 52 : 56)
   const dayColumn = density === 'compact' ? 'clamp(60px, 7vw, 72px)' : density === 'wide' ? 'clamp(76px, 9vw, 92px)' : 'clamp(68px, 8vw, 82px)'
 
   const lessonByDay = useMemo(() => {
@@ -68,6 +78,7 @@ export function AscFloatingTimetable({
       style={{
         ['--asc-period-count' as string]: orderedPeriods.length,
         ['--asc-row-height' as string]: rowHeightValue + 'px',
+        ['--asc-header-height' as string]: headerHeightValue + 'px',
         ['--asc-day-column' as string]: dayColumn,
       }}
     >
