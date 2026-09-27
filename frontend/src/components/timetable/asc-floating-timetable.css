@@ -267,6 +267,16 @@
 .asc-report-paper-footer {
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.asc-report-paper-footer > * {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media print {
