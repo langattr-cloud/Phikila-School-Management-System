@@ -165,7 +165,10 @@ export function AscReportViewer({
     [periods, selectedPeriodRange, showNonTeaching],
   )
 
+  // One row model is shared by screen and print; print CSS scales the paper,
+  // rather than introducing a second timetable geometry.
   const rowHeightPx = rowHeight === 'compact' ? 54 : rowHeight === 'large' ? 88 : 70
+  const timetableDensity = layout === 'compact' ? 'compact' : layout === 'wide' ? 'wide' : 'standard'
 
 
   const activeItemId = activeItems[reportIndex]?.id
