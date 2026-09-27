@@ -30,7 +30,7 @@ const teachingSpan = (periods: AscReportPeriod[], startIndex: number, duration: 
 const subjectTone = (subject: string) => {
   let hash = 0
   for (let i = 0; i < subject.length; i += 1) hash = ((hash << 5) - hash + subject.charCodeAt(i)) | 0
-  const tones = ['#f7f7f7', '#f3f3f3', '#fafafa', '#eeeeee', '#f5f5f5']
+  const tones = ['#f6d7e8', '#f7d7c4', '#dcebcf', '#d9e8f7', '#eadcf5', '#f4e7bf', '#d9eeee', '#f0dddd']
   return tones[Math.abs(hash) % tones.length]
 }
 
