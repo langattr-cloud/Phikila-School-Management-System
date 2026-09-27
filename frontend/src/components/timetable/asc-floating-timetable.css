@@ -259,3 +259,15 @@
     margin-top:2px;
   }
 }
+/* Prevent the report footer from becoming a second, misaligned grid edge. */
+.asc-report-paper-footer {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+@media print {
+  body.printing-timetable-report .asc-report-paper-footer {
+    width: 100% !important;
+    clear: both !important;
+  }
+}
