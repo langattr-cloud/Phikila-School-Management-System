@@ -616,7 +616,21 @@ export function AscReportViewer({
             />
           )}
 
-          <footer className="asc-report-paper-footer" data-print-footer={String(printFooter)} style={{ marginTop: 10, paddingTop: 6, borderTop: '1px solid #aaa', display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#555' }}>
+          <footer
+            className="asc-report-paper-footer"
+            data-print-footer={String(printFooter)}
+            style={{
+              marginTop: 10,
+              paddingTop: 6,
+              borderTop: '1px solid #aaa',
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              fontSize: 8,
+              color: '#555',
+              minWidth: 0,
+            }}
+          >
             <span>{title}</span>
             <span>Page {pageNumber} / {pageCount}</span>
           </footer>
