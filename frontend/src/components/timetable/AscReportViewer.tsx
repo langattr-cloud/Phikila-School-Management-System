@@ -296,6 +296,10 @@ export function AscReportViewer({
       <style>{`
         @media print {
           @page { size: ${printOrientation}; margin: ${printMargins === 'narrow' ? '4mm' : printMargins === 'wide' ? '14mm' : '8mm'}; }
+          body.printing-timetable-report {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
           body.printing-timetable-report > *:not(.timetable-report-float) { display: none !important; }
           body.printing-timetable-report .asc-report-viewer {
             position: static !important;
