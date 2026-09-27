@@ -461,6 +461,7 @@ export function AscReportViewer({
             maxWidth: fit === 'paper'
               ? (layout === 'compact' ? '860px' : layout === 'wide' ? '1180px' : '1040px')
               : '1400px',
+            minHeight: 0,
             minWidth: 0,
             margin: '0 auto',
             background: '#fff',
