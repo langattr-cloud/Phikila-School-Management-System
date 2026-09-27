@@ -615,6 +615,7 @@ export function AscReportViewer({
               showTimes={showTimes}
               bellTimes={bellTimes}
               rowHeight={rowHeight}
+              density={timetableDensity}
             />
           )}
 
