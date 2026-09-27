@@ -316,10 +316,13 @@ export function AscReportViewer({
           }
           body.printing-timetable-report .asc-report-viewer section {
             width: 100% !important;
+            max-width: none !important;
+            min-width: 0 !important;
             min-height: auto !important;
             margin: 0 !important;
             box-shadow: none !important;
-            padding: 8mm !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
             break-inside: avoid;
           }
           body.printing-timetable-report .asc-report-viewer table {
