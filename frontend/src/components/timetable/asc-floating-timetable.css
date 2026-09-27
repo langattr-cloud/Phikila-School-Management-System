@@ -12,7 +12,7 @@
 }
 .asc-floating-timetable__header{
   display:grid;
-  min-height:56px;
+  min-height:var(--asc-header-height, 56px);
   border-bottom:2px solid #333;
 }
 .asc-floating-timetable__corner,
