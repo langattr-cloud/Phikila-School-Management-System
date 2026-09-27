@@ -444,8 +444,10 @@ export function AscReportViewer({
         <section
           className="asc-report-paper"
           style={{
-            width: fit === 'paper' ? (layout === 'compact' ? '820px' : layout === 'wide' ? '1040px' : '900px') : 'min(1400px, calc(100vw - 20px))',
-            maxWidth: '100%',
+            width: '100%',
+            maxWidth: fit === 'paper'
+              ? (layout === 'compact' ? '860px' : layout === 'wide' ? '1180px' : '1040px')
+              : '1400px',
             minWidth: 0,
             minHeight: 650,
             margin: '0 auto',
