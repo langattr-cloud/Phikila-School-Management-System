@@ -535,12 +535,12 @@ export function AscReportViewer({
                 </div>
               </div>
 
-              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <table className="asc-modify-timetable" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', border: '1px solid #444' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: 'var(--asc-day-column)', border: '1px solid #777', background: '#e6e6e6', padding: 7, fontSize: 10 }}>DAY</th>
+                    <th style={{ width: 'var(--asc-day-column)', border: '1px solid #555', background: '#e5e7eb', padding: 7, fontSize: 10, boxSizing: 'border-box' }}>DAY</th>
                     {visiblePeriods.map(period => (
-                      <th key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#efefef' : '#d0d0d0', padding: 4, height: 44 }}>
+                      <th key={period.id} style={{ border: '1px solid #555', background: period.is_teaching ? '#e5e7eb' : '#cbd5e1', padding: 4, height: 'var(--asc-header-height, 56px)', boxSizing: 'border-box', textAlign: 'center' }}>
                         <div style={{ fontSize: 12, fontWeight: 800 }}>{period.short_form || period.name}</div>
                         {showTimes && bellTimes && <div style={{ fontSize: 8, fontWeight: 500 }}>{period.start_time.slice(0,5)}–{period.end_time.slice(0,5)}</div>}
                       </th>
@@ -550,7 +550,7 @@ export function AscReportViewer({
                 <tbody>
                   {days.filter(day => selectedDays.has(day.index)).map(day => (
                     <tr key={day.index}>
-                      <th style={{ border: '1px solid #777', background: '#e6e6e6', padding: 8, textAlign: 'left', fontSize: 11 }}>{day.name.toUpperCase()}</th>
+                      <th style={{ border: '1px solid #555', background: '#e5e7eb', padding: 8, textAlign: 'left', fontSize: 10, fontWeight: 800, letterSpacing: '.02em', boxSizing: 'border-box' }}>{day.name.toUpperCase()}</th>
                       {visiblePeriods.map(period => {
                         const sourceScope = modifySourceScope
                         const sourceId = modifyItem?.id
@@ -560,12 +560,12 @@ export function AscReportViewer({
                           return lesson.day_index === day.index && lesson.period_index === period.index && id === sourceId
                         })
                         return (
-                          <td key={period.id} style={{ border: '1px solid #777', background: period.is_teaching ? '#fff' : '#d0d0d0', minHeight: 70, height: 'var(--asc-row-height)', padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle' }}>
+                          <td key={period.id} style={{ border: '1px solid #c4c7cc', background: period.is_teaching ? '#fff' : '#cbd5e1', height: 'var(--asc-row-height)', padding: period.is_teaching ? 5 : 3, textAlign: 'center', verticalAlign: 'middle', boxSizing: 'border-box' }}>
                             {period.is_teaching
                               ? items.map(lesson => (
-                                <div key={lesson.id} style={{ fontSize: 12, lineHeight: 1.15, fontWeight: 800, marginBottom: 3 }}>
-                                  <div>{lesson.subject}</div>
-                                  {lesson.secondary && <div style={{ fontSize: 9, fontWeight: 600, color: '#555', marginTop: 2 }}>{lesson.secondary}</div>}
+                                <div key={lesson.id} style={{ fontSize: 11, lineHeight: 1.05, fontWeight: 800, marginBottom: 3, overflow: 'hidden' }}>
+                                  <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lesson.subject}</div>
+                                  {lesson.secondary && <div style={{ fontSize: 8, fontWeight: 600, color: '#333', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lesson.secondary}</div>}
                                 </div>
                               ))
                               : <span style={{ fontSize: 8, fontWeight: 800 }}>{period.short_form || period.name}</span>}
