@@ -65,12 +65,13 @@ export function AscFloatingTimetable({
       style={{
         ['--asc-period-count' as string]: orderedPeriods.length,
         ['--asc-row-height' as string]: rowHeightValue + 'px',
+        ['--asc-day-column' as string]: 'clamp(72px, 9vw, 92px)',
       }}
     >
       <div
         className="asc-floating-timetable__header"
         style={{
-          gridTemplateColumns: `92px repeat(${orderedPeriods.length}, minmax(0, 1fr))`,
+          gridTemplateColumns: `var(--asc-day-column) repeat(${orderedPeriods.length}, minmax(0, 1fr))`,
         }}
       >
         <div className="asc-floating-timetable__corner">
@@ -106,7 +107,7 @@ export function AscFloatingTimetable({
               key={day.index}
               className="asc-floating-timetable__day-row"
               style={{
-                gridTemplateColumns: `92px minmax(0, 1fr)`,
+                gridTemplateColumns: `var(--asc-day-column) minmax(0, 1fr)`,
                 minHeight: rowHeightValue,
               }}
             >
