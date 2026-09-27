@@ -233,6 +233,8 @@
   body.printing-timetable-report .asc-floating-timetable__day-row {
     min-height:var(--asc-row-height) !important;
     border-bottom:1px solid #555 !important;
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
   }
 
   body.printing-timetable-report .asc-floating-timetable__day-row:last-child {
