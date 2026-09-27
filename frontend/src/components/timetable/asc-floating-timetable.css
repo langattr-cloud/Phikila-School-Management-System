@@ -1,10 +1,12 @@
 .asc-floating-timetable{
   width:100%;
+  max-width:100%;
   border:1px solid #444;
   background:#fff;
   font-family:Arial,Helvetica,sans-serif;
   color:#111;
   box-sizing:border-box;
+  margin:0;
   overflow:hidden;
   isolation:isolate;
 }
