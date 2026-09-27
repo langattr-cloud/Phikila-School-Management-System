@@ -140,7 +140,11 @@
   color:#666;
 }
 @media (max-width:900px){
-  .asc-floating-timetable{min-width:760px}
+  .asc-floating-timetable{
+    min-width:0;
+  }
+  .asc-floating-timetable__period-head strong{font-size:11px}
+  .asc-floating-timetable__period-head span{font-size:7px}
 }
 @media print{
   .asc-floating-timetable{
