@@ -9,6 +9,7 @@ type Props = {
   showTimes: boolean
   bellTimes: boolean
   rowHeight: 'compact' | 'standard' | 'large'
+  density: 'compact' | 'standard' | 'wide'
 }
 
 const teachingSpan = (periods: AscReportPeriod[], startIndex: number, duration: number) => {
@@ -41,6 +42,7 @@ export function AscFloatingTimetable({
   showTimes,
   bellTimes,
   rowHeight,
+  density,
 }: Props) {
   const activeDays = useMemo(() => days, [days])
   const orderedPeriods = useMemo(
@@ -50,6 +52,7 @@ export function AscFloatingTimetable({
 
   const rowHeightValue = rowHeight === 'compact' ? 54 : rowHeight === 'large' ? 88 : 70
   const teachingCount = orderedPeriods.filter(period => period.is_teaching).length
+  const dayColumn = density === 'compact' ? 'clamp(60px, 7vw, 72px)' : density === 'wide' ? 'clamp(76px, 9vw, 92px)' : 'clamp(68px, 8vw, 82px)'
 
   const lessonByDay = useMemo(() => {
     const map = new Map<number, AscReportLesson[]>()
@@ -65,7 +68,7 @@ export function AscFloatingTimetable({
       style={{
         ['--asc-period-count' as string]: orderedPeriods.length,
         ['--asc-row-height' as string]: rowHeightValue + 'px',
-        ['--asc-day-column' as string]: 'clamp(72px, 9vw, 92px)',
+        ['--asc-day-column' as string]: dayColumn,
       }}
     >
       <div
