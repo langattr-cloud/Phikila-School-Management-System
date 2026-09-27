@@ -473,7 +473,7 @@ export function AscReportViewer({
             fontFamily: 'Arial,Helvetica,sans-serif',
           }}
         >
-          <div className="asc-report-paper-header" data-print-header={String(printHeader)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
+          <div className="asc-report-paper-header" data-print-header={String(printHeader)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
               <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{versionLabel}{reportDateRange ? ` · ${reportDateRange}` : ''}{activeReportItemName ? ` · ${activeReportItemName}` : ''}</div>
@@ -634,6 +634,8 @@ export function AscReportViewer({
               fontSize: 8,
               color: '#555',
               minWidth: 0,
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
             <span>{title}</span>
