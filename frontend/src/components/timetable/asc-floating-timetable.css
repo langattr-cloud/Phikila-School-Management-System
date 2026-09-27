@@ -155,3 +155,107 @@
   .asc-floating-lesson strong{font-size:10px}
   .asc-floating-lesson span{font-size:7px}
 }
+/* Shared report geometry: the paper, timetable and footer use one printable box. */
+.asc-report-viewer.timetable-report-float .asc-report-paper-header,
+.asc-report-viewer.timetable-report-float .asc-report-paper-footer,
+.asc-report-viewer.timetable-report-float .asc-floating-timetable {
+  box-sizing:border-box;
+}
+
+@media print {
+  html, body {
+    margin:0 !important;
+    padding:0 !important;
+    width:100% !important;
+    overflow:visible !important;
+  }
+
+  body.printing-timetable-report .timetable-report-float,
+  body.printing-timetable-report .timetable-report-float > main {
+    width:100% !important;
+    max-width:none !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+    padding:0 !important;
+    margin:0 !important;
+  }
+
+  body.printing-timetable-report .timetable-report-float > main > section {
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+    box-sizing:border-box !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+  }
+
+  body.printing-timetable-report .timetable-report-float .asc-report-paper-header {
+    margin-bottom:4mm !important;
+    padding-bottom:2mm !important;
+    border-bottom:1.5px solid #111 !important;
+  }
+
+  body.printing-timetable-report .timetable-report-float .asc-report-paper-footer {
+    margin-top:4mm !important;
+    padding-top:2mm !important;
+    border-top:1px solid #555 !important;
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+  }
+
+  body.printing-timetable-report .asc-floating-timetable {
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+    margin:0 !important;
+    border:1px solid #111 !important;
+    border-bottom:1px solid #111 !important;
+    overflow:visible !important;
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+  }
+
+  body.printing-timetable-report .asc-floating-timetable__header {
+    min-height:0 !important;
+    border-bottom:1px solid #111 !important;
+  }
+
+  body.printing-timetable-report .asc-floating-timetable__day-row {
+    min-height:var(--asc-row-height) !important;
+    border-bottom:1px solid #555 !important;
+  }
+
+  body.printing-timetable-report .asc-floating-timetable__day-row:last-child {
+    border-bottom:0 !important;
+  }
+
+  body.printing-timetable-report .asc-floating-timetable__corner,
+  body.printing-timetable-report .asc-floating-timetable__period-head,
+  body.printing-timetable-report .asc-floating-timetable__day-label {
+    border-color:#555 !important;
+  }
+
+  body.printing-timetable-report .asc-floating-timetable__cell {
+    border-color:#aaa !important;
+  }
+
+  body.printing-timetable-report .asc-floating-lesson {
+    top:2px;
+    bottom:2px;
+    padding:3px 4px;
+    box-shadow:none;
+  }
+
+  body.printing-timetable-report .asc-floating-lesson strong {
+    font-size:9px;
+  }
+
+  body.printing-timetable-report .asc-floating-lesson span {
+    font-size:6.5px;
+    margin-top:2px;
+  }
+}
