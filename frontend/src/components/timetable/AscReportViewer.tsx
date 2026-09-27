@@ -400,7 +400,7 @@ export function AscReportViewer({
             <option value="standard">Standard</option>
             <option value="wide">Wide columns</option>
           </select>
-          <button type="button" onClick={() => setFit(value => value === 'paper' ? 'wide' : 'paper')} style={buttonStyle}>{fit === 'paper' ? 'Fit paper' : 'Fit wide'}</button>
+          <button type="button" onClick={() => setFit(value => value === 'paper' ? 'wide' : 'paper')} style={buttonStyle} aria-pressed={fit === 'wide'}>{fit === 'paper' ? 'Fit paper' : 'Fit wide'}</button>
           <button type="button" onClick={() => setBellTimes(value => !value)} style={buttonStyle}>{bellTimes ? 'Bell times' : 'No times'}</button>
           <button type="button" onClick={() => setSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={settingsOpen}>Settings</button>
           <button type="button" onClick={() => setPrintSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={printSettingsOpen}>Print settings</button>
@@ -421,6 +421,7 @@ export function AscReportViewer({
       {printSettingsOpen && (
         <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '6px 10px', background: '#f6f6f6', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
           <strong style={{ fontSize: 11 }}>Print settings:</strong>
+          <span style={{ fontSize: 10, color: '#666' }}>Landscape uses the full printable width.</span>
           <label style={{ fontSize: 11 }}>Orientation <select value={printOrientation} onChange={event => setPrintOrientation(event.target.value as typeof printOrientation)} style={{ height: 26, fontSize: 11 }}><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label>
           <label style={{ fontSize: 11 }}>Margins <select value={printMargins} onChange={event => setPrintMargins(event.target.value as typeof printMargins)} style={{ height: 26, fontSize: 11 }}><option value="narrow">Narrow</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
           <label style={{ fontSize: 11 }}><input type="checkbox" checked={printHeader} onChange={event => setPrintHeader(event.target.checked)} /> Print header</label>
