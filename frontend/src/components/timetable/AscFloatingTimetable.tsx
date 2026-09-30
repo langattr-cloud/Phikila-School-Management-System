@@ -9,6 +9,7 @@ type Props = {
   showTimes: boolean
   bellTimes: boolean
   rowHeight: 'compact' | 'standard' | 'large'
+  colorMode?: 'subject' | 'mono'
 }
 
 const teachingSpan = (periods: AscReportPeriod[], startIndex: number, duration: number) => {
@@ -27,10 +28,11 @@ const teachingSpan = (periods: AscReportPeriod[], startIndex: number, duration: 
   return indexes
 }
 
-const subjectTone = (subject: string) => {
+const subjectTone = (subject: string, mode: 'subject' | 'mono') => {
+  if (mode === 'mono') return '#f2f2f2'
   let hash = 0
   for (let i = 0; i < subject.length; i += 1) hash = ((hash << 5) - hash + subject.charCodeAt(i)) | 0
-  const tones = ['#f7f7f7', '#f3f3f3', '#fafafa', '#eeeeee', '#f5f5f5']
+  const tones = ['#f8b4b4', '#b9e6c3', '#b8d8f8', '#d8c2f0', '#f8d59a', '#aee4e4', '#f3b8d8']
   return tones[Math.abs(hash) % tones.length]
 }
 
@@ -41,6 +43,7 @@ export function AscFloatingTimetable({
   showTimes,
   bellTimes,
   rowHeight,
+  colorMode = 'subject',
 }: Props) {
   const activeDays = useMemo(() => days, [days])
   const orderedPeriods = useMemo(
@@ -155,7 +158,7 @@ export function AscFloatingTimetable({
                           style={{
                             left: `calc(${spanStart} * (100% / ${orderedPeriods.length}) + 2px)`,
                             width: `calc(${width} * (100% / ${orderedPeriods.length}) - 4px)`,
-                            backgroundColor: subjectTone(lesson.subject),
+                            backgroundColor: subjectTone(lesson.subject, colorMode),
                           }}
                           title={`${lesson.subject}${lesson.secondary ? ` · ${lesson.secondary}` : ''}`}
                         >
