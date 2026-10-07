@@ -15,7 +15,7 @@ export default function FinancePage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'trial-balance' | 'general-ledger' | 'balance-sheet' | 'banking'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'vote-heads' | 'trial-balance' | 'general-ledger' | 'balance-sheet' | 'banking'>('overview')
   const [showNewFee, setShowNewFee] = useState(false)
   const [showNewInvoice, setShowNewInvoice] = useState(false)
   const [showNewPayment, setShowNewPayment] = useState(false)
@@ -38,11 +38,12 @@ export default function FinancePage() {
     <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
-      {(['overview', 'matcher', 'fees', 'invoices', 'payments', 'banking', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
+      {(['overview', 'matcher', 'fees', 'vote-heads', 'invoices', 'payments', 'banking', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
     </div>
 
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
       {activeTab === 'matcher' && <FinancePaymentMatcher onPosted={load} />}
+      {activeTab === 'vote-heads' && <VoteHeadsView />}
       {activeTab === 'banking' && <FinanceBanking />}
       {activeTab === 'trial-balance' && <TrialBalanceView />}
       {activeTab === 'general-ledger' && <GeneralLedgerView />}
@@ -70,6 +71,15 @@ export default function FinancePage() {
       </section>}
     </>}
   </div>
+}
+
+function VoteHeadsView() {
+  const [heads,setHeads]=useState<import('../lib/finance').VoteHead[]>([])
+  const [name,setName]=useState(''); const [code,setCode]=useState(''); const [error,setError]=useState<string|null>(null)
+  const load=useCallback(()=>finance.listVoteHeads().then(setHeads).catch(e=>setError(friendlyApiError(e,'load vote heads'))),[])
+  useEffect(()=>{load()},[load])
+  const add=async()=>{if(!name.trim())return;try{await finance.createVoteHead({name:name.trim(),code:code.trim()||undefined,status:'ACTIVE',display_order:heads.length});setName('');setCode('');await load()}catch(e){setError(friendlyApiError(e,'create vote head'))}}
+  return <section className="section card"><div className="finance-section-heading"><div><h2 className="section__title">Vote Heads</h2><p className="muted-text">Configure the fee categories used by this school. Nothing is hard-coded.</p></div></div>{error&&<Alert tone="error">{error}</Alert>}<div className="finance-form"><div className="finance-form__grid"><div className="field"><label className="field__label">Name</label><input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Tuition" /></div><div className="field"><label className="field__label">Code</label><input className="input" value={code} onChange={e=>setCode(e.target.value)} placeholder="Optional code" /></div><div className="finance-form__actions"><button className="button button--primary" onClick={add} disabled={!name.trim()}>Add Vote Head</button></div></div></div>{!heads.length?<EmptyState title="No vote heads configured" description="Add the categories your school uses for fees."/>:<div className="finance-list">{heads.map(h=><div className="finance-list__row" key={h.id}><div className="finance-list__main"><strong>{h.name}</strong><span className="muted-text">{h.code||'No code'}</span></div><div className="finance-list__value"><Badge tone={h.status==='ACTIVE'?'success':'warning'}>{h.status}</Badge></div></div>)}</div>}</section>
 }
 
 function PaymentHistory({ payments, onChanged }: { payments: Payment[]; onChanged: () => Promise<void> }) {
