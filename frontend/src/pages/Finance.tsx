@@ -37,7 +37,9 @@ export default function FinancePage() {
   const money = (value: number | string) => `KES ${Number(value || 0).toLocaleString()}`
   const overviewCards = overview ? [
     { label: 'Total Invoiced', value: money(overview.total_invoiced), tone: 'blue', icon: '▤' },
-    { label: 'Total Collected', value: money(overview.total_collected), tone: 'green', icon: '{error}</Alert>}
+    { label: 'Total Collected', value: money(overview.total_collected), tone: 'green', icon: '
+    <div className="finance-hero"><div className="finance-brand"><span className="finance-brand__mark">●</span><span>phikila</span></div><h1 className="finance-title">Finance</h1><p className="finance-description">Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching.</p></div>
+    {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
       {(['overview', 'matcher', 'fees', 'vote-heads', 'invoices', 'payments', 'banking', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
     </div>
@@ -185,11 +187,7 @@ function NewPaymentForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
   ] : []
 
   return <div className="finance-page">
-    <div className="finance-hero">
-      <div className="finance-brand"><span className="finance-brand__mark">●</span><span>phikila</span></div>
-      <h1 className="finance-title">Finance</h1>
-      <p className="finance-description">Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching.</p>
-    </div>
+    <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
       {(['overview', 'matcher', 'fees', 'vote-heads', 'invoices', 'payments', 'banking', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
