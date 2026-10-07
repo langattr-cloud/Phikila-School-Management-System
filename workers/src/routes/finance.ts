@@ -180,12 +180,20 @@ financeRoutes.post('/payments', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
+  if (body.student_id && Number(body.amount) > 0) {
+    const { data, error: rpcError } = await db().rpc('post_student_fee_payment', {
+      p_school_id: Number(body.school_id ?? 1), p_student_id: Number(body.student_id), p_amount: Number(body.amount),
+      p_payment_method: body.payment_method ?? body.method ?? 'cash',
+      p_reference_number: body.reference_number ?? body.reference ?? null,
+      p_notes: body.notes ?? null, p_received_by: body.received_by ?? null,
+      p_invoice_id: body.invoice_id ? Number(body.invoice_id) : null,
+    })
+    if (rpcError) return jsonError(c, rpcError.message, 400)
+    return c.json(data, 201)
+  }
   const client = db()
   const { data, error: insertError } = await client.from('payments').insert(body).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
-  if (body.reference) {
-    await client.from('payment_inbox').update({ status: 'matched' }).eq('reference', body.reference)
-  }
   return c.json(data, 201)
 })
 
