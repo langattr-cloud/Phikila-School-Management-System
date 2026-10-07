@@ -30,21 +30,29 @@ studentsRoutes.post('/', async (c) => {
   const gradeId = Number(body.grade_id)
   const streamId = body.stream_id == null || body.stream_id === '' ? null : Number(body.stream_id)
   if (!Number.isInteger(academicYearId) || !Number.isInteger(levelId) || !Number.isInteger(gradeId)) {
+    console.error('Student admission validation: missing academic placement', { academicYearId: body.academic_year_id, levelId: body.level_id, gradeId: body.grade_id, streamId: body.stream_id })
     return jsonError(c, 'Academic year, level and grade are required.', 422)
   }
 
   const { data: grade } = await client.from('grades').select('id,level_id,status').eq('id', gradeId).eq('level_id', levelId).maybeSingle()
-  if (!grade || grade.status === false) return jsonError(c, 'Selected grade is not available for this level.', 422)
+  if (!grade || grade.status === false) {
+    console.error('Student admission validation: grade unavailable', { academicYearId, levelId, gradeId, grade })
+    return jsonError(c, 'Selected grade is not available for this level.', 422)
+  }
 
   if (streamId != null) {
     const { data: stream } = await client.from('streams').select('id,grade_id,level_id,academic_year_id,status').eq('id', streamId).maybeSingle()
-    if (!stream || stream.grade_id !== gradeId || stream.level_id !== levelId || stream.academic_year_id !== academicYearId || stream.status !== 'ACTIVE') {
+    if (!Number.isInteger(streamId) || !stream || Number(stream.grade_id) !== gradeId || Number(stream.level_id) !== levelId || Number(stream.academic_year_id) !== academicYearId || stream.status !== 'ACTIVE') {
+      console.error('Student admission validation: invalid stream', { academicYearId, levelId, gradeId, streamId, stream })
       return jsonError(c, 'Selected stream is not available for this grade and academic year.', 422)
     }
   }
 
   const { data: school } = await client.from('school_info').select('id').order('id').limit(1).maybeSingle()
-  if (!school) return jsonError(c, 'School configuration is not available.', 422)
+  if (!school) {
+    console.error('Student admission validation: school configuration missing')
+    return jsonError(c, 'School configuration is not available.', 422)
+  }
 
   const legacyPayload = {
     admission_number: admissionNumber,
