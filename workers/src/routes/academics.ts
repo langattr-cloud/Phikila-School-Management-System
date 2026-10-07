@@ -157,7 +157,16 @@ academicsRoutes.post('/streams', async (c) => {
   const client = db()
   const { data: school } = await client.from('school_info').select('id').order('id').limit(1).maybeSingle()
   if (!school) return jsonError(c, 'School configuration is not available.', 422)
-  const payload = { ...body, school_id: school.id, status: body.status || 'ACTIVE' }
+  const academicYearId = Number(body.academic_year_id)
+  const levelId = Number(body.level_id)
+  const gradeId = Number(body.grade_id)
+  const name = String(body.name ?? '').trim()
+  if (!Number.isInteger(academicYearId) || !Number.isInteger(levelId) || !Number.isInteger(gradeId) || !name) {
+    return jsonError(c, 'Academic year, level, grade and stream name are required.', 422)
+  }
+  const { data: grade } = await client.from('grades').select('id,level_id,status').eq('id', gradeId).eq('level_id', levelId).eq('status', true).maybeSingle()
+  if (!grade) return jsonError(c, 'Selected grade is not available for this level.', 422)
+  const payload = { ...body, school_id: school.id, academic_year_id: academicYearId, level_id: levelId, grade_id: gradeId, name, status: body.status || 'ACTIVE' }
   const { data, error: insertError } = await client.from('streams').insert(payload).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
@@ -172,9 +181,15 @@ academicsRoutes.post('/streams/bulk', async (c) => {
   if (!school) return jsonError(c, 'School configuration is not available.', 422)
   const items = Array.isArray(body.streams) ? body.streams : []
   if (!body.academic_year_id || !body.level_id || !body.grade_id || items.length === 0) return jsonError(c, 'Academic year, level, grade and at least one stream are required.', 422)
+  const academicYearId = Number(body.academic_year_id)
+  const levelId = Number(body.level_id)
+  const gradeId = Number(body.grade_id)
+  if (!Number.isInteger(academicYearId) || !Number.isInteger(levelId) || !Number.isInteger(gradeId)) return jsonError(c, 'Academic year, level and grade are required.', 422)
+  const { data: grade } = await client.from('grades').select('id,level_id,status').eq('id', gradeId).eq('level_id', levelId).eq('status', true).maybeSingle()
+  if (!grade) return jsonError(c, 'Selected grade is not available for this level.', 422)
   const rows = items.map((item: Record<string, unknown>) => ({
-    school_id: school.id, academic_year_id: Number(body.academic_year_id), level_id: Number(body.level_id),
-    grade_id: Number(body.grade_id), name: String(item.name ?? '').trim(), code: item.code || null, status: item.status || 'ACTIVE'
+    school_id: school.id, academic_year_id: academicYearId, level_id: levelId,
+    grade_id: gradeId, name: String(item.name ?? '').trim(), code: item.code || null, status: item.status || 'ACTIVE'
   }))
   if (rows.some((r: {name:string}) => !r.name)) return jsonError(c, 'Every stream must have a name.', 422)
   const { data, error: insertError } = await client.from('streams').insert(rows).select()
