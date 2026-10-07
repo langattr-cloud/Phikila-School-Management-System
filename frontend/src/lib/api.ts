@@ -6,7 +6,25 @@ const sameOriginApiUrl = typeof window !== 'undefined' ? window.location.origin 
 const isProductionHost = typeof window !== 'undefined' && (window.location.hostname === 'phikila.com' || window.location.hostname === 'www.phikila.com' || window.location.hostname.endsWith('.vercel.app'))
 const apiUrl = isProductionHost ? sameOriginApiUrl : (configuredApiUrl || sameOriginApiUrl)
 export class ApiError extends Error { constructor(message: string, public readonly status: number, public readonly detail?: unknown) { super(message) } }
-function validationMessage(detail: unknown): string | undefined {\n  if (typeof detail === 'string') return detail\n  if (Array.isArray(detail)) {\n    const messages = detail.map((item) => {\n      if (!item || typeof item !== 'object') return ''\n      const entry = item as { loc?: unknown; msg?: unknown; message?: unknown }\n      const location = Array.isArray(entry.loc) ? entry.loc.filter((part) => part !== 'body').join('.') : ''\n      const message = typeof entry.msg === 'string' ? entry.msg : typeof entry.message === 'string' ? entry.message : 'Invalid value'\n      return location ? `${location}: ${message}` : message\n    }).filter(Boolean)\n    return messages.length ? `Validation failed: ${messages.join('; ')}` : undefined\n  }\n  if (detail && typeof detail === 'object') {\n    const message = (detail as { message?: unknown }).message\n    if (typeof message === 'string') return message\n  }\n  return undefined\n}\nexport function friendlyApiError(error: unknown, action: string): string { if (error instanceof ApiError) { if (error.status === 0) return `We could not ${action} because the API could not be reached. Please refresh and try again.`; if (error.status === 401) return 'Your sign-in could not be verified. Please sign in again.'; if (error.status === 403) return `You do not have permission to ${action}.`; if (error.status === 404) return 'That information has not been set up yet.'; if (error.status === 409) return error.message || `We could not ${action} because it conflicts with existing data.`; if (error.status === 422 || error.status === 400) return error.message || 'Some details were not accepted. Check the form and try again.'; if (error.status >= 500) return error.message ? `The server could not ${action}: ${error.message}` : `The server had a problem and could not ${action}.`; return error.message || `We could not ${action}. Please try again.` } return error instanceof Error && error.message ? `We could not ${action}: ${error.message}` : `We could not ${action}. Check your connection and try again.` }
+function validationMessage(detail: unknown): string | undefined {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => {
+      if (!item || typeof item !== 'object') return ''
+      const entry = item as { loc?: unknown; msg?: unknown; message?: unknown }
+      const location = Array.isArray(entry.loc) ? entry.loc.filter((part) => part !== 'body').join('.') : ''
+      const message = typeof entry.msg === 'string' ? entry.msg : typeof entry.message === 'string' ? entry.message : 'Invalid value'
+      return location ? `${location}: ${message}` : message
+    }).filter(Boolean)
+    return messages.length ? `Validation failed: ${messages.join('; ')}` : undefined
+  }
+  if (detail && typeof detail === 'object') {
+    const message = (detail as { message?: unknown }).message
+    if (typeof message === 'string') return message
+  }
+  return undefined
+}
+export function friendlyApiError(error: unknown, action: string): string { if (error instanceof ApiError) { if (error.status === 0) return `We could not ${action} because the API could not be reached. Please refresh and try again.`; if (error.status === 401) return 'Your sign-in could not be verified. Please sign in again.'; if (error.status === 403) return `You do not have permission to ${action}.`; if (error.status === 404) return 'That information has not been set up yet.'; if (error.status === 409) return error.message || `We could not ${action} because it conflicts with existing data.`; if (error.status === 422 || error.status === 400) return error.message || 'Some details were not accepted. Check the form and try again.'; if (error.status >= 500) return error.message ? `The server could not ${action}: ${error.message}` : `The server had a problem and could not ${action}.`; return error.message || `We could not ${action}. Please try again.` } return error instanceof Error && error.message ? `We could not ${action}: ${error.message}` : `We could not ${action}. Check your connection and try again.` }
 async function currentAccessToken(): Promise<string | null> { if (!supabase) return getLocalSession()?.access_token ?? null; const { data, error } = await supabase.auth.getSession(); return error ? null : data.session?.access_token ?? null }
 async function refreshSessionToken(): Promise<string | null> { if (!supabase) return null; const { data, error } = await supabase.auth.refreshSession(); return !error && data.session?.access_token ? data.session.access_token : currentAccessToken() }
 function requestUrl(baseUrl: string, path: string): string { if (/^https?:\/\//i.test(path)) return path; return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}` }
