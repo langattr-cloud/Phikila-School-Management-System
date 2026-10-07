@@ -90,7 +90,51 @@ academicsRoutes.post('/levels', async (c) => {
   return c.json(data, 201)
 })
 
+// ── Grades ────────────────────────────────────────────────────────────────
+academicsRoutes.get('/grades', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const levelId = c.req.query('level_id')
+  let query = db().from('grades').select('*').eq('status', true).order('display_order').order('id')
+  if (levelId) query = query.eq('level_id', levelId)
+  const { data, error: queryError } = await query
+  if (queryError) return jsonError(c, queryError.message, 400)
+  return c.json(data ?? [])
+})
+
+academicsRoutes.post('/grades', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const body = await c.req.json().catch(() => ({}))
+  const { data, error: insertError } = await db().from('grades').insert(body).select().single()
+  if (insertError) return jsonError(c, insertError.message, 400)
+  return c.json(data, 201)
+})
+
+academicsRoutes.patch('/grades/:gradeId', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const body = await c.req.json().catch(() => ({}))
+  const { data, error: updateError } = await db().from('grades').update(body).eq('id', c.req.param('gradeId')).select().maybeSingle()
+  if (updateError) return jsonError(c, updateError.message, 400)
+  if (!data) return c.json({ detail: 'Grade not found.' }, 404)
+  return c.json(data)
+})
+
 // ── Streams ───────────────────────────────────────────────────────────────
+
+academicsRoutes.get('/years/:yearId/grades/:gradeId/streams', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const { data, error: queryError } = await db().from('streams').select('*')
+    .eq('academic_year_id', c.req.param('yearId'))
+    .eq('grade_id', c.req.param('gradeId'))
+    .eq('status', 'ACTIVE')
+    .order('id')
+  if (queryError) return jsonError(c, queryError.message, 400)
+  return c.json(data ?? [])
+})
+
 academicsRoutes.get('/levels/:levelId/streams', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
