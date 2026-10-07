@@ -35,3 +35,15 @@
 @media(max-width:900px){ .finance-summary{grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media(max-width:640px){ .finance-tabs{flex-wrap:nowrap; overflow-x:auto; margin-right:calc(var(--space-2)*-1); padding-right:var(--space-2);}.finance-summary{grid-template-columns:1fr;}.finance-summary__card{padding:1rem;}.finance-summary__value{font-size:1.75rem}.finance-section-heading{align-items:stretch;flex-direction:column}.finance-section-heading .button{width:100%}.finance-list__row{align-items:stretch;flex-direction:column}.finance-list__value{display:flex;align-items:center;justify-content:space-between;white-space:normal}.finance-form__grid{grid-template-columns:1fr}.finance-form__actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.finance-form__actions .button{width:100%}}
 @media(max-width:380px){.finance-form__actions{grid-template-columns:1fr}}
+
+
+/* Finance overview cards: keep the existing JSX stable while applying the reference visual treatment. */
+.finance-summary__card:nth-child(1) { background: linear-gradient(135deg, #2563EB, #06B6D4); color: #fff; }
+.finance-summary__card:nth-child(2) { background: linear-gradient(135deg, #16A34A, #84CC16); color: #fff; }
+.finance-summary__card:nth-child(3) { background: linear-gradient(135deg, #E11D48, #FB7185); color: #fff; }
+.finance-summary__card:nth-child(4) { background: linear-gradient(135deg, #7C3AED, #A78BFA); color: #fff; }
+.finance-summary__card:nth-child(5) { background: linear-gradient(135deg, #0F766E, #2DD4BF); color: #fff; }
+.finance-summary__card:nth-child(6) { background: linear-gradient(135deg, #EA580C, #FBBF24); color: #fff; }
+.finance-summary__card .finance-summary__label { color: rgba(255,255,255,.9); }
+.finance-summary__card .finance-summary__value { color: #fff; }
+.finance-summary__card .finance-summary__value--warning { color: #fff; }
