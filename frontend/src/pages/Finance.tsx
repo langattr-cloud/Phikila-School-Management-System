@@ -34,12 +34,51 @@ export default function FinancePage() {
 
   useEffect(() => { load() }, [load])
 
+  const tabs = [
+    { id: 'overview', label: 'Overview', description: 'Finance dashboard' },
+    { id: 'matcher', label: 'M-PESA Matcher', description: 'Match mobile payments' },
+    { id: 'fees', label: 'Fees', description: 'Fee structures' },
+    { id: 'invoices', label: 'Invoices', description: 'Student billing' },
+    { id: 'payments', label: 'Payments', description: 'Collections & receipts' },
+    { id: 'banking', label: 'Banking & Reconciliation', description: 'Bank feeds & reconciliation' },
+    { id: 'trial-balance', label: 'Trial Balance', description: 'Debit & credit control' },
+    { id: 'general-ledger', label: 'General Ledger', description: 'Posted journal detail' },
+    { id: 'balance-sheet', label: 'Balance Sheet', description: 'Financial position' },
+  ] as const
+
+  const activeLabel = tabs.find((tab) => tab.id === activeTab)?.label || 'Overview'
+
   return <div className="finance-page">
-    <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
-    {error && <Alert tone="error">{error}</Alert>}
-    <div className="finance-tabs" role="tablist" aria-label="Finance sections">
-      {(['overview', 'matcher', 'fees', 'invoices', 'payments', 'banking', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
+    <div className="finance-ambient finance-ambient--one" aria-hidden="true" />
+    <div className="finance-ambient finance-ambient--two" aria-hidden="true" />
+    <header className="finance-hero">
+      <div className="finance-hero__brand">
+        <div className="finance-hero__mark" aria-hidden="true">P</div>
+        <div>
+          <div className="finance-hero__eyebrow">Phikila</div>
+          <h1>Finance</h1>
+        </div>
+      </div>
+      <div className="finance-hero__meta">
+        <span className="finance-pill"><span className="finance-pill__dot" /> 9 finance features</span>
+        <button className="button button--secondary button--sm" onClick={load} disabled={loading} aria-label="Refresh finance data">
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+    </header>
+    <div className="finance-hero__copy">
+      <div>
+        <p>School finance, collections, banking and accounting in one workspace.</p>
+        <span>Currently viewing <strong>{activeLabel}</strong>. Existing workflows and accounting data are preserved.</span>
+      </div>
     </div>
+    {error && <Alert tone="error">{error}</Alert>}
+    <nav className="finance-tabs" role="tablist" aria-label="Finance sections">
+      {tabs.map((tab) => <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} className={`finance-tab ${activeTab === tab.id ? 'finance-tab--active' : ''}`} onClick={() => setActiveTab(tab.id)}>
+        <span className="finance-tab__label">{tab.label}</span>
+        <span className="finance-tab__description">{tab.description}</span>
+      </button>)}
+    </nav>
 
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
       {activeTab === 'matcher' && <FinancePaymentMatcher onPosted={load} />}
@@ -47,12 +86,12 @@ export default function FinancePage() {
       {activeTab === 'trial-balance' && <TrialBalanceView />}
       {activeTab === 'general-ledger' && <GeneralLedgerView />}
       {activeTab === 'balance-sheet' && <BalanceSheetView />}
-      {activeTab === 'overview' && overview && <div className="summary-grid finance-summary">{[
+      {activeTab === 'overview' && overview && <><div className="finance-overview-heading"><div><span className="finance-kicker">OVERVIEW</span><h2>Finance at a glance</h2><p>Live totals from the existing finance ledger and billing workflows.</p></div><span className="finance-current">All existing 9 features remain available above</span></div><div className="summary-grid finance-summary">{[
         { label: 'Total Invoiced', value: `KES ${Number(overview.total_invoiced).toLocaleString()}` },
         { label: 'Total Collected', value: `KES ${Number(overview.total_collected).toLocaleString()}` },
         { label: 'Outstanding', value: `KES ${Number(overview.total_outstanding).toLocaleString()}`, tone: Number(overview.total_outstanding) > 0 ? 'warning' : undefined },
         { label: 'Invoices', value: overview.invoices_count }, { label: 'Paid', value: overview.paid_count }, { label: 'Pending', value: overview.pending_count },
-      ].map((c) => <div key={c.label} className="card finance-summary__card"><p className="finance-summary__label">{c.label}</p><p className={`finance-summary__value ${c.tone === 'warning' ? 'finance-summary__value--warning' : ''}`}>{c.value}</p></div>)}</div>}
+      ].map((c) => <div key={c.label} className="card finance-summary__card"><p className="finance-summary__label">{c.label}</p><p className={`finance-summary__value ${c.tone === 'warning' ? 'finance-summary__value--warning' : ''}`}>{c.value}</p></div>)}</div></>}
 
       {activeTab === 'fees' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Fee Structures</h2><button className="button button--primary button--sm" onClick={() => setShowNewFee(!showNewFee)}>+ Fee Structure</button></div>
         {showNewFee && <NewFeeForm onCreated={() => { setShowNewFee(false); load() }} onCancel={() => setShowNewFee(false)} />}
