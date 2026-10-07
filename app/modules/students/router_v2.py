@@ -17,8 +17,8 @@ def _get_student_or_404(db,school_id,student_id):
 def _audit(db,principal,action,entity,entity_id,summary,before=None,after=None):
     from app.modules.scheduling.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=principal.school_id,actor=principal.email or principal.user_id,action=action,entity=entity,entity_id=entity_id,summary=summary,before=before,after=after))
-def _validate_academic_context(db,school_id,academic_year_id,term_id,level_id,class_id):
-    from app.modules.academics.models import AcademicYear,Level,SchoolClass,Term
+def _validate_academic_context(db,school_id,academic_year_id,term_id,level_id,class_id,grade_id,stream_id):
+    from app.modules.academics.models import AcademicYear,Level,SchoolClass,Term,Grade,Stream
     year=db.query(AcademicYear).filter(AcademicYear.id==academic_year_id,AcademicYear.school_id==school_id).first()
     if not year: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"Academic year does not belong to this school.")
     term=None
@@ -27,10 +27,18 @@ def _validate_academic_context(db,school_id,academic_year_id,term_id,level_id,cl
         if not term: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"Term does not belong to the selected Academic Year.")
     level=db.query(Level).filter(Level.id==level_id,Level.school_id==school_id).first()
     if not level: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"Level does not belong to this school.")
-    school_class=db.query(SchoolClass).filter(SchoolClass.id==class_id,SchoolClass.school_id==school_id,SchoolClass.academic_year_id==academic_year_id,SchoolClass.level_id==level_id).first()
-    if not school_class: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"Class does not belong to the selected Academic Year and Level.")
+    grade=db.query(Grade).filter(Grade.id==grade_id,Grade.school_id==school_id,Grade.level_id==level_id,Grade.status.is_(True)).first()
+    if not grade: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"Grade does not belong to the selected Level.")
+    if stream_id is not None:
+        stream=db.query(Stream).filter(Stream.id==stream_id,Stream.school_id==school_id,Stream.academic_year_id==academic_year_id,Stream.level_id==level_id,Stream.grade_id==grade_id,Stream.status=="ACTIVE").first()
+        if not stream: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"Stream does not belong to the selected Grade and Academic Year.")
+    school_class=None
+    if class_id is not None:
+        school_class=db.query(SchoolClass).filter(SchoolClass.id==class_id,SchoolClass.school_id==school_id,SchoolClass.academic_year_id==academic_year_id,SchoolClass.level_id==level_id).first()
+        if not school_class: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,"Class does not belong to the selected Academic Year and Level.")
     if term is None: term=db.query(Term).filter(Term.school_id==school_id,Term.academic_year_id==academic_year_id,Term.is_current.is_(True)).first()
     return school_class,term
+
 @router.get("/students",response_model=s.StudentListResponse)
 def list_students(page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100),search:str|None=Query(None,max_length=200),status_filter:str|None=Query(None,alias="status"),academic_year_id:int|None=Query(None),level_id:int|None=Query(None),class_id:int|None=Query(None),grade_id:int|None=Query(None),stream_id:int|None=Query(None),admission_number:str|None=Query(None),db:Session=Depends(get_db),principal:Principal=Depends(require_role("viewer","teacher","admin"))):
     query=db.query(m.Student).filter(m.Student.school_id==principal.school_id)
