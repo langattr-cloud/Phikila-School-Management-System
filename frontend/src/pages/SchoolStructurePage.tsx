@@ -34,7 +34,7 @@ export function SchoolStructurePage() {
   const gradesByLevel = useMemo(() => {
     const map = new Map<number, LoadedGrade[]>()
     for (const grade of grades) map.set(grade.level_id, [...(map.get(grade.level_id) ?? []), grade])
-    for (const rows of map.values()) rows.sort((a, b) => (a.display_order - b.display_order) || a.id - b.id)
+    for (const rows of map.values()) rows.sort((a, b) => a.id - b.id)
     return map
   }, [grades])
 
