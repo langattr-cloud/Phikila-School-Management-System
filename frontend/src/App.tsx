@@ -25,6 +25,7 @@ const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ de
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
 const GradesPage = lazy(() => import('./pages/GradesPage').then(m => ({ default: m.GradesPage })))
 const StreamsPage = lazy(() => import('./pages/StreamsPage').then(m => ({ default: m.StreamsPage })))
+const AcademicYearTransitionPage = lazy(() => import('./pages/AcademicYearTransitionPage').then(m => ({ default: m.default })))
 const AcademicSetupWizardPage = lazy(() => import('./pages/AcademicSetupWizardPage').then(m => ({ default: m.AcademicSetupWizardPage })))
 const SchoolStructurePage = lazy(() => import('./pages/SchoolStructurePage').then(m => ({ default: m.SchoolStructurePage })))
 const RequirementsPage = lazy(() => import('./pages/RequirementsPage').then(m => ({ default: m.RequirementsPage })))
@@ -161,6 +162,7 @@ function routeFor(pathname: string): ReactNode {
     case '/setup/rooms': return <SetupPage kind="rooms" />
     case '/setup/school': return <SchoolPage />
     case '/setup/academic-years': return <AcademicsPage />
+    case '/setup/academic-year-transition': return <AcademicYearTransitionPage />
     case '/setup/levels': return <LevelsPage />
     case '/setup/grades': return <GradesPage />
     case '/setup/streams': return <StreamsPage />

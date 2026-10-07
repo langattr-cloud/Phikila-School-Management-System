@@ -21,6 +21,16 @@ academicsRoutes.get('/years/:yearId', async (c) => {
   return c.json(data)
 })
 
+academicsRoutes.patch('/years/:yearId', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const body = await c.req.json().catch(() => ({}))
+  const { data, error: updateError } = await db().from('academic_years').update(body).eq('id', c.req.param('yearId')).select().maybeSingle()
+  if (updateError) return jsonError(c, updateError.message, 400)
+  if (!data) return c.json({ detail: 'Academic year not found.' }, 404)
+  return c.json(data)
+})
+
 academicsRoutes.post('/years', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
