@@ -27,7 +27,7 @@ const PLATFORM_NAV: NavGroup = {
 
 const NAV: NavGroup[] = [
   { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }, { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> }, { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> }] },
-  { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> }, { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Classes', icon: <LayersIcon /> }, { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> }] },
+  { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> }, { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Classes', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }, { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> }] },
   { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> }] },
   { label: 'Operations', items: [{ to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> }, { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
   { label: 'Examination', items: [{ to: '/examinations', label: 'Examination', icon: <StackedLayersIcon /> }] },

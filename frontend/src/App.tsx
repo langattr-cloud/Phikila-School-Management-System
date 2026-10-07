@@ -26,6 +26,7 @@ const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default:
 const GradesPage = lazy(() => import('./pages/GradesPage').then(m => ({ default: m.GradesPage })))
 const StreamsPage = lazy(() => import('./pages/StreamsPage').then(m => ({ default: m.StreamsPage })))
 const AcademicSetupWizardPage = lazy(() => import('./pages/AcademicSetupWizardPage').then(m => ({ default: m.AcademicSetupWizardPage })))
+const SchoolStructurePage = lazy(() => import('./pages/SchoolStructurePage').then(m => ({ default: m.SchoolStructurePage })))
 const RequirementsPage = lazy(() => import('./pages/RequirementsPage').then(m => ({ default: m.RequirementsPage })))
 const ConstraintsPage = lazy(() => import('./pages/ConstraintsPage').then(m => ({ default: m.ConstraintsPage })))
 const TimeOffPage = lazy(() => import('./pages/TimeOffPage').then(m => ({ default: m.TimeOffPage })))
@@ -164,6 +165,7 @@ function routeFor(pathname: string): ReactNode {
     case '/setup/grades': return <GradesPage />
     case '/setup/streams': return <StreamsPage />
     case '/setup/academic-setup': return <AcademicSetupWizardPage />
+    case '/setup/school-structure': return <SchoolStructurePage />
     case '/scheduling/requirements': return <RequirementsPage />
     case '/scheduling/constraints': return <ConstraintsPage />
     case '/scheduling/time-off': return <TimeOffPage />
