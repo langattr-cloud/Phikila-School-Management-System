@@ -25,6 +25,80 @@ financeRoutes.get('/overview', async (c) => {
   })
 })
 
+financeRoutes.get('/vote-heads', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const { data, error: queryError } = await db().from('finance_vote_heads').select('*').order('display_order').order('name')
+  if (queryError) return jsonError(c, queryError.message, 400)
+  return c.json(data ?? [])
+})
+financeRoutes.post('/vote-heads', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const body = await c.req.json().catch(() => ({}))
+  const { data, error: insertError } = await db().from('finance_vote_heads').insert(body).select().single()
+  if (insertError) return jsonError(c, insertError.message, 400)
+  return c.json(data, 201)
+})
+financeRoutes.patch('/vote-heads/:id', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const body = await c.req.json().catch(() => ({}))
+  const { data, error: updateError } = await db().from('finance_vote_heads').update(body).eq('id', c.req.param('id')).select().maybeSingle()
+  if (updateError) return jsonError(c, updateError.message, 400)
+  return c.json(data)
+})
+financeRoutes.get('/fee-structures/:id/items', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const { data, error: queryError } = await db().from('fee_structure_items').select('*').eq('fee_structure_id', c.req.param('id')).order('display_order')
+  if (queryError) return jsonError(c, queryError.message, 400)
+  return c.json(data ?? [])
+})
+financeRoutes.post('/fee-structures/:id/items', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const body = await c.req.json().catch(() => ({}))
+  const { data, error: insertError } = await db().from('fee_structure_items').insert({ ...body, fee_structure_id: Number(c.req.param('id')) }).select().single()
+  if (insertError) return jsonError(c, insertError.message, 400)
+  return c.json(data, 201)
+})
+financeRoutes.get('/payments/:id/allocations', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const { data, error: queryError } = await db().from('payment_allocations').select('*').eq('payment_id', c.req.param('id')).order('id')
+  if (queryError) return jsonError(c, queryError.message, 400)
+  return c.json(data ?? [])
+})
+financeRoutes.get('/students/:studentId/fee-credits', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const { data, error: queryError } = await db().from('student_fee_credits').select('*').eq('student_id', c.req.param('studentId')).eq('status','AVAILABLE').order('created_at')
+  if (queryError) return jsonError(c, queryError.message, 400)
+  return c.json(data ?? [])
+})
+financeRoutes.get('/students/:studentId/fee-obligations', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const { data: invoices, error: invoiceError } = await db().from('student_invoices').select('*').eq('student_id', c.req.param('studentId')).gt('balance',0).order('created_at')
+  if (invoiceError) return jsonError(c, invoiceError.message, 400)
+  const ids = (invoices ?? []).map((i: any) => i.id)
+  const { data: items } = ids.length ? await db().from('student_invoice_items').select('*').in('invoice_id', ids) : { data: [] as any[] }
+  return c.json({ invoices: invoices ?? [], items: items ?? [] })
+})
+financeRoutes.post('/payments/allocate', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const body = await c.req.json().catch(() => ({}))
+  const { data, error: rpcError } = await db().rpc('post_student_fee_payment', {
+    p_school_id: Number(body.school_id ?? 1), p_student_id: Number(body.student_id), p_amount: Number(body.amount),
+    p_payment_method: body.payment_method ?? body.method ?? 'cash', p_reference_number: body.reference_number ?? body.reference ?? null,
+    p_notes: body.notes ?? null, p_received_by: body.received_by ?? null, p_invoice_id: body.invoice_id ? Number(body.invoice_id) : null,
+  })
+  if (rpcError) return jsonError(c, rpcError.message, 400)
+  return c.json(data, 201)
+})
+
 // ── Fee structures ────────────────────────────────────────────────────────
 financeRoutes.get('/fee-structures', async (c) => {
   const { error } = requireAuth(c as never)
