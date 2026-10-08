@@ -33,6 +33,17 @@ def post_fee_payment(db: Session, *, school_id: int, invoice: m.StudentInvoice, 
     payment.journal_id = journal.id
     invoice.balance = max(Decimal(str(invoice.balance)) - amount, Decimal("0"))
     invoice.status = "paid" if invoice.balance == 0 else "partial"
+    remaining = amount
+    items = db.query(m.InvoiceItem).filter(m.InvoiceItem.school_id == school_id, m.InvoiceItem.invoice_id == invoice.id, m.InvoiceItem.balance > 0).order_by(m.InvoiceItem.id).all()
+    if not items: raise HTTPException(409, "Invoice has no vote-head allocations.")
+    for item in items:
+        applied = min(remaining, Decimal(str(item.balance)))
+        if applied > 0:
+            item.balance = Decimal(str(item.balance)) - applied
+            db.add(m.PaymentAllocation(school_id=school_id, payment_id=payment.id, invoice_id=invoice.id, invoice_item_id=item.id, vote_head_id=item.vote_head_id, amount=applied, allocation_type="FEE"))
+            remaining -= applied
+        if remaining <= 0: break
+    if remaining > 0: raise HTTPException(409, "Payment exceeds the remaining vote-head allocation balance.")
     receipt = m.FinanceReceipt(school_id=school_id, receipt_number=f"RCPT-{payment.id}", payment_id=payment.id,
                                student_id=student_id, amount=amount, status="ISSUED", issued_by=actor,
                                issued_at=datetime.now(timezone.utc))
