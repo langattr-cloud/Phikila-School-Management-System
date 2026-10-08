@@ -153,3 +153,43 @@ class PaymentInboxResponse(BaseModel):
     notes: str | None = None
     created_at: datetime | None = None
     model_config = {"from_attributes": True}
+
+
+class StudentBalanceReportRow(BaseModel):
+    student_id: int
+    admission_number: str
+    student_name: str
+    level_name: str | None = None
+    grade_name: str | None = None
+    stream_name: str | None = None
+    total_invoiced: Decimal
+    total_paid: Decimal
+    balance: Decimal
+
+class StatementInvoice(BaseModel):
+    id: int
+    description: str
+    amount: Decimal
+    balance: Decimal
+    due_date: date | None = None
+    created_at: datetime | None = None
+
+class StatementPayment(BaseModel):
+    id: int
+    amount: Decimal
+    payment_method: str | None = None
+    reference_number: str | None = None
+    created_at: datetime | None = None
+
+class StudentStatement(BaseModel):
+    student_id: int
+    admission_number: str
+    student_name: str
+    level_name: str | None = None
+    grade_name: str | None = None
+    stream_name: str | None = None
+    total_invoiced: Decimal
+    total_paid: Decimal
+    balance: Decimal
+    invoices: list[StatementInvoice] = []
+    payments: list[StatementPayment] = []
