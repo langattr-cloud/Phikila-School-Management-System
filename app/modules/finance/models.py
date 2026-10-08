@@ -4,6 +4,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, T
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+from app.modules.students.models_v2 import StudentEnrollment
 class FeeStructure(Base):
     __tablename__ = "fee_structures"
     __table_args__ = (UniqueConstraint("school_id", "name", "academic_year_id", name="uq_fee_structure"), {"extend_existing": True})
