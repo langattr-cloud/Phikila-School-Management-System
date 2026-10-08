@@ -5,7 +5,7 @@ import { Badge, EmptyState, LoadingBlock } from '../components/States'
 import { FinancePaymentMatcher } from '../components/FinancePaymentMatcher'
 import { FinanceBanking } from '../components/FinanceBanking'
 import { api, friendlyApiError } from '../lib/api'
-import { finance, type BalanceSheet, type FeeStructure, type GeneralLedgerRow, type Invoice, type Payment, type FinanceOverview, type TrialBalanceRow } from '../lib/finance'
+import { finance, type BalanceSheet, type FeeStructure, type GeneralLedgerRow, type Invoice, type Payment, type FinanceOverview, type TrialBalanceRow, type VoteHead } from '../lib/finance'
 import './Finance.css'
 
 const levelLabel = (name: string) => /pre\s*primary|pre\s*school/i.test(name) ? 'Pre school' : /primary/i.test(name) && !/junior/i.test(name) ? 'Primary' : /junior/i.test(name) ? 'Junior' : /senior/i.test(name) ? 'Senior' : name
@@ -207,17 +207,20 @@ function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
   const [levels, setLevels] = useState<Awaited<ReturnType<typeof api.levels>>>([])
   const [grades, setGrades] = useState<Awaited<ReturnType<typeof api.grades>>>([])
   const [form, setForm] = useState({ academic_year_id: '', level_id: '', grade_id: '', name: '', amount: '', description: '' })
+  const [voteHeads, setVoteHeads] = useState<VoteHead[]>([])
+  const [allocations, setAllocations] = useState<Record<number, string>>({})
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    Promise.all([api.academicYears(), api.levels()])
-      .then(([years, loadedLevels]) => {
+    Promise.all([api.academicYears(), api.levels(), finance.listVoteHeads()])
+      .then(([years, loadedLevels, loadedVoteHeads]) => {
         if (!active) return
         setAcademicYears(years)
         setLevels(loadedLevels)
+        setVoteHeads(loadedVoteHeads.filter((head) => head.status === 'ACTIVE'))
         const currentYear = years.find((year) => year.is_current) || years[0]
         setForm((current) => ({ ...current, academic_year_id: currentYear ? String(currentYear.id) : '' }))
       })
@@ -241,6 +244,12 @@ function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
       setError('Select an academic year, level and grade, then enter a fee name and a positive amount.')
       return
     }
+    const activeAllocations = voteHeads.map((head, index) => ({ vote_head_id: head.id, amount: Number(allocations[head.id] || 0), display_order: index })).filter((item) => item.amount > 0)
+    const allocationTotal = activeAllocations.reduce((sum, item) => sum + item.amount, 0)
+    if (!activeAllocations.length || Math.abs(allocationTotal - Number(form.amount)) > 0.001) {
+      setError('Allocate the full fee amount across one or more active vote heads.')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -252,6 +261,7 @@ function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
         name: form.name.trim(),
         amount: Number(form.amount),
         description: form.description.trim() || undefined,
+        allocations: activeAllocations,
       })
       onCreated()
     } catch (err) {
@@ -271,6 +281,7 @@ function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
       <div className="field"><label className="field__label">Fee Name</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Tuition Fee" disabled={submitting} /></div>
       <div className="field"><label className="field__label">Amount (KES)</label><input className="input" type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} disabled={submitting} /></div>
       <div className="field"><label className="field__label">Description (optional)</label><input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} disabled={submitting} /></div>
+      <div className="field" style={{ gridColumn: '1 / -1' }}><label className="field__label">Vote Head Allocations</label><p className="muted-text">The allocation total must equal the fee amount. Payments will follow this order.</p><div className="finance-list">{voteHeads.map((head, index) => <div className="finance-list__row" key={head.id}><div className="finance-list__main"><strong>{head.name}</strong><span className="muted-text">{head.code || 'No code'} · Priority {index + 1}</span></div><div className="finance-list__value"><input className="input" style={{ width: 160 }} type="number" min="0" step="0.01" value={allocations[head.id] || ''} onChange={(e) => setAllocations({ ...allocations, [head.id]: e.target.value })} disabled={submitting} placeholder="KES 0.00" /></div></div>)}</div><p className={Math.abs(voteHeads.reduce((sum, head) => sum + Number(allocations[head.id] || 0), 0) - Number(form.amount || 0)) < 0.001 ? 'muted-text' : 'finance-summary__value--warning'}>Allocated: KES {voteHeads.reduce((sum, head) => sum + Number(allocations[head.id] || 0), 0).toLocaleString()} / KES {Number(form.amount || 0).toLocaleString()}</p></div>
       <div className="finance-form__actions"><button className="button button--primary" disabled={loadingOptions || !form.academic_year_id || !form.level_id || !form.grade_id || !form.name.trim() || !form.amount || Number(form.amount) <= 0 || submitting} onClick={submit}>{submitting ? 'Creating…' : 'Create Fee Structure'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div>
     </div>
   </div>
