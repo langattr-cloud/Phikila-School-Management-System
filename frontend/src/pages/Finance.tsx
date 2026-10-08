@@ -44,7 +44,8 @@ export default function FinancePage() {
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
       {activeTab === 'matcher' && <FinancePaymentMatcher onPosted={load} />}
       {activeTab === 'vote-heads' && <VoteHeadsView />}
-      {activeTab === 'banking' && <FinanceBanking />}\n      {activeTab === 'balances' && <StudentBalancesReport />}
+      {activeTab === 'banking' && <FinanceBanking />}
+      {activeTab === 'balances' && <StudentBalancesReport />}
       {activeTab === 'trial-balance' && <TrialBalanceView />}
       {activeTab === 'general-ledger' && <GeneralLedgerView />}
       {activeTab === 'balance-sheet' && <BalanceSheetView />}
