@@ -194,6 +194,7 @@ function StudentBalancesReport() {
   const [loading,setLoading]=useState(false)
   const [error,setError]=useState<string|null>(null)
   const [academicYears,setAcademicYears]=useState<Awaited<ReturnType<typeof api.academicYears>>>([])
+  const [feeStructures,setFeeStructures]=useState<FeeStructure[]>([])
   const [levels,setLevels]=useState<Awaited<ReturnType<typeof api.levels>>>([])
   const [grades,setGrades]=useState<Awaited<ReturnType<typeof api.grades>>>([])
   const [streams,setStreams]=useState<Awaited<ReturnType<typeof api.streams>>>([])
@@ -204,7 +205,7 @@ function StudentBalancesReport() {
   const [loadingOptions,setLoadingOptions]=useState(true)
   const [outstandingOnly,setOutstandingOnly]=useState(false)
   const [loadingStreams,setLoadingStreams]=useState(false)
-  useEffect(()=>{let active=true;Promise.all([api.academicYears(),api.levels(),api.grades()]).then(([years,loadedLevels,loadedGrades])=>{if(!active)return;setAcademicYears(years);setLevels(loadedLevels);setGrades(loadedGrades);const current=years.find(y=>y.is_current)||years[0];setYearId(current?String(current.id):'')}).catch(err=>{if(active)setError(friendlyApiError(err,'load academic setup'))}).finally(()=>{if(active)setLoadingOptions(false)});return()=>{active=false}},[])
+  useEffect(()=>{let active=true;Promise.all([api.academicYears(),api.levels(),api.grades(),finance.listFeeStructures()]).then(([years,loadedLevels,loadedGrades,loadedFees])=>{if(!active)return;setAcademicYears(years);setLevels(loadedLevels);setGrades(loadedGrades);setFeeStructures(loadedFees);const current=years.find(y=>y.is_current)||years[0];setYearId(current?String(current.id):'')}).catch(err=>{if(active)setError(friendlyApiError(err,'load academic setup'))}).finally(()=>{if(active)setLoadingOptions(false)});return()=>{active=false}},[])
   useEffect(()=>{setGradeId('');setStreamId('');setStreams([])},[levelId])
   useEffect(()=>{setStreamId('');setStreams([]);if(!yearId||!gradeId)return;const grade=grades.find(g=>String(g.id)===gradeId);if(!grade||String(grade.level_id)!==levelId)return;let active=true;setLoadingStreams(true);api.streams(Number(yearId),Number(gradeId)).then(items=>{if(active)setStreams(items.filter(s=>s.status==='ACTIVE'))}).catch(err=>{if(active)setError(friendlyApiError(err,'load streams'))}).finally(()=>{if(active)setLoadingStreams(false)});return()=>{active=false}},[yearId,gradeId,levelId,grades])
   const load=async()=>{setLoading(true);setError(null);try{setRows(await finance.studentBalanceReport({academic_year_id:yearId?Number(yearId):undefined,level_id:levelId?Number(levelId):undefined,grade_id:gradeId?Number(gradeId):undefined,stream_id:streamId?Number(streamId):undefined,outstanding_only:outstandingOnly}))}catch(e){setError(friendlyApiError(e,'load student balances'))}finally{setLoading(false)}}
