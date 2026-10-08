@@ -1,13 +1,13 @@
 """Finance models — school-scoped, Decimal-safe, auditable."""
 from __future__ import annotations
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, Index, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 from app.modules.students.models_v2 import StudentEnrollment
 class FeeStructure(Base):
     __tablename__ = "fee_structures"
-    __table_args__ = (UniqueConstraint("school_id", "name", "academic_year_id", name="uq_fee_structure"), {"extend_existing": True})
+    __table_args__ = (Index("uq_fee_structure_scope", "school_id", "name", "academic_year_id", "grade_id", text("coalesce(stream_id, 0)"), unique=True), {"extend_existing": True})
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); name = Column(String(150), nullable=False); description = Column(Text); academic_year_id = Column(Integer, ForeignKey("academic_years.id")); term_id = Column(Integer, ForeignKey("terms.id")); level_id = Column(Integer, ForeignKey("levels.id")); school_class_id = Column(Integer, ForeignKey("school_classes.id", ondelete="SET NULL"), nullable=True, index=True); grade_id = Column(Integer, ForeignKey("grades.id", ondelete="SET NULL"), nullable=True, index=True); stream_id = Column(Integer, ForeignKey("streams.id", ondelete="SET NULL"), nullable=True, index=True); amount = Column(Numeric(12, 2), nullable=False); currency = Column(String(3), default="KES"); status = Column(String(20), default="active"); created_at = Column(DateTime(timezone=True), server_default=func.now())
     invoices = relationship("StudentInvoice", back_populates="fee_structure")
 class StudentInvoice(Base):
