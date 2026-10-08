@@ -155,14 +155,77 @@ function BalanceSheetView() {
 }
 
 function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ name: '', amount: '', description: '' }); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null)
+  const [academicYears, setAcademicYears] = useState<Awaited<ReturnType<typeof api.academicYears>>>([])
+  const [levels, setLevels] = useState<Awaited<ReturnType<typeof api.levels>>>([])
+  const [grades, setGrades] = useState<Awaited<ReturnType<typeof api.grades>>>([])
+  const [form, setForm] = useState({ academic_year_id: '', level_id: '', grade_id: '', name: '', amount: '', description: '' })
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    Promise.all([api.academicYears(), api.levels()])
+      .then(([years, loadedLevels]) => {
+        if (!active) return
+        setAcademicYears(years)
+        setLevels(loadedLevels)
+        const currentYear = years.find((year) => year.is_current) || years[0]
+        setForm((current) => ({ ...current, academic_year_id: currentYear ? String(currentYear.id) : '' }))
+      })
+      .catch((err) => { if (active) setError(friendlyApiError(err, 'load academic setup')) })
+      .finally(() => { if (active) setLoadingOptions(false) })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    setForm((current) => ({ ...current, grade_id: '' }))
+    if (!form.level_id) { setGrades([]); return }
+    let active = true
+    api.grades(Number(form.level_id))
+      .then((items) => { if (active) setGrades(items.filter((grade) => grade.status !== false)) })
+      .catch((err) => { if (active) { setGrades([]); setError(friendlyApiError(err, 'load grades')) } })
+    return () => { active = false }
+  }, [form.level_id])
+
   const submit = async () => {
-    setSubmitting(true); setError(null)
-    try { await finance.createFeeStructure({ name: form.name, amount: Number(form.amount), description: form.description }); onCreated() }
-    catch (err) { setError(friendlyApiError(err, 'create fee structure')) }
-    finally { setSubmitting(false) }
+    if (!form.academic_year_id || !form.level_id || !form.grade_id || !form.name.trim() || !form.amount || Number(form.amount) <= 0) {
+      setError('Select an academic year, level and grade, then enter a fee name and a positive amount.')
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      await finance.createFeeStructure({
+        academic_year_id: Number(form.academic_year_id),
+        level_id: Number(form.level_id),
+        grade_id: Number(form.grade_id),
+        stream_id: null,
+        name: form.name.trim(),
+        amount: Number(form.amount),
+        description: form.description.trim() || undefined,
+      })
+      onCreated()
+    } catch (err) {
+      setError(friendlyApiError(err, 'create fee structure'))
+    } finally {
+      setSubmitting(false)
+    }
   }
-  return <div className="finance-form">{error && <Alert tone="error">{error}</Alert>}<div className="finance-form__grid"><div className="field"><label className="field__label">Name</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Tuition Fee" /></div><div className="field"><label className="field__label">Amount (KES)</label><input className="input" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div><div className="field"><label className="field__label">Description</label><input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div><div className="finance-form__actions"><button className="button button--primary" disabled={!form.name || !form.amount || submitting} onClick={submit}>{submitting ? 'Creating…' : 'Create'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div></div></div>
+
+  return <div className="finance-form">
+    {error && <Alert tone="error">{error}</Alert>}
+    <p className="muted-text">Set one fee for the selected grade. It applies to every stream in that grade.</p>
+    <div className="finance-form__grid">
+      <div className="field"><label className="field__label">Academic Year</label><select className="input" value={form.academic_year_id} onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })} disabled={loadingOptions || submitting}><option value="">Select academic year…</option>{academicYears.map((year) => <option key={year.id} value={year.id}>{year.name}{year.is_current ? ' (Current)' : ''}</option>)}</select></div>
+      <div className="field"><label className="field__label">Level</label><select className="input" value={form.level_id} onChange={(e) => setForm({ ...form, level_id: e.target.value, grade_id: '' })} disabled={loadingOptions || submitting || !form.academic_year_id}><option value="">Select level…</option>{levels.filter((level) => level.status === true || level.status === 'ACTIVE').map((level) => <option key={level.id} value={level.id}>{levelLabel(level.name)}</option>)}</select></div>
+      <div className="field"><label className="field__label">Grade</label><select className="input" value={form.grade_id} onChange={(e) => setForm({ ...form, grade_id: e.target.value })} disabled={loadingOptions || submitting || !form.level_id}><option value="">Select grade…</option>{grades.filter((grade) => Number(grade.level_id) === Number(form.level_id) && grade.status !== false).map((grade) => <option key={grade.id} value={grade.id}>{gradeLabel(grade.name)}</option>)}</select></div>
+      <div className="field"><label className="field__label">Fee Name</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Tuition Fee" disabled={submitting} /></div>
+      <div className="field"><label className="field__label">Amount (KES)</label><input className="input" type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} disabled={submitting} /></div>
+      <div className="field"><label className="field__label">Description (optional)</label><input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} disabled={submitting} /></div>
+      <div className="finance-form__actions"><button className="button button--primary" disabled={loadingOptions || !form.academic_year_id || !form.level_id || !form.grade_id || !form.name.trim() || !form.amount || Number(form.amount) <= 0 || submitting} onClick={submit}>{submitting ? 'Creating…' : 'Create Fee Structure'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div>
+    </div>
+  </div>
 }
 
 function BulkBillingForm({ feeStructures, academicYearId, levelId, gradeId, streamId, onCreated }: { feeStructures: FeeStructure[]; academicYearId: string; levelId: string; gradeId: string; streamId: string; onCreated: () => void }) {
