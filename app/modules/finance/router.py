@@ -55,13 +55,44 @@ def update_vote_head(vote_head_id: int, payload: s.VoteHeadUpdate, db: Session =
     for key, value in data.items(): setattr(head, key, value)
     _audit(db, principal, "update", "vote_head", head.id, f"Updated vote head '{head.name}'"); db.commit(); db.refresh(head); return head
 
+
+@router.get("/finance/fee-structures/{fee_structure_id}/items", response_model=list[s.FeeStructureAllocationResponse])
+def list_fee_structure_items(fee_structure_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+    fee = db.query(m.FeeStructure).filter(m.FeeStructure.id == fee_structure_id, m.FeeStructure.school_id == principal.school_id).first()
+    if not fee: raise HTTPException(404, "Fee structure not found.")
+    return db.query(m.FeeStructureItem).filter(m.FeeStructureItem.school_id == principal.school_id, m.FeeStructureItem.fee_structure_id == fee_structure_id).order_by(m.FeeStructureItem.display_order, m.FeeStructureItem.id).all()
+
+@router.post("/finance/fee-structures/{fee_structure_id}/items", response_model=s.FeeStructureAllocationResponse, status_code=201)
+def create_fee_structure_item(fee_structure_id: int, payload: s.FeeStructureAllocationCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+    fee = db.query(m.FeeStructure).filter(m.FeeStructure.id == fee_structure_id, m.FeeStructure.school_id == principal.school_id).first()
+    if not fee: raise HTTPException(404, "Fee structure not found.")
+    head = db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.id == payload.vote_head_id, m.FinanceVoteHead.school_id == principal.school_id, m.FinanceVoteHead.status == "ACTIVE").first()
+    if not head: raise HTTPException(404, "Active vote head not found.")
+    if db.query(m.FeeStructureItem).filter(m.FeeStructureItem.school_id == principal.school_id, m.FeeStructureItem.fee_structure_id == fee.id, m.FeeStructureItem.vote_head_id == head.id).first():
+        raise HTTPException(409, "This vote head is already allocated to the fee structure.")
+    current = db.query(func.coalesce(func.sum(m.FeeStructureItem.amount), 0)).filter(m.FeeStructureItem.school_id == principal.school_id, m.FeeStructureItem.fee_structure_id == fee.id).scalar()
+    if Decimal(str(current)) + payload.amount > Decimal(str(fee.amount)): raise HTTPException(409, "Vote-head allocations cannot exceed the fee structure amount.")
+    item = m.FeeStructureItem(school_id=principal.school_id, fee_structure_id=fee.id, vote_head_id=head.id, amount=payload.amount, display_order=payload.display_order)
+    db.add(item); _audit(db, principal, "create", "fee_structure_item", item.id if item.id else 0, f"Allocated {payload.amount} to vote head '{head.name}' for fee structure #{fee.id}"); db.commit(); db.refresh(item); return item
+
 @router.get("/finance/fee-structures", response_model=list[s.FeeStructureResponse])
 def list_fee_structures(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     return db.query(m.FeeStructure).filter(m.FeeStructure.school_id == principal.school_id).order_by(m.FeeStructure.name).all()
 
 @router.post("/finance/fee-structures", response_model=s.FeeStructureResponse, status_code=201)
 def create_fee_structure(payload: s.FeeStructureCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
-    fs = m.FeeStructure(school_id=principal.school_id, **payload.model_dump()); db.add(fs); _audit(db, principal, "create", "fee_structure", 0, f"Created fee structure '{payload.name}' — {payload.amount}"); db.commit(); db.refresh(fs); return fs
+    allocations = payload.allocations or []
+    total = sum((Decimal(str(x.amount)) for x in allocations), Decimal("0"))
+    if not allocations or total != Decimal(str(payload.amount)): raise HTTPException(409, f"Vote-head allocations must total exactly KES {payload.amount}.")
+    vote_ids = [x.vote_head_id for x in allocations]
+    if len(vote_ids) != len(set(vote_ids)): raise HTTPException(409, "Each vote head can only be allocated once.")
+    heads = db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id, m.FinanceVoteHead.id.in_(vote_ids), m.FinanceVoteHead.status == "ACTIVE").all()
+    if len(heads) != len(vote_ids): raise HTTPException(409, "Every allocation must use an active vote head.")
+    data = payload.model_dump(exclude={"allocations"})
+    fs = m.FeeStructure(school_id=principal.school_id, **data); db.add(fs); db.flush()
+    for item in allocations: db.add(m.FeeStructureItem(school_id=principal.school_id, fee_structure_id=fs.id, vote_head_id=item.vote_head_id, amount=item.amount, display_order=item.display_order))
+    _audit(db, principal, "create", "fee_structure", fs.id, f"Created fee structure '{payload.name}' — {payload.amount} with {len(allocations)} vote-head allocations")
+    db.commit(); db.refresh(fs); return fs
 
 @router.post("/finance/billing-runs", response_model=s.BillingRunResponse, status_code=201)
 def create_billing_run(payload: s.BillingRunCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
@@ -121,14 +152,11 @@ def create_billing_run(payload: s.BillingRunCreate, db: Session = Depends(get_db
         if duplicate:
             skipped += 1
             continue
-        db.add(m.StudentInvoice(
-            school_id=principal.school_id,
-            student_id=enrollment.student_id,
-            fee_structure_id=fee.id,
-            amount=fee.amount,
-            balance=fee.amount,
-            due_date=payload.due_date,
-        ))
+        allocation_rows = db.query(m.FeeStructureItem).filter(m.FeeStructureItem.school_id == principal.school_id, m.FeeStructureItem.fee_structure_id == fee.id).order_by(m.FeeStructureItem.display_order, m.FeeStructureItem.id).all()
+        if not allocation_rows or sum((Decimal(str(x.amount)) for x in allocation_rows), Decimal("0")) != Decimal(str(fee.amount)): raise HTTPException(409, "Fee structure vote-head allocations must total exactly the fee amount before billing.")
+        invoice = m.StudentInvoice(school_id=principal.school_id, student_id=enrollment.student_id, fee_structure_id=fee.id, amount=fee.amount, balance=fee.amount, due_date=payload.due_date)
+        db.add(invoice); db.flush()
+        for allocation in allocation_rows: db.add(m.InvoiceItem(school_id=principal.school_id, invoice_id=invoice.id, vote_head_id=allocation.vote_head_id, amount=allocation.amount, balance=allocation.amount))
         created += 1
 
     _audit(db, principal, "create", "billing_run", 0, f"Billing run for {year.name}/{grade.name}: created={created}, skipped={skipped}")
@@ -156,7 +184,20 @@ def create_invoice(payload: s.InvoiceCreate, db: Session = Depends(get_db), prin
     if not db.query(Student).filter(Student.id == payload.student_id, Student.school_id == principal.school_id).first(): raise HTTPException(404, "Student not found.")
     if not db.query(m.FeeStructure).filter(m.FeeStructure.id == payload.fee_structure_id, m.FeeStructure.school_id == principal.school_id).first(): raise HTTPException(404, "Fee structure not found.")
     if db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.student_id == payload.student_id, m.StudentInvoice.fee_structure_id == payload.fee_structure_id).first(): raise HTTPException(409, "This student has already been billed for this fee structure.")
-    inv = m.StudentInvoice(school_id=principal.school_id, balance=payload.amount, **payload.model_dump()); db.add(inv); _audit(db, principal, "create", "invoice", 0, f"Invoiced student #{payload.student_id} — {payload.amount}"); db.commit(); db.refresh(inv); return inv
+    fee = db.query(m.FeeStructure).filter(m.FeeStructure.id == payload.fee_structure_id, m.FeeStructure.school_id == principal.school_id).first()
+    if not fee: raise HTTPException(404, "Fee structure not found.")
+    if payload.amount != fee.amount: raise HTTPException(409, "Invoice amount must match the fee structure amount.")
+    allocations = db.query(m.FeeStructureItem).filter(m.FeeStructureItem.school_id == principal.school_id, m.FeeStructureItem.fee_structure_id == fee.id).order_by(m.FeeStructureItem.display_order, m.FeeStructureItem.id).all()
+    if not allocations or sum((Decimal(str(x.amount)) for x in allocations), Decimal("0")) != Decimal(str(fee.amount)): raise HTTPException(409, "Fee structure vote-head allocations are incomplete.")
+    inv = m.StudentInvoice(school_id=principal.school_id, balance=payload.amount, student_id=payload.student_id, fee_structure_id=payload.fee_structure_id, amount=payload.amount, due_date=payload.due_date); db.add(inv); db.flush()
+    for allocation in allocations: db.add(m.InvoiceItem(school_id=principal.school_id, invoice_id=inv.id, vote_head_id=allocation.vote_head_id, amount=allocation.amount, balance=allocation.amount))
+    _audit(db, principal, "create", "invoice", inv.id, f"Invoiced student #{payload.student_id} — {payload.amount}"); db.commit(); db.refresh(inv); return inv
+
+
+@router.get("/finance/payments/{payment_id}/allocations", response_model=list[s.PaymentAllocationResponse])
+def list_payment_allocations(payment_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+    if not db.query(m.Payment).filter(m.Payment.id == payment_id, m.Payment.school_id == principal.school_id).first(): raise HTTPException(404, "Payment not found.")
+    return db.query(m.PaymentAllocation).filter(m.PaymentAllocation.school_id == principal.school_id, m.PaymentAllocation.payment_id == payment_id).order_by(m.PaymentAllocation.id).all()
 
 @router.get("/finance/payments", response_model=list[s.PaymentResponse])
 def list_payments(student_id: int | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
