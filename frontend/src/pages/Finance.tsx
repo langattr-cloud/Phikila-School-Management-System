@@ -15,7 +15,7 @@ export default function FinancePage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'vote-heads' | 'trial-balance' | 'general-ledger' | 'balance-sheet' | 'banking'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'vote-heads' | 'trial-balance' | 'general-ledger' | 'balance-sheet' | 'banking' | 'balances'>('overview')
   const [showNewFee, setShowNewFee] = useState(false)
   const [showNewInvoice, setShowNewInvoice] = useState(false)
   const [showNewPayment, setShowNewPayment] = useState(false)
