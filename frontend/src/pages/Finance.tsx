@@ -79,14 +79,62 @@ export default function FinancePage() {
 }
 
 function VoteHeadsView() {
-  const [heads,setHeads]=useState<import('../lib/finance').VoteHead[]>([])
-  const [name,setName]=useState(''); const [code,setCode]=useState(''); const [error,setError]=useState<string|null>(null)
-  const load=useCallback(()=>finance.listVoteHeads().then(setHeads).catch(e=>setError(friendlyApiError(e,'load vote heads'))),[])
-  useEffect(()=>{load()},[load])
-  const add=async()=>{if(!name.trim())return;try{await finance.createVoteHead({name:name.trim(),code:code.trim()||undefined,status:'ACTIVE',display_order:heads.length});setName('');setCode('');await load()}catch(e){setError(friendlyApiError(e,'create vote head'))}}
-  return <section className="section card"><div className="finance-section-heading"><div><h2 className="section__title">Vote Heads</h2><p className="muted-text">Configure the fee categories used by this school. Nothing is hard-coded.</p></div></div>{error&&<Alert tone="error">{error}</Alert>}<div className="finance-form"><div className="finance-form__grid"><div className="field"><label className="field__label">Name</label><input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Tuition" /></div><div className="field"><label className="field__label">Code</label><input className="input" value={code} onChange={e=>setCode(e.target.value)} placeholder="Optional code" /></div><div className="finance-form__actions"><button className="button button--primary" onClick={add} disabled={!name.trim()}>Add Vote Head</button></div></div></div>{!heads.length?<EmptyState title="No vote heads configured" description="Add the categories your school uses for fees."/>:<div className="finance-list">{heads.map(h=><div className="finance-list__row" key={h.id}><div className="finance-list__main"><strong>{h.name}</strong><span className="muted-text">{h.code||'No code'}</span></div><div className="finance-list__value"><Badge tone={h.status==='ACTIVE'?'success':'warning'}>{h.status}</Badge></div></div>)}</div>}</section>
-}
+  const [heads, setHeads] = useState<import('../lib/finance').VoteHead[]>([])
+  const [name, setName] = useState('')
+  const [code, setCode] = useState('')
+  const [description, setDescription] = useState('')
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [status, setStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE')
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
+  const load = useCallback(async () => {
+    try { setError(null); setHeads(await finance.listVoteHeads()) }
+    catch (e) { setError(friendlyApiError(e, 'load vote heads')) }
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  const reset = () => {
+    setEditingId(null); setName(''); setCode(''); setDescription(''); setStatus('ACTIVE')
+  }
+
+  const save = async () => {
+    if (!name.trim()) return
+    setSaving(true); setError(null)
+    try {
+      const payload = { name: name.trim(), code: code.trim() || undefined, description: description.trim() || undefined, status, display_order: editingId ? (heads.find(h => h.id === editingId)?.display_order ?? heads.length) : heads.length }
+      if (editingId) await finance.updateVoteHead(editingId, payload)
+      else await finance.createVoteHead(payload)
+      reset(); await load()
+    } catch (e) { setError(friendlyApiError(e, editingId ? 'update vote head' : 'create vote head')) }
+    finally { setSaving(false) }
+  }
+
+  const edit = (head: import('../lib/finance').VoteHead) => {
+    setEditingId(head.id); setName(head.name); setCode(head.code || ''); setDescription(head.description || ''); setStatus(head.status)
+  }
+
+  return <section className="section card">
+    <div className="finance-section-heading">
+      <div><h2 className="section__title">Vote Heads</h2><p className="muted-text">Configure the fee categories used by this school. Nothing is hard-coded.</p></div>
+    </div>
+    {error && <Alert tone="error">{error}</Alert>}
+    <div className="finance-form">
+      <div className="finance-form__grid">
+        <div className="field"><label className="field__label">Name</label><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Tuition" /></div>
+        <div className="field"><label className="field__label">Code</label><input className="input" value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. BES" /></div>
+        <div className="field"><label className="field__label">Description</label><input className="input" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" /></div>
+        <div className="field"><label className="field__label">Status</label><select className="input" value={status} onChange={e => setStatus(e.target.value as 'ACTIVE' | 'INACTIVE')}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></div>
+        <div className="finance-form__actions"><button className="button button--primary" onClick={save} disabled={!name.trim() || saving}>{saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Vote Head'}</button>{editingId && <button className="button button--secondary" onClick={reset} disabled={saving}>Cancel</button>}</div>
+      </div>
+    </div>
+    {!heads.length ? <EmptyState title="No vote heads configured" description="Add the categories your school uses for fees." /> : <div className="finance-list">{heads.map(h => <div className="finance-list__row" key={h.id}>
+      <div className="finance-list__main"><strong>{h.name}</strong><span className="muted-text">{h.code || 'No code'}{h.description ? ` — ${h.description}` : ''}</span></div>
+      <div className="finance-list__value"><Badge tone={h.status === 'ACTIVE' ? 'success' : 'warning'}>{h.status}</Badge><button className="button button--secondary button--sm" onClick={() => edit(h)}>Edit</button></div>
+    </div>)}</div>}
+  </section>
+}
 function PaymentHistory({ payments, onChanged }: { payments: Payment[]; onChanged: () => Promise<void> }) {
   const [reversingId, setReversingId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
