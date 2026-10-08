@@ -31,6 +31,44 @@ class VoteHeadResponse(BaseModel):
     updated_at: datetime | None = None
     model_config = {"from_attributes": True}
 
+class FeeStructureAllocationCreate(BaseModel):
+    vote_head_id: int
+    amount: Decimal = Field(gt=0)
+    display_order: int = Field(default=0, ge=0)
+
+class FeeStructureAllocationResponse(BaseModel):
+    id: int
+    school_id: int
+    fee_structure_id: int
+    vote_head_id: int
+    amount: Decimal
+    display_order: int
+    created_at: datetime | None = None
+    model_config = {"from_attributes": True}
+
+class InvoiceItemResponse(BaseModel):
+    id: int
+    school_id: int
+    invoice_id: int
+    vote_head_id: int | None = None
+    description: str | None = None
+    amount: Decimal
+    balance: Decimal
+    created_at: datetime | None = None
+    model_config = {"from_attributes": True}
+
+class PaymentAllocationResponse(BaseModel):
+    id: int
+    school_id: int
+    payment_id: int
+    invoice_id: int | None = None
+    invoice_item_id: int | None = None
+    vote_head_id: int | None = None
+    amount: Decimal
+    allocation_type: str
+    created_at: datetime | None = None
+    model_config = {"from_attributes": True}
+
 class FeeStructureCreate(BaseModel):
     name: str = Field(min_length=1, max_length=150)
     description: str | None = None
@@ -39,8 +77,9 @@ class FeeStructureCreate(BaseModel):
     level_id: int | None = None
     grade_id: int | None = None
     stream_id: int | None = None
-    amount: Decimal = Field(ge=0)
+    amount: Decimal = Field(gt=0)
     currency: str = "KES"
+    allocations: list[FeeStructureAllocationCreate] = []
 
 class FeeStructureResponse(BaseModel):
     id: int
