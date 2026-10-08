@@ -38,13 +38,13 @@ export default function FinancePage() {
     <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
-      {(['overview', 'matcher', 'fees', 'vote-heads', 'invoices', 'payments', 'banking', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
+      {(['overview', 'matcher', 'fees', 'vote-heads', 'invoices', 'payments', 'balances', 'banking', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
     </div>
 
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
       {activeTab === 'matcher' && <FinancePaymentMatcher onPosted={load} />}
       {activeTab === 'vote-heads' && <VoteHeadsView />}
-      {activeTab === 'banking' && <FinanceBanking />}
+      {activeTab === 'banking' && <FinanceBanking />}\n      {activeTab === 'balances' && <StudentBalancesReport />}
       {activeTab === 'trial-balance' && <TrialBalanceView />}
       {activeTab === 'general-ledger' && <GeneralLedgerView />}
       {activeTab === 'balance-sheet' && <BalanceSheetView />}
@@ -180,4 +180,29 @@ function NewPaymentForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
     finally { setSubmitting(false) }
   }
   return <div className="finance-form">{error && <Alert tone="error">{error}</Alert>}<div className="finance-form__grid"><div className="field"><label className="field__label">Invoice ID</label><input className="input" type="number" value={form.invoice_id} onChange={(e) => setForm({ ...form, invoice_id: e.target.value })} /></div><div className="field"><label className="field__label">Student ID</label><input className="input" type="number" value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} /></div><div className="field"><label className="field__label">Amount (KES)</label><input className="input" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div><div className="field"><label className="field__label">Method</label><select className="input" value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile</option><option value="cheque">Cheque</option></select></div><div className="finance-form__actions"><button className="button button--primary" disabled={!form.invoice_id || !form.amount || submitting} onClick={submit}>{submitting ? 'Recording…' : 'Record'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div></div></div>
+}
+
+
+function StudentBalancesReport() {
+  const [rows,setRows]=useState<import('../lib/finance').StudentBalanceReportRow[]>([])
+  const [loading,setLoading]=useState(false)
+  const [error,setError]=useState<string|null>(null)
+  const [gradeId,setGradeId]=useState('')
+  const [streamId,setStreamId]=useState('')
+  const [yearId,setYearId]=useState('')
+  const load=async()=>{setLoading(true);setError(null);try{setRows(await finance.studentBalanceReport({academic_year_id:yearId?Number(yearId):undefined,grade_id:gradeId?Number(gradeId):undefined,stream_id:streamId?Number(streamId):undefined,outstanding_only:true}))}catch(e){setError(friendlyApiError(e,'load student balances'))}finally{setLoading(false)}}
+  useEffect(()=>{load()},[])
+  const total=rows.reduce((n,r)=>n+Number(r.balance),0)
+  const printStatement=async(studentId:number)=>{try{const s=await finance.studentStatement(studentId);const lines=s.invoices.map(i=>`${i.description}: KES ${Number(i.amount).toLocaleString()} (balance KES ${Number(i.balance).toLocaleString()})`).join('\\n');const pays=s.payments.map(p=>`${p.created_at?new Date(p.created_at).toLocaleDateString():'—'} ${p.payment_method||''}: KES ${Number(p.amount).toLocaleString()} ${p.reference_number||''}`).join('\\n');const w=window.open('','_blank');if(!w)return;w.document.title='Student Fee Statement';w.document.body.innerText=`PHIKILA SCHOOL\\n\\nSTUDENT FEE STATEMENT\\nStudent: ${s.student_name}\\nAdmission No: ${s.admission_number}\\nLevel: ${s.level_name||'—'}  Grade: ${s.grade_name||'—'}  Stream: ${s.stream_name||'No stream'}\\n\\nInvoiced: KES ${Number(s.total_invoiced).toLocaleString()}\\nPaid: KES ${Number(s.total_paid).toLocaleString()}\\nOUTSTANDING: KES ${Number(s.balance).toLocaleString()}\\n\\nCHARGES\\n${lines||'None'}\\n\\nPAYMENTS\\n${pays||'None'}`;w.focus();w.print()}catch(e){window.alert(friendlyApiError(e,'print the student statement'))}}
+  return <section className="section card fee-balance-report">
+    <div className="finance-section-heading"><div><h2 className="section__title">Students With Fee Balances</h2><p className="muted-text">Outstanding balances by academic year, grade, and optional stream.</p></div><button className="button button--secondary button--sm" onClick={()=>window.print()}>Print Report</button></div>
+    <div className="finance-form"><div className="finance-form__grid">
+      <div className="field"><label className="field__label">Academic Year ID</label><input className="input" type="number" min="1" value={yearId} onChange={e=>setYearId(e.target.value)} placeholder="Optional" /></div>
+      <div className="field"><label className="field__label">Grade ID</label><input className="input" type="number" min="1" value={gradeId} onChange={e=>setGradeId(e.target.value)} placeholder="Optional" /></div>
+      <div className="field"><label className="field__label">Stream ID</label><input className="input" type="number" min="1" value={streamId} onChange={e=>setStreamId(e.target.value)} placeholder="Optional" /></div>
+      <div className="finance-form__actions"><button className="button button--primary" onClick={load} disabled={loading}>{loading?'Loading…':'Apply Filters'}</button></div>
+    </div></div>
+    {error&&<Alert tone="error">{error}</Alert>}
+    {loading?<LoadingBlock label="Loading balances" rows={8}/>:!rows.length?<EmptyState title="No outstanding balances" description="No students match the selected filters."/>:<div className="table-scroll"><table><thead><tr><th>#</th><th>Admission No.</th><th>Student</th><th>Level</th><th>Grade</th><th>Stream</th><th>Invoiced</th><th>Paid</th><th>Balance</th><th className="print-hide">Statement</th></tr></thead><tbody>{rows.map((r,i)=><tr key={r.student_id}><td>{i+1}</td><td>{r.admission_number}</td><td><strong>{r.student_name}</strong></td><td>{r.level_name||'—'}</td><td>{r.grade_name||'—'}</td><td>{r.stream_name||'No stream'}</td><td className="number-cell">KES {Number(r.total_invoiced).toLocaleString()}</td><td className="number-cell">KES {Number(r.total_paid).toLocaleString()}</td><td className="number-cell"><strong>KES {Number(r.balance).toLocaleString()}</strong></td><td className="print-hide"><button className="button button--secondary button--sm" onClick={()=>printStatement(r.student_id)}>Print</button></td></tr>)}</tbody><tfoot><tr><th colSpan={8}>Total Outstanding</th><th className="number-cell">KES {total.toLocaleString()}</th><th className="print-hide"/></tr></tfoot></table></div>}
+  </section>
 }
