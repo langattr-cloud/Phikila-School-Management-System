@@ -32,6 +32,87 @@ def list_fee_structures(db: Session = Depends(get_db), principal: Principal = De
 def create_fee_structure(payload: s.FeeStructureCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     fs = m.FeeStructure(school_id=principal.school_id, **payload.model_dump()); db.add(fs); _audit(db, principal, "create", "fee_structure", 0, f"Created fee structure '{payload.name}' — {payload.amount}"); db.commit(); db.refresh(fs); return fs
 
+@router.post("/finance/billing-runs", response_model=s.BillingRunResponse, status_code=201)
+def create_billing_run(payload: s.BillingRunCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+    """Bill every active enrollee matching the selected academic hierarchy.
+
+    Billing is enrollment-driven; duplicate invoices are skipped safely.
+    """
+    from app.modules.academics.models import AcademicYear, Grade, Level, Stream
+
+    year = db.query(AcademicYear).filter(AcademicYear.id == payload.academic_year_id, AcademicYear.school_id == principal.school_id).first()
+    if not year:
+        raise HTTPException(404, "Academic year not found.")
+    grade = db.query(Grade).filter(Grade.id == payload.grade_id, Grade.level_id == payload.level_id, Grade.school_id == principal.school_id, Grade.status == True).first()
+    if not grade:
+        raise HTTPException(404, "Grade not found for the selected level.")
+    if payload.stream_id is not None:
+        stream = db.query(Stream).filter(Stream.id == payload.stream_id, Stream.school_id == principal.school_id, Stream.academic_year_id == payload.academic_year_id, Stream.level_id == payload.level_id, Stream.grade_id == payload.grade_id, Stream.status == "ACTIVE").first()
+        if not stream:
+            raise HTTPException(404, "Stream not found for the selected academic hierarchy.")
+
+    fee = db.query(m.FeeStructure).filter(
+        m.FeeStructure.id == payload.fee_structure_id,
+        m.FeeStructure.school_id == principal.school_id,
+        m.FeeStructure.status == "active",
+    ).first()
+    if not fee:
+        raise HTTPException(404, "Fee structure not found.")
+
+    if fee.academic_year_id not in (None, payload.academic_year_id):
+        raise HTTPException(409, "Fee structure belongs to a different academic year.")
+    if fee.level_id not in (None, payload.level_id):
+        raise HTTPException(409, "Fee structure belongs to a different level.")
+    if fee.grade_id not in (None, payload.grade_id):
+        raise HTTPException(409, "Fee structure belongs to a different grade.")
+    if fee.stream_id not in (None, payload.stream_id):
+        raise HTTPException(409, "Fee structure belongs to a different stream.")
+
+    q = db.query(m.StudentEnrollment).filter(
+        m.StudentEnrollment.school_id == principal.school_id,
+        m.StudentEnrollment.academic_year_id == payload.academic_year_id,
+        m.StudentEnrollment.level_id == payload.level_id,
+        m.StudentEnrollment.grade_id == payload.grade_id,
+        m.StudentEnrollment.status == "active",
+    )
+    if payload.stream_id is not None:
+        q = q.filter(m.StudentEnrollment.stream_id == payload.stream_id)
+    enrollments = q.all()
+
+    created = 0
+    skipped = 0
+    for enrollment in enrollments:
+        duplicate = db.query(m.StudentInvoice).filter(
+            m.StudentInvoice.school_id == principal.school_id,
+            m.StudentInvoice.student_id == enrollment.student_id,
+            m.StudentInvoice.fee_structure_id == fee.id,
+        ).first()
+        if duplicate:
+            skipped += 1
+            continue
+        db.add(m.StudentInvoice(
+            school_id=principal.school_id,
+            student_id=enrollment.student_id,
+            fee_structure_id=fee.id,
+            amount=fee.amount,
+            balance=fee.amount,
+            due_date=payload.due_date,
+        ))
+        created += 1
+
+    _audit(db, principal, "create", "billing_run", 0, f"Billing run for {year.name}/{grade.name}: created={created}, skipped={skipped}")
+    db.commit()
+    return s.BillingRunResponse(
+        academic_year_id=payload.academic_year_id,
+        level_id=payload.level_id,
+        grade_id=payload.grade_id,
+        stream_id=payload.stream_id,
+        fee_structure_id=fee.id,
+        matched_students=len(enrollments),
+        invoices_created=created,
+        invoices_skipped=skipped,
+    )
+
 @router.get("/finance/invoices", response_model=list[s.InvoiceResponse])
 def list_invoices(student_id: int | None = Query(default=None), status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     q = db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id)
@@ -225,6 +306,7 @@ def student_balance_report(
         balance = max(invoiced - paid, Decimal("0"))
         if outstanding_only and balance <= 0:
             continue
+        student_invoice_ids = {inv.student_id for inv in invoices}
         rows.append(s.StudentBalanceReportRow(
             student_id=e.student_id,
             admission_number=student.admission_number,
@@ -235,6 +317,7 @@ def student_balance_report(
             total_invoiced=invoiced,
             total_paid=paid,
             balance=balance,
+            billing_status="BILLED" if e.student_id in student_invoice_ids else "NOT_BILLED",
         ))
     return rows
 
