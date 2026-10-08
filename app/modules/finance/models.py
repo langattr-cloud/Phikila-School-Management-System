@@ -45,3 +45,38 @@ class JournalEntry(Base):
 class PaymentInbox(Base):
     __tablename__ = "payment_inbox"; __table_args__ = (UniqueConstraint("school_id", "source", "external_reference", name="uq_payment_inbox_reference"), {"extend_existing": True})
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); source = Column(String(30), nullable=False); source_account = Column(String(100)); account_name = Column(String(200)); raw_message = Column(Text, nullable=False); amount = Column(Numeric(12, 2), nullable=False); external_reference = Column(String(100), nullable=False); student_identifier = Column(String(50), index=True); received_at = Column(DateTime, nullable=False); payment_channel = Column(String(50)); matched_student_id = Column(Integer, ForeignKey("students_v2.id"), index=True); match_method = Column(String(50)); match_confidence = Column(Numeric(5, 2)); status = Column(String(30), default="RECEIVED", nullable=False, index=True); duplicate_of = Column(Integer, ForeignKey("payment_inbox.id")); posted_payment_id = Column(Integer, ForeignKey("payments.id"), index=True); notes = Column(Text); created_at = Column(DateTime(timezone=True), server_default=func.now()); reviewed_by = Column(String(64)); reviewed_at = Column(DateTime); posted_at = Column(DateTime)
+
+
+class FeeStructureItem(Base):
+    __tablename__ = "fee_structure_items"
+    __table_args__ = (UniqueConstraint("school_id", "fee_structure_id", "vote_head_id", name="uq_fee_structure_item_vote_head"), {"extend_existing": True})
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=False, index=True)
+    fee_structure_id = Column(Integer, ForeignKey("fee_structures.id", ondelete="CASCADE"), nullable=False, index=True)
+    vote_head_id = Column(Integer, ForeignKey("finance_vote_heads.id"), nullable=False, index=True)
+    amount = Column(Numeric(12, 2), nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class InvoiceItem(Base):
+    __tablename__ = "invoice_items"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=False, index=True)
+    invoice_id = Column(Integer, ForeignKey("student_invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    vote_head_id = Column(Integer, ForeignKey("finance_vote_heads.id"), nullable=False, index=True)
+    description = Column(Text)
+    amount = Column(Numeric(12, 2), nullable=False)
+    balance = Column(Numeric(12, 2), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class PaymentAllocation(Base):
+    __tablename__ = "payment_allocations"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=False, index=True)
+    payment_id = Column(Integer, ForeignKey("payments.id", ondelete="CASCADE"), nullable=False, index=True)
+    invoice_id = Column(Integer, ForeignKey("student_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
+    invoice_item_id = Column(Integer, ForeignKey("invoice_items.id", ondelete="SET NULL"), nullable=True, index=True)
+    vote_head_id = Column(Integer, ForeignKey("finance_vote_heads.id", ondelete="SET NULL"), nullable=True, index=True)
+    amount = Column(Numeric(12, 2), nullable=False)
+    allocation_type = Column(String(20), nullable=False, default="FEE")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
