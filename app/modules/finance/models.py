@@ -5,6 +5,20 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 from app.modules.students.models_v2 import StudentEnrollment
+class FinanceVoteHead(Base):
+    __tablename__ = "finance_vote_heads"
+    __table_args__ = (UniqueConstraint("school_id", "code", name="uq_finance_vote_head_code"), UniqueConstraint("school_id", "name", name="uq_finance_vote_head_name"), {"extend_existing": True})
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=False, index=True)
+    name = Column(String(150), nullable=False)
+    code = Column(String(30))
+    description = Column(Text)
+    status = Column(String(20), nullable=False, default="ACTIVE")
+    display_order = Column(Integer, nullable=False, default=0)
+    revenue_account_id = Column(Integer, ForeignKey("chart_of_accounts.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 class FeeStructure(Base):
     __tablename__ = "fee_structures"
     __table_args__ = (Index("uq_fee_structure_scope", "school_id", "name", "academic_year_id", "grade_id", text("coalesce(stream_id, 0)"), unique=True), {"extend_existing": True})
