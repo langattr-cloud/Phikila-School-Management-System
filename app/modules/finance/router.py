@@ -24,6 +24,37 @@ def _audit(db, principal, action, entity, eid, summary):
 def _invoice(db, principal, invoice_id):
     return db.query(m.StudentInvoice).filter(m.StudentInvoice.id == invoice_id, m.StudentInvoice.school_id == principal.school_id).first()
 
+@router.get("/finance/vote-heads", response_model=list[s.VoteHeadResponse])
+def list_vote_heads(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+    return db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id).order_by(m.FinanceVoteHead.display_order, m.FinanceVoteHead.id).all()
+
+@router.post("/finance/vote-heads", response_model=s.VoteHeadResponse, status_code=201)
+def create_vote_head(payload: s.VoteHeadCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+    name = payload.name.strip()
+    code = payload.code.strip().upper() if payload.code else None
+    if db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id, func.lower(m.FinanceVoteHead.name) == name.lower()).first():
+        raise HTTPException(409, "A vote head with this name already exists.")
+    if code and db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id, func.upper(m.FinanceVoteHead.code) == code).first():
+        raise HTTPException(409, "A vote head with this code already exists.")
+    head = m.FinanceVoteHead(school_id=principal.school_id, name=name, code=code, description=payload.description.strip() if payload.description else None, status=payload.status, display_order=payload.display_order)
+    db.add(head); _audit(db, principal, "create", "vote_head", 0, f"Created vote head '{name}'"); db.commit(); db.refresh(head); return head
+
+@router.patch("/finance/vote-heads/{vote_head_id}", response_model=s.VoteHeadResponse)
+def update_vote_head(vote_head_id: int, payload: s.VoteHeadUpdate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+    head = db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.id == vote_head_id, m.FinanceVoteHead.school_id == principal.school_id).first()
+    if not head: raise HTTPException(404, "Vote head not found.")
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data and data["name"] is not None:
+        data["name"] = data["name"].strip()
+        if db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id, func.lower(m.FinanceVoteHead.name) == data["name"].lower(), m.FinanceVoteHead.id != head.id).first():
+            raise HTTPException(409, "A vote head with this name already exists.")
+    if "code" in data:
+        data["code"] = data["code"].strip().upper() if data["code"] else None
+        if data["code"] and db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id, func.upper(m.FinanceVoteHead.code) == data["code"], m.FinanceVoteHead.id != head.id).first():
+            raise HTTPException(409, "A vote head with this code already exists.")
+    for key, value in data.items(): setattr(head, key, value)
+    _audit(db, principal, "update", "vote_head", head.id, f"Updated vote head '{head.name}'"); db.commit(); db.refresh(head); return head
+
 @router.get("/finance/fee-structures", response_model=list[s.FeeStructureResponse])
 def list_fee_structures(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     return db.query(m.FeeStructure).filter(m.FeeStructure.school_id == principal.school_id).order_by(m.FeeStructure.name).all()
