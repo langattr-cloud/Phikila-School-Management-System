@@ -140,16 +140,18 @@ def student_balance_report(
     level_id: int | None = Query(default=None),
     grade_id: int | None = Query(default=None),
     stream_id: int | None = Query(default=None),
-    outstanding_only: bool = Query(default=True),
+    outstanding_only: bool = Query(default=False),
     db: Session = Depends(get_db),
     principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
 ):
-    latest = db.query(m.StudentEnrollment).filter(
+    # Finance roster is driven by the same admission hierarchy:
+    # Academic Year -> Level -> Grade -> optional Stream.
+    enrollment_query = db.query(m.StudentEnrollment).filter(
         m.StudentEnrollment.school_id == principal.school_id,
         m.StudentEnrollment.status == "active",
     )
     if academic_year_id is not None:
-        latest = latest.filter(m.StudentEnrollment.academic_year_id == academic_year_id)
+        enrollment_query = enrollment_query.filter(m.StudentEnrollment.academic_year_id == academic_year_id)
     else:
         from app.modules.academics.models import AcademicYear
         current = db.query(AcademicYear.id).filter(
@@ -157,21 +159,55 @@ def student_balance_report(
             AcademicYear.status == "ACTIVE",
         ).order_by(AcademicYear.is_current.desc(), AcademicYear.id.desc()).first()
         if current:
-            latest = latest.filter(m.StudentEnrollment.academic_year_id == current[0])
-    if level_id is not None: latest = latest.filter(m.StudentEnrollment.level_id == level_id)
-    if grade_id is not None: latest = latest.filter(m.StudentEnrollment.grade_id == grade_id)
-    if stream_id is not None: latest = latest.filter(m.StudentEnrollment.stream_id == stream_id)
-    enrollments = latest.order_by(m.StudentEnrollment.student_id).all()
-    if not enrollments: return []
+            academic_year_id = current[0]
+            enrollment_query = enrollment_query.filter(m.StudentEnrollment.academic_year_id == academic_year_id)
+    if level_id is not None:
+        enrollment_query = enrollment_query.filter(m.StudentEnrollment.level_id == level_id)
+    if grade_id is not None:
+        enrollment_query = enrollment_query.filter(m.StudentEnrollment.grade_id == grade_id)
+    if stream_id is not None:
+        enrollment_query = enrollment_query.filter(m.StudentEnrollment.stream_id == stream_id)
+
+    enrollments = enrollment_query.order_by(m.StudentEnrollment.student_id).all()
+    if not enrollments:
+        return []
+
     student_ids = [e.student_id for e in enrollments]
-    students = {x.id: x for x in db.query(Student).filter(Student.school_id == principal.school_id, Student.id.in_(student_ids)).all()}
-    totals = {}
-    for inv in db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.student_id.in_(student_ids)).all():
-        row = totals.setdefault(inv.student_id, [Decimal("0"), Decimal("0")])
-        row[0] += Decimal(str(inv.amount))
-    for pay in db.query(m.Payment).filter(m.Payment.school_id == principal.school_id, m.Payment.student_id.in_(student_ids), m.Payment.status != "REVERSED").all():
-        row = totals.setdefault(pay.student_id, [Decimal("0"), Decimal("0")])
-        row[1] += Decimal(str(pay.amount))
+    students = {
+        x.id: x for x in db.query(Student).filter(
+            Student.school_id == principal.school_id,
+            Student.id.in_(student_ids),
+        ).all()
+    }
+
+    # Only invoices belonging to the selected academic year contribute to the
+    # year-specific finance totals. Students remain visible even when they have
+    # no invoice yet, so admission automatically produces a finance roster.
+    invoice_query = db.query(m.StudentInvoice).join(
+        m.FeeStructure, m.StudentInvoice.fee_structure_id == m.FeeStructure.id
+    ).filter(
+        m.StudentInvoice.school_id == principal.school_id,
+        m.StudentInvoice.student_id.in_(student_ids),
+    )
+    if academic_year_id is not None:
+        invoice_query = invoice_query.filter(m.FeeStructure.academic_year_id == academic_year_id)
+    invoices = invoice_query.all()
+
+    totals = {student_id: [Decimal("0"), Decimal("0")] for student_id in student_ids}
+    invoice_ids = []
+    for inv in invoices:
+        totals[inv.student_id][0] += Decimal(str(inv.amount))
+        invoice_ids.append(inv.id)
+
+    if invoice_ids:
+        for pay in db.query(m.Payment).filter(
+            m.Payment.school_id == principal.school_id,
+            m.Payment.invoice_id.in_(invoice_ids),
+            m.Payment.status != "REVERSED",
+        ).all():
+            if pay.student_id in totals:
+                totals[pay.student_id][1] += Decimal(str(pay.amount))
+
     from app.modules.academics.models import Grade, Level, Stream
     grade_ids = {e.grade_id for e in enrollments if e.grade_id is not None}
     stream_ids = {e.stream_id for e in enrollments if e.stream_id is not None}
@@ -179,19 +215,26 @@ def student_balance_report(
     grades = {x.id: x.name for x in db.query(Grade).filter(Grade.id.in_(grade_ids)).all()} if grade_ids else {}
     levels = {x.id: x.name for x in db.query(Level).filter(Level.id.in_(level_ids)).all()} if level_ids else {}
     streams = {x.id: x.name for x in db.query(Stream).filter(Stream.id.in_(stream_ids)).all()} if stream_ids else {}
+
     rows = []
     for e in enrollments:
         student = students.get(e.student_id)
-        if not student: continue
-        invoiced, paid = totals.get(e.student_id, [Decimal("0"), Decimal("0")])
+        if not student:
+            continue
+        invoiced, paid = totals[e.student_id]
         balance = max(invoiced - paid, Decimal("0"))
-        if outstanding_only and balance <= 0: continue
+        if outstanding_only and balance <= 0:
+            continue
         rows.append(s.StudentBalanceReportRow(
-            student_id=e.student_id, admission_number=student.admission_number,
+            student_id=e.student_id,
+            admission_number=student.admission_number,
             student_name=" ".join(x for x in [student.first_name, student.middle_name, student.last_name] if x),
-            level_name=levels.get(e.level_id), grade_name=grades.get(e.grade_id),
-            stream_name=streams.get(e.stream_id), total_invoiced=invoiced,
-            total_paid=paid, balance=balance,
+            level_name=levels.get(e.level_id),
+            grade_name=grades.get(e.grade_id),
+            stream_name=streams.get(e.stream_id),
+            total_invoiced=invoiced,
+            total_paid=paid,
+            balance=balance,
         ))
     return rows
 
