@@ -233,6 +233,11 @@ def reverse_payment(payment_id: int, payload: s.PaymentReversalRequest, db: Sess
     reversal = post_journal(db, school_id=principal.school_id, journal_number=f"REV-{payment.id}", description=f"Reversal of payment #{payment.id}: {payload.reason}", reference=payment.reference_number, created_by=principal.user_id, entries=[{"account_id": e.account_id, "debit": e.credit, "credit": e.debit, "description": "Payment reversal"} for e in entries])
     invoice = _invoice(db, principal, payment.invoice_id)
     if invoice: invoice.balance = Decimal(str(invoice.balance)) + Decimal(str(payment.amount)); invoice.status = "pending"
+    allocations = db.query(m.PaymentAllocation).filter(m.PaymentAllocation.school_id == principal.school_id, m.PaymentAllocation.payment_id == payment.id, m.PaymentAllocation.allocation_type == "FEE").all()
+    for allocation in allocations:
+        if allocation.invoice_item_id:
+            item = db.query(m.InvoiceItem).filter(m.InvoiceItem.id == allocation.invoice_item_id, m.InvoiceItem.school_id == principal.school_id).first()
+            if item: item.balance = Decimal(str(item.balance)) + Decimal(str(allocation.amount))
     payment.status = "REVERSED"; payment.reversed_at = datetime.now(timezone.utc); payment.reversal_reason = payload.reason
     receipt = db.query(m.FinanceReceipt).filter(m.FinanceReceipt.payment_id == payment.id, m.FinanceReceipt.school_id == principal.school_id).first()
     if receipt: receipt.status = "REVERSED"
