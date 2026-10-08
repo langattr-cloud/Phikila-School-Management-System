@@ -49,7 +49,7 @@ export const finance = {
   studentBalance:(studentId:number)=>get<StudentBalance>(`${BASE}/finance/students/${studentId}/balance`),
   overview:()=>get<FinanceOverview>(`${BASE}/finance/overview`),
   studentBalanceReport:(params:{academic_year_id?:number;level_id?:number;grade_id?:number;stream_id?:number;outstanding_only?:boolean}={})=>{const q=new URLSearchParams();Object.entries(params).forEach(([k,v])=>{if(v!==undefined)q.set(k,String(v))});const qs=q.toString();return get<StudentBalanceReportRow[]>(`${BASE}/finance/reports/student-balances${qs?`?${qs}`:""}`)},
-  studentStatement:(studentId:number,academicYearId?:number)=>get<StudentStatement>(`${BASE}/finance/reports/student/${studentId}/statement${academicYearId?`?academic_year_id=${academicYearId}`:""}`),
+  studentStatement:(studentId:number,academicYearId?:number)=>get<StudentStatement>(`${BASE}/finance/reports/student/${studentId}/statement${academicYearId?`?academic_year_id=${academicYearId}`:""}`),\n  createBillingRun:(payload:{academic_year_id:number;level_id:number;grade_id:number;stream_id?:number;fee_structure_id:number;due_date?:string})=>send<BillingRunResponse>(`${BASE}/finance/billing-runs`,"POST",payload),
   trialBalance:()=>get<TrialBalanceRow[]>(`${BASE}/finance/reports/trial-balance`),
   generalLedger:(accountId?:number)=>get<GeneralLedgerRow[]>(`${BASE}/finance/reports/general-ledger${accountId!=null?`?account_id=${accountId}`:''}`),
   balanceSheet:()=>get<BalanceSheet>(`${BASE}/finance/reports/balance-sheet`),
