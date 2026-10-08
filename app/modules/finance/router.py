@@ -134,6 +134,93 @@ def student_balance(student_id: int, db: Session = Depends(get_db), principal: P
     total_paid = db.query(func.coalesce(func.sum(m.Payment.amount), 0)).filter(m.Payment.student_id == student_id, m.Payment.school_id == principal.school_id, m.Payment.status != "REVERSED").scalar()
     return s.StudentBalance(student_id=student_id, student_name=f"{student.first_name} {student.last_name}", total_invoiced=Decimal(str(total_invoiced)), total_paid=Decimal(str(total_paid)), balance=max(Decimal(str(total_invoiced)) - Decimal(str(total_paid)), Decimal("0")))
 
+@router.get("/finance/reports/student-balances", response_model=list[s.StudentBalanceReportRow])
+def student_balance_report(
+    academic_year_id: int | None = Query(default=None),
+    level_id: int | None = Query(default=None),
+    grade_id: int | None = Query(default=None),
+    stream_id: int | None = Query(default=None),
+    outstanding_only: bool = Query(default=True),
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
+):
+    latest = db.query(m.StudentEnrollment).filter(
+        m.StudentEnrollment.school_id == principal.school_id,
+        m.StudentEnrollment.status == "active",
+    )
+    if academic_year_id is not None:
+        latest = latest.filter(m.StudentEnrollment.academic_year_id == academic_year_id)
+    else:
+        from app.modules.academics.models import AcademicYear
+        current = db.query(AcademicYear.id).filter(
+            AcademicYear.school_id == principal.school_id,
+            AcademicYear.status == "ACTIVE",
+        ).order_by(AcademicYear.is_current.desc(), AcademicYear.id.desc()).first()
+        if current:
+            latest = latest.filter(m.StudentEnrollment.academic_year_id == current[0])
+    if level_id is not None: latest = latest.filter(m.StudentEnrollment.level_id == level_id)
+    if grade_id is not None: latest = latest.filter(m.StudentEnrollment.grade_id == grade_id)
+    if stream_id is not None: latest = latest.filter(m.StudentEnrollment.stream_id == stream_id)
+    enrollments = latest.order_by(m.StudentEnrollment.student_id).all()
+    if not enrollments: return []
+    student_ids = [e.student_id for e in enrollments]
+    students = {x.id: x for x in db.query(Student).filter(Student.school_id == principal.school_id, Student.id.in_(student_ids)).all()}
+    totals = {}
+    for inv in db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.student_id.in_(student_ids)).all():
+        row = totals.setdefault(inv.student_id, [Decimal("0"), Decimal("0")])
+        row[0] += Decimal(str(inv.amount))
+    for pay in db.query(m.Payment).filter(m.Payment.school_id == principal.school_id, m.Payment.student_id.in_(student_ids), m.Payment.status != "REVERSED").all():
+        row = totals.setdefault(pay.student_id, [Decimal("0"), Decimal("0")])
+        row[1] += Decimal(str(pay.amount))
+    from app.modules.academics.models import Grade, Level, Stream
+    grade_ids = {e.grade_id for e in enrollments if e.grade_id is not None}
+    stream_ids = {e.stream_id for e in enrollments if e.stream_id is not None}
+    level_ids = {e.level_id for e in enrollments}
+    grades = {x.id: x.name for x in db.query(Grade).filter(Grade.id.in_(grade_ids)).all()} if grade_ids else {}
+    levels = {x.id: x.name for x in db.query(Level).filter(Level.id.in_(level_ids)).all()} if level_ids else {}
+    streams = {x.id: x.name for x in db.query(Stream).filter(Stream.id.in_(stream_ids)).all()} if stream_ids else {}
+    rows = []
+    for e in enrollments:
+        student = students.get(e.student_id)
+        if not student: continue
+        invoiced, paid = totals.get(e.student_id, [Decimal("0"), Decimal("0")])
+        balance = max(invoiced - paid, Decimal("0"))
+        if outstanding_only and balance <= 0: continue
+        rows.append(s.StudentBalanceReportRow(
+            student_id=e.student_id, admission_number=student.admission_number,
+            student_name=" ".join(x for x in [student.first_name, student.middle_name, student.last_name] if x),
+            level_name=levels.get(e.level_id), grade_name=grades.get(e.grade_id),
+            stream_name=streams.get(e.stream_id), total_invoiced=invoiced,
+            total_paid=paid, balance=balance,
+        ))
+    return rows
+
+@router.get("/finance/reports/student/{student_id}/statement", response_model=s.StudentStatement)
+def student_statement(student_id: int, academic_year_id: int | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+    student = db.query(Student).filter(Student.id == student_id, Student.school_id == principal.school_id).first()
+    if not student: raise HTTPException(404, "Student not found.")
+    q = db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.student_id == student_id)
+    if academic_year_id is not None:
+        q = q.join(m.FeeStructure, m.StudentInvoice.fee_structure_id == m.FeeStructure.id).filter(m.FeeStructure.academic_year_id == academic_year_id)
+    invoices = q.order_by(m.StudentInvoice.created_at.asc()).all()
+    payments = db.query(m.Payment).filter(m.Payment.school_id == principal.school_id, m.Payment.student_id == student_id, m.Payment.status != "REVERSED").order_by(m.Payment.created_at.asc()).all()
+    enrollment = db.query(m.StudentEnrollment).filter(m.StudentEnrollment.school_id == principal.school_id, m.StudentEnrollment.student_id == student_id, *([m.StudentEnrollment.academic_year_id == academic_year_id] if academic_year_id else [])).order_by(m.StudentEnrollment.academic_year_id.desc()).first()
+    from app.modules.academics.models import Grade, Level, Stream
+    grade = db.query(Grade.name).filter(Grade.id == enrollment.grade_id).scalar() if enrollment and enrollment.grade_id else None
+    level = db.query(Level.name).filter(Level.id == enrollment.level_id).scalar() if enrollment else None
+    stream = db.query(Stream.name).filter(Stream.id == enrollment.stream_id).scalar() if enrollment and enrollment.stream_id else None
+    invoice_ids = {i.id for i in invoices}
+    paid = sum((Decimal(str(p.amount)) for p in payments if p.invoice_id in invoice_ids), Decimal("0"))
+    invoiced = sum((Decimal(str(i.amount)) for i in invoices), Decimal("0"))
+    return s.StudentStatement(
+        student_id=student.id, admission_number=student.admission_number,
+        student_name=" ".join(x for x in [student.first_name, student.middle_name, student.last_name] if x),
+        level_name=level, grade_name=grade, stream_name=stream,
+        total_invoiced=invoiced, total_paid=paid, balance=max(invoiced-paid, Decimal("0")),
+        invoices=[s.StatementInvoice(id=i.id, description=(db.query(m.FeeStructure.name).filter(m.FeeStructure.id == i.fee_structure_id).scalar() or f"Invoice #{i.id}"), amount=i.amount, balance=i.balance, due_date=i.due_date, created_at=i.created_at) for i in invoices],
+        payments=[s.StatementPayment(id=p.id, amount=p.amount, payment_method=p.payment_method, reference_number=p.reference_number, created_at=p.created_at) for p in payments if p.invoice_id in invoice_ids],
+    )
+
 @router.get("/finance/overview", response_model=s.FinanceOverview)
 def finance_overview(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     total_invoiced = db.query(func.coalesce(func.sum(m.StudentInvoice.amount), 0)).filter(m.StudentInvoice.school_id == principal.school_id).scalar(); total_paid = db.query(func.coalesce(func.sum(m.Payment.amount), 0)).filter(m.Payment.school_id == principal.school_id, m.Payment.status != "REVERSED").scalar(); total_outstanding = max(Decimal(str(total_invoiced)) - Decimal(str(total_paid)), Decimal("0"))
