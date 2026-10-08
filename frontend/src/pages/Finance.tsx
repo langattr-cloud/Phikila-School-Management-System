@@ -197,9 +197,10 @@ function StudentBalancesReport() {
   return <section className="section card fee-balance-report">
     <div className="finance-section-heading"><div><h2 className="section__title">Students With Fee Balances</h2><p className="muted-text">Outstanding balances by academic year, grade, and optional stream.</p></div><button className="button button--secondary button--sm" onClick={()=>window.print()}>Print Report</button></div>
     <div className="finance-form"><div className="finance-form__grid">
-      <div className="field"><label className="field__label">Academic Year ID</label><input className="input" type="number" min="1" value={yearId} onChange={e=>setYearId(e.target.value)} placeholder="Optional" /></div>
-      <div className="field"><label className="field__label">Grade ID</label><input className="input" type="number" min="1" value={gradeId} onChange={e=>setGradeId(e.target.value)} placeholder="Optional" /></div>
-      <div className="field"><label className="field__label">Stream ID</label><input className="input" type="number" min="1" value={streamId} onChange={e=>setStreamId(e.target.value)} placeholder="Optional" /></div>
+      <div className="field"><label className="field__label">Academic Year</label><select className="input" value={yearId} onChange={e=>setYearId(e.target.value)}><option value="">All academic years</option><option value="2">2026</option></select></div>
+      <div className="field"><label className="field__label">Level</label><select className="input" value={gradeId ? 'grade' : ''} onChange={()=>{}}><option value="">All levels</option><option value="pre-primary">Pre Primary</option><option value="primary">Primary School</option><option value="junior">Junior School</option><option value="senior">Senior School</option></select></div>
+      <div className="field"><label className="field__label">Grade</label><input className="input" type="number" min="1" value={gradeId} onChange={e=>setGradeId(e.target.value)} placeholder="Optional" /></div>
+      <div className="field"><label className="field__label">Stream</label><input className="input" type="number" min="1" value={streamId} onChange={e=>setStreamId(e.target.value)} placeholder="Optional" /></div>
       <div className="finance-form__actions"><button className="button button--primary" onClick={load} disabled={loading}>{loading?'Loading…':'Apply Filters'}</button></div>
     </div></div>
     {error&&<Alert tone="error">{error}</Alert>}
