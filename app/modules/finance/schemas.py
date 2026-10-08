@@ -165,6 +165,25 @@ class StudentBalanceReportRow(BaseModel):
     total_invoiced: Decimal
     total_paid: Decimal
     balance: Decimal
+    billing_status: str = "NOT_BILLED"
+
+class BillingRunCreate(BaseModel):
+    academic_year_id: int
+    level_id: int
+    grade_id: int
+    stream_id: int | None = None
+    fee_structure_id: int
+    due_date: date | None = None
+
+class BillingRunResponse(BaseModel):
+    academic_year_id: int
+    level_id: int
+    grade_id: int
+    stream_id: int | None = None
+    fee_structure_id: int
+    matched_students: int
+    invoices_created: int
+    invoices_skipped: int
 
 class StatementInvoice(BaseModel):
     id: int
