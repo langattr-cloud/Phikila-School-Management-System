@@ -63,7 +63,7 @@ def _append_note(existing: str | None, addition: str) -> str:
     return f"{existing}\n{addition}" if existing else addition
 
 
-def _post_matched_inbox_item(db: Session, *, inbox_id: int, school_id: int, actor: str) -> m.PaymentInbox:
+def _post_matched_inbox_item(db: Session, *, inbox_id: int, school_id: int, actor: str, posting_actor: str | None = None) -> m.PaymentInbox:
     """Post a safely matched SMS immediately, without waiting for statement reconciliation.
 
     Inbox ingestion is committed before posting, so posting failures remain visible
@@ -138,7 +138,7 @@ def _post_matched_inbox_item(db: Session, *, inbox_id: int, school_id: int, acto
                 payment_method=item.payment_channel or "KCB SMS",
                 reference_number=payment_reference,
                 notes=f"Automatically posted from KCB SMS; inbox #{item.id}; original reference {item.external_reference}; allocation {allocation_number}",
-                actor=actor,
+                actor=posting_actor,
             )
             if first_payment_id is None:
                 first_payment_id = payment.id
@@ -310,6 +310,7 @@ def verify_and_post_sms_payment(
     return _post_matched_inbox_item(
         db, inbox_id=item.id, school_id=principal.school_id,
         actor=principal.email or principal.user_id,
+        posting_actor=principal.user_id,
     )
 
 
