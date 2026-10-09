@@ -62,7 +62,7 @@ export default function FinancePage() {
 
       {activeTab === 'fees' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Fee Structures</h2><button className="button button--primary button--sm" onClick={() => setShowNewFee(!showNewFee)}>+ Fee Structure</button></div>
         {showNewFee && <NewFeeForm existingFeeStructures={feeStructures} onCreated={() => { setShowNewFee(false); load() }} onCancel={() => setShowNewFee(false)} />}
-        {!feeStructures.length ? <EmptyState title="No fee structures saved" description="Create a fee structure to start billing students. Use the + Fee Structure button above." /> : <div className="finance-list">{feeStructures.map((f) => <div key={f.id} className="finance-list__row"><div className="finance-list__main"><strong>{f.name}</strong><span className="muted-text">{f.description || 'No description'} · Year #{f.academic_year_id ?? 'Any'} · Level #{f.level_id ?? 'Any'} · Grade #{f.grade_id ?? 'Any'} · Stream #{f.stream_id ?? 'All streams'}</span></div><div className="finance-list__value"><strong>KES {Number(f.amount).toLocaleString()}</strong> <Badge tone={f.status === 'ACTIVE' || f.status === 'active' ? 'success' : 'warning'}>{f.status}</Badge></div></div>)}</div>}
+        {!feeStructures.length ? <EmptyState title="No fee structures saved" description="Create a fee structure to start billing students. Use the + Fee Structure button above." /> : <div className="finance-list">{feeStructures.map((f) => <div key={f.id} className="finance-list__row"><div className="finance-list__main"><strong>{f.name}</strong><span className="muted-text">{f.description || 'No description'} · Year #{f.academic_year_id ?? 'Any'} · {f.level_id == null ? 'All levels' : `Level #${f.level_id}`} · {f.grade_id == null ? 'All grades' : `Grade #${f.grade_id}`} · {f.stream_id == null ? 'All streams' : `Stream #${f.stream_id}`}</span></div><div className="finance-list__value"><strong>KES {Number(f.amount).toLocaleString()}</strong> <Badge tone={f.status === 'ACTIVE' || f.status === 'active' ? 'success' : 'warning'}>{f.status}</Badge></div></div>)}</div>}
       </section>}
 
       {activeTab === 'invoices' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Invoices</h2><button className="button button--primary button--sm" onClick={() => setShowNewInvoice(!showNewInvoice)}>+ Invoice</button></div>
@@ -206,7 +206,8 @@ function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFe
   const [academicYears, setAcademicYears] = useState<Awaited<ReturnType<typeof api.academicYears>>>([])
   const [levels, setLevels] = useState<Awaited<ReturnType<typeof api.levels>>>([])
   const [grades, setGrades] = useState<Awaited<ReturnType<typeof api.grades>>>([])
-  const [form, setForm] = useState({ academic_year_id: '', level_id: '', grade_id: '', name: '', amount: '', description: '' })
+  // Shared scope is the default: one structure can cover Primary and Junior until fees diverge.
+  const [form, setForm] = useState({ academic_year_id: '', level_id: 'all', grade_id: 'all', name: '', amount: '', description: '' })
   const [voteHeads, setVoteHeads] = useState<VoteHead[]>([])
   const [allocations, setAllocations] = useState<Record<number, string>>({})
   const [loadingOptions, setLoadingOptions] = useState(true)
@@ -215,7 +216,8 @@ function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFe
   const existingFee = existingFeeStructures.find((fee) =>
     fee.name.trim().toLocaleLowerCase() === form.name.trim().toLocaleLowerCase() &&
     Number(fee.academic_year_id) === Number(form.academic_year_id) &&
-    Number(fee.grade_id) === Number(form.grade_id) &&
+    (fee.level_id ?? null) === (form.level_id === 'all' ? null : Number(form.level_id)) &&
+    (fee.grade_id ?? null) === (form.grade_id === 'all' ? null : Number(form.grade_id)) &&
     (fee.stream_id ?? null) === null
   )
 
@@ -237,7 +239,7 @@ function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFe
 
   useEffect(() => {
     setForm((current) => ({ ...current, grade_id: '' }))
-    if (!form.level_id) { setGrades([]); return }
+    if (!form.level_id || form.level_id === 'all') { setGrades([]); return }
     let active = true
     api.grades(Number(form.level_id))
       .then((items) => { if (active) setGrades(items.filter((grade) => grade.status !== false)) })
@@ -246,8 +248,10 @@ function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFe
   }, [form.level_id])
 
   const submit = async () => {
-    if (!form.academic_year_id || !form.level_id || !form.grade_id || !form.name.trim() || !form.amount || Number(form.amount) <= 0) {
-      setError('Select an academic year, level and grade, then enter a fee name and a positive amount.')
+    const sharedAcrossLevels = form.level_id === 'all'
+    const allGrades = sharedAcrossLevels || form.grade_id === 'all'
+    if (!form.academic_year_id || (!sharedAcrossLevels && !form.level_id) || (!allGrades && !form.grade_id) || !form.name.trim() || !form.amount || Number(form.amount) <= 0) {
+      setError('Select an academic year and fee scope, then enter a fee name and a positive amount.')
       return
     }
     const activeAllocations = voteHeads.map((head, index) => ({ vote_head_id: head.id, amount: Number(allocations[head.id] || 0), display_order: index })).filter((item) => item.amount > 0)
@@ -261,8 +265,8 @@ function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFe
     try {
       await finance.createFeeStructure({
         academic_year_id: Number(form.academic_year_id),
-        level_id: Number(form.level_id),
-        grade_id: Number(form.grade_id),
+        level_id: sharedAcrossLevels ? null : Number(form.level_id),
+        grade_id: allGrades ? null : Number(form.grade_id),
         stream_id: null,
         name: form.name.trim(),
         amount: Number(form.amount),
@@ -280,16 +284,16 @@ function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFe
   return <div className="finance-form">
     {error && <Alert tone="error">{error}</Alert>}
     {existingFee && <Alert tone="warning">A fee structure named “{existingFee.name}” already exists for this academic year and grade (KES {Number(existingFee.amount).toLocaleString()}). It is listed in Finance → Fees. No duplicate will be created.</Alert>}
-    <p className="muted-text">Set one fee for the selected grade. It applies to every stream in that grade.</p>
+    <p className="muted-text">Use a shared structure for all levels and grades when fees are the same. You can narrow it to one level or grade later if fees change. All streams are included unless a stream-specific structure is added.</p>
     <div className="finance-form__grid">
       <div className="field"><label className="field__label">Academic Year</label><select className="input" value={form.academic_year_id} onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })} disabled={loadingOptions || submitting}><option value="">Select academic year…</option>{academicYears.map((year) => <option key={year.id} value={year.id}>{year.name}{year.is_current ? ' (Current)' : ''}</option>)}</select></div>
-      <div className="field"><label className="field__label">Level</label><select className="input" value={form.level_id} onChange={(e) => setForm({ ...form, level_id: e.target.value, grade_id: '' })} disabled={loadingOptions || submitting || !form.academic_year_id}><option value="">Select level…</option>{levels.filter((level) => level.status === true || level.status === 'ACTIVE').map((level) => <option key={level.id} value={level.id}>{levelLabel(level.name)}</option>)}</select></div>
-      <div className="field"><label className="field__label">Grade</label><select className="input" value={form.grade_id} onChange={(e) => setForm({ ...form, grade_id: e.target.value })} disabled={loadingOptions || submitting || !form.level_id}><option value="">Select grade…</option>{grades.filter((grade) => Number(grade.level_id) === Number(form.level_id) && grade.status !== false).map((grade) => <option key={grade.id} value={grade.id}>{gradeLabel(grade.name)}</option>)}</select></div>
+      <div className="field"><label className="field__label">Applies to level</label><select className="input" value={form.level_id} onChange={(e) => setForm({ ...form, level_id: e.target.value, grade_id: 'all' })} disabled={loadingOptions || submitting || !form.academic_year_id}><option value="all">All levels (shared fee)</option>{levels.filter((level) => level.status === true || level.status === 'ACTIVE').map((level) => <option key={level.id} value={level.id}>{levelLabel(level.name)}</option>)}</select></div>
+      <div className="field"><label className="field__label">Applies to grade</label><select className="input" value={form.grade_id} onChange={(e) => setForm({ ...form, grade_id: e.target.value })} disabled={loadingOptions || submitting || form.level_id === 'all' || !form.level_id}><option value="all">All grades</option>{grades.filter((grade) => Number(grade.level_id) === Number(form.level_id) && grade.status !== false).map((grade) => <option key={grade.id} value={grade.id}>{gradeLabel(grade.name)}</option>)}</select>{form.level_id === 'all' && <span className="muted-text">All grades across Primary and Junior are included.</span>}</div>
       <div className="field"><label className="field__label">Fee Name</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Tuition Fee" disabled={submitting} /></div>
       <div className="field"><label className="field__label">Amount (KES)</label><input className="input" type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} disabled={submitting} /></div>
       <div className="field"><label className="field__label">Description (optional)</label><input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} disabled={submitting} /></div>
       <div className="field" style={{ gridColumn: '1 / -1' }}><label className="field__label">Vote Head Allocations</label><p className="muted-text">The allocation total must equal the fee amount. Payments will follow this order.</p><div className="finance-list">{voteHeads.map((head, index) => <div className="finance-list__row" key={head.id}><div className="finance-list__main"><strong>{head.name}</strong><span className="muted-text">{head.code || 'No code'} · Priority {index + 1}</span></div><div className="finance-list__value"><input className="input" style={{ width: 160 }} type="number" min="0" step="0.01" value={allocations[head.id] || ''} onChange={(e) => setAllocations({ ...allocations, [head.id]: e.target.value })} disabled={submitting} placeholder="KES 0.00" /></div></div>)}</div><p className={Math.abs(voteHeads.reduce((sum, head) => sum + Number(allocations[head.id] || 0), 0) - Number(form.amount || 0)) < 0.001 ? 'muted-text' : 'finance-summary__value--warning'}>Allocated: KES {voteHeads.reduce((sum, head) => sum + Number(allocations[head.id] || 0), 0).toLocaleString()} / KES {Number(form.amount || 0).toLocaleString()}</p></div>
-      <div className="finance-form__actions"><button className="button button--primary" disabled={loadingOptions || !form.academic_year_id || !form.level_id || !form.grade_id || !form.name.trim() || !form.amount || Number(form.amount) <= 0 || submitting || Boolean(existingFee)} onClick={submit}>{submitting ? 'Creating…' : existingFee ? 'Fee Structure Already Exists' : 'Create Fee Structure'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div>
+      <div className="finance-form__actions"><button className="button button--primary" disabled={loadingOptions || !form.academic_year_id || (form.level_id !== 'all' && !form.level_id) || (form.level_id !== 'all' && form.grade_id !== 'all' && !form.grade_id) || !form.name.trim() || !form.amount || Number(form.amount) <= 0 || submitting || Boolean(existingFee)} onClick={submit}>{submitting ? 'Creating…' : existingFee ? 'Fee Structure Already Exists' : 'Create Fee Structure'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div>
     </div>
   </div>
 }
