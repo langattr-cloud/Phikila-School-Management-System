@@ -295,8 +295,6 @@ def verify_and_post_sms_payment(
         raise HTTPException(404, "Payment inbox item not found.")
     if item.status == "POSTED":
         return item
-    if item.status == "POSTED":
-        return item
     if item.status not in {"UNVERIFIED", "VERIFIED", "VERIFIED_UNALLOCATED", "POSTING_FAILED", "MATCHED"} or not item.matched_student_id:
         raise HTTPException(409, "Only a uniquely matched, unposted SMS payment can be retried.")
     evidence = f"Bank verification reference: {payload.verification_reference.strip()}"
@@ -332,7 +330,7 @@ def reconcile_kcb_statement(
         reference = line.reference.strip()
         item = db.query(m.PaymentInbox).filter(
             m.PaymentInbox.school_id == principal.school_id,
-            m.PaymentInbox.source == "KCB_SMS",
+            m.PaymentInbox.source.in_({"KCB_SMS", "M-PESA"}),
             m.PaymentInbox.external_reference == reference,
         ).first()
         if item is None:
@@ -355,7 +353,7 @@ def reconcile_kcb_statement(
         results.append(result)
     inbox_without_statement = db.query(m.PaymentInbox).filter(
         m.PaymentInbox.school_id == principal.school_id,
-        m.PaymentInbox.source == "KCB_SMS",
+        m.PaymentInbox.source.in_({"KCB_SMS", "M-PESA"}),
         ~m.PaymentInbox.external_reference.in_(references),
     ).all()
     for item in inbox_without_statement:
