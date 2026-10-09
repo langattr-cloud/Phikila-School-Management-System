@@ -286,7 +286,7 @@ function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFe
   }, [])
 
   useEffect(() => {
-    setForm((current) => ({ ...current, grade_id: '' }))
+    setForm((current) => ({ ...current, grade_id: current.level_id === 'all' ? 'all' : '' }))
     if (!form.level_id || form.level_id === 'all') { setGrades([]); return }
     let active = true
     api.grades(Number(form.level_id))
