@@ -93,3 +93,20 @@ A finance administrator can reconcile a KCB statement batch through the authenti
 ```
 
 The response identifies statement references with no SMS, amount mismatches, SMS records absent from the supplied statement, and amount matches. Each outcome is persisted in the audit log and appended to the relevant inbox notes. This is a statement-comparison endpoint, not a direct KCB API integration; the statement data must come from a trusted export. Reconciliation matches are evidence for finance review and do not silently post previously unverified payments.
+
+
+## Uploading and reconciling KCB statements (CSV, Excel, PDF)
+
+Finance admins can upload a statement from **Finance → Payment Matcher → KCB Bank Statement Reconciliation**. Supported file types are:
+
+- CSV (.csv)
+- Excel (.xlsx or .xlsm)
+- Text-based PDF (.pdf)
+
+The preview step reads the file and displays the detected transaction reference, credit amount and date. Review this preview before clicking **Reconcile against SMS inbox**. Reconciliation compares references and amounts, reports exceptions, and records an audit trail. Uploading or previewing a statement does not post a student payment.
+
+For accurate matching, use a statement with clear column headings such as Transaction Date, Narration/Reference, and Credit. If the statement only has an Amount column and does not distinguish credits from debits, Phikila rejects it rather than guessing. Debit rows are not treated as receipts. KCB statement narration should contain the actual M-PESA transaction reference (for example, `UJ7AS90AE4`); confirm this in the preview.
+
+PDF support depends on extractable text or tables. Scanned/image-only PDFs are not currently supported by this importer; export those statements from KCB to CSV/Excel or use a text-based PDF. The upload limit is 15 MB. If KCB changes its statement layout and the preview does not identify columns correctly, do not reconcile the file; export to CSV/Excel or request an importer adjustment for that layout.
+
+Reconciliation only compares bank rows against SMS inbox records. It does not silently post unverified payments; use the finance verification-and-post workflow for payment posting.

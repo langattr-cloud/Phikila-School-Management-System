@@ -13,6 +13,7 @@ from app.modules.email.router import router as email_router
 from app.modules.examinations.router_v2 import router as exams_router
 from app.modules.finance.router import router as finance_router
 from app.modules.finance.payment_sms_router import router as finance_sms_router
+from app.modules.finance.payment_statement_import import router as finance_statement_import_router
 from app.modules.finance.operations_router import router as finance_operations_router
 from app.modules.finance.account_mapping_router import router as finance_account_mapping_router
 from app.modules.finance.reports_router import router as finance_reports_router
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
     app.include_router(outlook_router, prefix="/api/v1/outlook", tags=["Microsoft Outlook"])
     app.include_router(finance_router, prefix="/api/v1", tags=["Finance"])
     app.include_router(finance_sms_router, prefix="/api/v1", tags=["Finance SMS Payments"])
+    app.include_router(finance_statement_import_router, prefix="/api/v1", tags=["Finance Statement Import"])
     app.include_router(finance_operations_router, prefix="/api/v1", tags=["Finance Operations"])
     app.include_router(finance_completion_router, prefix="/api/v1", tags=["Finance Treasury"])
     app.include_router(finance_account_mapping_router, prefix="/api/v1", tags=["Finance Account Mapping"])
