@@ -63,6 +63,116 @@ def _append_note(existing: str | None, addition: str) -> str:
     return f"{existing}\n{addition}" if existing else addition
 
 
+def _post_matched_inbox_item(db: Session, *, inbox_id: int, school_id: int, actor: str) -> m.PaymentInbox:
+    """Post a safely matched SMS immediately, without waiting for statement reconciliation.
+
+    Inbox ingestion is committed before posting, so posting failures remain visible
+    and retryable instead of losing the original SMS.
+    """
+    item = db.query(m.PaymentInbox).filter(
+        m.PaymentInbox.id == inbox_id,
+        m.PaymentInbox.school_id == school_id,
+    ).with_for_update().first()
+    if not item:
+        raise HTTPException(404, "Payment inbox item not found.")
+    if item.status == "POSTED" and item.posted_payment_id:
+        return item
+    if not item.matched_student_id:
+        item.status = "UNMATCHED"
+        item.notes = _append_note(item.notes, "Automatic posting held: student/admission match is unresolved.")
+        db.commit()
+        db.refresh(item)
+        return item
+    if item.status in {"DUPLICATE", "UNMATCHED"}:
+        return item
+
+    existing_payment = db.query(m.Payment).filter(
+        m.Payment.school_id == school_id,
+        m.Payment.reference_number == item.external_reference,
+        m.Payment.status != "REVERSED",
+    ).first()
+    if existing_payment:
+        item.status = "DUPLICATE"
+        item.notes = _append_note(item.notes, f"Posting held: reference already exists as payment #{existing_payment.id}.")
+        _audit(db, school_id=school_id, actor=actor, action="duplicate", entity_id=item.id,
+               summary=f"Transaction {item.external_reference} already exists as payment #{existing_payment.id}.")
+        db.commit()
+        db.refresh(item)
+        return item
+
+    invoices = db.query(m.StudentInvoice).filter(
+        m.StudentInvoice.school_id == school_id,
+        m.StudentInvoice.student_id == item.matched_student_id,
+        m.StudentInvoice.balance > 0,
+    ).order_by(m.StudentInvoice.created_at.asc(), m.StudentInvoice.id.asc()).with_for_update().all()
+    total_outstanding = sum((Decimal(str(invoice.balance)) for invoice in invoices), Decimal("0"))
+    amount = Decimal(str(item.amount))
+    if not invoices or amount > total_outstanding:
+        item.status = "POSTING_FAILED"
+        reason = "no outstanding invoice" if not invoices else f"payment {amount} exceeds outstanding balance {total_outstanding}"
+        item.notes = _append_note(item.notes, f"Automatic posting held for finance review: {reason}.")
+        _audit(db, school_id=school_id, actor=actor, action="posting_exception", entity_id=item.id,
+               summary=f"Automatic posting held for {item.external_reference}: {reason}.")
+        db.commit()
+        db.refresh(item)
+        return item
+
+    remaining = amount
+    first_payment_id: int | None = None
+    allocation_number = 0
+    try:
+        for invoice in invoices:
+            if remaining <= 0:
+                break
+            portion = min(remaining, Decimal(str(invoice.balance)))
+            if portion <= 0:
+                continue
+            allocation_number += 1
+            payment_reference = item.external_reference if allocation_number == 1 else f"{item.external_reference}-ALLOC-{allocation_number}"
+            payment, _receipt = post_fee_payment(
+                db,
+                school_id=school_id,
+                invoice=invoice,
+                student_id=item.matched_student_id,
+                amount=portion,
+                payment_method=item.payment_channel or "KCB SMS",
+                reference_number=payment_reference,
+                notes=f"Automatically posted from KCB SMS; inbox #{item.id}; original reference {item.external_reference}; allocation {allocation_number}",
+                actor=actor,
+            )
+            if first_payment_id is None:
+                first_payment_id = payment.id
+            remaining -= portion
+        if remaining != 0 or first_payment_id is None:
+            raise HTTPException(409, "Could not allocate the complete payment.")
+        now = datetime.now(timezone.utc)
+        item.status = "POSTED"
+        item.posted_payment_id = first_payment_id
+        item.posted_at = now
+        item.reviewed_by = actor
+        item.reviewed_at = now
+        _audit(db, school_id=school_id, actor=actor, action="auto_post", entity_id=item.id,
+               summary=f"Automatically posted KCB SMS {item.external_reference}, amount {amount}, oldest-invoice-first across {allocation_number} invoice(s); first payment #{first_payment_id}. Reconciliation pending.")
+        db.commit()
+        db.refresh(item)
+        return item
+    except Exception as exc:
+        db.rollback()
+        failed = db.query(m.PaymentInbox).filter(
+            m.PaymentInbox.id == inbox_id,
+            m.PaymentInbox.school_id == school_id,
+        ).with_for_update().first()
+        if not failed:
+            raise
+        failed.status = "POSTING_FAILED"
+        failed.notes = _append_note(failed.notes, f"Automatic posting failed; finance action required: {str(exc)[:300]}")
+        _audit(db, school_id=school_id, actor=actor, action="posting_failed", entity_id=failed.id,
+               summary=f"Automatic posting failed for {failed.external_reference}; no partial payment posting was committed.")
+        db.commit()
+        db.refresh(failed)
+        return failed
+
+
 @router.post("/finance/payment-inbox/sms-gateway", response_model=s.PaymentInboxResponse)
 def ingest_sms_gateway_message(
     payload: SmsGatewayPayload,
@@ -150,6 +260,10 @@ def ingest_sms_gateway_message(
         )
         db.commit()
         db.refresh(item)
+        if student:
+            item = _post_matched_inbox_item(
+                db, inbox_id=item.id, school_id=school_id, actor="sms-gateway"
+            )
         return item
     except IntegrityError:
         db.rollback()
@@ -181,99 +295,23 @@ def verify_and_post_sms_payment(
         raise HTTPException(404, "Payment inbox item not found.")
     if item.status == "POSTED":
         return item
-    if item.status not in {"UNVERIFIED", "VERIFIED", "VERIFIED_UNALLOCATED"} or not item.matched_student_id:
-        raise HTTPException(409, "Only a uniquely matched, unposted SMS payment can be verified and posted.")
+    if item.status == "POSTED":
+        return item
+    if item.status not in {"UNVERIFIED", "VERIFIED", "VERIFIED_UNALLOCATED", "POSTING_FAILED", "MATCHED"} or not item.matched_student_id:
+        raise HTTPException(409, "Only a uniquely matched, unposted SMS payment can be retried.")
     evidence = f"Bank verification reference: {payload.verification_reference.strip()}"
     if payload.verification_notes:
         evidence += f"; {payload.verification_notes.strip()}"
-    item.status = "VERIFIED"
     item.reviewed_by = principal.email or principal.user_id
     item.reviewed_at = datetime.now(timezone.utc)
     item.notes = _append_note(item.notes, evidence)
+    db.commit()
+    return _post_matched_inbox_item(
+        db, inbox_id=item.id, school_id=principal.school_id,
+        actor=principal.email or principal.user_id,
+    )
 
-    existing_payment = db.query(m.Payment).filter(
-        m.Payment.school_id == principal.school_id,
-        m.Payment.reference_number == item.external_reference,
-        m.Payment.status != "REVERSED",
-    ).first()
-    if existing_payment:
-        item.status = "DUPLICATE"
-        _audit(db, school_id=principal.school_id, actor=principal.email or principal.user_id,
-               action="duplicate", entity_id=item.id,
-               summary=f"Bank-verified transaction {item.external_reference} already exists as payment #{existing_payment.id}.")
-        db.commit()
-        db.refresh(item)
-        return item
 
-    invoices = db.query(m.StudentInvoice).filter(
-        m.StudentInvoice.school_id == principal.school_id,
-        m.StudentInvoice.student_id == item.matched_student_id,
-        m.StudentInvoice.balance > 0,
-    ).order_by(m.StudentInvoice.created_at.asc(), m.StudentInvoice.id.asc()).with_for_update().all()
-    total_outstanding = sum((Decimal(str(invoice.balance)) for invoice in invoices), Decimal("0"))
-    amount = Decimal(str(item.amount))
-    if not invoices or amount > total_outstanding:
-        item.status = "VERIFIED_UNALLOCATED"
-        item.notes = _append_note(
-            item.notes,
-            f"Verified, but not posted: payment amount {amount} exceeds available invoice balance {total_outstanding}. Finance review/credit allocation required.",
-        )
-        _audit(db, school_id=principal.school_id, actor=principal.email or principal.user_id,
-               action="verify_unallocated", entity_id=item.id,
-               summary=f"Verified transaction {item.external_reference}; amount={amount}, outstanding={total_outstanding}; manual credit review required.")
-        db.commit()
-        db.refresh(item)
-        return item
-
-    remaining = amount
-    first_payment_id: int | None = None
-    allocation_number = 0
-    try:
-        for invoice in invoices:
-            if remaining <= 0:
-                break
-            portion = min(remaining, Decimal(str(invoice.balance)))
-            if portion <= 0:
-                continue
-            allocation_number += 1
-            payment_reference = item.external_reference if allocation_number == 1 else f"{item.external_reference}-ALLOC-{allocation_number}"
-            payment, _receipt = post_fee_payment(
-                db,
-                school_id=principal.school_id,
-                invoice=invoice,
-                student_id=item.matched_student_id,
-                amount=portion,
-                payment_method=item.payment_channel or "KCB SMS",
-                reference_number=payment_reference,
-                notes=f"Verified KCB transaction {item.external_reference}; inbox #{item.id}; allocation {allocation_number}",
-                actor=principal.email or principal.user_id,
-            )
-            if first_payment_id is None:
-                first_payment_id = payment.id
-            remaining -= portion
-
-        if remaining != 0 or first_payment_id is None:
-            raise HTTPException(409, "Could not allocate the complete payment; transaction was not posted.")
-        now = datetime.now(timezone.utc)
-        item.status = "POSTED"
-        item.posted_payment_id = first_payment_id
-        item.posted_at = now
-        item.reviewed_by = principal.email or principal.user_id
-        item.reviewed_at = now
-        _audit(
-            db,
-            school_id=principal.school_id,
-            actor=principal.email or principal.user_id,
-            action="verify_and_post",
-            entity_id=item.id,
-            summary=f"Verified bank transaction {item.external_reference} and allocated {amount} oldest-invoice-first across {allocation_number} invoice(s); first payment #{first_payment_id}.",
-        )
-        db.commit()
-        db.refresh(item)
-        return item
-    except Exception:
-        db.rollback()
-        raise
 
 
 @router.post("/finance/payment-inbox/reconcile")
