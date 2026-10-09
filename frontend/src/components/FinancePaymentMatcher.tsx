@@ -98,17 +98,19 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
   }
 
   async function verifyAndPost(item: PaymentInboxItem) {
-    const verificationReference = window.prompt('Enter the KCB statement/transaction reference used to independently verify this credit.')
-    if (!verificationReference?.trim()) return
-    const verificationNotes = window.prompt('Optional verification notes (e.g. confirmed in KCB statement)') || undefined
+    const verificationReference = window.prompt('Optional KCB statement/transaction reference. Leave blank to approve and post now with bank reconciliation pending. Cancel to stop.')
+    if (verificationReference === null) return
+    const verificationNotes = window.prompt('Optional approval/reconciliation notes') || undefined
     setBusy(true); setError(null); setMessage(null)
     try {
       const result = await apiFetch<PaymentInboxItem>(`/api/v1/finance/payment-inbox/${item.id}/verify-and-post`, {
         method: 'POST',
-        body: JSON.stringify({ verification_reference: verificationReference.trim(), verification_notes: verificationNotes }),
+        body: JSON.stringify({ ...(verificationReference.trim() ? { verification_reference: verificationReference.trim() } : {}), verification_notes: verificationNotes }),
       })
       setMessage(result.status === 'POSTED'
-        ? `Verified KCB reference ${item.external_reference}; payment posted and allocated oldest-invoice-first.`
+        ? (verificationReference.trim()
+          ? `KCB payment ${item.external_reference} posted. Bank reference recorded; review reconciliation later as needed.`
+          : `KCB payment ${item.external_reference} approved and posted; bank statement reconciliation is pending.`)
         : `KCB reference ${item.external_reference} status: ${result.status}. Review the payment inbox notes.`)
       await loadAudit()
       onPosted?.()
