@@ -6,7 +6,7 @@ import { finance, type Invoice, type PaymentInboxItem, type Receipt } from '../l
 
 type Student = { id:number; admission_number:string; first_name:string; middle_name?:string; last_name:string; status:string }
 type StudentList = { items:Student[]; total:number; page:number; page_size:number; pages:number }
-type Decoded = { amount?:number; external_reference?:string; student_identifier?:string; received_at?:string; account_name?:string; bank?:string; payment_channel?:string; raw_message:string }
+type Decoded = { amount?:number; external_reference?:string; student_identifier?:string; school_account_identifier?:string; received_at?:string; account_name?:string; bank?:string; payment_channel?:string; raw_message:string }
 type Props = { onPosted?: () => void }
 
 export function FinancePaymentMatcher({ onPosted }: Props) {
@@ -70,7 +70,6 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
     try {
       const result = await finance.decodePayment(input) as Decoded
       setDecoded(result)
-      if (result.student_identifier && result.student_identifier !== admission) setInput(`#${result.student_identifier}`)
     } catch (err) { setError(friendlyApiError(err, 'interpret the payment message')) }
     finally { setBusy(false) }
   }
@@ -81,7 +80,7 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
     try {
       const inboxItem = await apiFetch<{ id:number }>(`/api/v1/finance/payment-inbox`, {
         method:'POST',
-        body: JSON.stringify({ source:'M-PESA', raw_message:input, student_identifier:student.admission_number, amount:decoded.amount, external_reference:decoded.external_reference, received_at:decoded.received_at, payment_channel:decoded.payment_channel || 'M-PESA → Bank', account_name:decoded.account_name }),
+        body: JSON.stringify({ source:'M-PESA', raw_message:input, student_identifier:student.admission_number, source_account:decoded.school_account_identifier, amount:decoded.amount, external_reference:decoded.external_reference, received_at:decoded.received_at, payment_channel:decoded.payment_channel || 'M-PESA → Bank', account_name:decoded.account_name }),
       })
       await finance.postPaymentInbox(inboxItem.id, { invoice_id: Number(invoiceId), reason:'Posted from M-PESA payment matcher' })
       setMessage(`KES ${Number(decoded.amount).toLocaleString()} posted to ${student.first_name} ${student.last_name} (${student.admission_number}).`)
@@ -113,7 +112,7 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
     {student && <div className="card" style={{ marginTop: 16 }}>
       <strong>{student.first_name} {student.middle_name ? `${student.middle_name} ` : ''}{student.last_name}</strong>
       <div className="muted-text">Admission #{student.admission_number} · {student.status}</div>
-      {decoded && <div style={{ marginTop: 12 }}><Badge tone="success">KES {Number(decoded.amount || 0).toLocaleString()}</Badge> <span className="muted-text">Ref {decoded.external_reference || '—'}</span></div>}
+      {decoded && <div style={{ marginTop: 12 }}><Badge tone="success">KES {Number(decoded.amount || 0).toLocaleString()}</Badge> <span className="muted-text">Ref {decoded.external_reference || '—'}</span><div className="muted-text" style={{ marginTop: 6 }}>School account: {decoded.school_account_identifier || 'Not detected'} · Admission: {decoded.student_identifier || student.admission_number} · Bank: {decoded.bank || 'Not detected'}</div><div className="muted-text">Recipient: {decoded.account_name || 'Not detected'} · Received: {decoded.received_at ? new Date(decoded.received_at).toLocaleString() : 'Not detected'}</div></div>}
       <div className="finance-form__grid" style={{ marginTop: 12 }}>
         <div className="field"><label className="field__label">Invoice</label><select className="input" value={invoiceId} onChange={(e) => setInvoiceId(e.target.value)} disabled={!invoices.length}>
           <option value="">Select invoice</option>{invoices.map((inv) => <option key={inv.id} value={inv.id}>Invoice #{inv.id} — balance KES {Number(inv.balance).toLocaleString()}</option>)}
