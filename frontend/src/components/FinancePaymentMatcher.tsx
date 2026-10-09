@@ -90,8 +90,27 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
     finally { setBusy(false) }
   }
 
+  async function verifyAndPost(item: PaymentInboxItem) {
+    const verificationReference = window.prompt('Enter the KCB statement/transaction reference used to independently verify this credit.')
+    if (!verificationReference?.trim()) return
+    const verificationNotes = window.prompt('Optional verification notes (e.g. confirmed in KCB statement)') || undefined
+    setBusy(true); setError(null); setMessage(null)
+    try {
+      const result = await apiFetch<PaymentInboxItem>(`/api/v1/finance/payment-inbox/${item.id}/verify-and-post`, {
+        method: 'POST',
+        body: JSON.stringify({ verification_reference: verificationReference.trim(), verification_notes: verificationNotes }),
+      })
+      setMessage(result.status === 'POSTED'
+        ? `Verified KCB reference ${item.external_reference}; payment posted and allocated oldest-invoice-first.`
+        : `KCB reference ${item.external_reference} status: ${result.status}. Review the payment inbox notes.`)
+      await loadAudit()
+      onPosted?.()
+    } catch (err) { setError(friendlyApiError(err, 'verify and allocate the KCB payment')) }
+    finally { setBusy(false) }
+  }
+
   const receiptByPaymentId = useMemo(() => new Map(receipts.map((receipt) => [receipt.payment_id, receipt])), [receipts])
-  const statusTone = (status:string) => status === 'POSTED' || status === 'MATCHED' ? 'success' : status === 'UNMATCHED' ? 'warning' : 'danger'
+  const statusTone = (status:string) => status === 'POSTED' ? 'success' : ['MATCHED', 'UNVERIFIED', 'VERIFIED', 'VERIFIED_UNALLOCATED', 'UNMATCHED'].includes(status) ? 'warning' : 'danger'
 
   return <section className="section card">
     <div className="finance-section-heading">
@@ -125,7 +144,7 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
 
     <div className="section" style={{ marginTop: 24 }}>
       <div className="finance-section-heading"><div><h3 className="section__title">Payment Inbox</h3><p className="muted-text">Recent external payments and their posting state. Nothing is removed when posting fails.</p></div><button className="button button--secondary button--sm" onClick={loadAudit} disabled={loadingInbox}>{loadingInbox ? 'Refreshing…' : 'Refresh'}</button></div>
-      {loadingInbox ? <LoadingBlock label="Loading payment audit history" rows={4} /> : !inbox.length ? <p className="muted-text">No payment inbox records yet.</p> : <div className="table-scroll"><table><thead><tr><th>Received</th><th>Reference</th><th>Student</th><th>Amount</th><th>Match</th><th>Status</th><th>Posted / Receipt</th></tr></thead><tbody>{inbox.map((item) => { const receipt = item.posted_payment_id ? receiptByPaymentId.get(item.posted_payment_id) : undefined; return <tr key={item.id}><td>{item.received_at ? new Date(item.received_at).toLocaleString() : '—'}</td><td><strong>{item.external_reference}</strong><div className="muted-text">{item.source}</div></td><td>{item.student_identifier || 'Unmatched'}</td><td className="number-cell">KES {Number(item.amount).toLocaleString()}</td><td>{item.match_method ? `${item.match_method} (${Number(item.match_confidence || 0).toLocaleString()}%)` : 'Manual review'}</td><td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td><td>{item.posted_payment_id ? <><div>Payment #{item.posted_payment_id}</div>{receipt ? <div className="muted-text">Receipt {receipt.receipt_number} · {receipt.status}</div> : <div className="muted-text">Receipt pending/not returned</div>}</> : '—'}</td></tr> })}</tbody></table></div>}
+      {loadingInbox ? <LoadingBlock label="Loading payment audit history" rows={4} /> : !inbox.length ? <p className="muted-text">No payment inbox records yet.</p> : <div className="table-scroll"><table><thead><tr><th>Received</th><th>Reference</th><th>Student</th><th>Amount</th><th>Match</th><th>Status</th><th>Posted / Receipt</th><th>Action</th></tr></thead><tbody>{inbox.map((item) => { const receipt = item.posted_payment_id ? receiptByPaymentId.get(item.posted_payment_id) : undefined; return <tr key={item.id}><td>{item.received_at ? new Date(item.received_at).toLocaleString() : '—'}</td><td><strong>{item.external_reference}</strong><div className="muted-text">{item.source}</div></td><td>{item.student_identifier || 'Unmatched'}</td><td className="number-cell">KES {Number(item.amount).toLocaleString()}</td><td>{item.match_method ? `${item.match_method} (${Number(item.match_confidence || 0).toLocaleString()}%)` : 'Manual review'}</td><td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td><td>{item.posted_payment_id ? <><div>Payment #{item.posted_payment_id}</div>{receipt ? <div className="muted-text">Receipt {receipt.receipt_number} · {receipt.status}</div> : <div className="muted-text">Receipt pending/not returned</div>}</> : '—'}</td><td>{item.source === 'KCB_SMS' && ['UNVERIFIED', 'VERIFIED_UNALLOCATED'].includes(item.status) ? <button className="button button--secondary button--sm" disabled={busy} onClick={() => verifyAndPost(item)}>Verify &amp; allocate</button> : '—'}</td></tr> })}</tbody></table></div>}
     </div>
   </section>
 }
