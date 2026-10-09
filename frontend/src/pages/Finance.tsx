@@ -49,7 +49,7 @@ export default function FinancePage() {
       {activeTab === 'matcher' && <FinancePaymentMatcher onPosted={load} />}
       {activeTab === 'vote-heads' && <VoteHeadsView />}
       {activeTab === 'banking' && <FinanceBanking />}
-      {activeTab === 'balances' && <StudentBalancesReport onCreateFee={() => setActiveTab('fees')} />}
+      {activeTab === 'balances' && <StudentBalancesReport onCreateFee={() => { setShowNewFee(true); setActiveTab('fees') }} />}
       {activeTab === 'trial-balance' && <TrialBalanceView />}
       {activeTab === 'general-ledger' && <GeneralLedgerView />}
       {activeTab === 'balance-sheet' && <BalanceSheetView />}
