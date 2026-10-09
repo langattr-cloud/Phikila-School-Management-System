@@ -21,6 +21,7 @@ export default function FinancePage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'vote-heads' | 'trial-balance' | 'general-ledger' | 'balance-sheet' | 'banking' | 'balances'>('overview')
   const [showNewFee, setShowNewFee] = useState(false)
+  const [reviewingFeeId, setReviewingFeeId] = useState<number | null>(null)
   const [showNewInvoice, setShowNewInvoice] = useState(false)
   const [showNewPayment, setShowNewPayment] = useState(false)
 
@@ -37,6 +38,18 @@ export default function FinancePage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const deleteFeeStructure = async (fee: FeeStructure) => {
+    if (!window.confirm(`Delete fee structure "${fee.name}" (KES ${Number(fee.amount).toLocaleString()})? This cannot be undone.`)) return
+    setError(null)
+    try {
+      await finance.deleteFeeStructure(fee.id)
+      if (reviewingFeeId === fee.id) setReviewingFeeId(null)
+      await load()
+    } catch (err) {
+      setError(friendlyApiError(err, 'delete fee structure'))
+    }
+  }
 
   return <div className="finance-page">
     <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
@@ -62,7 +75,8 @@ export default function FinancePage() {
 
       {activeTab === 'fees' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Fee Structures</h2><button className="button button--primary button--sm" onClick={() => setShowNewFee(!showNewFee)}>+ Fee Structure</button></div>
         {showNewFee && <NewFeeForm existingFeeStructures={feeStructures} onCreated={() => { setShowNewFee(false); load() }} onCancel={() => setShowNewFee(false)} />}
-        {!feeStructures.length ? <EmptyState title="No fee structures saved" description="Create a fee structure to start billing students. Use the + Fee Structure button above." /> : <div className="finance-list">{feeStructures.map((f) => <div key={f.id} className="finance-list__row"><div className="finance-list__main"><strong>{f.name}</strong><span className="muted-text">{f.description || 'No description'} · Year #{f.academic_year_id ?? 'Any'} · {f.level_id == null ? 'All levels' : `Level #${f.level_id}`} · {f.grade_id == null ? 'All grades' : `Grade #${f.grade_id}`} · {f.stream_id == null ? 'All streams' : `Stream #${f.stream_id}`}</span></div><div className="finance-list__value"><strong>KES {Number(f.amount).toLocaleString()}</strong> <Badge tone={f.status === 'ACTIVE' || f.status === 'active' ? 'success' : 'warning'}>{f.status}</Badge></div></div>)}</div>}
+        {!feeStructures.length ? <EmptyState title="No fee structures saved" description="Create a fee structure to start billing students. Use the + Fee Structure button above." /> : <div className="finance-list">{feeStructures.map((f) => <div key={f.id} className="finance-list__row"><div className="finance-list__main"><strong>{f.name}</strong><span className="muted-text">{f.description || 'No description'} · Year #{f.academic_year_id ?? 'Any'} · {f.level_id == null ? 'All levels' : `Level #${f.level_id}`} · {f.grade_id == null ? 'All grades' : `Grade #${f.grade_id}`} · {f.stream_id == null ? 'All streams' : `Stream #${f.stream_id}`}</span></div><div className="finance-list__value"><strong>KES {Number(f.amount).toLocaleString()}</strong> <Badge tone={f.status === 'ACTIVE' || f.status === 'active' ? 'success' : 'warning'}>{f.status}</Badge><button className="button button--secondary button--sm" onClick={() => setReviewingFeeId(reviewingFeeId === f.id ? null : f.id)}>{reviewingFeeId === f.id ? 'Close review' : 'Review'}</button><button className="button button--secondary button--sm" onClick={() => deleteFeeStructure(f)}>Delete</button></div></div>)}</div>}
+        {reviewingFeeId !== null && feeStructures.some((fee) => fee.id === reviewingFeeId) && <FeeStructureReview fee={feeStructures.find((fee) => fee.id === reviewingFeeId)!} onClose={() => setReviewingFeeId(null)} />}
       </section>}
 
       {activeTab === 'invoices' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Invoices</h2><button className="button button--primary button--sm" onClick={() => setShowNewInvoice(!showNewInvoice)}>+ Invoice</button></div>
@@ -200,6 +214,40 @@ function BalanceSheetView() {
   useEffect(() => { let active = true; setLoading(true); setError(null); finance.balanceSheet().then((data) => { if (active) setReport(data) }).catch((err) => { if (active) setError(friendlyApiError(err, 'load balance sheet')) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
   const section = (title: string, rows: TrialBalanceRow[]) => <div className="finance-list"><h3>{title}</h3>{!rows.length ? <p className="muted-text">No accounts.</p> : rows.map((row) => <div key={row.account_id} className="finance-list__row"><div className="finance-list__main"><strong>{row.code} — {row.name}</strong><span className="muted-text">{row.account_type}</span></div><div className="finance-list__value"><strong>KES {Number(row.balance).toLocaleString()}</strong></div></div>)}</div>
   return <section className="section card"><div className="finance-section-heading"><div><h2 className="section__title">Balance Sheet</h2><p className="muted-text">Statement of financial position from posted ledger balances.</p></div>{report && <Badge tone={Math.abs(Number(report.totals.balance_check)) < 0.005 ? 'success' : 'danger'}>{Math.abs(Number(report.totals.balance_check)) < 0.005 ? 'Balanced' : 'Out of balance'}</Badge>}</div>{error && <Alert tone="error">{error}</Alert>}{loading ? <LoadingBlock label="Loading balance sheet" rows={6} /> : !report ? <EmptyState title="Balance sheet unavailable" description="No balance sheet response was returned." /> : <>{section('Assets', report.assets)}{section('Liabilities', report.liabilities)}{section('Equity / Net Assets', report.equity)}<div className="finance-list"><div className="finance-list__row"><div className="finance-list__main"><strong>Current Surplus / (Deficit)</strong></div><div className="finance-list__value"><strong>KES {Number(report.current_surplus_deficit).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Total Assets</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.assets).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Liabilities + Net Assets</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.liabilities_and_net_assets).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Balance Check</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.balance_check).toLocaleString()}</strong></div></div></div></>}</section>
+}
+
+function FeeStructureReview({ fee, onClose }: { fee: FeeStructure; onClose: () => void }) {
+  const [items, setItems] = useState<import('../lib/finance').FeeStructureItem[]>([])
+  const [heads, setHeads] = useState<VoteHead[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    Promise.all([finance.listFeeStructureItems(fee.id), finance.listVoteHeads()])
+      .then(([allocations, voteHeads]) => {
+        if (!active) return
+        setItems(allocations)
+        setHeads(voteHeads)
+      })
+      .catch((err) => { if (active) setError(friendlyApiError(err, 'review fee structure')) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [fee.id])
+
+  return <section className="section card" aria-label={`Review fee structure ${fee.name}`}>
+    <div className="finance-section-heading"><div><h3 className="section__title">Review: {fee.name}</h3><p className="muted-text">Check the scope and how the total is split across vote heads before billing.</p></div><button className="button button--secondary button--sm" onClick={onClose}>Close</button></div>
+    {error && <Alert tone="error">{error}</Alert>}
+    <div className="finance-list">
+      <div className="finance-list__row"><div className="finance-list__main"><strong>Total fee</strong><span className="muted-text">Currency: {fee.currency || 'KES'} · Status: {fee.status}</span></div><div className="finance-list__value"><strong>{fee.currency || 'KES'} {Number(fee.amount).toLocaleString()}</strong></div></div>
+      <div className="finance-list__row"><div className="finance-list__main"><strong>Academic year</strong></div><div className="finance-list__value">#{fee.academic_year_id ?? 'Any'}</div></div>
+      <div className="finance-list__row"><div className="finance-list__main"><strong>Level / grade / stream scope</strong></div><div className="finance-list__value">{fee.level_id == null ? 'All levels' : `Level #${fee.level_id}`} · {fee.grade_id == null ? 'All grades' : `Grade #${fee.grade_id}`} · {fee.stream_id == null ? 'All streams' : `Stream #${fee.stream_id}`}</div></div>
+      <div className="finance-list__row"><div className="finance-list__main"><strong>Description</strong></div><div className="finance-list__value">{fee.description || 'No description'}</div></div>
+    </div>
+    <h4>Vote-head allocations</h4>
+    {loading ? <LoadingBlock label="Loading allocations" rows={2} /> : !items.length ? <EmptyState title="No allocations found" description="This fee structure needs vote-head allocations before billing." /> : <div className="table-scroll"><table><thead><tr><th>Vote head</th><th>Amount</th><th>Share</th></tr></thead><tbody>{items.map((item) => { const head = heads.find((candidate) => candidate.id === item.vote_head_id); return <tr key={item.id}><td>{head?.name || `Vote head #${item.vote_head_id}`}</td><td className="number-cell">{fee.currency || 'KES'} {Number(item.amount).toLocaleString()}</td><td className="number-cell">{Number(fee.amount) > 0 ? `${(Number(item.amount) / Number(fee.amount) * 100).toFixed(1)}%` : '—'}</td></tr> })}</tbody><tfoot><tr><th>Total allocated</th><th className="number-cell">{fee.currency || 'KES'} {items.reduce((sum, item) => sum + Number(item.amount), 0).toLocaleString()}</th><th className="number-cell">{Number(fee.amount) > 0 ? `${(items.reduce((sum, item) => sum + Number(item.amount), 0) / Number(fee.amount) * 100).toFixed(1)}%` : '—'}</th></tr></tfoot></table></div>}
+  </section>
 }
 
 function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFeeStructures: FeeStructure[]; onCreated: () => void; onCancel: () => void }) {
