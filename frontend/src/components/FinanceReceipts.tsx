@@ -8,7 +8,7 @@ const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[char] || char))
 
-const money = (value: number) => `KES ${Number(value || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}'
+const money = (value: number) => `KES ${Number(value || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const dateLabel = (value?: string) => value ? new Date(value).toLocaleString() : '—'
 
 function printReceipts(receipts: Receipt[], payments: Payment[]) {
