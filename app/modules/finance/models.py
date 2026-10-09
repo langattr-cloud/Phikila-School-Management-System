@@ -1,6 +1,6 @@
 """Finance models — school-scoped, Decimal-safe, auditable."""
 from __future__ import annotations
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, Index, text
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, Index, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -38,7 +38,7 @@ class ChartOfAccount(Base):
     id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); parent_id = Column(Integer, ForeignKey("chart_of_accounts.id")); code = Column(String(30), nullable=False); name = Column(String(150), nullable=False); account_type = Column(String(30), nullable=False); is_active = Column(Integer, default=1, nullable=False); created_at = Column(DateTime(timezone=True), server_default=func.now())
 class Journal(Base):
     __tablename__ = "finance_journals"; __table_args__ = {"extend_existing": True}
-    id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); journal_number = Column(String(50), nullable=False, index=True); transaction_date = Column(DateTime(timezone=True), server_default=func.now()); description = Column(Text, nullable=False); reference = Column(String(100)); status = Column(String(20), default="posted"); created_by = Column(String(64)); created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id = Column(Integer, primary_key=True, index=True); school_id = Column(Integer, nullable=False, index=True); journal_number = Column(String(50), nullable=False, index=True); transaction_date = Column("journal_date", Date, server_default=func.current_date()); description = Column(Text, nullable=False); reference = Column(String(100)); status = Column(String(20), default="posted"); created_by = Column(String(64)); created_at = Column(DateTime(timezone=True), server_default=func.now())
 class JournalEntry(Base):
     __tablename__ = "finance_journal_entries"; __table_args__ = {"extend_existing": True}
     id = Column(Integer, primary_key=True, index=True); journal_id = Column(Integer, ForeignKey("finance_journals.id", ondelete="CASCADE"), nullable=False, index=True); account_id = Column(Integer, ForeignKey("chart_of_accounts.id"), nullable=False, index=True); debit = Column(Numeric(14, 2), nullable=False, default=0); credit = Column(Numeric(14, 2), nullable=False, default=0); description = Column(Text)
