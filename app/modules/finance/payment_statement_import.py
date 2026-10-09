@@ -14,7 +14,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from openpyxl import load_workbook
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -35,7 +35,7 @@ class StatementPreview(BaseModel):
     file_type: str
     parsed_rows: int
     transactions: list[ParsedTransaction]
-    warnings: list[str] = []
+    warnings: list[str] = Field(default_factory=list)
 
 
 def _norm(value: object) -> str:
@@ -79,9 +79,13 @@ def _reference(value: object) -> str | None:
     # Keep a whole transaction reference when the cell contains just the reference.
     if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9./_-]{5,49}", raw):
         return raw
-    # If a narration field is used, pick a reference-like token, not an admission/account number.
+    # Prefer the explicit payment reference commonly included in KCB M-PESA narrations.
+    explicit = re.search(r"(?:M\s*[- ]?PESA\s*)?(?:REF(?:ERENCE)?|TRANS(?:ACTION)?\s*(?:ID|REF))\s*[:#-]?\s*([A-Z0-9]{8,14})", raw, re.IGNORECASE)
+    if explicit:
+        return explicit.group(1).upper()
+    # Otherwise accept a single reference-like token, not the first word in a narration.
     matches = re.findall(r"(?<![A-Za-z0-9])([A-Z0-9]{8,14})(?![A-Za-z0-9])", raw.upper())
-    return matches[0] if matches else None
+    return matches[-1] if matches else None
 
 
 def _rows_to_transactions(rows: list[list[object]]) -> tuple[list[ParsedTransaction], list[str]]:
@@ -115,6 +119,8 @@ def _rows_to_transactions(rows: list[list[object]]) -> tuple[list[ParsedTransact
 
     if ref_col is None or (credit_col is None and amount_col is None):
         raise HTTPException(422, "The statement must include a reference/narration column and a credit or amount column.")
+    if credit_col is None and type_col is None and debit_col is None:
+        raise HTTPException(422, "This statement has an amount column but does not identify credits versus debits. Export a version with a Credit column or transaction type.")
 
     transactions: list[ParsedTransaction] = []
     skipped = 0
@@ -127,8 +133,9 @@ def _rows_to_transactions(rows: list[list[object]]) -> tuple[list[ParsedTransact
         if amount is None and amount_col is not None:
             amount = _money(row[amount_col] if amount_col < len(row) else None)
             tx_type = _norm(row[type_col] if type_col is not None and type_col < len(row) else "")
-            if any(token in tx_type for token in ("debit", "withdraw", "paid out", "dr")):
-                amount = None
+            if type_col is not None and credit_col is None:
+                if not any(token in tx_type for token in ("credit", "deposit", "receipt", " cr")):
+                    amount = None
             elif debit_col is not None and credit_col is None:
                 debit = _money(row[debit_col] if debit_col < len(row) else None)
                 if debit is not None and amount == debit:
