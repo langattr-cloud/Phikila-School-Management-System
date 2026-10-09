@@ -138,7 +138,7 @@ def delete_fee_structure(fee_structure_id: int, db: Session = Depends(get_db), p
     if invoice_count:
         raise HTTPException(
             409,
-            f"This fee structure has {invoice_count} invoice(s) and cannot be deleted because it is part of billing history. Set its status to inactive instead.",
+            f"This fee structure has {invoice_count} invoice(s) and cannot be deleted because it is part of billing history. Billing records must be preserved.",
         )
 
     db.query(m.FeeStructureItem).filter(
