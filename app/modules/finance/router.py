@@ -121,6 +121,38 @@ def create_fee_structure(payload: s.FeeStructureCreate, db: Session = Depends(ge
     db.refresh(fs)
     return fs
 
+@router.delete("/finance/fee-structures/{fee_structure_id}", status_code=204)
+def delete_fee_structure(fee_structure_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+    """Delete a fee structure only if it has never been used to issue invoices."""
+    fee = db.query(m.FeeStructure).filter(
+        m.FeeStructure.id == fee_structure_id,
+        m.FeeStructure.school_id == principal.school_id,
+    ).first()
+    if not fee:
+        raise HTTPException(404, "Fee structure not found.")
+
+    invoice_count = db.query(func.count(m.StudentInvoice.id)).filter(
+        m.StudentInvoice.school_id == principal.school_id,
+        m.StudentInvoice.fee_structure_id == fee.id,
+    ).scalar() or 0
+    if invoice_count:
+        raise HTTPException(
+            409,
+            f"This fee structure has {invoice_count} invoice(s) and cannot be deleted because it is part of billing history. Billing records must be preserved.",
+        )
+
+    db.query(m.FeeStructureItem).filter(
+        m.FeeStructureItem.school_id == principal.school_id,
+        m.FeeStructureItem.fee_structure_id == fee.id,
+    ).delete(synchronize_session=False)
+    fee_name = fee.name
+    fee_id = fee.id
+    db.delete(fee)
+    _audit(db, principal, "delete", "fee_structure", fee_id, f"Deleted unused fee structure '{fee_name}'")
+    db.commit()
+    return None
+
+
 @router.post("/finance/billing-runs", response_model=s.BillingRunResponse, status_code=201)
 def create_billing_run(payload: s.BillingRunCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     """Bill every active enrollee matching the selected academic hierarchy.
