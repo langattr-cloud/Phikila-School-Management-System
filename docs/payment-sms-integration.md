@@ -73,3 +73,23 @@ The endpoint returns the inbox item with status `POSTED` on success. It is safe 
 - Verify that wrong tokens, unknown senders, wrong account numbers, malformed SMS and repeated references are rejected or safely deduplicated.
 - Verify the resulting invoice balances, payment allocations, receipt and journal.
 - Configure a reconciliation routine to compare all inbox references with KCB statements and investigate missing, reversed or unmatched items.
+
+
+## Statement reconciliation
+
+A finance administrator can reconcile a KCB statement batch through the authenticated endpoint `POST /api/v1/finance/payment-inbox/reconcile`. Supply a unique statement reference and the transactions exported from the trusted bank statement:
+
+```json
+{
+  "statement_reference": "KCB-STATEMENT-2026-10-07",
+  "transactions": [
+    {
+      "reference": "UJ7AS90AE4",
+      "amount": 4000.00,
+      "transaction_date": "2026-10-07T13:49:00+03:00"
+    }
+  ]
+}
+```
+
+The response identifies statement references with no SMS, amount mismatches, SMS records absent from the supplied statement, and amount matches. Each outcome is persisted in the audit log and appended to the relevant inbox notes. This is a statement-comparison endpoint, not a direct KCB API integration; the statement data must come from a trusted export. Reconciliation matches are evidence for finance review and do not silently post previously unverified payments.
