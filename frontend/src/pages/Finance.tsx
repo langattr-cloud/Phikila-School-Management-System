@@ -61,7 +61,7 @@ export default function FinancePage() {
       ].map((c) => <div key={c.label} className="card finance-summary__card"><p className="finance-summary__label">{c.label}</p><p className={`finance-summary__value ${c.tone === 'warning' ? 'finance-summary__value--warning' : ''}`}>{c.value}</p></div>)}</div>}
 
       {activeTab === 'fees' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Fee Structures</h2><button className="button button--primary button--sm" onClick={() => setShowNewFee(!showNewFee)}>+ Fee Structure</button></div>
-        {showNewFee && <NewFeeForm onCreated={() => { setShowNewFee(false); load() }} onCancel={() => setShowNewFee(false)} />}
+        {showNewFee && <NewFeeForm existingFeeStructures={feeStructures} onCreated={() => { setShowNewFee(false); load() }} onCancel={() => setShowNewFee(false)} />}
         {!feeStructures.length ? <EmptyState title="No fee structures" description="Create a fee structure to start invoicing." /> : <div className="finance-list">{feeStructures.map((f) => <div key={f.id} className="finance-list__row"><div className="finance-list__main"><strong>{f.name}</strong> <span className="muted-text">{f.description}</span></div><div className="finance-list__value"><strong>KES {Number(f.amount).toLocaleString()}</strong> <Badge tone="success">{f.status}</Badge></div></div>)}</div>}
       </section>}
 
@@ -202,7 +202,7 @@ function BalanceSheetView() {
   return <section className="section card"><div className="finance-section-heading"><div><h2 className="section__title">Balance Sheet</h2><p className="muted-text">Statement of financial position from posted ledger balances.</p></div>{report && <Badge tone={Math.abs(Number(report.totals.balance_check)) < 0.005 ? 'success' : 'danger'}>{Math.abs(Number(report.totals.balance_check)) < 0.005 ? 'Balanced' : 'Out of balance'}</Badge>}</div>{error && <Alert tone="error">{error}</Alert>}{loading ? <LoadingBlock label="Loading balance sheet" rows={6} /> : !report ? <EmptyState title="Balance sheet unavailable" description="No balance sheet response was returned." /> : <>{section('Assets', report.assets)}{section('Liabilities', report.liabilities)}{section('Equity / Net Assets', report.equity)}<div className="finance-list"><div className="finance-list__row"><div className="finance-list__main"><strong>Current Surplus / (Deficit)</strong></div><div className="finance-list__value"><strong>KES {Number(report.current_surplus_deficit).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Total Assets</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.assets).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Liabilities + Net Assets</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.liabilities_and_net_assets).toLocaleString()}</strong></div></div><div className="finance-list__row"><div className="finance-list__main"><strong>Balance Check</strong></div><div className="finance-list__value"><strong>KES {Number(report.totals.balance_check).toLocaleString()}</strong></div></div></div></>}</section>
 }
 
-function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
+function NewFeeForm({ existingFeeStructures, onCreated, onCancel }: { existingFeeStructures: FeeStructure[]; onCreated: () => void; onCancel: () => void }) {
   const [academicYears, setAcademicYears] = useState<Awaited<ReturnType<typeof api.academicYears>>>([])
   const [levels, setLevels] = useState<Awaited<ReturnType<typeof api.levels>>>([])
   const [grades, setGrades] = useState<Awaited<ReturnType<typeof api.grades>>>([])
@@ -212,6 +212,12 @@ function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const existingFee = existingFeeStructures.find((fee) =>
+    fee.name.trim().toLocaleLowerCase() === form.name.trim().toLocaleLowerCase() &&
+    Number(fee.academic_year_id) === Number(form.academic_year_id) &&
+    Number(fee.grade_id) === Number(form.grade_id) &&
+    (fee.stream_id ?? null) === null
+  )
 
   useEffect(() => {
     let active = true
@@ -273,6 +279,7 @@ function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
 
   return <div className="finance-form">
     {error && <Alert tone="error">{error}</Alert>}
+    {existingFee && <Alert tone="warning">A fee structure named “{existingFee.name}” already exists for this academic year and grade (KES {Number(existingFee.amount).toLocaleString()}). It is listed in Finance → Fees. No duplicate will be created.</Alert>}
     <p className="muted-text">Set one fee for the selected grade. It applies to every stream in that grade.</p>
     <div className="finance-form__grid">
       <div className="field"><label className="field__label">Academic Year</label><select className="input" value={form.academic_year_id} onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })} disabled={loadingOptions || submitting}><option value="">Select academic year…</option>{academicYears.map((year) => <option key={year.id} value={year.id}>{year.name}{year.is_current ? ' (Current)' : ''}</option>)}</select></div>
@@ -282,7 +289,7 @@ function NewFeeForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: 
       <div className="field"><label className="field__label">Amount (KES)</label><input className="input" type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} disabled={submitting} /></div>
       <div className="field"><label className="field__label">Description (optional)</label><input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} disabled={submitting} /></div>
       <div className="field" style={{ gridColumn: '1 / -1' }}><label className="field__label">Vote Head Allocations</label><p className="muted-text">The allocation total must equal the fee amount. Payments will follow this order.</p><div className="finance-list">{voteHeads.map((head, index) => <div className="finance-list__row" key={head.id}><div className="finance-list__main"><strong>{head.name}</strong><span className="muted-text">{head.code || 'No code'} · Priority {index + 1}</span></div><div className="finance-list__value"><input className="input" style={{ width: 160 }} type="number" min="0" step="0.01" value={allocations[head.id] || ''} onChange={(e) => setAllocations({ ...allocations, [head.id]: e.target.value })} disabled={submitting} placeholder="KES 0.00" /></div></div>)}</div><p className={Math.abs(voteHeads.reduce((sum, head) => sum + Number(allocations[head.id] || 0), 0) - Number(form.amount || 0)) < 0.001 ? 'muted-text' : 'finance-summary__value--warning'}>Allocated: KES {voteHeads.reduce((sum, head) => sum + Number(allocations[head.id] || 0), 0).toLocaleString()} / KES {Number(form.amount || 0).toLocaleString()}</p></div>
-      <div className="finance-form__actions"><button className="button button--primary" disabled={loadingOptions || !form.academic_year_id || !form.level_id || !form.grade_id || !form.name.trim() || !form.amount || Number(form.amount) <= 0 || submitting} onClick={submit}>{submitting ? 'Creating…' : 'Create Fee Structure'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div>
+      <div className="finance-form__actions"><button className="button button--primary" disabled={loadingOptions || !form.academic_year_id || !form.level_id || !form.grade_id || !form.name.trim() || !form.amount || Number(form.amount) <= 0 || submitting || Boolean(existingFee)} onClick={submit}>{submitting ? 'Creating…' : existingFee ? 'Fee Structure Already Exists' : 'Create Fee Structure'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div>
     </div>
   </div>
 }
