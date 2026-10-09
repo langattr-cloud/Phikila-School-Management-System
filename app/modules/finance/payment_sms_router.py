@@ -33,7 +33,7 @@ class SmsGatewayPayload(BaseModel):
 
 
 class PaymentVerificationPayload(BaseModel):
-    verification_reference: str = Field(min_length=3, max_length=200)
+    verification_reference: str | None = Field(default=None, min_length=3, max_length=200)
     verification_notes: str | None = Field(default=None, max_length=500)
 
 
@@ -297,7 +297,10 @@ def verify_and_post_sms_payment(
         return item
     if item.status not in {"UNVERIFIED", "VERIFIED", "VERIFIED_UNALLOCATED", "POSTING_FAILED", "MATCHED"} or not item.matched_student_id:
         raise HTTPException(409, "Only a uniquely matched, unposted SMS payment can be retried.")
-    evidence = f"Bank verification reference: {payload.verification_reference.strip()}"
+    if payload.verification_reference and payload.verification_reference.strip():
+        evidence = f"Bank verification reference: {payload.verification_reference.strip()}"
+    else:
+        evidence = f"Approved for posting by {principal.email or principal.user_id}; bank statement reconciliation pending (no statement reference supplied)."
     if payload.verification_notes:
         evidence += f"; {payload.verification_notes.strip()}"
     item.reviewed_by = principal.email or principal.user_id
