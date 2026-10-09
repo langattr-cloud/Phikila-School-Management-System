@@ -171,7 +171,7 @@ def verify_and_post_sms_payment(
         raise HTTPException(404, "Payment inbox item not found.")
     if item.status == "POSTED":
         return item
-    if item.status not in {"UNVERIFIED", "VERIFIED"} or not item.matched_student_id:
+    if item.status not in {"UNVERIFIED", "VERIFIED", "VERIFIED_UNALLOCATED"} or not item.matched_student_id:
         raise HTTPException(409, "Only a uniquely matched, unposted SMS payment can be verified and posted.")
     evidence = f"Bank verification reference: {payload.verification_reference.strip()}"
     if payload.verification_notes:
@@ -191,7 +191,6 @@ def verify_and_post_sms_payment(
     ).first()
     if existing_payment:
         item.status = "DUPLICATE"
-        item.duplicate_of = item.id
         _audit(db, school_id=principal.school_id, actor=principal.email or principal.user_id,
                action="duplicate", entity_id=item.id,
                summary=f"Bank-verified transaction {item.external_reference} already exists as payment #{existing_payment.id}.")
