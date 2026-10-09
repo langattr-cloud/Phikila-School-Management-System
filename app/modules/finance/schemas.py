@@ -176,6 +176,7 @@ class PaymentDecodeResponse(BaseModel):
     student_identifier: str | None = None
     received_at: datetime | None = None
     account_name: str | None = None
+    school_account_identifier: str | None = None
     bank: str | None = None
     payment_channel: str | None = None
     raw_message: str
