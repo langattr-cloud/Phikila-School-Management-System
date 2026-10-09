@@ -189,5 +189,40 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
       <div className="finance-section-heading"><div><h3 className="section__title">Payment Inbox</h3><p className="muted-text">Recent external payments and their posting state. Nothing is removed when posting fails.</p></div><button className="button button--secondary button--sm" onClick={loadAudit} disabled={loadingInbox}>{loadingInbox ? 'Refreshing…' : 'Refresh'}</button></div>
       {loadingInbox ? <LoadingBlock label="Loading payment audit history" rows={4} /> : !inbox.length ? <p className="muted-text">No payment inbox records yet.</p> : <div className="table-scroll"><table><thead><tr><th>Received</th><th>Reference</th><th>Student</th><th>Amount</th><th>Match</th><th>Status</th><th>Posted / Receipt</th><th>Action</th></tr></thead><tbody>{inbox.map((item) => { const receipt = item.posted_payment_id ? receiptByPaymentId.get(item.posted_payment_id) : undefined; return <tr key={item.id}><td>{item.received_at ? new Date(item.received_at).toLocaleString() : '—'}</td><td><strong>{item.external_reference}</strong><div className="muted-text">{item.source}</div></td><td>{item.student_identifier || 'Unmatched'}</td><td className="number-cell">KES {Number(item.amount).toLocaleString()}</td><td>{item.match_method ? `${item.match_method} (${Number(item.match_confidence || 0).toLocaleString()}%)` : 'Manual review'}</td><td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td><td>{item.posted_payment_id ? <><div>Payment #{item.posted_payment_id}</div>{receipt ? <div className="muted-text">Receipt {receipt.receipt_number} · {receipt.status}</div> : <div className="muted-text">Receipt pending/not returned</div>}</> : '—'}</td><td>{['KCB_SMS', 'M-PESA'].includes(item.source) && ['UNVERIFIED', 'VERIFIED_UNALLOCATED', 'MATCHED', 'POSTING_FAILED'].includes(item.status) && item.matched_student_id ? <button className="button button--secondary button--sm" disabled={busy} onClick={() => verifyAndPost(item)}>{item.status === 'POSTING_FAILED' ? 'Retry posting' : 'Verify / retry post'}</button> : '—'}</td></tr> })}</tbody></table></div>}
     </div>
+
+    <div className="section" style={{ marginTop: 24 }}>
+      <div className="finance-section-heading"><div><h3 className="section__title">KCB Bank Statement Reconciliation</h3><p className="muted-text">Payments can be posted before this step. Upload the bank statement later to compare references and amounts; reconciliation will flag differences without silently changing posted payments.</p></div></div>
+      <div className="finance-form">
+        <div className="field">
+          <label className="field__label">KCB statement file (CSV, Excel, or text-based PDF)</label>
+          <input className="input" type="file" accept=".csv,.xlsx,.xlsm,.pdf" onChange={(e) => { setStatementFile(e.target.files?.[0] || null); setStatementPreview(null); setReconciliation(null) }} />
+          {statementFile && <div className="muted-text">{statementFile.name} · {(statementFile.size / 1024).toFixed(0)} KB</div>}
+        </div>
+        <div className="field">
+          <label className="field__label">Statement identifier / period</label>
+          <input className="input" value={statementReference} onChange={(e) => setStatementReference(e.target.value)} placeholder="e.g. KCB statement 1–9 Oct 2026" />
+        </div>
+        <div className="finance-form__actions">
+          <button className="button button--secondary" disabled={!statementFile || statementBusy} onClick={previewStatement}>{statementBusy ? 'Reading…' : 'Preview statement'}</button>
+          <button className="button button--primary" disabled={!statementPreview || !statementReference.trim() || statementBusy} onClick={reconcileStatement}>{statementBusy ? 'Working…' : 'Reconcile statement'}</button>
+        </div>
+      </div>
+      {statementPreview && <div style={{ marginTop: 16 }}>
+        <p><strong>Preview:</strong> {statementPreview.parsed_rows} transactions detected in {statementPreview.filename} ({statementPreview.file_type}). Review the parsed references and amounts before reconciling.</p>
+        {statementPreview.warnings.length > 0 && <Alert tone="warning"><ul>{statementPreview.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></Alert>}
+        <div className="table-scroll"><table><thead><tr><th>Transaction reference</th><th>Date</th><th>Credit amount</th></tr></thead><tbody>{statementPreview.transactions.slice(0, 100).map((tx, index) => <tr key={tx.reference + '-' + index}><td>{tx.reference}</td><td>{tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString() : '—'}</td><td className="number-cell">KES {Number(tx.amount).toLocaleString()}</td></tr>)}</tbody></table></div>
+        {statementPreview.transactions.length > 100 && <p className="muted-text">Showing first 100 rows of {statementPreview.transactions.length} parsed transactions.</p>}
+      </div>}
+      {reconciliation && <div style={{ marginTop: 16 }}>
+        <h4>Reconciliation results</h4>
+        <div className="finance-form__grid">
+          <div><strong>{String(reconciliation.amount_matched ?? 0)}</strong><div className="muted-text">Amount matched</div></div>
+          <div><strong>{String(reconciliation.amount_mismatches ?? 0)}</strong><div className="muted-text">Amount mismatches</div></div>
+          <div><strong>{String(reconciliation.bank_transactions_without_sms ?? 0)}</strong><div className="muted-text">Bank transactions without SMS</div></div>
+          <div><strong>{String(reconciliation.sms_transactions_without_bank_record ?? 0)}</strong><div className="muted-text">SMS transactions missing from statement</div></div>
+        </div>
+        {Array.isArray(reconciliation.results) && reconciliation.results.length > 0 && <div className="table-scroll" style={{ marginTop: 12 }}><table><thead><tr><th>Reference</th><th>SMS amount</th><th>Statement amount</th><th>Result / exception</th></tr></thead><tbody>{(reconciliation.results as Array<Record<string, unknown>>).map((row, index) => <tr key={String(row.reference ?? index)}><td>{String(row.reference ?? '—')}</td><td>{row.sms_amount == null ? '—' : 'KES ' + Number(row.sms_amount).toLocaleString()}</td><td>{row.statement_amount == null ? '—' : 'KES ' + Number(row.statement_amount).toLocaleString()}</td><td><Badge tone={String(row.status) === 'AMOUNT_MATCH' ? 'success' : 'danger'}>{String(row.status ?? 'REVIEW')}</Badge></td></tr>)}</tbody></table></div>}
+      </div>}
+    </div>
   </section>
 }
