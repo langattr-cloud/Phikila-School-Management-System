@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.scheduling.tenancy import Principal, require_role
@@ -88,11 +89,37 @@ def create_fee_structure(payload: s.FeeStructureCreate, db: Session = Depends(ge
     if len(vote_ids) != len(set(vote_ids)): raise HTTPException(409, "Each vote head can only be allocated once.")
     heads = db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id, m.FinanceVoteHead.id.in_(vote_ids), m.FinanceVoteHead.status == "ACTIVE").all()
     if len(heads) != len(vote_ids): raise HTTPException(409, "Every allocation must use an active vote head.")
+    duplicate = db.query(m.FeeStructure).filter(
+        m.FeeStructure.school_id == principal.school_id,
+        m.FeeStructure.name == payload.name,
+        m.FeeStructure.academic_year_id == payload.academic_year_id,
+        m.FeeStructure.grade_id == payload.grade_id,
+        func.coalesce(m.FeeStructure.stream_id, 0) == (payload.stream_id or 0),
+    ).first()
+    if duplicate:
+        raise HTTPException(
+            409,
+            f"A fee structure named '{duplicate.name}' already exists for this academic year and grade (KES {duplicate.amount}). Open Finance → Fees to view it instead of creating a duplicate.",
+        )
     data = payload.model_dump(exclude={"allocations"})
-    fs = m.FeeStructure(school_id=principal.school_id, **data); db.add(fs); db.flush()
-    for item in allocations: db.add(m.FeeStructureItem(school_id=principal.school_id, fee_structure_id=fs.id, vote_head_id=item.vote_head_id, amount=item.amount, display_order=item.display_order))
-    _audit(db, principal, "create", "fee_structure", fs.id, f"Created fee structure '{payload.name}' — {payload.amount} with {len(allocations)} vote-head allocations")
-    db.commit(); db.refresh(fs); return fs
+    fs = m.FeeStructure(school_id=principal.school_id, **data)
+    db.add(fs)
+    try:
+        db.flush()
+        for item in allocations:
+            db.add(m.FeeStructureItem(school_id=principal.school_id, fee_structure_id=fs.id, vote_head_id=item.vote_head_id, amount=item.amount, display_order=item.display_order))
+        _audit(db, principal, "create", "fee_structure", fs.id, f"Created fee structure '{payload.name}' — {payload.amount} with {len(allocations)} vote-head allocations")
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        if "uq_fee_structure_scope" in str(exc.orig):
+            raise HTTPException(
+                409,
+                f"A fee structure named '{payload.name}' already exists for this academic year and grade. Open Finance → Fees to view it instead of creating a duplicate.",
+            ) from exc
+        raise
+    db.refresh(fs)
+    return fs
 
 @router.post("/finance/billing-runs", response_model=s.BillingRunResponse, status_code=201)
 def create_billing_run(payload: s.BillingRunCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
