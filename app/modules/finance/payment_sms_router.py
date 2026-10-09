@@ -37,6 +37,17 @@ class PaymentVerificationPayload(BaseModel):
     verification_notes: str | None = Field(default=None, max_length=500)
 
 
+class BankStatementLine(BaseModel):
+    reference: str = Field(min_length=1, max_length=100)
+    amount: Decimal = Field(gt=0)
+    transaction_date: datetime | None = None
+
+
+class PaymentReconciliationRequest(BaseModel):
+    statement_reference: str = Field(min_length=1, max_length=200)
+    transactions: list[BankStatementLine] = Field(min_length=1, max_length=5000)
+
+
 def _audit(db: Session, *, school_id: int, actor: str, action: str, entity_id: int, summary: str) -> None:
     db.add(TtAuditEntry(
         school_id=school_id,
@@ -142,7 +153,6 @@ def ingest_sms_gateway_message(
         return item
     except IntegrityError:
         db.rollback()
-        # Idempotent retry when two gateway deliveries arrive together.
         existing = db.query(m.PaymentInbox).filter(
             m.PaymentInbox.school_id == school_id,
             m.PaymentInbox.source == source,
@@ -176,9 +186,6 @@ def verify_and_post_sms_payment(
     evidence = f"Bank verification reference: {payload.verification_reference.strip()}"
     if payload.verification_notes:
         evidence += f"; {payload.verification_notes.strip()}"
-
-    # If the item was already verified but couldn't be allocated, require a
-    # fresh explicit action rather than accidentally posting it twice.
     item.status = "VERIFIED"
     item.reviewed_by = principal.email or principal.user_id
     item.reviewed_at = datetime.now(timezone.utc)
@@ -229,9 +236,6 @@ def verify_and_post_sms_payment(
             if portion <= 0:
                 continue
             allocation_number += 1
-            # payments.invoice_id is a required single-invoice FK. Store one
-            # payment per invoice; suffix later parts while preserving the
-            # canonical bank reference in the inbox and notes.
             payment_reference = item.external_reference if allocation_number == 1 else f"{item.external_reference}-ALLOC-{allocation_number}"
             payment, _receipt = post_fee_payment(
                 db,
@@ -270,3 +274,55 @@ def verify_and_post_sms_payment(
     except Exception:
         db.rollback()
         raise
+
+
+@router.post("/finance/payment-inbox/reconcile")
+def reconcile_kcb_statement(
+    payload: PaymentReconciliationRequest,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("admin")),
+):
+    """Compare an uploaded/entered KCB statement batch with inbox notifications."""
+    references = [line.reference.strip() for line in payload.transactions]
+    if len(references) != len(set(references)):
+        raise HTTPException(422, "Statement contains duplicate transaction references; reconcile a corrected statement.")
+    results: list[dict] = []
+    matched = mismatched = missing_sms = 0
+    actor = principal.email or principal.user_id
+    run_summary = f"KCB reconciliation {payload.statement_reference.strip()}"
+    for line in payload.transactions:
+        reference = line.reference.strip()
+        item = db.query(m.PaymentInbox).filter(
+            m.PaymentInbox.school_id == principal.school_id,
+            m.PaymentInbox.source == "KCB_SMS",
+            m.PaymentInbox.external_reference == reference,
+        ).first()
+        if item is None:
+            missing_sms += 1
+            result = {"reference": reference, "statement_amount": line.amount, "status": "BANK_TRANSACTION_WITHOUT_SMS"}
+            _audit(db, school_id=principal.school_id, actor=actor, action="reconcile_missing_sms",
+                   entity_id=0, summary=f"{run_summary}: bank transaction {reference} for {line.amount} has no matching SMS inbox record.")
+        elif Decimal(str(item.amount)) != line.amount:
+            mismatched += 1
+            result = {"reference": reference, "statement_amount": line.amount, "sms_amount": item.amount, "inbox_id": item.id, "status": "AMOUNT_MISMATCH"}
+            item.notes = _append_note(item.notes, f"{run_summary}: amount mismatch; bank={line.amount}, SMS={item.amount}.")
+            _audit(db, school_id=principal.school_id, actor=actor, action="reconcile_mismatch",
+                   entity_id=item.id, summary=f"{run_summary}: amount mismatch for {reference}; bank={line.amount}, SMS={item.amount}.")
+        else:
+            matched += 1
+            result = {"reference": reference, "statement_amount": line.amount, "sms_amount": item.amount, "inbox_id": item.id, "status": "AMOUNT_MATCH"}
+            item.notes = _append_note(item.notes, f"{run_summary}: amount matched bank statement.")
+            _audit(db, school_id=principal.school_id, actor=actor, action="reconcile_match",
+                   entity_id=item.id, summary=f"{run_summary}: bank statement amount matches SMS amount for {reference}; inbox status={item.status}.")
+        results.append(result)
+    _audit(db, school_id=principal.school_id, actor=actor, action="reconcile_run",
+           entity_id=0, summary=f"{run_summary}: statement rows={len(payload.transactions)}, matched={matched}, amount mismatches={mismatched}, bank rows without SMS={missing_sms}.")
+    db.commit()
+    return {
+        "statement_reference": payload.statement_reference,
+        "statement_rows": len(payload.transactions),
+        "amount_matched": matched,
+        "amount_mismatches": mismatched,
+        "bank_transactions_without_sms": missing_sms,
+        "results": results,
+    }
