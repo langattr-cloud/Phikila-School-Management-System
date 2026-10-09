@@ -7,6 +7,8 @@ import { finance, type Invoice, type PaymentInboxItem, type Receipt } from '../l
 type Student = { id:number; admission_number:string; first_name:string; middle_name?:string; last_name:string; status:string }
 type StudentList = { items:Student[]; total:number; page:number; page_size:number; pages:number }
 type Decoded = { amount?:number; external_reference?:string; student_identifier?:string; received_at?:string; account_name?:string; bank?:string; payment_channel?:string; raw_message:string }
+type StatementTransaction = { reference:string; amount:number; transaction_date?:string|null }
+type StatementPreview = { filename:string; file_type:string; parsed_rows:number; transactions:StatementTransaction[]; warnings:string[] }
 type Props = { onPosted?: () => void }
 
 export function FinancePaymentMatcher({ onPosted }: Props) {
@@ -22,6 +24,11 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
   const [loadingInbox, setLoadingInbox] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [statementFile, setStatementFile] = useState<File | null>(null)
+  const [statementPreview, setStatementPreview] = useState<StatementPreview | null>(null)
+  const [statementReference, setStatementReference] = useState('')
+  const [statementBusy, setStatementBusy] = useState(false)
+  const [reconciliation, setReconciliation] = useState<Record<string, unknown> | null>(null)
 
   const loadAudit = useCallback(async () => {
     setLoadingInbox(true)
@@ -107,6 +114,42 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
       onPosted?.()
     } catch (err) { setError(friendlyApiError(err, 'verify and allocate the KCB payment')) }
     finally { setBusy(false) }
+  }
+
+  async function previewStatement() {
+    if (!statementFile) return
+    setStatementBusy(true); setError(null); setMessage(null); setReconciliation(null); setStatementPreview(null)
+    try {
+      const body = new FormData()
+      body.append('file', statementFile)
+      const result = await apiFetch<StatementPreview>('/api/v1/finance/payment-inbox/reconcile-upload/preview', { method:'POST', body })
+      setStatementPreview(result)
+      setStatementReference((value) => value || result.filename.replace(/\\.[^.]+$/, ''))
+      setMessage(`Read ${result.parsed_rows} transaction(s) from ${result.filename}. Review the preview before reconciling.`)
+    } catch (err) { setError(friendlyApiError(err, 'read the bank statement')) }
+    finally { setStatementBusy(false) }
+  }
+
+  async function reconcileStatement() {
+    if (!statementPreview || !statementReference.trim()) return
+    setStatementBusy(true); setError(null); setMessage(null)
+    try {
+      const result = await apiFetch<Record<string, unknown>>('/api/v1/finance/payment-inbox/reconcile', {
+        method:'POST',
+        body: JSON.stringify({
+          statement_reference: statementReference.trim(),
+          transactions: statementPreview.transactions.map((tx) => ({
+            reference: tx.reference,
+            amount: tx.amount,
+            transaction_date: tx.transaction_date || undefined,
+          })),
+        }),
+      })
+      setReconciliation(result)
+      setMessage('Statement reconciliation completed. Review matched transactions and exceptions below.')
+      await loadAudit()
+    } catch (err) { setError(friendlyApiError(err, 'reconcile the KCB statement')) }
+    finally { setStatementBusy(false) }
   }
 
   const receiptByPaymentId = useMemo(() => new Map(receipts.map((receipt) => [receipt.payment_id, receipt])), [receipts])
