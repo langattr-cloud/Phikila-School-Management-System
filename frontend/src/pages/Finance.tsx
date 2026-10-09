@@ -23,6 +23,7 @@ export default function FinancePage() {
   const [showNewFee, setShowNewFee] = useState(false)
   const [reviewingFeeId, setReviewingFeeId] = useState<number | null>(null)
   const [showNewInvoice, setShowNewInvoice] = useState(false)
+  const [showBulkInvoice, setShowBulkInvoice] = useState(false)
   const [showNewPayment, setShowNewPayment] = useState(false)
 
   const load = useCallback(async () => {
@@ -79,9 +80,10 @@ export default function FinancePage() {
         {reviewingFeeId !== null && feeStructures.some((fee) => fee.id === reviewingFeeId) && <FeeStructureReview fee={feeStructures.find((fee) => fee.id === reviewingFeeId)!} onClose={() => setReviewingFeeId(null)} />}
       </section>}
 
-      {activeTab === 'invoices' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Invoices</h2><button className="button button--primary button--sm" onClick={() => setShowNewInvoice(!showNewInvoice)}>+ Invoice</button></div>
+      {activeTab === 'invoices' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Invoices</h2><div className="finance-form__actions"><button className={showNewInvoice ? "button button--primary button--sm" : "button button--secondary button--sm"} onClick={() => { setShowNewInvoice(!showNewInvoice); setShowBulkInvoice(false) }}>+ Single Invoice</button><button className={showBulkInvoice ? "button button--primary button--sm" : "button button--secondary button--sm"} onClick={() => { setShowBulkInvoice(!showBulkInvoice); setShowNewInvoice(false) }}>Bulk Billing</button></div></div>
         {showNewInvoice && <NewInvoiceForm feeStructures={feeStructures} onCreated={() => { setShowNewInvoice(false); load() }} onCancel={() => setShowNewInvoice(false)} />}
-        {!invoices.length ? <EmptyState title="No invoices" description="Create invoices for students." /> : <div className="table-scroll"><table><thead><tr><th>Student</th><th>Fee</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead><tbody>{invoices.map((inv) => <tr key={inv.id}><td>Student #{inv.student_id}</td><td>Fee #{inv.fee_structure_id}</td><td className="number-cell">KES {Number(inv.amount).toLocaleString()}</td><td className="number-cell">KES {Number(inv.balance).toLocaleString()}</td><td><Badge tone={inv.status === 'paid' ? 'success' : inv.status === 'pending' ? 'warning' : 'danger'}>{inv.status}</Badge></td></tr>)}</tbody></table></div>}
+        {showBulkInvoice && <InvoiceBulkBillingForm feeStructures={feeStructures} onCreated={() => { setShowBulkInvoice(false); load() }} />}
+        {!invoices.length ? <EmptyState title="No invoices" description="Create a single invoice or use bulk billing to invoice eligible students by academic year, level and grade." /> : <div className="table-scroll"><table><thead><tr><th>Student</th><th>Fee</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead><tbody>{invoices.map((inv) => <tr key={inv.id}><td>Student #{inv.student_id}</td><td>Fee #{inv.fee_structure_id}</td><td className="number-cell">KES {Number(inv.amount).toLocaleString()}</td><td className="number-cell">KES {Number(inv.balance).toLocaleString()}</td><td><Badge tone={inv.status === 'paid' ? 'success' : inv.status === 'pending' ? 'warning' : 'danger'}>{inv.status}</Badge></td></tr>)}</tbody></table></div>}
       </section>}
 
       {activeTab === 'payments' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Payments</h2><button className="button button--primary button--sm" onClick={() => setShowNewPayment(!showNewPayment)}>+ Record Payment</button></div>
@@ -371,6 +373,115 @@ function BulkBillingForm({ feeStructures, academicYearId, levelId, gradeId, stre
     <div className="finance-section-heading" style={{marginTop:16}}><h4>Saved Fee Structures ({feeStructures.length})</h4><button className="button button--secondary button--sm" onClick={onCreateFee}>+ Create Fee Structure</button></div>
     {!feeStructures.length ? <p className="muted-text">Nothing is saved yet.</p> : <div className="finance-list">{feeStructures.map(f=><div className="finance-list__row" key={f.id}><div className="finance-list__main"><strong>{f.name}</strong><span className="muted-text">Year #{f.academic_year_id ?? 'Any'} · Level #{f.level_id ?? 'Any'} · Grade #{f.grade_id ?? 'Any'} · {f.stream_id == null ? 'All streams' : `Stream #${f.stream_id}`}</span></div><div className="finance-list__value"><strong>KES {Number(f.amount).toLocaleString()}</strong><Badge tone={f.status==='ACTIVE'||f.status==='active'?'success':'warning'}>{f.status}</Badge></div></div>)}</div>}
   </section>
+}
+
+function InvoiceBulkBillingForm({ feeStructures, onCreated }: { feeStructures: FeeStructure[]; onCreated: () => void }) {
+  const [academicYears, setAcademicYears] = useState<Awaited<ReturnType<typeof api.academicYears>>>([])
+  const [levels, setLevels] = useState<Awaited<ReturnType<typeof api.levels>>>([])
+  const [grades, setGrades] = useState<Awaited<ReturnType<typeof api.grades>>>([])
+  const [streams, setStreams] = useState<Awaited<ReturnType<typeof api.streams>>>([])
+  const [yearId, setYearId] = useState('')
+  const [levelId, setLevelId] = useState('')
+  const [gradeId, setGradeId] = useState('')
+  const [streamId, setStreamId] = useState('')
+  const [feeId, setFeeId] = useState(0)
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [loadingGrades, setLoadingGrades] = useState(false)
+  const [loadingStreams, setLoadingStreams] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    Promise.all([api.academicYears(), api.levels()])
+      .then(([years, loadedLevels]) => {
+        if (!active) return
+        setAcademicYears(years)
+        setLevels(loadedLevels)
+        const current = years.find(year => year.is_current) || years[0]
+        setYearId(current ? String(current.id) : '')
+      })
+      .catch(err => { if (active) setError(friendlyApiError(err, 'load academic setup')) })
+      .finally(() => { if (active) setLoadingOptions(false) })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    setGradeId('')
+    setStreamId('')
+    setGrades([])
+    setStreams([])
+    if (!levelId) return
+    let active = true
+    setLoadingGrades(true)
+    api.grades(Number(levelId))
+      .then(items => { if (active) setGrades(items.filter(grade => grade.status !== false)) })
+      .catch(err => { if (active) setError(friendlyApiError(err, 'load grades')) })
+      .finally(() => { if (active) setLoadingGrades(false) })
+    return () => { active = false }
+  }, [levelId])
+
+  useEffect(() => {
+    setStreamId('')
+    setStreams([])
+    if (!yearId || !gradeId) return
+    let active = true
+    setLoadingStreams(true)
+    api.streams(Number(yearId), Number(gradeId))
+      .then(items => { if (active) setStreams(items.filter(stream => stream.status === 'ACTIVE')) })
+      .catch(err => { if (active) setError(friendlyApiError(err, 'load streams')) })
+      .finally(() => { if (active) setLoadingStreams(false) })
+    return () => { active = false }
+  }, [yearId, gradeId])
+
+  const matchingFeeStructures = feeStructures.filter(fee =>
+    (!fee.academic_year_id || String(fee.academic_year_id) === yearId) &&
+    (!fee.level_id || String(fee.level_id) === levelId) &&
+    (fee.grade_id == null || String(fee.grade_id) === gradeId) &&
+    (fee.stream_id == null || String(fee.stream_id) === streamId) &&
+    (fee.status === 'ACTIVE' || fee.status === 'active')
+  )
+  useEffect(() => { setFeeId(matchingFeeStructures[0]?.id || 0) }, [yearId, levelId, gradeId, streamId, feeStructures])
+  const ready = Boolean(yearId && levelId && gradeId)
+  const selectedFee = matchingFeeStructures.find(fee => fee.id === feeId)
+
+  const run = async () => {
+    if (!ready || !feeId || !selectedFee) return
+    setSubmitting(true)
+    setMessage(null)
+    setError(null)
+    try {
+      const result = await finance.createBillingRun({
+        academic_year_id: Number(yearId),
+        level_id: Number(levelId),
+        grade_id: Number(gradeId),
+        stream_id: streamId ? Number(streamId) : undefined,
+        fee_structure_id: feeId,
+      })
+      setMessage(`Billing complete: ${result.invoices_created} invoices created, ${result.invoices_skipped} already billed, ${result.matched_students} students matched.`)
+      onCreated()
+    } catch (err) {
+      setError(friendlyApiError(err, 'run bulk billing'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return <div className="finance-form">
+    <p className="muted-text">Generate invoices for eligible students in a selected academic year, level and grade. Students already billed for the selected fee structure are skipped.</p>
+    {error && <Alert tone="error">{error}</Alert>}
+    {message && <Alert tone="success">{message}</Alert>}
+    <div className="finance-form__grid">
+      <div className="field"><label className="field__label">Academic Year *</label><select className="input" value={yearId} onChange={event => { setYearId(event.target.value); setLevelId(''); setGradeId(''); setStreamId('') }} disabled={loadingOptions || submitting}><option value="">Select academic year…</option>{academicYears.map(year => <option key={year.id} value={year.id}>{year.name}{year.is_current ? ' (Current)' : ''}</option>)}</select></div>
+      <div className="field"><label className="field__label">Level *</label><select className="input" value={levelId} onChange={event => { setLevelId(event.target.value); setGradeId(''); setStreamId('') }} disabled={loadingOptions || !yearId || submitting}><option value="">Select level…</option>{levels.filter(level => level.status === true || level.status === 'ACTIVE').map(level => <option key={level.id} value={level.id}>{levelLabel(level.name)}</option>)}</select></div>
+      <div className="field"><label className="field__label">Grade *</label><select className="input" value={gradeId} onChange={event => { setGradeId(event.target.value); setStreamId('') }} disabled={!levelId || loadingGrades || submitting}><option value="">Select grade…</option>{grades.filter(grade => Number(grade.level_id) === Number(levelId) && grade.status !== false).map(grade => <option key={grade.id} value={grade.id}>{gradeLabel(grade.name)}</option>)}</select></div>
+      <div className="field"><label className="field__label">Stream (optional)</label><select className="input" value={streamId} onChange={event => setStreamId(event.target.value)} disabled={!gradeId || loadingStreams || submitting}><option value="">{loadingStreams ? 'Loading streams…' : 'All streams'}</option>{streams.map(stream => <option key={stream.id} value={stream.id}>{stream.name}</option>)}</select></div>
+      <div className="field"><label className="field__label">Fee Structure *</label><select className="input" value={feeId || ''} onChange={event => setFeeId(Number(event.target.value))} disabled={!ready || submitting || !matchingFeeStructures.length}><option value="">{!ready ? 'Select year, level and grade first' : !matchingFeeStructures.length ? 'No matching active fee structure' : 'Select fee structure'}</option>{matchingFeeStructures.map(fee => <option key={fee.id} value={fee.id}>{fee.name} — KES {Number(fee.amount).toLocaleString()}</option>)}</select></div>
+      <div className="finance-form__actions"><button className="button button--primary" onClick={run} disabled={!ready || !feeId || !selectedFee || submitting}>{submitting ? 'Billing…' : 'Bill Matching Students'}</button></div>
+    </div>
+    {ready && !matchingFeeStructures.length && <Alert tone="warning">No active fee structure matches this academic year, level, grade and stream. Check Finance → Fees before billing.</Alert>}
+  </div>
 }
 
 function NewInvoiceForm({ feeStructures, onCreated, onCancel }: { feeStructures: FeeStructure[]; onCreated: () => void; onCancel: () => void }) {
