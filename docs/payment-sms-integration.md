@@ -49,7 +49,7 @@ The example sender is illustrative; use the exact sender ID delivered by the pho
 
 ## Review and posting
 
-1. Open Finance → Payment Inbox (or use the authenticated finance API `GET /api/v1/finance/payment-inbox?status=UNVERIFIED`) and identify the inbox record.
+1. Open Finance → Payment Matcher → Payment Inbox (or use the authenticated finance API `GET /api/v1/finance/payment-inbox?status=UNVERIFIED`) and identify the inbox record.
 2. Verify that the exact reference and amount exist in KCB's trusted transaction record.
 3. An administrator calls:
 
