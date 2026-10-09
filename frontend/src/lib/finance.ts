@@ -37,7 +37,7 @@ export const finance = {
   feeObligations:(studentId:number)=>get<{invoices:Invoice[];items:InvoiceItem[]}>(`${BASE}/finance/students/${studentId}/fee-obligations`),
   allocatePayment:(payload:{school_id?:number;student_id:number;amount:number;payment_method?:string;reference_number?:string|null;notes?:string|null;received_by?:string|null;invoice_id?:number|null})=>send<{payment_id:number;amount:number;allocated:number;credit_used:number;carried_forward:number}>(`${BASE}/finance/payments/allocate`,'POST',payload),
   listFeeStructures:()=>get<FeeStructure[]>(`${BASE}/finance/fee-structures`),
-  createFeeStructure:(payload:Partial<FeeStructure>)=>send<FeeStructure>(`${BASE}/finance/fee-structures`,'POST',payload),
+  createFeeStructure:(payload:Omit<Partial<FeeStructure>,'allocations'> & {allocations?:Array<{vote_head_id:number;amount:number;display_order?:number}>})=>send<FeeStructure>(`${BASE}/finance/fee-structures`,'POST',payload),
   listInvoices:(params?:{student_id?:number;status?:string})=>{const q=new URLSearchParams();if(params?.student_id)q.set('student_id',String(params.student_id));if(params?.status)q.set('status',params.status);const s=q.toString();return get<Invoice[]>(`${BASE}/finance/invoices${s?`?${s}`:''}`)},
   createInvoice:(payload:Partial<Invoice>)=>send<Invoice>(`${BASE}/finance/invoices`,'POST',payload),
   listPayments:(studentId?:number)=>get<Payment[]>(`${BASE}/finance/payments${studentId?`?student_id=${studentId}`:''}`),
