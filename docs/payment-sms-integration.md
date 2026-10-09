@@ -19,13 +19,13 @@ Set these server-side variables on the backend Render service. Never put the tok
 - `PAYMENT_SMS_GATEWAY_TOKEN`: long, random secret shared with the gateway.
 - `PAYMENT_SMS_SCHOOL_ID`: numeric Phikila `school_id` for the school using this phone.
 - `PAYMENT_SMS_SCHOOL_ACCOUNT`: KCB school account identifier that appears before `#`, e.g. `8112631`.
-- `PAYMENT_SMS_ALLOWED_SENDERS`: comma-separated exact sender IDs/names as the Android gateway reports them, e.g. `KCB`. Configure the real sender value observed on the phone.
+- `PAYMENT_SMS_ALLOWED_SENDERS`: comma-separated exact sender IDs/names as the Android gateway reports them, e.g. `BANK`. Configure the exact sender value displayed by the Android SMS app; for your described notification, use `BANK` if that is the displayed sender.
 
 After setting variables, redeploy/restart the Render service.
 
 ## Android gateway webhook
 
-Configure the Android SMS-forwarding app to send only messages from the configured KCB sender to:
+Configure the Android SMS-forwarding app to send only messages from the configured SMS sender to:
 
 `POST https://phikila-school-management-system.onrender.com/api/v1/finance/payment-inbox/sms-gateway`
 
@@ -40,12 +40,12 @@ Body:
 
 ```json
 {
-  "sender": "KCB",
+  "sender": "BANK",
   "message": "Ksh 4000.00 sent to KCB account CHEPSEON COMPLEX PRIMARY SCHOOL 8112631#3454 has been received on 07/10/2026 at 01:49 PM. M-PESA Ref UJ7AS90AE4."
 }
 ```
 
-The example sender is illustrative; use the exact sender ID delivered by the phone. Do not include the token in the message body. The webhook is idempotent for repeated delivery of the same reference and returns the existing inbox item for a matching retry.
+The example uses `BANK` based on your description. Confirm it matches the sender label shown in the Android SMS inbox exactly; the message body itself must contain the KCB account notification. Do not include the token in the message body. The webhook is idempotent for repeated delivery of the same reference and returns the existing inbox item for a matching retry.
 
 ## Review and posting
 
