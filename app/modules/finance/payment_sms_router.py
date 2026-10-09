@@ -287,7 +287,7 @@ def reconcile_kcb_statement(
     if len(references) != len(set(references)):
         raise HTTPException(422, "Statement contains duplicate transaction references; reconcile a corrected statement.")
     results: list[dict] = []
-    matched = mismatched = missing_sms = 0
+    matched = mismatched = missing_sms = missing_bank = 0
     actor = principal.email or principal.user_id
     run_summary = f"KCB reconciliation {payload.statement_reference.strip()}"
     for line in payload.transactions:
@@ -315,8 +315,25 @@ def reconcile_kcb_statement(
             _audit(db, school_id=principal.school_id, actor=actor, action="reconcile_match",
                    entity_id=item.id, summary=f"{run_summary}: bank statement amount matches SMS amount for {reference}; inbox status={item.status}.")
         results.append(result)
+    inbox_without_statement = db.query(m.PaymentInbox).filter(
+        m.PaymentInbox.school_id == principal.school_id,
+        m.PaymentInbox.source == "KCB_SMS",
+        ~m.PaymentInbox.external_reference.in_(references),
+    ).all()
+    for item in inbox_without_statement:
+        missing_bank += 1
+        results.append({
+            "reference": item.external_reference,
+            "sms_amount": item.amount,
+            "inbox_id": item.id,
+            "status": "SMS_WITHOUT_BANK_TRANSACTION",
+        })
+        item.notes = _append_note(item.notes, f"{run_summary}: no matching transaction was supplied in the bank statement.")
+        _audit(db, school_id=principal.school_id, actor=actor, action="reconcile_missing_bank",
+               entity_id=item.id, summary=f"{run_summary}: SMS transaction {item.external_reference} is absent from the supplied bank statement.")
+
     _audit(db, school_id=principal.school_id, actor=actor, action="reconcile_run",
-           entity_id=0, summary=f"{run_summary}: statement rows={len(payload.transactions)}, matched={matched}, amount mismatches={mismatched}, bank rows without SMS={missing_sms}.")
+           entity_id=0, summary=f"{run_summary}: statement rows={len(payload.transactions)}, matched={matched}, amount mismatches={mismatched}, bank rows without SMS={missing_sms}, SMS rows without bank transactions={missing_bank}.")
     db.commit()
     return {
         "statement_reference": payload.statement_reference,
@@ -324,5 +341,6 @@ def reconcile_kcb_statement(
         "amount_matched": matched,
         "amount_mismatches": mismatched,
         "bank_transactions_without_sms": missing_sms,
+        "sms_transactions_without_bank_record": missing_bank,
         "results": results,
     }
