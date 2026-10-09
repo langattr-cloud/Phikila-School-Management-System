@@ -98,23 +98,18 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
   }
 
   async function verifyAndPost(item: PaymentInboxItem) {
-    const verificationReference = window.prompt('Optional KCB statement/transaction reference. Leave blank to approve and post now with bank reconciliation pending. Cancel to stop.')
-    if (verificationReference === null) return
-    const verificationNotes = window.prompt('Optional approval/reconciliation notes') || undefined
     setBusy(true); setError(null); setMessage(null)
     try {
       const result = await apiFetch<PaymentInboxItem>(`/api/v1/finance/payment-inbox/${item.id}/verify-and-post`, {
         method: 'POST',
-        body: JSON.stringify({ ...(verificationReference.trim() ? { verification_reference: verificationReference.trim() } : {}), verification_notes: verificationNotes }),
+        body: JSON.stringify({}),
       })
       setMessage(result.status === 'POSTED'
-        ? (verificationReference.trim()
-          ? `KCB payment ${item.external_reference} posted. Bank reference recorded; review reconciliation later as needed.`
-          : `KCB payment ${item.external_reference} approved and posted; bank statement reconciliation is pending.`)
-        : `KCB reference ${item.external_reference} status: ${result.status}. Review the payment inbox notes.`)
+        ? `SMS payment ${item.external_reference} posted from the matched message. Bank statement reconciliation is optional and can be done later.`
+        : `SMS payment ${item.external_reference} status: ${result.status}. Review the payment inbox notes.`)
       await loadAudit()
       onPosted?.()
-    } catch (err) { setError(friendlyApiError(err, 'verify and allocate the KCB payment')) }
+    } catch (err) { setError(friendlyApiError(err, 'post the matched SMS payment')) }
     finally { setBusy(false) }
   }
 
@@ -189,11 +184,11 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
 
     <div className="section" style={{ marginTop: 24 }}>
       <div className="finance-section-heading"><div><h3 className="section__title">Payment Inbox</h3><p className="muted-text">Recent external payments and their posting state. Nothing is removed when posting fails.</p></div><button className="button button--secondary button--sm" onClick={loadAudit} disabled={loadingInbox}>{loadingInbox ? 'Refreshing…' : 'Refresh'}</button></div>
-      {loadingInbox ? <LoadingBlock label="Loading payment audit history" rows={4} /> : !inbox.length ? <p className="muted-text">No payment inbox records yet.</p> : <div className="table-scroll"><table><thead><tr><th>Received</th><th>Reference</th><th>Student</th><th>Amount</th><th>Match</th><th>Status</th><th>Posted / Receipt</th><th>Action</th></tr></thead><tbody>{inbox.map((item) => { const receipt = item.posted_payment_id ? receiptByPaymentId.get(item.posted_payment_id) : undefined; return <tr key={item.id}><td>{item.received_at ? new Date(item.received_at).toLocaleString() : '—'}</td><td><strong>{item.external_reference}</strong><div className="muted-text">{item.source}</div></td><td>{item.student_identifier || 'Unmatched'}</td><td className="number-cell">KES {Number(item.amount).toLocaleString()}</td><td>{item.match_method ? `${item.match_method} (${Number(item.match_confidence || 0).toLocaleString()}%)` : 'Manual review'}</td><td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td><td>{item.posted_payment_id ? <><div>Payment #{item.posted_payment_id}</div>{receipt ? <div className="muted-text">Receipt {receipt.receipt_number} · {receipt.status}</div> : <div className="muted-text">Receipt pending/not returned</div>}</> : '—'}</td><td>{['KCB_SMS', 'M-PESA'].includes(item.source) && ['UNVERIFIED', 'VERIFIED_UNALLOCATED', 'MATCHED', 'POSTING_FAILED'].includes(item.status) && item.matched_student_id ? <button className="button button--secondary button--sm" disabled={busy} onClick={() => verifyAndPost(item)}>{item.status === 'POSTING_FAILED' ? 'Retry posting' : 'Verify / retry post'}</button> : '—'}</td></tr> })}</tbody></table></div>}
+      {loadingInbox ? <LoadingBlock label="Loading payment audit history" rows={4} /> : !inbox.length ? <p className="muted-text">No payment inbox records yet.</p> : <div className="table-scroll"><table><thead><tr><th>Received</th><th>Reference</th><th>Student</th><th>Amount</th><th>Match</th><th>Status</th><th>Posted / Receipt</th><th>Action</th></tr></thead><tbody>{inbox.map((item) => { const receipt = item.posted_payment_id ? receiptByPaymentId.get(item.posted_payment_id) : undefined; return <tr key={item.id}><td>{item.received_at ? new Date(item.received_at).toLocaleString() : '—'}</td><td><strong>{item.external_reference}</strong><div className="muted-text">{item.source}</div></td><td>{item.student_identifier || 'Unmatched'}</td><td className="number-cell">KES {Number(item.amount).toLocaleString()}</td><td>{item.match_method ? `${item.match_method} (${Number(item.match_confidence || 0).toLocaleString()}%)` : 'Manual review'}</td><td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td><td>{item.posted_payment_id ? <><div>Payment #{item.posted_payment_id}</div>{receipt ? <div className="muted-text">Receipt {receipt.receipt_number} · {receipt.status}</div> : <div className="muted-text">Receipt pending/not returned</div>}</> : '—'}</td><td>{['KCB_SMS', 'M-PESA'].includes(item.source) && ['UNVERIFIED', 'VERIFIED_UNALLOCATED', 'MATCHED', 'POSTING_FAILED'].includes(item.status) && item.matched_student_id ? <button className="button button--secondary button--sm" disabled={busy} onClick={() => verifyAndPost(item)}>{item.status === 'POSTING_FAILED' ? 'Retry posting' : 'Post matched SMS'}</button> : '—'}</td></tr> })}</tbody></table></div>}
     </div>
 
     <div className="section" style={{ marginTop: 24 }}>
-      <div className="finance-section-heading"><div><h3 className="section__title">KCB Bank Statement Reconciliation</h3><p className="muted-text">Payments can be posted before this step. Upload the bank statement later to compare references and amounts; reconciliation will flag differences without silently changing posted payments.</p></div></div>
+      <div className="finance-section-heading"><div><h3 className="section__title">KCB Bank Statement Reconciliation</h3><p className="muted-text">This step is optional. The matched SMS is the source record for posting; upload a bank statement later only if you want to compare transactions. Reconciliation flags differences without silently changing posted payments.</p></div></div>
       <div className="finance-form">
         <div className="field">
           <label className="field__label">KCB statement file (CSV, Excel, or text-based PDF)</label>
