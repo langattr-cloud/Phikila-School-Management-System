@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.platform.authz import Identity, resolve_identity
 from app.modules.scheduling.tenancy import resolve_principal
-from .entitlements import MODULES, TtSchoolModuleEntitlement
+from .entitlements import DEFAULT_ENABLED_MODULES, MODULES, TtSchoolModuleEntitlement
 
 
 def module_enabled(db: Session, school_id: int, module: str) -> bool:
@@ -28,7 +28,14 @@ def module_enabled(db: Session, school_id: int, module: str) -> bool:
         )
         .first()
     )
-    return bool(row and row.enabled)
+    if row is not None:
+        return bool(row.enabled)
+    # Newly created schools have no rows until the first admin save; match the
+    # requested starter set in that case. Once any rows exist, missing keys deny.
+    configured = db.query(TtSchoolModuleEntitlement.id).filter(
+        TtSchoolModuleEntitlement.school_id == school_id
+    ).first()
+    return configured is None and module in DEFAULT_ENABLED_MODULES
 
 
 def require_school_module(module: str) -> Callable:
