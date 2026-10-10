@@ -2,23 +2,29 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert } from './Alert'
 import { Badge, EmptyState, LoadingBlock } from './States'
 import { friendlyApiError } from '../lib/api'
+import { students } from '../lib/students'
 import { finance, type Payment, type Receipt } from '../lib/finance'
 
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[char] || char))
 
+type ReceiptStudent = { id:number; admission_number:string; first_name:string; middle_name?:string|null; last_name:string }
+
 const money = (value: number) => `KES ${Number(value || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const dateLabel = (value?: string) => value ? new Date(value).toLocaleString() : '—'
 
-function printReceipts(receipts: Receipt[], payments: Payment[]) {
+function printReceipts(receipts: Receipt[], payments: Payment[], students: ReceiptStudent[] = []) {
+  const studentById = new Map(students.map((student) => [student.id, student]))
   const paymentById = new Map(payments.map((payment) => [payment.id, payment]))
   const html = receipts.map((receipt) => {
     const payment = paymentById.get(receipt.payment_id)
+    const student = studentById.get(receipt.student_id)
+    const studentLabel = student ? `${student.first_name} ${student.middle_name ? `${student.middle_name} ` : ''}${student.last_name} (Admission ${student.admission_number})` : `Student #${receipt.student_id}`
     return `<article class="receipt">
       <header><h1>PHIKILA SCHOOL</h1><p>OFFICIAL FEE PAYMENT RECEIPT</p></header>
       <div class="receipt-number"><span>Receipt No.</span><strong>${escapeHtml(receipt.receipt_number)}</strong></div>
-      <div class="line"><span>Student</span><strong>Student #${escapeHtml(receipt.student_id)}</strong></div>
+      <div class="line"><span>Student</span><strong>${escapeHtml(studentLabel)}</strong></div>
       <div class="line"><span>Payment ID</span><strong>#${escapeHtml(receipt.payment_id)}</strong></div>
       <div class="line"><span>Payment date</span><strong>${escapeHtml(dateLabel(payment?.created_at || receipt.issued_at))}</strong></div>
       <div class="line"><span>Payment method</span><strong>${escapeHtml(payment?.payment_method || '—')}</strong></div>
@@ -54,6 +60,7 @@ export function FinanceReceipts() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [selected, setSelected] = useState<number[]>([])
   const [search, setSearch] = useState('')
+  const [studentMatches, setStudentMatches] = useState<ReceiptStudent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -74,16 +81,33 @@ export function FinanceReceipts() {
 
   useEffect(() => { void load() }, [load])
 
+  useEffect(() => {
+    const query = search.trim()
+    if (!query) { setStudentMatches([]); return }
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await students.list({ search: query, page: 1, page_size: 100 })
+        if (!cancelled) setStudentMatches(result.items.map((student) => ({ id: student.id, admission_number: student.admission_number, first_name: student.first_name, middle_name: student.middle_name, last_name: student.last_name })))
+      } catch {
+        if (!cancelled) setStudentMatches([])
+      }
+    }, 250)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [search])
+
   const paymentById = useMemo(() => new Map(payments.map((payment) => [payment.id, payment])), [payments])
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase()
     if (!query) return receipts
     return receipts.filter((receipt) => {
       const payment = paymentById.get(receipt.payment_id)
-      return [receipt.receipt_number, receipt.student_id, receipt.payment_id, receipt.status, payment?.reference_number, payment?.payment_method]
+      const student = studentMatches.find((item) => item.id === receipt.student_id)
+      const matchesAdmission = studentMatches.some((item) => item.id === receipt.student_id && item.admission_number.toLowerCase().includes(query))
+      return matchesAdmission || [receipt.receipt_number, receipt.student_id, receipt.payment_id, receipt.status, payment?.reference_number, payment?.payment_method, student?.admission_number, student?.first_name, student?.middle_name, student?.last_name]
         .some((value) => String(value ?? '').toLowerCase().includes(query))
     })
-  }, [receipts, paymentById, search])
+  }, [receipts, paymentById, search, studentMatches])
   const selectedReceipts = receipts.filter((receipt) => selected.includes(receipt.id))
   const toggle = (id: number) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
 
@@ -94,16 +118,16 @@ export function FinanceReceipts() {
     </div>
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-form__grid">
-      <div className="field"><label className="field__label" htmlFor="receipt-search">Search receipts</label><input id="receipt-search" className="input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Receipt number, student ID, M-Pesa reference…" /></div>
+      <div className="field"><label className="field__label" htmlFor="receipt-search">Search receipts</label><input id="receipt-search" className="input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Admission number, student name, receipt number, M-Pesa reference…" /></div>
       <div className="finance-form__actions">
-        <button className="button button--primary" disabled={!selectedReceipts.length} onClick={() => printReceipts(selectedReceipts, payments)}>Print selected / Save as PDF ({selectedReceipts.length})</button>
+        <button className="button button--primary" disabled={!selectedReceipts.length} onClick={() => printReceipts(selectedReceipts, payments, studentMatches)}>Print selected / Save as PDF ({selectedReceipts.length})</button>
         <button className="button button--secondary" disabled={!visible.length} onClick={() => setSelected((current) => Array.from(new Set([...current, ...visible.map((receipt) => receipt.id)])))}>Select visible</button>
         <button className="button button--secondary" disabled={!selected.length} onClick={() => setSelected([])}>Clear selection</button>
       </div>
     </div>
     {loading ? <LoadingBlock label="Loading receipts" rows={5} /> : !visible.length ? <EmptyState title="No receipts found" description={receipts.length ? 'Try a different search.' : 'Receipts appear here after payments are successfully posted.'} /> : <div className="table-scroll"><table><thead><tr><th><input type="checkbox" aria-label="Select all visible receipts" checked={visible.length > 0 && visible.every((receipt) => selected.includes(receipt.id))} onChange={(event) => setSelected((current) => event.target.checked ? Array.from(new Set([...current, ...visible.map((receipt) => receipt.id)])) : current.filter((id) => !visible.some((receipt) => receipt.id === id)))} /></th><th>Receipt No.</th><th>Student</th><th>Payment Date</th><th>Method</th><th>Reference</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{visible.map((receipt) => {
       const payment = paymentById.get(receipt.payment_id)
-      return <tr key={receipt.id}><td><input type="checkbox" aria-label={`Select receipt ${receipt.receipt_number}`} checked={selected.includes(receipt.id)} onChange={() => toggle(receipt.id)} /></td><td><strong>{receipt.receipt_number}</strong></td><td>Student #{receipt.student_id}</td><td>{dateLabel(payment?.created_at || receipt.issued_at)}</td><td>{payment?.payment_method || '—'}</td><td>{payment?.reference_number || '—'}</td><td className="number-cell">{money(receipt.amount)}</td><td><Badge tone={receipt.status === 'ISSUED' ? 'success' : receipt.status === 'REVERSED' ? 'danger' : 'warning'}>{receipt.status}</Badge></td><td><button className="button button--secondary button--sm" onClick={() => printReceipts([receipt], payments)}>Print / PDF</button></td></tr>
+      return <tr key={receipt.id}><td><input type="checkbox" aria-label={`Select receipt ${receipt.receipt_number}`} checked={selected.includes(receipt.id)} onChange={() => toggle(receipt.id)} /></td><td><strong>{receipt.receipt_number}</strong></td><td>{(() => { const student = studentMatches.find((item) => item.id === receipt.student_id); return student ? <>{student.first_name} {student.middle_name ? `${student.middle_name} ` : ''}{student.last_name}<div className="muted-text">Admission #{student.admission_number}</div></> : `Student #${receipt.student_id}` })()}</td><td>{dateLabel(payment?.created_at || receipt.issued_at)}</td><td>{payment?.payment_method || '—'}</td><td>{payment?.reference_number || '—'}</td><td className="number-cell">{money(receipt.amount)}</td><td><Badge tone={receipt.status === 'ISSUED' ? 'success' : receipt.status === 'REVERSED' ? 'danger' : 'warning'}>{receipt.status}</Badge></td><td><button className="button button--secondary button--sm" onClick={() => printReceipts([receipt], payments, studentMatches)}>Print / PDF</button></td></tr>
     })}</tbody></table></div>}
     <p className="muted-text">Use the print dialog's “Save as PDF” option to download receipts. For privacy, only print receipts for students you are authorised to access.</p>
   </section>
