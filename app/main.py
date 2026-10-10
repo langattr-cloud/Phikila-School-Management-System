@@ -46,12 +46,19 @@ class SPAStaticFiles(StaticFiles):
         if "text/html" not in accept: return response
         return await super().get_response("index.html", scope)
 
-def _guard_module_routes(router, default_module: str, teacher_paths: bool = False) -> None:
+def _guard_module_routes(
+    router, default_module: str, teacher_paths: bool = False,
+    skip_paths: set[str] | None = None,
+) -> None:
     # Apply dependencies before include_router builds FastAPI's dependency graph.
     for route in router.routes:
         if not hasattr(route, "dependencies"):
             continue
         path = getattr(route, "path", "")
+        # OAuth callbacks validate their signed, short-lived state and must remain
+        # reachable after the browser leaves PHIKILA for Microsoft's consent page.
+        if skip_paths and path in skip_paths:
+            continue
         module = "ai_tools" if "copilot" in path.lower() else ("staff" if teacher_paths and ("teacher" in path.lower() or "staff" in path.lower()) else default_module)
         if getattr(route, "_school_module_guard", None) == module:
             continue
@@ -105,6 +112,10 @@ def create_app() -> FastAPI:
     ):
         _guard_module_routes(scheduling_module_router, "timetable", teacher_paths=True)
     _guard_module_routes(ocr_router, "ai_tools")
+    # Report-card delivery and connection management are part of Examinations.
+    # The OAuth callback is intentionally exempt: it stores tokens for the
+    # school/user bound into the verified state, but does not expose school data.
+    _guard_module_routes(outlook_router, "examinations", skip_paths={"/callback"})
     _guard_module_routes(academics_router, "students")
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
     app.include_router(users_router, prefix="/api/v1/users", tags=["Users"], dependencies=protected)
