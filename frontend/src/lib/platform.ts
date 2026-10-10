@@ -8,6 +8,7 @@ export type SessionInfo = {
   user_id: string
   email: string | null
   is_super_admin: boolean
+  enabled_modules: string[]
   schools: { id: number; name: string; role: string }[]
   has_access: boolean
   access_request: {
@@ -62,6 +63,9 @@ export type PlatformAdmin = {
   created_at: string
   is_self: boolean
 }
+
+export type SchoolModule = { key: string; label: string; description: string; enabled: boolean }
+export type SchoolModuleAccess = { school_id: number; school_name: string; modules: SchoolModule[] }
 
 export type SchoolUser = {
   user_id: string
@@ -169,6 +173,10 @@ export const platform = {
     send<unknown>(`${PLATFORM}/schools/${id}/administrators`, 'POST', { email, role }),
   removeAdministrator: (id: number, userId: string) =>
     send<void>(`${PLATFORM}/schools/${id}/administrators/${userId}`, 'DELETE'),
+
+  schoolModules: (id: number) => get<SchoolModuleAccess>(`${PLATFORM}/schools/${id}/modules`),
+  setSchoolModules: (id: number, enabled_modules: string[]) =>
+    send<SchoolModuleAccess>(`${PLATFORM}/schools/${id}/modules`, 'PUT', { enabled_modules }),
 
   accessRequests: (status = 'pending') =>
     get<AccessRequest[]>(`${PLATFORM}/access-requests?status=${status}`),
