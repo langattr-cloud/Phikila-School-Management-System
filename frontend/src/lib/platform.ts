@@ -170,7 +170,11 @@ export const platform = {
     send<School>(`${PLATFORM}/schools/${id}/status?active=${active}`, 'POST'),
   schoolUsers: (id: number) => get<SchoolUser[]>(`${PLATFORM}/schools/${id}/users`),
   addAdministrator: (id: number, email: string, role: string) =>
-    send<unknown>(`${PLATFORM}/schools/${id}/administrators`, 'POST', { email, role }),
+    send<{ user_id: string; email: string; role: string; invited: boolean }>(
+      `${PLATFORM}/schools/${id}/administrators`,
+      'POST',
+      { email, role },
+    ),
   removeAdministrator: (id: number, userId: string) =>
     send<void>(`${PLATFORM}/schools/${id}/administrators/${userId}`, 'DELETE'),
 
