@@ -16,6 +16,7 @@ import app.modules.students.models_v2
 import app.modules.attendance.models
 import app.modules.examinations.models_v2
 import app.modules.finance.models
+import app.modules.scheduling.tenancy
 import app.modules.platform.entitlements
 import app.modules.outlook.router
 
