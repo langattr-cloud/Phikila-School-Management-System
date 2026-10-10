@@ -154,10 +154,19 @@ def session(
         ]
 
     enabled_modules = sorted(DEFAULT_ENABLED_MODULES)
-    if identity.primary_school_id is not None:
+    active_school_id = (
+        db.query(TtMembership.school_id)
+        .filter(
+            TtMembership.user_id == identity.user_id,
+            TtMembership.is_active.is_(True),
+        )
+        .order_by(TtMembership.id)
+        .scalar()
+    )
+    if active_school_id is not None:
         entitlement_rows = (
             db.query(TtSchoolModuleEntitlement)
-            .filter(TtSchoolModuleEntitlement.school_id == identity.primary_school_id)
+            .filter(TtSchoolModuleEntitlement.school_id == active_school_id)
             .all()
         )
         if entitlement_rows:
