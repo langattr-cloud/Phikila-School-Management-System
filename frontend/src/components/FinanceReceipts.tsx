@@ -23,7 +23,7 @@ function printReceipts(receipts: Receipt[], payments: Payment[], allocations: Pa
   const html = receipts.map((receipt) => {
     const payment = paymentById.get(receipt.payment_id)
     const paymentAllocations = allocationsByPayment.get(receipt.payment_id) || []
-    const feeAllocations = paymentAllocations.filter((allocation) => allocation.allocation_type === 'FEE' && Number(allocation.amount) > 0)
+    const feeAllocations = paymentAllocations.filter((allocation) => String(allocation.allocation_type).toUpperCase() === 'FEE' && Number(allocation.amount) > 0)
     const groupedVoteHeads = new Map<string, number>()
     let unassignedFeeAmount = 0
     feeAllocations.forEach((allocation) => {
@@ -35,7 +35,7 @@ function printReceipts(receipts: Receipt[], payments: Payment[], allocations: Pa
       groupedVoteHeads.set(head.name, (groupedVoteHeads.get(head.name) || 0) + Number(allocation.amount))
     })
     const carriedCredit = paymentAllocations
-      .filter((allocation) => allocation.allocation_type === 'CREDIT')
+      .filter((allocation) => String(allocation.allocation_type).toUpperCase() === 'CREDIT')
       .reduce((total, allocation) => total + Number(allocation.amount), 0)
     const allocationRows = [
       ...Array.from(groupedVoteHeads.entries()).map(([name, amount]) => `<div class="line"><span>${escapeHtml(name)}</span><strong>${escapeHtml(money(amount))}</strong></div>`),
