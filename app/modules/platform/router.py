@@ -29,6 +29,7 @@ from .authz import (
     resolve_identity,
 )
 from .models import TtAccessRequest, TtPlatformAdmin, TtPlatformAudit
+from .entitlements import DEFAULT_ENABLED_MODULES, TtSchoolModuleEntitlement
 
 router = APIRouter()
 
@@ -152,10 +153,29 @@ def session(
             for s in rows
         ]
 
+    enabled_modules = sorted(DEFAULT_ENABLED_MODULES)
+    active_school_id = (
+        db.query(TtMembership.school_id)
+        .filter(
+            TtMembership.user_id == identity.user_id,
+            TtMembership.is_active.is_(True),
+        )
+        .order_by(TtMembership.id)
+        .scalar()
+    )
+    if active_school_id is not None:
+        entitlement_rows = (
+            db.query(TtSchoolModuleEntitlement)
+            .filter(TtSchoolModuleEntitlement.school_id == active_school_id)
+            .all()
+        )
+        if entitlement_rows:
+            enabled_modules = sorted(row.module_key for row in entitlement_rows if row.enabled)
     return {
         "user_id": identity.user_id,
         "email": identity.email,
         "is_super_admin": identity.is_super_admin,
+        "enabled_modules": enabled_modules,
         "schools": schools,
         "has_access": bool(identity.is_super_admin or identity.memberships),
         "access_request": (

@@ -17,6 +17,7 @@ const PLATFORM_NAV: NavGroup = {
   items: [
     { to: '/platform', label: 'Dashboard', icon: <DashboardIcon /> },
     { to: '/platform/schools', label: 'Schools', icon: <SchoolIcon /> },
+    { to: '/platform/modules', label: 'School module access', icon: <GridIcon /> },
     { to: '/platform/requests', label: 'Access requests', icon: <InboxIcon /> },
     { to: '/platform/admins', label: 'Platform administrators', icon: <UserIcon /> },
     { to: '/platform/audit', label: 'Audit trail', icon: <LayersIcon /> },
@@ -55,7 +56,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { notify } = useToast()
   const { session: platformSession } = usePlatformSession()
   const isSuperAdmin = platformSession?.is_super_admin ?? false
-  const groups = isSuperAdmin ? [PLATFORM_NAV, ...NAV] : NAV
+  const enabledModules = platformSession?.enabled_modules
+  const moduleForPath = (to: string): string | null => {
+    if (to.startsWith('/platform/')) return null
+    if (to.startsWith('/students')) return 'students'
+    if (to.startsWith('/setup/teachers')) return 'staff'
+    if (to.startsWith('/attendance')) return 'attendance'
+    if (to.startsWith('/examinations')) return 'examinations'
+    if (to.startsWith('/finance')) return 'finance'
+    if (to.startsWith('/scheduling/copilot')) return 'ai_tools'
+    if (to.startsWith('/timetable') || to.startsWith('/my-timetable') || to.startsWith('/scheduling') || to.startsWith('/versions') || to.startsWith('/analytics')) return 'timetable'
+    if (to.startsWith('/ocr')) return 'ai_tools'
+    if (['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(to)) return 'students'
+    if (to.startsWith('/setup/rooms')) return 'timetable'
+    return null
+  }
+  const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
+  const groups = isSuperAdmin ? [PLATFORM_NAV, ...filteredNav] : filteredNav
+  const bottomNav = BOTTOM_NAV.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) })
   const accountName = displayName(user)
   const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -254,7 +272,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
         <main className="app-shell__content" id="main-content">{children}</main>
         <nav className="bottom-nav" aria-label="Quick navigation">
-          {BOTTOM_NAV.map(item => {
+          {bottomNav.map(item => {
             const active = isActive(pathname, item.to)
             return <Link key={item.to} to={item.to} className={`bottom-nav__item ${active ? 'bottom-nav__item--active' : ''}`.trim()} aria-current={active ? 'page' : undefined}><span className="bottom-nav__icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span></Link>
           })}
