@@ -22,6 +22,8 @@ from app.modules.llm.router import router as llm_router
 from app.modules.ocr.router import router as ocr_router
 from app.modules.outlook.router import router as outlook_router
 from app.modules.platform.router import router as platform_router
+from app.modules.platform.modules_router import router as school_modules_router
+from app.modules.platform.module_access import require_school_module
 from app.modules.platform.access_approval import router as access_approval_router
 from app.modules.scheduling.calendar_router import router as calendar_router
 from app.modules.scheduling.events_router import router as timetable_events_router
@@ -43,6 +45,16 @@ class SPAStaticFiles(StaticFiles):
         request = Request(scope); accept = request.headers.get("accept", "")
         if "text/html" not in accept: return response
         return await super().get_response("index.html", scope)
+
+def _guard_module_routes(router, default_module: str, teacher_paths: bool = False) -> None:
+    # Apply dependencies before include_router builds FastAPI's dependency graph.
+    for route in router.routes:
+        if not hasattr(route, "dependencies"):
+            continue
+        path = getattr(route, "path", "")
+        module = "staff" if teacher_paths and ("teacher" in path.lower() or "staff" in path.lower()) else default_module
+        route.dependencies.append(Depends(require_school_module(module)))
+
 
 def _rate_limit_mutations(router) -> None:
     for route in router.routes:
@@ -70,6 +82,24 @@ def create_app() -> FastAPI:
             from fastapi.responses import JSONResponse
             return JSONResponse({"status": "not_ready", "error": str(exc)}, status_code=503)
     protected = [Depends(get_supabase_claims)]
+    _guard_module_routes(students_import_router, "students")
+    _guard_module_routes(students_router, "students")
+    _guard_module_routes(attendance_router, "attendance")
+    _guard_module_routes(exams_router, "examinations")
+    for finance_module_router in (
+        finance_router, finance_sms_router, finance_statement_import_router,
+        finance_operations_router, finance_account_mapping_router,
+        finance_reports_router, finance_completion_router,
+    ):
+        _guard_module_routes(finance_module_router, "finance")
+    for scheduling_module_router in (
+        calendar_router, scheduling_dashboard_router, timetable_projects_router,
+        timetable_profile_router, timetable_types_router, scheduling_router,
+        timetable_read_router, timetable_events_router,
+    ):
+        _guard_module_routes(scheduling_module_router, "timetable", teacher_paths=True)
+    _guard_module_routes(ocr_router, "ai_tools")
+    _guard_module_routes(academics_router, "students")
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
     app.include_router(users_router, prefix="/api/v1/users", tags=["Users"], dependencies=protected)
     app.include_router(school_router, prefix="/api/v1/school", tags=["School Profile"], dependencies=protected)
@@ -98,6 +128,7 @@ def create_app() -> FastAPI:
     _rate_limit_mutations(access_approval_router); _rate_limit_mutations(platform_router); _rate_limit_mutations(llm_router)
     app.include_router(access_approval_router, prefix="/api/v1/platform", tags=["Platform Access Approval"])
     app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
+    app.include_router(school_modules_router, prefix="/api/v1/platform", tags=["School Module Access"])
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
     app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
