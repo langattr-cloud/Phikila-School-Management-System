@@ -104,7 +104,7 @@ export function FinanceReceipts() {
           return null
         }
       }))
-      setReceiptStudents(studentResults.filter((student): student is ReceiptStudent => student !== null))
+      setReceiptStudents(studentResults.filter((student) => student !== null))
       const voteHeadRows = await finance.listVoteHeads().catch(() => [])
       setVoteHeads(voteHeadRows)
       const paymentIds = Array.from(new Set(receiptRows.map((receipt) => receipt.payment_id)))
