@@ -17,7 +17,7 @@ def money(v):
 
 
 def posted_journal_filter(query):
-    return query.filter(m.Journal.status == "posted")
+    return query.filter(func.lower(m.Journal.status) == "posted")
 
 
 @router.get('/finance/reports/trial-balance')
@@ -34,7 +34,7 @@ def trial_balance(db: Session = Depends(get_db), principal: Principal = Depends(
         .outerjoin(m.JournalEntry, m.JournalEntry.account_id == m.ChartOfAccount.id)
         .outerjoin(m.Journal, m.Journal.id == m.JournalEntry.journal_id)
         .filter(m.ChartOfAccount.school_id == principal.school_id)
-        .filter((m.Journal.id.is_(None)) | (m.Journal.status == "posted"))
+        .filter((m.Journal.id.is_(None)) | (func.lower(m.Journal.status) == "posted"))
         .group_by(m.ChartOfAccount.id)
         .order_by(m.ChartOfAccount.code)
         .all()
@@ -113,7 +113,7 @@ def general_ledger(account_id: int | None = None, db: Session = Depends(get_db),
         db.query(m.Journal, m.JournalEntry, m.ChartOfAccount)
         .join(m.JournalEntry, m.JournalEntry.journal_id == m.Journal.id)
         .join(m.ChartOfAccount, m.ChartOfAccount.id == m.JournalEntry.account_id)
-        .filter(m.Journal.school_id == principal.school_id, m.Journal.status == "posted")
+        .filter(m.Journal.school_id == principal.school_id, func.lower(m.Journal.status) == "posted")
     )
     if account_id is not None:
         q = q.filter(m.JournalEntry.account_id == account_id)
