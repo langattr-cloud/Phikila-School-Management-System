@@ -91,13 +91,59 @@ def balance_sheet(db: Session = Depends(get_db), principal: Principal = Depends(
     }
 
 
+def _normal_balance_delta(account_type: str, debit: Decimal, credit: Decimal) -> Decimal:
+    """Return the movement in an account's normal-balance direction."""
+    if str(account_type).upper() in {"ASSET", "EXPENSE", "EXPENDITURE"}:
+        return debit - credit
+    return credit - debit
+
+
 @router.get('/finance/reports/general-ledger')
 def general_ledger(account_id: int | None = None, db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer', 'admin'))):
-    q = db.query(m.Journal, m.JournalEntry, m.ChartOfAccount).join(m.JournalEntry, m.JournalEntry.journal_id == m.Journal.id).join(m.ChartOfAccount, m.ChartOfAccount.id == m.JournalEntry.account_id).filter(m.Journal.school_id == principal.school_id, m.Journal.status == "posted")
-    if account_id:
+    if account_id is not None:
+        account = db.query(m.ChartOfAccount).filter(
+            m.ChartOfAccount.id == account_id,
+            m.ChartOfAccount.school_id == principal.school_id,
+        ).first()
+        if not account:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Account not found.")
+
+    q = (
+        db.query(m.Journal, m.JournalEntry, m.ChartOfAccount)
+        .join(m.JournalEntry, m.JournalEntry.journal_id == m.Journal.id)
+        .join(m.ChartOfAccount, m.ChartOfAccount.id == m.JournalEntry.account_id)
+        .filter(m.Journal.school_id == principal.school_id, m.Journal.status == "posted")
+    )
+    if account_id is not None:
         q = q.filter(m.JournalEntry.account_id == account_id)
-    rows = q.order_by(m.Journal.transaction_date, m.Journal.id, m.JournalEntry.id).limit(2000).all()
-    return [{'journal_id': j.id, 'journal_number': j.journal_number, 'date': j.transaction_date, 'reference': j.reference, 'account_id': a.id, 'account_code': a.code, 'account_name': a.name, 'debit': money(e.debit), 'credit': money(e.credit), 'description': e.description} for j, e, a in rows]
+
+    # Do not silently truncate the ledger: users must be able to reconcile the
+    # complete posted history, with deterministic ordering for same-day entries.
+    rows = q.order_by(m.Journal.transaction_date, m.Journal.id, m.JournalEntry.id).all()
+    running_by_account: dict[int, Decimal] = {}
+    result = []
+    for journal, entry, account in rows:
+        debit, credit = money(entry.debit), money(entry.credit)
+        running_by_account[account.id] = (
+            running_by_account.get(account.id, Decimal("0"))
+            + _normal_balance_delta(account.account_type, debit, credit)
+        )
+        result.append({
+            'journal_id': journal.id,
+            'journal_number': journal.journal_number,
+            'date': journal.transaction_date,
+            'reference': journal.reference,
+            'account_id': account.id,
+            'account_code': account.code,
+            'account_name': account.name,
+            'account_type': account.account_type,
+            'debit': debit,
+            'credit': credit,
+            'running_balance': running_by_account[account.id],
+            'description': entry.description,
+        })
+    return result
 
 
 @router.get('/finance/reports/income-expenditure')
