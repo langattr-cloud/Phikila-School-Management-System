@@ -37,11 +37,13 @@ function printReceipts(receipts: Receipt[], payments: Payment[], students: Recei
   const html = receipts.map((receipt) => {
     const payment = paymentById.get(receipt.payment_id)
     const student = studentById.get(receipt.student_id)
-    const studentLabel = student ? `${student.first_name} ${student.middle_name ? `${student.middle_name} ` : ''}${student.last_name} (Admission ${student.admission_number})` : `Student #${receipt.student_id}`
+    const studentName = student ? `${student.first_name} ${student.middle_name ? `${student.middle_name} ` : ''}${student.last_name}` : `Student #${receipt.student_id}`
+    const admissionNumber = student?.admission_number || 'Unavailable'
     return `<article class="receipt">
       <header><h1>PHIKILA SCHOOL</h1><p>OFFICIAL FEE PAYMENT RECEIPT</p></header>
       <div class="receipt-number"><span>Receipt No.</span><strong>${escapeHtml(receipt.receipt_number)}</strong></div>
-      <div class="line"><span>Student</span><strong>${escapeHtml(studentLabel)}</strong></div>
+      <div class="line"><span>Student name</span><strong>${escapeHtml(studentName)}</strong></div>
+      <div class="line"><span>Admission number</span><strong>${escapeHtml(admissionNumber)}</strong></div>
       <div class="line"><span>Payment ID</span><strong>#${escapeHtml(receipt.payment_id)}</strong></div>
       <div class="line"><span>Payment date</span><strong>${escapeHtml(dateLabel(payment?.created_at || receipt.issued_at))}</strong></div>
       <div class="line"><span>Payment method</span><strong>${escapeHtml(payment?.payment_method || '—')}</strong></div>
