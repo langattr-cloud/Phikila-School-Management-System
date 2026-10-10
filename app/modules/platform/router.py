@@ -647,6 +647,43 @@ def _find_registered_supabase_user_id(email: str) -> str | None:
             "Could not reach the authentication service to verify this account. Try again later.",
         ) from None
 
+def _invite_supabase_user(email: str) -> str:
+    """Invite a new account and return its Auth user id using a server-only key."""
+    service_key = settings.supabase_service_role_key
+    if not settings.supabase_url or not service_key:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "School access invitations are not configured. Ask the platform operator to configure Supabase server credentials.",
+        )
+    try:
+        response = requests.post(
+            f"{settings.supabase_url}/auth/v1/invite",
+            headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+            json={"email": email},
+            timeout=12,
+        )
+    except requests.RequestException:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Could not reach the authentication service to send the invitation. Try again later.",
+        ) from None
+    if response.status_code not in (200, 201):
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The account could not be invited. Check the email address and Supabase Auth email configuration, then try again.",
+        )
+    try:
+        body = response.json()
+    except ValueError:
+        body = {}
+    user_id = body.get("id") or (body.get("user") or {}).get("id")
+    if not user_id:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The authentication service did not return an account ID. No school access was granted.",
+        )
+    return str(user_id)
+
 @router.post("/schools/{school_id}/administrators", status_code=201)
 def add_administrator(
     school_id: int,
@@ -654,11 +691,11 @@ def add_administrator(
     db: Session = Depends(get_db),
     identity: Identity = Depends(require_super_admin),
 ):
-    """Grant a school-level role to an existing registered account.
+    """Grant a school role, inviting the user if no registered account exists.
 
-    Prefer an existing membership/access-request identity. If the account has
-    registered with Supabase but has never signed in to PHIKILA, resolve its
-    Auth user id through the server-only service-role API.
+    Existing memberships and access requests are reused first. Otherwise, the
+    Supabase Auth admin API resolves the account; an invitation is sent only
+    when the email is not already registered.
     """
     school = db.query(TtSchool).filter(TtSchool.id == school_id).first()
     if school is None:
@@ -676,13 +713,12 @@ def add_administrator(
             .first()
         )
         user_id = request_row.user_id if request_row else None
+    invited = False
     if user_id is None:
         user_id = _find_registered_supabase_user_id(email)
     if user_id is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            "No registered account was found for that email. Check the spelling and ask the administrator to register first.",
-        )
+        user_id = _invite_supabase_user(email)
+        invited = True
 
     membership = (
         db.query(TtMembership)
@@ -707,18 +743,19 @@ def add_administrator(
     )
     db.commit()
 
-    # Send role assignment notification via Resend
-    try:
-        email_service.send_role_assigned_email(
-            to=email,
-            school_name=school.name,
-            role=payload.role,
-            assigned_by=identity.email or "School Administrator",
-        )
-    except Exception:
-        pass
+    # Supabase has already sent the invite email for newly created accounts.
+    if not invited:
+        try:
+            email_service.send_role_assigned_email(
+                to=email,
+                school_name=school.name,
+                role=payload.role,
+                assigned_by=identity.email or "Super Admin",
+            )
+        except Exception:
+            pass
 
-    return {"user_id": user_id, "email": email, "role": payload.role}
+    return {"user_id": user_id, "email": email, "role": payload.role, "invited": invited}
 
 
 @router.delete("/schools/{school_id}/administrators/{user_id}", status_code=204)
