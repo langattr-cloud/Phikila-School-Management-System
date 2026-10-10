@@ -71,7 +71,21 @@ function printReceipts(receipts: Receipt[], payments: Payment[], students: Recei
     .amount{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding:16px 12px;border:2px solid #222}
     .allocations{width:100%;border-collapse:collapse;margin-top:20px}.allocations th,.allocations td{text-align:left;padding:9px 8px;border-bottom:1px solid #ddd}.allocations th:last-child,.allocations td:last-child{text-align:right}.allocations th{background:#f2f2f2}.allocations .money{white-space:nowrap}
     .amount strong{font-size:22px}footer{margin-top:24px;padding-top:12px;border-top:1px solid #ddd;color:#555;font-size:11px;line-height:1.6}
-    @media print{body{padding:0}.receipt{margin:0 auto;border:1px solid #999} }
+    @page{size:A4 portrait;margin:8mm}
+    @media print{
+      html,body{width:100%;margin:0;padding:0;font-size:10pt}
+      .receipt{width:100%;max-width:none;margin:0;padding:12px;border:1px solid #999;page-break-after:always;break-after:page;break-inside:avoid;overflow:visible}
+      .receipt:last-child{page-break-after:auto;break-after:auto}
+      header{padding-bottom:7px;margin-bottom:8px}
+      h1{font-size:18px;margin-bottom:3px}header p{font-size:9px}
+      .receipt-number{padding:7px;margin-bottom:6px}
+      .line{padding:4px 0;gap:12px;font-size:10pt}
+      .allocations{margin-top:9px;font-size:9pt}
+      .allocations th,.allocations td{padding:4px 6px}
+      .amount{margin-top:9px;padding:8px}
+      .amount strong{font-size:16px}
+      footer{margin-top:10px;padding-top:6px;font-size:9px}
+    }
   </style></head><body>${html}<script>window.onload=()=>window.print()</script></body></html>`)
   popup.document.close()
 }
