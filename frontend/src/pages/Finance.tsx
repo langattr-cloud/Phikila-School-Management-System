@@ -7,6 +7,7 @@ import { FinanceReceipts } from '../components/FinanceReceipts'
 import { FinanceBanking } from '../components/FinanceBanking'
 import { api, friendlyApiError } from '../lib/api'
 import { finance, type BalanceSheet, type FeeStructure, type GeneralLedgerRow, type Invoice, type Payment, type FinanceOverview, type TrialBalanceRow, type VoteHead } from '../lib/finance'
+import { students, type Student } from '../lib/students'
 import './Finance.css'
 
 const levelLabel = (name: string) => /pre\s*primary|pre\s*school/i.test(name) ? 'Pre school' : /primary/i.test(name) && !/junior/i.test(name) ? 'Primary' : /junior/i.test(name) ? 'Junior' : /senior/i.test(name) ? 'Senior' : name
@@ -498,16 +499,114 @@ function NewInvoiceForm({ feeStructures, onCreated, onCancel }: { feeStructures:
 }
 
 function NewPaymentForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ invoice_id: '', student_id: '', amount: '', payment_method: 'cash' }); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null)
-  const submit = async () => {
-    setSubmitting(true); setError(null)
-    try { await finance.recordPayment({ invoice_id: Number(form.invoice_id), student_id: Number(form.student_id), amount: Number(form.amount), payment_method: form.payment_method }); onCreated() }
-    catch (err) { setError(friendlyApiError(err, 'record payment')) }
-    finally { setSubmitting(false) }
-  }
-  return <div className="finance-form">{error && <Alert tone="error">{error}</Alert>}<div className="finance-form__grid"><div className="field"><label className="field__label">Invoice ID</label><input className="input" type="number" value={form.invoice_id} onChange={(e) => setForm({ ...form, invoice_id: e.target.value })} /></div><div className="field"><label className="field__label">Student ID</label><input className="input" type="number" value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} /></div><div className="field"><label className="field__label">Amount (KES)</label><input className="input" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div><div className="field"><label className="field__label">Method</label><select className="input" value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile</option><option value="cheque">Cheque</option></select></div><div className="finance-form__actions"><button className="button button--primary" disabled={!form.invoice_id || !form.amount || submitting} onClick={submit}>{submitting ? 'Recording…' : 'Record'}</button><button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button></div></div></div>
-}
+  const [form, setForm] = useState({ invoice_id: '', student_id: '', amount: '', payment_method: 'cash' })
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [studentById, setStudentById] = useState<Map<number, Student>>(() => new Map())
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [optionsError, setOptionsError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    let cancelled = false
+    const loadOptions = async () => {
+      setLoadingOptions(true)
+      setOptionsError(null)
+      try {
+        const [invoiceRows, firstPage] = await Promise.all([
+          finance.listInvoices(),
+          students.list({ page: 1, page_size: 100 }),
+        ])
+        const studentRows = [...firstPage.items]
+        for (let page = 2; page <= firstPage.pages; page += 1) {
+          const nextPage = await students.list({ page, page_size: 100 })
+          studentRows.push(...nextPage.items)
+        }
+        if (!cancelled) {
+          setInvoices(invoiceRows.filter((invoice) => Number(invoice.balance) > 0 && !['paid', 'void', 'cancelled'].includes(String(invoice.status).toLowerCase())))
+          setStudentById(new Map(studentRows.map((student) => [student.id, student])))
+        }
+      } catch (err) {
+        if (!cancelled) setOptionsError(friendlyApiError(err, 'load outstanding invoices'))
+      } finally {
+        if (!cancelled) setLoadingOptions(false)
+      }
+    }
+    void loadOptions()
+    return () => { cancelled = true }
+  }, [])
+
+  const selectedInvoice = invoices.find((invoice) => String(invoice.id) === form.invoice_id)
+  const formatStudent = (studentId: number) => {
+    const student = studentById.get(studentId)
+    if (!student) return `Student #${studentId}`
+    return [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ').trim() || `Student #${studentId}`
+  }
+  const invoiceOption = (invoice: Invoice) => {
+    const student = studentById.get(invoice.student_id)
+    const admission = student?.admission_number ? ` · ${student.admission_number}` : ''
+    return `Invoice #${invoice.id} — ${formatStudent(invoice.student_id)}${admission} — Balance KES ${Number(invoice.balance).toLocaleString()}`
+  }
+  const submit = async () => {
+    if (!selectedInvoice) {
+      setError('Select an outstanding invoice before recording a payment.')
+      return
+    }
+    if (Number(form.amount) <= 0 || Number(form.amount) > Number(selectedInvoice.balance)) {
+      setError(`Enter an amount greater than zero and no more than the outstanding balance of KES ${Number(selectedInvoice.balance).toLocaleString()}.`)
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      await finance.recordPayment({ invoice_id: selectedInvoice.id, student_id: selectedInvoice.student_id, amount: Number(form.amount), payment_method: form.payment_method })
+      onCreated()
+    } catch (err) {
+      setError(friendlyApiError(err, 'record payment'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+  return <div className="finance-form">
+    {error && <Alert tone="error">{error}</Alert>}
+    {optionsError && <Alert tone="error">{optionsError}</Alert>}
+    <div className="finance-form__grid">
+      <div className="field">
+        <label className="field__label">Invoice / Student</label>
+        <select className="input" value={form.invoice_id} disabled={loadingOptions || invoices.length === 0} onChange={(e) => {
+          const invoice = invoices.find((row) => String(row.id) === e.target.value)
+          setForm({ ...form, invoice_id: e.target.value, student_id: invoice ? String(invoice.student_id) : '', amount: invoice ? String(invoice.balance) : '' })
+          setError(null)
+        }}>
+          <option value="">{loadingOptions ? 'Loading outstanding invoices…' : invoices.length ? 'Select student and invoice' : 'No outstanding invoices available'}</option>
+          {invoices.map((invoice) => <option key={invoice.id} value={invoice.id}>{invoiceOption(invoice)}</option>)}
+        </select>
+        <small className="field__hint">Choose the student’s invoice. The invoice ID and student ID are filled automatically.</small>
+      </div>
+      {selectedInvoice && <div className="field">
+        <label className="field__label">Student</label>
+        <input className="input" value={`${formatStudent(selectedInvoice.student_id)} · Student ID ${selectedInvoice.student_id}`} readOnly />
+      </div>}
+      {selectedInvoice && <div className="field">
+        <label className="field__label">Invoice ID</label>
+        <input className="input" value={selectedInvoice.id} readOnly />
+      </div>}
+      <div className="field">
+        <label className="field__label">Amount (KES)</label>
+        <input className="input" type="number" min="0.01" max={selectedInvoice?.balance} step="0.01" value={form.amount} disabled={!selectedInvoice} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+        {selectedInvoice && <small className="field__hint">Outstanding balance: KES {Number(selectedInvoice.balance).toLocaleString()}</small>}
+      </div>
+      <div className="field">
+        <label className="field__label">Method</label>
+        <select className="input" value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile</option><option value="cheque">Cheque</option></select>
+      </div>
+      <div className="finance-form__actions">
+        <button className="button button--primary" disabled={!selectedInvoice || !form.amount || loadingOptions || submitting} onClick={submit}>{submitting ? 'Recording…' : 'Record'}</button>
+        <button className="button button--secondary" onClick={onCancel} disabled={submitting}>Cancel</button>
+      </div>
+    </div>
+  </div>
+}
 
 function StudentBalancesReport({ onCreateFee }: { onCreateFee: () => void }) {
   const [rows,setRows]=useState<import('../lib/finance').StudentBalanceReportRow[]>([])
