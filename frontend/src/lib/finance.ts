@@ -4,7 +4,7 @@ const BASE = '/api/v1'
 export interface VoteHead { id:number; school_id:number; name:string; code?:string|null; description?:string|null; status:'ACTIVE'|'INACTIVE'; display_order:number; created_at?:string; updated_at?:string }
 export interface FeeStructureItem { id:number; school_id:number; fee_structure_id:number; vote_head_id:number; amount:number; display_order:number; created_at?:string }
 export interface InvoiceItem { id:number; school_id:number; invoice_id:number; vote_head_id?:number|null; description?:string|null; amount:number; balance:number; created_at?:string }
-export interface PaymentAllocation { id:number; school_id:number; payment_id:number; invoice_id?:number|null; invoice_item_id?:number|null; vote_head_id?:number|null; amount:number; allocation_type:'FEE'|'CREDIT'|'REVERSAL'; created_at?:string }
+export interface PaymentAllocation { id:number; school_id:number; payment_id:number; invoice_id?:number|null; invoice_item_id?:number|null; vote_head_id?:number|null; amount:number; allocation_type:'FEE'|'CREDIT'|'CREDIT_APPLIED'|'REVERSAL'; created_at?:string }
 export interface FeeCredit { id:number; school_id:number; student_id:number; source_payment_id?:number|null; amount:number; balance:number; status:'AVAILABLE'|'APPLIED'|'VOID'; created_at?:string; updated_at?:string }
 export interface FeeStructure { id:number; school_id:number; name:string; description?:string; academic_year_id?:number; term_id?:number; level_id?:number; grade_id?:number|null; stream_id?:number|null; amount:number; currency:string; status:string; created_at?:string; allocations?:FeeStructureItem[] }
 export interface Invoice { id:number; school_id:number; student_id:number; fee_structure_id:number; amount:number; balance:number; status:string; due_date?:string; created_at?:string }
@@ -33,6 +33,7 @@ export const finance = {
   listFeeStructureItems:(id:number)=>get<FeeStructureItem[]>(`${BASE}/finance/fee-structures/${id}/items`),
   createFeeStructureItem:(id:number,payload:Partial<FeeStructureItem>)=>send<FeeStructureItem>(`${BASE}/finance/fee-structures/${id}/items`,'POST',payload),
   listPaymentAllocations:(id:number)=>get<PaymentAllocation[]>(`${BASE}/finance/payments/${id}/allocations`),
+  listPaymentAllocationsForPayments:(paymentIds:number[])=>{const q=new URLSearchParams();paymentIds.forEach(id=>q.append('payment_ids',String(id)));return paymentIds.length?get<PaymentAllocation[]>(`${BASE}/finance/payment-allocations?${q.toString()}`):Promise.resolve([] as PaymentAllocation[])},
   listFeeCredits:(studentId:number)=>get<FeeCredit[]>(`${BASE}/finance/students/${studentId}/fee-credits`),
   feeObligations:(studentId:number)=>get<{invoices:Invoice[];items:InvoiceItem[]}>(`${BASE}/finance/students/${studentId}/fee-obligations`),
   allocatePayment:(payload:{school_id?:number;student_id:number;amount:number;payment_method?:string;reference_number?:string|null;notes?:string|null;received_by?:string|null;invoice_id?:number|null})=>send<{payment_id:number;amount:number;allocated:number;credit_used:number;carried_forward:number}>(`${BASE}/finance/payments/allocate`,'POST',payload),
