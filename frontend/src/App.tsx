@@ -220,7 +220,7 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
     : path.startsWith('/attendance') ? 'attendance'
     : path.startsWith('/examinations') ? 'examinations'
     : path.startsWith('/finance') ? 'finance'
-    : path.startsWith('/timetable') || path.startsWith('/my-timetable') || path.startsWith('/scheduling') || path.startsWith('/versions') || path.startsWith('/setup/rooms') ? 'timetable'
+    : path.startsWith('/timetable') || path.startsWith('/my-timetable') || path.startsWith('/scheduling') || path.startsWith('/versions') || path.startsWith('/analytics') || path.startsWith('/setup/rooms') ? 'timetable'
     : path.startsWith('/ocr') ? 'ai_tools' : null
   const moduleDenied = Boolean(requiredModule && platformSession && !platformSession.enabled_modules.includes(requiredModule))
   return <RequireAuth><AccessGate>
