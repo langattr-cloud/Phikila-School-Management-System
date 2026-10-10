@@ -89,9 +89,10 @@ export function FinanceReceipts() {
     setLoading(true)
     setError(null)
     try {
-      const [receiptRows, paymentRows, voteHeadRows] = await Promise.all([finance.listReceipts(), finance.listPayments(), finance.listVoteHeads()])
+      const [receiptRows, paymentRows] = await Promise.all([finance.listReceipts(), finance.listPayments()])
       setReceipts(receiptRows)
       setPayments(paymentRows)
+      const voteHeadRows = await finance.listVoteHeads().catch(() => [])
       setVoteHeads(voteHeadRows)
       const paymentIds = Array.from(new Set(receiptRows.map((receipt) => receipt.payment_id)))
       const allocationResults = await Promise.all(paymentIds.map(async (paymentId) => {
