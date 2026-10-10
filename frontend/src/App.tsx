@@ -213,8 +213,18 @@ function NormalLayout({ pathname }: { pathname: string }) {
 
 function ProtectedRoutes({ pathname }: { pathname: string }) {
   const isWholeSchool = normalisePath(pathname) === '/timetable/whole-school'
+  const { session: platformSession } = usePlatformSession()
+  const path = normalisePath(pathname)
+  const requiredModule = path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
+    : path.startsWith('/setup/teachers') ? 'staff'
+    : path.startsWith('/attendance') ? 'attendance'
+    : path.startsWith('/examinations') ? 'examinations'
+    : path.startsWith('/finance') ? 'finance'
+    : path.startsWith('/timetable') || path.startsWith('/my-timetable') || path.startsWith('/scheduling') || path.startsWith('/versions') || path.startsWith('/setup/rooms') ? 'timetable'
+    : path.startsWith('/ocr') ? 'ai_tools' : null
+  const moduleDenied = Boolean(requiredModule && platformSession && !platformSession.enabled_modules.includes(requiredModule))
   return <RequireAuth><AccessGate>
-    {isWholeSchool
+    {moduleDenied ? <section className="card section"><h1>Module not enabled</h1><p>This module is not enabled for your school. Contact your platform administrator to request access.</p></section> : isWholeSchool
       ? <FullscreenLayout>
           <Suspense fallback={<FullPageLoader label="Loading timetable…" />}>
             {routeFor(pathname)}
