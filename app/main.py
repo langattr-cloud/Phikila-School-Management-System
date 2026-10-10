@@ -1,5 +1,6 @@
 from pathlib import Path
 from fastapi import Depends, FastAPI
+from fastapi.dependencies.utils import get_parameterless_sub_dependant
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.staticfiles import StaticFiles
@@ -55,7 +56,16 @@ def _guard_module_routes(router, default_module: str, teacher_paths: bool = Fals
         module = "staff" if teacher_paths and ("teacher" in path.lower() or "staff" in path.lower()) else default_module
         if getattr(route, "_school_module_guard", None) == module:
             continue
-        route.dependencies.append(Depends(require_school_module(module)))
+        dependency = Depends(require_school_module(module))
+        # APIRoute compiles its dependency graph at construction time, so
+        # mutating route.dependencies alone would not enforce this at runtime.
+        route.dependencies.append(dependency)
+        route.dependant.dependencies.append(
+            get_parameterless_sub_dependant(
+                depends=dependency,
+                path=getattr(route, "path_format", path),
+            )
+        )
         route._school_module_guard = module
 
 
