@@ -1,0 +1,33 @@
+name: Worker API checks
+
+on:
+  pull_request:
+    paths:
+      - 'workers/**'
+      - '.github/workflows/worker-api-checks.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'workers/**'
+      - '.github/workflows/worker-api-checks.yml'
+
+jobs:
+  typecheck-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: workers/package-lock.json
+      - name: Install worker dependencies
+        run: npm ci
+      - name: Type-check worker API
+        run: npm run typecheck
+      - name: Build worker API (dry run)
+        run: npm run build

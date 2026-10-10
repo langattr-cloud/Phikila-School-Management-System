@@ -5,6 +5,34 @@ import { jsonError } from '../lib/http'
 
 export const platformRoutes = new Hono()
 
+/**
+ * Platform-wide mutations and data must be restricted to platform admins.
+ * Only session discovery and submitting/viewing public access-request options
+ * are intentionally available to any authenticated user.
+ */
+platformRoutes.use('*', async (c, next) => {
+  const path = c.req.path.replace(/\/+$/, '')
+  const method = c.req.method.toUpperCase()
+  const isPublicRoute =
+    (method === 'GET' && path.endsWith('/session')) ||
+    (method === 'GET' && path.endsWith('/access-requests/options')) ||
+    (method === 'POST' && path.endsWith('/access-requests'))
+
+  if (isPublicRoute) return next()
+
+  const { error, user } = requireAuth(c as never)
+  if (error) return error
+
+  const { data: admin } = await db()
+    .from('tt_platform_admins')
+    .select('id')
+    .eq('user_id', user!.id)
+    .maybeSingle()
+
+  if (!admin) return c.json({ detail: 'Forbidden' }, 403)
+  return next()
+})
+
 const uid = (c: { get: (k: 'authUser') => AuthUser | null }) => c.get('authUser')?.id ?? null
 
 /** Current caller's platform authority + access state. */
