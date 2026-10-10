@@ -53,7 +53,10 @@ def _guard_module_routes(router, default_module: str, teacher_paths: bool = Fals
             continue
         path = getattr(route, "path", "")
         module = "staff" if teacher_paths and ("teacher" in path.lower() or "staff" in path.lower()) else default_module
+        if getattr(route, "_school_module_guard", None) == module:
+            continue
         route.dependencies.append(Depends(require_school_module(module)))
+        route._school_module_guard = module
 
 
 def _rate_limit_mutations(router) -> None:
