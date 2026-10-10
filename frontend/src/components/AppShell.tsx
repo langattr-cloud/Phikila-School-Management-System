@@ -64,6 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (to.startsWith('/attendance')) return 'attendance'
     if (to.startsWith('/examinations')) return 'examinations'
     if (to.startsWith('/finance')) return 'finance'
+    if (to.startsWith('/scheduling/copilot')) return 'ai_tools'
     if (to.startsWith('/timetable') || to.startsWith('/my-timetable') || to.startsWith('/scheduling') || to.startsWith('/versions') || to.startsWith('/analytics')) return 'timetable'
     if (to.startsWith('/ocr')) return 'ai_tools'
     if (['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(to)) return 'students'
