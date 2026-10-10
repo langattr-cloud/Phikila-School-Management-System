@@ -45,7 +45,7 @@ function printReceipts(receipts: Receipt[], payments: Payment[], allocations: Pa
     const allocationSection = allocationRows
       ? `<h2 class="allocation-heading">Payment allocation</h2>${allocationRows}`
       : `<h2 class="allocation-heading">Payment allocation</h2><p class="allocation-note">No vote-head allocation was recorded for this payment.</p>`
-    return `<article class="receipt">`
+    return `<article class="receipt">
       <header><h1>PHIKILA SCHOOL</h1><p>OFFICIAL FEE PAYMENT RECEIPT</p></header>
       <div class="receipt-number"><span>Receipt No.</span><strong>${escapeHtml(receipt.receipt_number)}</strong></div>
       <div class="line"><span>Student</span><strong>Student #${escapeHtml(receipt.student_id)}</strong></div>
