@@ -253,6 +253,26 @@ def create_invoice(payload: s.InvoiceCreate, db: Session = Depends(get_db), prin
     _audit(db, principal, "create", "invoice", inv.id, f"Invoiced student #{payload.student_id} — {payload.amount}"); db.commit(); db.refresh(inv); return inv
 
 
+@router.get("/finance/payment-allocations", response_model=list[s.PaymentAllocationResponse])
+def list_payment_allocations_for_payments(
+    payment_ids: list[int] = Query(default=[]),
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
+):
+    """Return vote-head allocations for the requested payments in this school."""
+    if not payment_ids:
+        return []
+    return (
+        db.query(m.PaymentAllocation)
+        .filter(
+            m.PaymentAllocation.school_id == principal.school_id,
+            m.PaymentAllocation.payment_id.in_(set(payment_ids)),
+        )
+        .order_by(m.PaymentAllocation.payment_id, m.PaymentAllocation.id)
+        .all()
+    )
+
+
 @router.get("/finance/payments/{payment_id}/allocations", response_model=list[s.PaymentAllocationResponse])
 def list_payment_allocations(payment_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     if not db.query(m.Payment).filter(m.Payment.id == payment_id, m.Payment.school_id == principal.school_id).first(): raise HTTPException(404, "Payment not found.")
