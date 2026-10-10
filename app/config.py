@@ -24,6 +24,8 @@ class Settings:
         self.cors_origin_regex = (f"(?:{configured_regex})|(?:{built_in_production_regex})" if configured_regex else built_in_production_regex) if self.is_production else (configured_regex or None)
         self.supabase_url = (os.getenv("SUPABASE_URL") or os.getenv("VITE_SUPABASE_URL", "")).rstrip("/")
         self.supabase_anon_key = os.getenv("SUPABASE_ANON_KEY") or os.getenv("VITE_SUPABASE_ANON_KEY", "")
+        # Server-only credential for privileged Supabase Auth user lookups.
+        self.supabase_service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
         self.supabase_jwt_audience = os.getenv("SUPABASE_JWT_AUDIENCE", "authenticated")
         self.supabase_jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
         self.app_jwt_secret = os.getenv("APP_JWT_SECRET", "")
