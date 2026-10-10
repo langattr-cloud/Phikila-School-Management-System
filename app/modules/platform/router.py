@@ -8,6 +8,7 @@ Super admins are the single, explicit exception.
 from __future__ import annotations
 
 import re
+import requests
 from datetime import datetime
 from typing import Any
 
@@ -17,6 +18,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.config import settings
 from app.modules.email.service import email_service
 from app.modules.scheduling.models import TtClass, TtTeacher
 from app.modules.scheduling.tenancy import ROLE_ORDER, TtMembership, TtSchool
@@ -609,6 +611,42 @@ def school_users(
     ]
 
 
+def _find_registered_supabase_user_id(email: str) -> str | None:
+    """Resolve an exact email to its Supabase Auth user id with a server-only key."""
+    service_key = settings.supabase_service_role_key
+    if not settings.supabase_url or not service_key:
+        return None
+
+    page = 1
+    per_page = 1000
+    try:
+        while True:
+            response = requests.get(
+                f"{settings.supabase_url}/auth/v1/admin/users",
+                headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+                params={"page": page, "per_page": per_page},
+                timeout=8,
+            )
+            if response.status_code != 200:
+                raise HTTPException(
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                    "Could not verify the registered account with the authentication service. Try again later.",
+                )
+            users = response.json().get("users", [])
+            for user in users:
+                candidate = user.get("email")
+                user_id = user.get("id")
+                if candidate and candidate.strip().lower() == email and user_id:
+                    return str(user_id)
+            if len(users) < per_page:
+                return None
+            page += 1
+    except requests.RequestException:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Could not reach the authentication service to verify this account. Try again later.",
+        ) from None
+
 @router.post("/schools/{school_id}/administrators", status_code=201)
 def add_administrator(
     school_id: int,
@@ -616,11 +654,11 @@ def add_administrator(
     db: Session = Depends(get_db),
     identity: Identity = Depends(require_super_admin),
 ):
-    """Grant a school-level role to an existing account.
+    """Grant a school-level role to an existing registered account.
 
-    The user must already have signed in at least once, so that a Supabase user
-    id exists to bind the membership to. That prevents inviting an address that
-    has never authenticated and silently creating a dangling privilege.
+    Prefer an existing membership/access-request identity. If the account has
+    registered with Supabase but has never signed in to PHIKILA, resolve its
+    Auth user id through the server-only service-role API.
     """
     school = db.query(TtSchool).filter(TtSchool.id == school_id).first()
     if school is None:
@@ -639,9 +677,11 @@ def add_administrator(
         )
         user_id = request_row.user_id if request_row else None
     if user_id is None:
+        user_id = _find_registered_supabase_user_id(email)
+    if user_id is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            "No account with that email has signed in yet. Ask them to sign up first.",
+            "No registered account was found for that email. Check the spelling and ask the administrator to register first.",
         )
 
     membership = (
