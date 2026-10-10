@@ -215,7 +215,7 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
   const isWholeSchool = normalisePath(pathname) === '/timetable/whole-school'
   const { session: platformSession } = usePlatformSession()
   const path = normalisePath(pathname)
-  const requiredModule = path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
+  const requiredModule = path.startsWith('/scheduling/copilot') ? 'ai_tools' : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
     : path.startsWith('/setup/teachers') ? 'staff'
     : path.startsWith('/attendance') ? 'attendance'
     : path.startsWith('/examinations') ? 'examinations'
