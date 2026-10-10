@@ -77,10 +77,7 @@ export function PlatformModulesPage() {
     {error && <Alert tone="error" title="Module access could not be loaded or saved">{error}</Alert>}
     <section className="card section">
       <div className="form form--grid">
-        <Field label="School" as="select" value={schoolId} onChange={event => setSchoolId(event.target.value)}>
-          <option value="">Choose a school</option>
-          {schools.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}
-        </Field>
+        <div className="field"><label className="field__label" htmlFor="module-school">School</label><select id="module-school" className="input input--select" value={schoolId} onChange={event => setSchoolId(event.target.value)}><option value="">Choose a school</option>{schools.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></div>
       </div>
       {loading ? <LoadingBlock label="Loading school module access" rows={5} /> : access && <>
         <div className="dashboard-section__head">
