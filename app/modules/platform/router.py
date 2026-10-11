@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import re
 import requests
+import secrets
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -85,6 +86,7 @@ class SchoolPatch(BaseModel):
 class AdministratorIn(BaseModel):
     email: EmailStr
     role: str = "admin"
+    delivery_method: Literal["email_invite", "temporary_password"] = "email_invite"
 
     @field_validator("role")
     @classmethod
@@ -684,6 +686,46 @@ def _invite_supabase_user(email: str) -> str:
         )
     return str(user_id)
 
+def _create_supabase_user_with_temporary_password(email: str) -> tuple[str, str]:
+    """Create a confirmed Supabase Auth account without sending an email."""
+    service_key = settings.supabase_service_role_key
+    if not settings.supabase_url or not service_key:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Manual account creation is not configured. Ask the platform operator to configure Supabase server credentials.",
+        )
+    temporary_password = secrets.token_urlsafe(18)
+    try:
+        response = requests.post(
+            f"{settings.supabase_url}/auth/v1/admin/users",
+            headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+            json={"email": email, "password": temporary_password, "email_confirm": True},
+            timeout=12,
+        )
+    except requests.RequestException:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Could not reach the authentication service to create the account. Try again later.",
+        ) from None
+    if response.status_code not in (200, 201):
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The authentication service could not create this account. Check the email address and Supabase Auth settings, then try again.",
+        )
+    try:
+        body = response.json()
+    except ValueError:
+        body = {}
+    user = body.get("user") or body
+    user_id = user.get("id") if isinstance(user, dict) else None
+    if not user_id:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The authentication service did not return an account ID. No school access was granted.",
+        )
+    return str(user_id), temporary_password
+
+
 @router.post("/schools/{school_id}/administrators", status_code=201)
 def add_administrator(
     school_id: int,
@@ -714,9 +756,14 @@ def add_administrator(
         )
         user_id = request_row.user_id if request_row else None
     invited = False
+    temporary_password = None
+    created_account = False
     if user_id is None:
         user_id = _find_registered_supabase_user_id(email)
-    if user_id is None:
+    if user_id is None and payload.delivery_method == "temporary_password":
+        user_id, temporary_password = _create_supabase_user_with_temporary_password(email)
+        created_account = True
+    elif user_id is None:
         user_id = _invite_supabase_user(email)
         invited = True
 
@@ -743,8 +790,8 @@ def add_administrator(
     )
     db.commit()
 
-    # Supabase has already sent the invite email for newly created accounts.
-    if not invited:
+    # Avoid email delivery when a temporary password was explicitly requested.
+    if not invited and not created_account:
         try:
             email_service.send_role_assigned_email(
                 to=email,
@@ -755,7 +802,14 @@ def add_administrator(
         except Exception:
             pass
 
-    return {"user_id": user_id, "email": email, "role": payload.role, "invited": invited}
+    return {
+        "user_id": user_id,
+        "email": email,
+        "role": payload.role,
+        "invited": invited,
+        "created_account": created_account,
+        "temporary_password": temporary_password,
+    }
 
 
 @router.delete("/schools/{school_id}/administrators/{user_id}", status_code=204)

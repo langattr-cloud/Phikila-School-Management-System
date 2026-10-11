@@ -169,11 +169,11 @@ export const platform = {
   setSchoolStatus: (id: number, active: boolean) =>
     send<School>(`${PLATFORM}/schools/${id}/status?active=${active}`, 'POST'),
   schoolUsers: (id: number) => get<SchoolUser[]>(`${PLATFORM}/schools/${id}/users`),
-  addAdministrator: (id: number, email: string, role: string) =>
-    send<{ user_id: string; email: string; role: string; invited: boolean }>(
+  addAdministrator: (id: number, email: string, role: string, deliveryMethod: 'email_invite' | 'temporary_password' = 'email_invite') =>
+    send<{ user_id: string; email: string; role: string; invited: boolean; created_account: boolean; temporary_password: string | null }>(
       `${PLATFORM}/schools/${id}/administrators`,
       'POST',
-      { email, role },
+      { email, role, delivery_method: deliveryMethod },
     ),
   removeAdministrator: (id: number, userId: string) =>
     send<void>(`${PLATFORM}/schools/${id}/administrators/${userId}`, 'DELETE'),
