@@ -214,10 +214,10 @@ function NormalLayout({ pathname }: { pathname: string }) {
 
 function ProtectedRoutes({ pathname }: { pathname: string }) {
   const isWholeSchool = normalisePath(pathname) === '/timetable/whole-school'
-  const { session: platformSession, loading: platformSessionLoading } = usePlatformSession()
+  const { session: platformSession, loading: platformSessionLoading, error: platformSessionError } = usePlatformSession()
   const { session: authSession } = useAuth()
   const path = normalisePath(pathname)
-  if (authSession && platformSessionLoading) return <FullPageLoader label="Verifying account setup…" />
+  if (authSession && (platformSessionLoading || (!platformSessionError && platformSession?.user_id !== authSession.user.id))) return <FullPageLoader label="Verifying account setup…" />
   if (platformSession?.must_change_password) return <InitialPasswordPage />
   const requiredModule = path.startsWith('/scheduling/copilot') ? 'ai_tools' : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
     : path.startsWith('/setup/teachers') ? 'staff'
