@@ -85,8 +85,17 @@ class SchoolPatch(BaseModel):
 
 class AdministratorIn(BaseModel):
     email: EmailStr
+    phone: str = Field(min_length=7, max_length=32)
     role: str = "admin"
     delivery_method: Literal["email_invite", "temporary_password"] = "email_invite"
+
+    @field_validator("phone")
+    @classmethod
+    def clean_phone(cls, value: str) -> str:
+        value = value.strip()
+        if not re.fullmatch(r"[+]?[0-9][0-9 ()-]{5,30}", value):
+            raise ValueError("Enter a valid phone number.")
+        return value
 
     @field_validator("role")
     @classmethod
@@ -867,11 +876,13 @@ def add_administrator(
     )
     if membership is None:
         membership = TtMembership(
-            user_id=user_id, school_id=school_id, role=payload.role, email=email
+            user_id=user_id, school_id=school_id, role=payload.role, email=email, phone=payload.phone
         )
         db.add(membership)
     else:
         membership.role = payload.role
+        membership.phone = payload.phone
+        membership.email = email
         membership.is_active = True
 
     audit(
