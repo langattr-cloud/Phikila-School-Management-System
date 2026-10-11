@@ -6,8 +6,8 @@ import { friendlyApiError } from '../lib/api'
 import { Link } from '../lib/router'
 
 const TEMPLATE = [
-  'admission_number,first_name,middle_name,last_name,preferred_name,date_of_birth,gender,email,phone,address,nationality,national_id,admission_date,status,academic_year,level,grade,stream,term',
-  'ADM001,Jane,,Doe,,12/03/2010,Female,jane@example.com,0712345678,,Kenyan,,01/01/2026,active,2026,Grade 1,A,Term 1',
+  'admission_number,first_name,middle_name,last_name,preferred_name,date_of_birth,gender,email,phone,address,nationality,national_id,admission_date,status,academic_year,level,class,term',
+  'ADM001,Jane,,Doe,,12/03/2010,Female,jane@example.com,0712345678,,Kenyan,,01/01/2026,active,2026,Form 1 A,Term 1',
 ].join('\n')
 
 export default function StudentImportPage() {
