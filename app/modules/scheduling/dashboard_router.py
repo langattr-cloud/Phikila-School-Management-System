@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.modules.platform.module_access import module_enabled
 from . import models as m
 from .engine import detect_conflicts
 from .solver import ORTOOLS_AVAILABLE
@@ -15,6 +16,18 @@ router = APIRouter()
 @router.get("/dashboard")
 def scheduling_dashboard(db: Session = Depends(get_db), principal: Principal = Depends(resolve_principal)):
     school_id = principal.school_id
+    # The main dashboard is available even if a school has deliberately disabled
+    # timetable. Do not query or expose timetable records in that case.
+    if not module_enabled(db, school_id, "timetable"):
+        return {
+            "counts": {"teachers": 0, "classes": 0, "rooms": 0},
+            "conflicts": {"hard": 0, "soft": 0},
+            "lessons": {"required": 0, "scheduled": 0, "unassigned": 0},
+            "version": None,
+            "solver_available": ORTOOLS_AVAILABLE,
+            "quality": {},
+            "recent": [],
+        }
     requirements = db.query(m.TtLessonRequirement).filter(m.TtLessonRequirement.school_id == school_id).all()
     required = sum(max(0, int(row.periods_per_week or 0)) for row in requirements)
     teachers = db.query(m.TtTeacher).filter(m.TtTeacher.school_id == school_id, m.TtTeacher.is_active.is_(True)).count()
