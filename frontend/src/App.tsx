@@ -218,7 +218,7 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
   const { session: authSession } = useAuth()
   const path = normalisePath(pathname)
   if (authSession && (platformSessionLoading || (!platformSessionError && platformSession?.user_id !== authSession.user.id))) return <FullPageLoader label="Verifying account setup…" />
-  if (platformSession?.must_change_password) return <InitialPasswordPage />
+  if (authSession?.user.app_metadata?.must_change_password || platformSession?.must_change_password) return <InitialPasswordPage />
   const requiredModule = path.startsWith('/scheduling/copilot') ? 'ai_tools' : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
     : path.startsWith('/setup/teachers') ? 'staff'
     : path.startsWith('/attendance') ? 'attendance'
