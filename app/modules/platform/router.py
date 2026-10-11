@@ -145,6 +145,51 @@ def session(
         .filter(TtAccessRequest.user_id == identity.user_id)
         .first()
     )
+    # Account credentials may be recreated/reset independently of an older
+    # access-request row. Match the verified token email as a fallback, and
+    # honour an existing approval by linking the current Auth user ID.
+    if request is None and identity.email:
+        request = (
+            db.query(TtAccessRequest)
+            .filter(func.lower(TtAccessRequest.email) == identity.email.strip().lower())
+            .order_by(TtAccessRequest.created_at.desc())
+            .first()
+        )
+
+    if request and request.status == "approved" and request.granted_school_id:
+        granted_school = (
+            db.query(TtSchool)
+            .filter(TtSchool.id == request.granted_school_id)
+            .first()
+        )
+        if granted_school is not None and getattr(granted_school, "status", "active") == "active":
+            granted_role = request.granted_role or request.requested_role or "viewer"
+            if granted_role not in GRANTABLE_ROLES:
+                granted_role = "viewer"
+            granted_membership = (
+                db.query(TtMembership)
+                .filter(
+                    TtMembership.user_id == identity.user_id,
+                    TtMembership.school_id == granted_school.id,
+                )
+                .first()
+            )
+            if granted_membership is None:
+                granted_membership = TtMembership(
+                    user_id=identity.user_id,
+                    school_id=granted_school.id,
+                    role=granted_role,
+                    email=identity.email or request.email,
+                    is_active=True,
+                )
+                db.add(granted_membership)
+                db.commit()
+            elif not granted_membership.is_active or granted_membership.role != granted_role:
+                granted_membership.is_active = True
+                granted_membership.role = granted_role
+                db.commit()
+            identity.memberships[granted_school.id] = granted_role
+
     schools = []
     if identity.memberships:
         rows = (
