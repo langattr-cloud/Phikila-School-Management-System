@@ -847,6 +847,20 @@ def add_administrator(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown school.")
 
     email = payload.email.lower()
+    duplicate_by_email = (
+        db.query(TtMembership)
+        .filter(
+            TtMembership.school_id == school_id,
+            func.lower(TtMembership.email) == email,
+        )
+        .first()
+    )
+    if duplicate_by_email is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This email already has access to this school. No new grant was created.",
+        )
+
     invited = False
     temporary_password = None
     created_account = False
@@ -859,10 +873,21 @@ def add_administrator(
     if payload.delivery_method == "temporary_password":
         user_id = _find_registered_supabase_user_id(email)
         if user_id is not None:
+            existing_membership = (
+                db.query(TtMembership)
+                .filter(
+                    TtMembership.user_id == user_id,
+                    TtMembership.school_id == school_id,
+                )
+                .first()
+            )
+            if existing_membership is not None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "This account already has access to this school. No password was changed and no new grant was created.",
+                )
             existing_account = True
-            # This mode explicitly asks for a usable offline-delivered
-            # credential, so rotate the existing account password and return
-            # it once for the operator to share privately.
+            # Only reset credentials after duplicate access has been ruled out.
             temporary_password = _reset_supabase_user_password(user_id, payload.phone)
         else:
             user_id, temporary_password = _create_supabase_user_with_temporary_password(email, payload.phone)
@@ -926,8 +951,10 @@ def add_administrator(
 
     return {
         "user_id": user_id,
-        "email": email,
-        "role": payload.role,
+        "email": membership.email,
+        "phone": membership.phone,
+        "role": membership.role,
+        "is_active": membership.is_active,
         "invited": invited,
         "created_account": created_account,
         "existing_account": existing_account,
