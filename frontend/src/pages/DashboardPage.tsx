@@ -4,7 +4,7 @@ import { Alert } from '../components/Alert'
 import { QualityBars } from '../components/QualityBars'
 import { UserIcon, GridIcon, SparkIcon } from '../components/icons'
 import { friendlyApiError, api, uniqueEducationLevels } from '../lib/api'
-import { finance } from '../lib/finance'
+import { finance, type Payment, type PaymentInboxItem } from '../lib/finance'
 import { students } from '../lib/students'
 import { useAsync } from '../lib/useAsync'
 import { displayName, useAuth } from '../lib/auth'
@@ -15,6 +15,20 @@ function money(value: number) { return new Intl.NumberFormat('en-KE', { style: '
 function Metric({ label, value, detail, loading, icon, tone = 'navy', to }: { label:string; value:string|number; detail:string; loading:boolean; icon:React.ReactNode; tone?:'navy'|'gold'|'green'|'danger'; to:string }) { return <div className="dashboard-metric"><div className="dashboard-metric__top"><span className={`dashboard-metric__icon dashboard-metric__icon--${tone}`}>{icon}</span><Badge tone="success">Live</Badge></div><div className="dashboard-metric__label">{label}</div><div className="dashboard-metric__value">{loading ? <Skeleton width="4rem" height="1.7rem" /> : value}</div><div className="dashboard-metric__detail">{loading ? <Skeleton width="80%" /> : detail}</div><Link className="dashboard-metric__link" to={to}>View details →</Link></div> }
 function TopHeader() {
   return <div className="dashboard-v2-card__top"><span className="dashboard-v2-card__symbol" aria-hidden="true">⊞</span><span className="dashboard-v2-live"><span />Live</span></div>
+}
+
+type FinanceActivity = { key:string; title:string; detail:string; status:string; kind:'payment'|'inbox'; at:string }
+function activityDate(value?: string | null) {
+  if (!value) return 0
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : 0
+}
+function paymentActivity(payment: Payment): FinanceActivity {
+  const method = payment.payment_method ? 'via ' + payment.payment_method.replace(/_/g, ' ') : 'Payment recorded'
+  return { key:'payment-' + payment.id, title:'Payment ' + (payment.reference_number || '#' + payment.id) + ' recorded', detail:money(payment.amount) + ' · ' + method + (payment.invoice_id ? ' · Invoice #' + payment.invoice_id : ''), status:payment.status || 'RECORDED', kind:'payment', at:payment.created_at || '' }
+}
+function inboxActivity(item: PaymentInboxItem): FinanceActivity {
+  return { key:'inbox-' + item.id, title:'External payment ' + String(item.status || 'received').toLowerCase().replace(/_/g, ' '), detail:money(item.amount) + ' · ' + (item.source || item.payment_channel || 'External source') + (item.external_reference ? ' · Reference: ' + item.external_reference : ''), status:item.status || 'RECEIVED', kind:'inbox', at:item.received_at || item.created_at || '' }
 }
 export function DashboardPage() {
   const { user } = useAuth()
@@ -31,6 +45,13 @@ export function DashboardPage() {
     return { levels: uniqueEducationLevels(levels).length, grades: grades.length, streams: streams.length }
   }, toMessage)
   const financeQuery = useAsync(finance.overview, toMessage)
+  const financeActivityQuery = useAsync(async () => {
+    const [paymentsResult, inboxResult] = await Promise.allSettled([finance.listPayments(), finance.listPaymentInbox()])
+    const payments = paymentsResult.status === 'fulfilled' ? paymentsResult.value.map(paymentActivity) : []
+    const inbox = inboxResult.status === 'fulfilled' ? inboxResult.value.map(inboxActivity) : []
+    return [...payments, ...inbox].sort((a, b) => activityDate(b.at) - activityDate(a.at)).slice(0, 4)
+  }, toMessage)
+  const feeStructuresQuery = useAsync(finance.listFeeStructures, toMessage)
   const studentsQuery = useAsync(() => students.list({ page: 1, page_size: 1 }), toMessage)
   const hard = data?.conflicts.hard ?? 0
   const soft = data?.conflicts.soft ?? 0
@@ -81,7 +102,7 @@ export function DashboardPage() {
           <div className="dashboard-v2-progress-meta"><strong>{collectionRate}% collected</strong><span>{financeQuery.data?.pending_count ?? 0} pending invoices</span></div>
         </>}
         <div className="dashboard-v2-subheading"><div><p className="dashboard-v2-panel__eyebrow">Live feed</p><h3>Recent activity</h3></div><Link to="/versions">View history →</Link></div>
-        {loading ? <LoadingBlock label="Loading recent activity" rows={3} /> : (data?.recent.length ?? 0) === 0 ? <EmptyState title="Nothing yet" description="Changes to your timetable will appear here." /> : <ul className="dashboard-activity">{data!.recent.slice(0, 4).map((entry, index) => <li className="dashboard-activity__item" key={(entry.at ?? 'activity') + '-' + index}><span className="dashboard-activity__dot">{index + 1}</span><div><p className="dashboard-activity__summary">{entry.summary}</p><p className="dashboard-activity__meta">{entry.actor ?? 'system'}{entry.at ? ' · ' + new Date(entry.at).toLocaleString() : ''}</p></div></li>)}</ul>}
+        {financeActivityQuery.loading ? <LoadingBlock label="Loading recent payment activity" rows={3} /> : financeActivityQuery.error ? <Alert tone="info">Payment activity is temporarily unavailable.</Alert> : (financeActivityQuery.data?.length ?? 0) === 0 ? <EmptyState title="No payment activity yet" description="Recorded payments and incoming external payment updates will appear here." /> : <ul className="dashboard-v2-activity">{financeActivityQuery.data!.map(entry => <li className="dashboard-v2-activity__item" key={entry.key}><span className={'dashboard-v2-activity__dot dashboard-v2-activity__dot--' + entry.kind} /><div className="dashboard-v2-activity__body"><p className="dashboard-v2-activity__title">{entry.title}</p><p className="dashboard-v2-activity__detail">{entry.detail}</p><p className="dashboard-v2-activity__time">{entry.at ? new Date(entry.at).toLocaleString() : 'Time not available'}</p></div><span className={'dashboard-v2-activity__status dashboard-v2-activity__status--' + (/posted|success|paid|completed/i.test(entry.status) ? 'success' : /match/i.test(entry.status) ? 'matched' : 'neutral')}>{entry.status.replace(/_/g, ' ')}</span></li>)}</ul>}
       </article>
       <article className="dashboard-v2-panel">
         <div className="dashboard-v2-panel__heading"><div><p className="dashboard-v2-panel__eyebrow">Academic operations</p><h2>Timetable readiness</h2></div>{version && <Badge tone={version.status === 'published' ? 'success' : 'warning'}>v{version.number} {version.status}</Badge>}</div>
@@ -96,10 +117,10 @@ export function DashboardPage() {
         {data && (hard > 0 || (data.lessons.unassigned ?? 0) > 0) && <div className="dashboard-v2-alert"><Alert tone="error" title="Action required">Review unresolved scheduling items before publishing.</Alert></div>}
         <div className="dashboard-v2-subheading"><div><p className="dashboard-v2-panel__eyebrow">School structure</p><h3>Configuration health</h3></div><Link to="/setup/school">Manage →</Link></div>
         <div className="dashboard-v2-structure">
-          <Link to="/setup/academic-years"><span>Academic years</span><strong>{yearsQuery.data?.length ?? 0}</strong><small>{currentYear?.name || 'Not set'}</small></Link>
-          <Link to="/setup/academic-years"><span>Terms</span><strong>{termsQuery.data?.length ?? 0}</strong><small>{currentTerm?.name || 'Not set'}</small></Link>
-          <Link to="/setup/levels"><span>Levels</span><strong>{uniqueEducationLevels(levelsQuery.data ?? []).length}</strong><small>Configured education levels</small></Link>
-          <Link to="/setup/school"><span>School</span><strong>{school?.is_active !== false ? 'Active' : 'Inactive'}</strong><small>{school?.code || 'Profile setup'}</small></Link>
+          <Link to="/setup/school"><span>School profile</span><strong>{schoolQuery.loading ? '…' : school?.name ? 'Configured' : 'Needs setup'}</strong><small>{school?.name || 'Complete school details'}</small></Link>
+          <Link to="/students"><span>Student records</span><strong>{studentsQuery.loading ? '…' : studentsQuery.data?.total ?? 0}</strong><small>{studentsQuery.error ? 'Count unavailable' : 'Learner records'}</small></Link>
+          <Link to="/finance/fee-structures"><span>Fee structures</span><strong>{feeStructuresQuery.loading ? '…' : feeStructuresQuery.data?.length ?? 0}</strong><small>{feeStructuresQuery.error ? 'Status unavailable' : (feeStructuresQuery.data?.filter(item => /active|published/i.test(item.status)).length ?? 0) + ' active or published'}</small></Link>
+          <Link to="/setup/academic-years"><span>Academic calendar</span><strong>{currentYear && currentTerm ? 'Configured' : 'Review'}</strong><small>{currentYear?.name || 'Year not set'} · {currentTerm?.name || 'Term not set'}</small></Link>
         </div>
       </article>
     </section>
