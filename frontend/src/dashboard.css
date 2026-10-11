@@ -224,3 +224,10 @@
 .dashboard-v2 .dashboard-v2-quick__links small { font-size:.625rem; }
 @media (max-width:900px) { .dashboard-v2 .dashboard-v2-cards { grid-template-columns:repeat(2,minmax(0,1fr)); } .dashboard-v2 .dashboard-v2-panels { grid-template-columns:1fr; } }
 @media (max-width:520px) { .dashboard-v2 .dashboard-v2-cards { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; } .dashboard-v2 .dashboard-v2-card { padding:.7rem; } .dashboard-v2 .dashboard-v2-card__value { font-size:1.4rem; } .dashboard-v2 .dashboard-v2-panel { padding:.8rem; } .dashboard-v2 .dashboard-v2-finance { gap:.35rem; } .dashboard-v2 .dashboard-v2-finance>div { padding:.45rem; } .dashboard-v2 .dashboard-v2-finance strong { font-size:.72rem; } .dashboard-v2 .dashboard-v2-progress-meta { font-size:.58rem; } .dashboard-v2 .dashboard-v2-activity__item { flex-wrap:wrap; } .dashboard-v2 .dashboard-v2-activity__status { margin-left:1.1rem; } .dashboard-v2 .dashboard-v2-quick__links { grid-template-columns:1fr; } }
+
+/* School welcome message replaces the profile-completion prompt. */
+.dashboard-v2-welcome { margin:0 0 1.15rem; padding:1rem 1.3rem; border:1px solid #dce5f4; border-radius:1rem; background:linear-gradient(115deg,#f4f7ff,#f0faf7); color:#172d55; }
+.dashboard-v2-welcome__eyebrow { margin:0; color:#536b96; font-size:.68rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.dashboard-v2-welcome h2 { margin:.25rem 0 0; font-size:clamp(1.15rem,2vw,1.5rem); line-height:1.3; font-weight:850; overflow-wrap:anywhere; }
+.dashboard-v2-welcome__title { margin:.15rem 0 0; font-size:.9rem; font-weight:700; }
+.dashboard-v2-welcome__motto { margin:.45rem 0 0; color:#39725f; font-size:.88rem; font-style:italic; }
