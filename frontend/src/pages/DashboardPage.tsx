@@ -80,7 +80,7 @@ export function DashboardPage() {
     {error && <Alert tone="error" title="Scheduling summary could not load">{error} <button type="button" className="link" onClick={reload}>Try again</button></Alert>}
     <section className="dashboard-v2-welcome" aria-label="School welcome">
       <p className="dashboard-v2-welcome__eyebrow">Welcome</p>
-      <h2>Welcome, {school?.email || 'your school'} to Phikila School Management System</h2>
+      <h2>Welcome, {user?.email || school?.email || 'School'} to Phikila School Management System</h2>
       {school?.motto && <p className="dashboard-v2-welcome__motto">“{school.motto}”</p>}
     </section>
     {data && !data.solver_available && <Alert tone="error" title="Scheduling engine unavailable">Timetables cannot be generated until the optimisation engine is installed on the server.</Alert>}
