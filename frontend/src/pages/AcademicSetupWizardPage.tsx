@@ -6,8 +6,8 @@ import { useToast } from '../components/Toast'
 import { api, friendlyApiError, type AcademicYear, type Grade, type Level, type Stream, type Term, uniqueEducationLevels } from '../lib/api'
 
 const steps = ['Academic Year', 'Term', 'Level', 'Grade', 'Stream (optional)']
-type FormState = { yearId:string; yearName:string; startDate:string; endDate:string; termId:string; termName:string; termStartDate:string; termEndDate:string; levelId:string; gradeId:string; gradeName:string; gradeCode:string; streamName:string; streamCode:string }
-const initialForm:FormState={yearId:'',yearName:'',startDate:'',endDate:'',termId:'',termName:'',termStartDate:'',termEndDate:'',levelId:'',gradeId:'',gradeName:'',gradeCode:'',streamName:'',streamCode:''}
+type FormState = { yearId:string; yearName:string; startDate:string; endDate:string; termId:string; termName:string; termStartDate:string; termEndDate:string; levelId:string; newLevelName:string; newLevelCode:string; gradeId:string; gradeName:string; gradeCode:string; streamName:string; streamCode:string }
+const initialForm:FormState={yearId:'',yearName:'',startDate:'',endDate:'',termId:'',termName:'',termStartDate:'',termEndDate:'',levelId:'',newLevelName:'',newLevelCode:'',gradeId:'',gradeName:'',gradeCode:'',streamName:'',streamCode:''}
 const allowedLevels = ['Pre Primary','Pre-Primary School','Primary','Primary School','Junior School','Senior School']
 const levelRank = (name:string, order?:number|null) => Number.isFinite(Number(order)) ? Number(order) : (allowedLevels.findIndex(x=>x.toLowerCase()===name.trim().toLowerCase())+100)
 
@@ -43,12 +43,12 @@ export function AcademicSetupWizardPage(){
   setForm(v=>y?{...v,yearId:String(y.id),yearName:y.name,startDate:y.start_date,endDate:y.end_date,termId:'',termName:'',termStartDate:'',termEndDate:'',streamName:'',streamCode:''}:{...v,yearId:'',yearName:'',startDate:'',endDate:'',termId:'',termName:'',termStartDate:'',termEndDate:'',streamName:'',streamCode:''})
  }
  function selectTerm(id:string){const t=terms.find(x=>String(x.id)===id);setForm(v=>t?{...v,termId:String(t.id),termName:t.name,termStartDate:t.start_date||'',termEndDate:t.end_date||''}:{...v,termId:'',termName:'',termStartDate:'',termEndDate:''})}
- function selectLevel(id:string){setForm(v=>({...v,levelId:id,gradeId:'',gradeName:'',gradeCode:'',streamName:'',streamCode:''}))}
+ function selectLevel(id:string){setForm(v=>({...v,levelId:id,newLevelName:'',newLevelCode:'',gradeId:'',gradeName:'',gradeCode:'',streamName:'',streamCode:''}))}
  function selectGrade(id:string){const grade=grades.find(g=>String(g.id)===id);setForm(v=>({...v,gradeId:id,gradeName:grade?.name||'',gradeCode:grade?.code||'',streamName:'',streamCode:''}))}
  function validate(){
   if(step===0&&!form.yearId&&(!form.yearName.trim()||!form.startDate||!form.endDate))throw Error('Select an academic year or enter the year and its dates.')
   if(step===1&&!form.termId&&(!form.termName.trim()||!form.termStartDate||!form.termEndDate))throw Error('Select a term or enter the term and its dates.')
-  if(step===2&&!form.levelId)throw Error('Select a level.')
+  if(step===2&&!form.levelId&&(!form.newLevelName.trim()||!form.newLevelCode.trim()))throw Error('Select an existing level or enter a level name and code.')
   if(step===3&&!form.gradeId&&(!form.gradeName.trim()||!form.gradeCode.trim()))throw Error('Select an existing grade or enter a grade name and code.')
  }
  async function saveYear():Promise<AcademicYear|null>{
@@ -60,6 +60,14 @@ export function AcademicSetupWizardPage(){
   if(form.termId)return terms.find(t=>String(t.id)===form.termId)||null
   const t=await api.createTerm({name:form.termName.trim(),start_date:form.termStartDate,end_date:form.termEndDate,is_current:false,academic_year_id:yearId})
   setTerms(v=>[...v,t]);setForm(v=>({...v,termId:String(t.id)}));return t
+ }
+ async function saveLevel():Promise<Level>{
+  if(form.levelId){const existing=levels.find(l=>String(l.id)===form.levelId);if(existing)return existing;throw Error('The selected level could not be found.')}
+  const name=form.newLevelName.trim();const code=form.newLevelCode.trim().toUpperCase()
+  const duplicate=levels.find(l=>l.name.trim().toLowerCase()===name.toLowerCase()||l.code.trim().toLowerCase()===code.toLowerCase())
+  if(duplicate)throw Error(`A level named "${duplicate.name}" or code "${duplicate.code}" already exists. Select the existing level instead.`)
+  const created=await api.createLevel({name,code,display_order:levels.length+1,status:'ACTIVE'})
+  setLevels(v=>uniqueEducationLevels([...v,created]));setForm(v=>({...v,levelId:String(created.id),newLevelName:'',newLevelCode:''}));return created
  }
  async function finish(){
   setSaving(true);setError(null)
@@ -95,6 +103,7 @@ export function AcademicSetupWizardPage(){
    if(step<steps.length-1){
     if(step===0){const year=await saveYear();if(!year&&!form.yearId)throw Error('The academic year could not be resolved.')}
     if(step===1){const yearId=Number(form.yearId);if(!yearId)throw Error('Select an academic year first.');await saveTerm(yearId)}
+    if(step===2)await saveLevel()
     setStep(v=>v+1)
    }else await finish()
   }catch(e){setError(friendlyApiError(e,'continue academic setup'))}
@@ -107,10 +116,10 @@ export function AcademicSetupWizardPage(){
  const yearName=(yearId?:number|null)=>years.find(y=>Number(y.id)===Number(yearId))?.name||'—'
  const termsForYear=(yearId?:number|null)=>terms.filter(t=>Number(t.academic_year_id)===Number(yearId)).map(t=>t.name).join(', ')||'—'
  const visibleGrades=[...grades].filter(g=>!form.levelId||g.level_id===Number(form.levelId)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}))
- return <><PageHeader title="Academic setup" description="Configure Academic Year → Term → Level → Grade. Add a stream only when your school uses streams." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Academic setup'}]}/>{error&&<Alert tone="error" title="Setup could not continue">{error}</Alert>}<section className="card section"><div className="chip-list" aria-label="Setup progress">{steps.map((label,i)=><Badge key={label} tone={i===step?'success':undefined}>{i+1}. {label}</Badge>)}</div>{loading?<p>Loading setup options…</p>:<form className="form" onSubmit={e=>{e.preventDefault();void next()}}><h2 className="section__title">Step {step+1}: {steps[step]}</h2>
+ return <><PageHeader title="Academic setup" description="Configure Academic Year → Term → Level → Grade. Create a level if needed; streams are optional." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Academic setup'}]}/>{error&&<Alert tone="error" title="Setup could not continue">{error}</Alert>}<section className="card section"><div className="chip-list" aria-label="Setup progress">{steps.map((label,i)=><Badge key={label} tone={i===step?'success':undefined}>{i+1}. {label}</Badge>)}</div>{loading?<p>Loading setup options…</p>:<form className="form" onSubmit={e=>{e.preventDefault();void next()}}><h2 className="section__title">Step {step+1}: {steps[step]}</h2>
  {step===0&&<><label className="label">Academic year</label><select className="input" value={form.yearId} onChange={e=>selectYear(e.target.value)}><option value="">Create new…</option>{years.map(y=><option key={y.id} value={y.id}>{y.name}</option>)}</select>{!form.yearId&&<div className="form form--grid"><input className="input" placeholder="2026/2027" value={form.yearName} onChange={e=>setForm(v=>({...v,yearName:e.target.value}))}/><input className="input" type="date" value={form.startDate} onChange={e=>setForm(v=>({...v,startDate:e.target.value}))}/><input className="input" type="date" value={form.endDate} onChange={e=>setForm(v=>({...v,endDate:e.target.value}))}/></div>}</>}
  {step===1&&<><label className="label">Term</label><select className="input" value={form.termId} onChange={e=>selectTerm(e.target.value)}><option value="">Create new…</option>{terms.filter(t=>Number(t.academic_year_id)===Number(form.yearId)).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select>{!form.termId&&<div className="form form--grid"><input className="input" placeholder="Term 1" value={form.termName} onChange={e=>setForm(v=>({...v,termName:e.target.value}))}/><input className="input" type="date" value={form.termStartDate} onChange={e=>setForm(v=>({...v,termStartDate:e.target.value}))}/><input className="input" type="date" value={form.termEndDate} onChange={e=>setForm(v=>({...v,termEndDate:e.target.value}))}/></div>}</>}
- {step===2&&<><label className="label">Education level</label><select className="input" value={form.levelId} onChange={e=>selectLevel(e.target.value)}><option value="">Select level…</option>{levels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select><small>Choose the level that owns the grade.</small></>}
+ {step===2&&<><label className="label">Education level</label><select className="input" value={form.levelId} onChange={e=>selectLevel(e.target.value)}><option value="">Create a new level…</option>{levels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select>{!form.levelId&&<div className="form form--grid"><label className="form-field"><span className="label">Level name</span><input className="input" placeholder="Primary School" value={form.newLevelName} onChange={e=>setForm(v=>({...v,newLevelName:e.target.value}))}/></label><label className="form-field"><span className="label">Level code</span><input className="input" placeholder="PRI" value={form.newLevelCode} onChange={e=>setForm(v=>({...v,newLevelCode:e.target.value.toUpperCase()}))}/></label></div>}<small>Select an existing level or create one. The grade will be attached to this level.</small></>}
  {step===3&&<><label className="label">Existing grade (optional)</label><select className="input" value={form.gradeId} onChange={e=>selectGrade(e.target.value)}><option value="">Create a new grade…</option>{visibleGrades.map(g=><option key={g.id} value={g.id}>{g.name} ({g.code})</option>)}</select>{!form.gradeId&&<div className="form form--grid"><label className="form-field"><span className="label">Grade name</span><input className="input" placeholder="Grade 5" value={form.gradeName} onChange={e=>setForm(v=>({...v,gradeName:e.target.value}))}/></label><label className="form-field"><span className="label">Grade code</span><input className="input" placeholder="G5" value={form.gradeCode} onChange={e=>setForm(v=>({...v,gradeCode:e.target.value.toUpperCase()}))}/></label></div>}<small>Grades belong to an education level and do not need a stream.</small></>}
  {step===4&&<><label className="label">Stream name <span>(optional)</span></label><input className="input" placeholder="A — leave blank if this grade has no streams" value={form.streamName} onChange={e=>setForm(v=>({...v,streamName:e.target.value}))}/>{form.streamName.trim()&&<><label className="label">Stream code <span>(optional)</span></label><input className="input" placeholder="A" value={form.streamCode} onChange={e=>setForm(v=>({...v,streamCode:e.target.value.toUpperCase()}))}/></>}<small>Leave both fields empty to save the grade without creating a stream.</small><div className="card" style={{padding:'1rem'}}><p><strong>Academic year:</strong> {selectedYear?.name||form.yearName}</p><p><strong>Term:</strong> {selectedTerm?.name||form.termName}</p><p><strong>Level:</strong> {selectedLevel?.name||'—'}</p><p><strong>Grade:</strong> {selectedGrade?.name||form.gradeName}</p><p><strong>Stream:</strong> {form.streamName.trim()||'None (optional)'}</p></div></>}
  <div className="form__row"><button type="button" className="button button--ghost" disabled={step===0||saving} onClick={()=>setStep(v=>Math.max(0,v-1))}>Previous</button><button className="button button--primary" disabled={saving}>{saving?'Saving…':step===steps.length-1?'Save Academic Setup':'Save & Next'}</button></div></form>}</section>
