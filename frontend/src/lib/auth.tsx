@@ -29,6 +29,7 @@ export type AuthUser = {
   id: string
   email: string | null
   user_metadata?: Record<string, unknown> | null
+  app_metadata?: Record<string, unknown> | null
 }
 
 export type AuthSession = {

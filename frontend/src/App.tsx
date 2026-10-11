@@ -10,6 +10,7 @@ import { LoginPage } from './pages/LoginPage'
 import { SignUpPage } from './pages/SignUpPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { InitialPasswordPage } from './pages/InitialPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const TimetablePage = lazy(() => import('./pages/EnhancedTimetablePage').then(m => ({ default: m.EnhancedTimetablePage })))
@@ -213,8 +214,11 @@ function NormalLayout({ pathname }: { pathname: string }) {
 
 function ProtectedRoutes({ pathname }: { pathname: string }) {
   const isWholeSchool = normalisePath(pathname) === '/timetable/whole-school'
-  const { session: platformSession } = usePlatformSession()
+  const { session: platformSession, loading: platformSessionLoading, error: platformSessionError } = usePlatformSession()
+  const { session: authSession } = useAuth()
   const path = normalisePath(pathname)
+  if (authSession && (platformSessionLoading || (!platformSessionError && platformSession?.user_id !== authSession.user.id))) return <FullPageLoader label="Verifying account setup…" />
+  if (authSession?.user.app_metadata?.must_change_password || platformSession?.must_change_password) return <InitialPasswordPage />
   const requiredModule = path.startsWith('/scheduling/copilot') ? 'ai_tools' : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
     : path.startsWith('/setup/teachers') ? 'staff'
     : path.startsWith('/attendance') ? 'attendance'
