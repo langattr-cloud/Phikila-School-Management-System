@@ -62,13 +62,19 @@ const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').t
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { session, initialising } = useAuth()
+  const { session, user, initialising } = useAuth()
   const { pathname, search, hash } = useRouter()
   const navigate = useNavigate()
   useEffect(() => {
-    if (initialising || session) return
-    navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true })
-  }, [initialising, session, pathname, search, hash, navigate])
+    if (initialising) return
+    if (!session) {
+      navigate(`/login?notice=session-expired&next=${encodeURIComponent(`${pathname}${search}${hash}`)}`, { replace: true })
+      return
+    }
+    if (user?.user_metadata?.must_change_password === true && pathname !== '/reset-password') {
+      navigate('/reset-password?notice=first-login-password', { replace: true })
+    }
+  }, [initialising, session, user, pathname, search, hash, navigate])
   if (initialising) return <FullPageLoader label="Restoring your session…" />
   if (!session) return <FullPageLoader label="Redirecting to sign in…" />
   return <>{children}</>

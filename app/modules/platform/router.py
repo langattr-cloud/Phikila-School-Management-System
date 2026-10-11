@@ -743,7 +743,7 @@ def _invite_supabase_user(email: str) -> str:
         )
     return str(user_id)
 
-def _create_supabase_user_with_temporary_password(email: str) -> tuple[str, str]:
+def _create_supabase_user_with_temporary_password(email: str, phone: str) -> tuple[str, str]:
     """Create a confirmed Supabase Auth account without sending an email."""
     service_key = settings.supabase_service_role_key
     if not settings.supabase_url or not service_key:
@@ -751,12 +751,12 @@ def _create_supabase_user_with_temporary_password(email: str) -> tuple[str, str]
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "Manual account creation is not configured. Ask the platform operator to configure Supabase server credentials.",
         )
-    temporary_password = secrets.token_urlsafe(18)
+    temporary_password = phone
     try:
         response = requests.post(
             f"{settings.supabase_url}/auth/v1/admin/users",
             headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
-            json={"email": email, "password": temporary_password, "email_confirm": True},
+            json={"email": email, "password": temporary_password, "email_confirm": True, "user_metadata": {"must_change_password": True}},
             timeout=12,
         )
     except requests.RequestException:
@@ -783,20 +783,20 @@ def _create_supabase_user_with_temporary_password(email: str) -> tuple[str, str]
     return str(user_id), temporary_password
 
 
-def _reset_supabase_user_password(user_id: str) -> str:
-    """Generate a one-time password for an existing Auth user."""
+def _reset_supabase_user_password(user_id: str, phone: str) -> str:
+    """Set the supplied phone number as a one-time password for an existing Auth user."""
     service_key = settings.supabase_service_role_key
     if not settings.supabase_url or not service_key:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "Manual password reset is not configured. Ask the platform operator to configure Supabase server credentials.",
         )
-    temporary_password = secrets.token_urlsafe(18)
+    temporary_password = phone
     try:
         response = requests.put(
             f"{settings.supabase_url}/auth/v1/admin/users/{user_id}",
             headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
-            json={"password": temporary_password, "email_confirm": True},
+            json={"password": temporary_password, "email_confirm": True, "user_metadata": {"must_change_password": True}},
             timeout=12,
         )
     except requests.RequestException:
@@ -837,10 +837,10 @@ def add_administrator(
     created_account = False
     existing_account = False
 
-    # For no-email credentials, Supabase Auth is the source of truth. Local
-    # membership/access-request rows can be stale, so they must not prevent
-    # account creation. Never replace the password of an existing account
-    # without a separate, explicit password-reset action.
+    # For phone-based temporary credentials, Supabase Auth is the source of truth.
+    # Local membership/access-request rows can be stale, so they must not prevent
+    # account creation. Choosing this mode explicitly resets the password to the
+    # supplied phone number and requires a permanent password at first sign-in.
     if payload.delivery_method == "temporary_password":
         user_id = _find_registered_supabase_user_id(email)
         if user_id is not None:
@@ -848,9 +848,9 @@ def add_administrator(
             # This mode explicitly asks for a usable offline-delivered
             # credential, so rotate the existing account password and return
             # it once for the operator to share privately.
-            temporary_password = _reset_supabase_user_password(user_id)
+            temporary_password = _reset_supabase_user_password(user_id, payload.phone)
         else:
-            user_id, temporary_password = _create_supabase_user_with_temporary_password(email)
+            user_id, temporary_password = _create_supabase_user_with_temporary_password(email, payload.phone)
             created_account = True
     else:
         known = (

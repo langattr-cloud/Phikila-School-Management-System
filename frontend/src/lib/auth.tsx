@@ -12,7 +12,7 @@ import { friendlyAuthError } from './authErrors'
 import { apiFetch } from './api'
 import { clearLocalSession, getLocalSession, localSignIn } from './localAuth'
 
-export type AuthResult = { ok: true; message?: string } | { ok: false; message: string }
+export type AuthResult = { ok: true; message?: string; requiresPasswordChange?: boolean } | { ok: false; message: string }
 
 /**
  * What a new user *asks* for at signup. It is only ever a request: the server
@@ -169,14 +169,14 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = useCallback<AuthContextValue['signIn']>(async (email, password) => {
-    const { error } = await supabase!.auth.signInWithPassword({
+    const { data, error } = await supabase!.auth.signInWithPassword({
       email: email.trim(),
       password,
     })
     if (error) {
       return { ok: false, message: friendlyAuthError(error, 'We could not sign you in. Please try again.') }
     }
-    return { ok: true }
+    return { ok: true, requiresPasswordChange: data.user?.user_metadata?.must_change_password === true }
   }, [])
 
   const signUp = useCallback<AuthContextValue['signUp']>(
@@ -265,7 +265,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   )
 
   const updatePassword = useCallback<AuthContextValue['updatePassword']>(async (password) => {
-    const { error } = await supabase!.auth.updateUser({ password })
+    const { error } = await supabase!.auth.updateUser({ password, data: { must_change_password: false } })
     if (error) {
       return {
         ok: false,

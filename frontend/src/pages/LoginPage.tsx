@@ -60,6 +60,10 @@ export function LoginPage() {
       setFormError(result.message)
       return
     }
+    if (result.requiresPasswordChange) {
+      navigate('/reset-password?notice=first-login-password', { replace: true })
+      return
+    }
     navigate(nextPath.startsWith('/') ? nextPath : '/', { replace: true })
     notify('Signed in successfully.', 'success')
   }

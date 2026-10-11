@@ -4,7 +4,7 @@ import { Alert } from '../components/Alert'
 import { PasswordField } from '../components/Field'
 import { Spinner } from '../components/States'
 import { useAuth } from '../lib/auth'
-import { Link, useNavigate } from '../lib/router'
+import { Link, useNavigate, useSearchParams } from '../lib/router'
 import { assessPassword, MINIMUM_PASSWORD_LENGTH } from '../lib/password'
 import { supabase } from '../lib/supabase'
 import { useToast } from '../components/Toast'
@@ -12,6 +12,8 @@ import { useToast } from '../components/Toast'
 export function ResetPasswordPage() {
   const { session, initialising, updatePassword } = useAuth()
   const navigate = useNavigate()
+  const params = useSearchParams()
+  const firstLogin = params.get('notice') === 'first-login-password'
   const { notify } = useToast()
 
   const [password, setPassword] = useState('')
@@ -90,7 +92,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <AuthLayout title="Choose a new password" subtitle="Set a new password for your account.">
+    <AuthLayout title={firstLogin ? "Create your permanent password" : "Choose a new password"} subtitle={firstLogin ? "For your security, replace your phone-number temporary password before continuing." : "Set a new password for your account."}>
       {formError && (
         <Alert tone="error" title="We could not update your password">
           {formError}
