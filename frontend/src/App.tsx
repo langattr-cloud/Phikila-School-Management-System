@@ -36,7 +36,6 @@ const CopilotPage = lazy(() => import('./pages/CopilotPage').then(m => ({ defaul
 const StudentsOverviewPage = lazy(() => import('./pages/StudentsOverviewPage').then(m => ({ default: m.default })))
 const StudentsPage = lazy(() => import('./pages/Students').then(m => ({ default: m.default })))
 const StudentImportPage = lazy(() => import('./pages/StudentImportPage').then(m => ({ default: m.default })))
-const AttendancePage = lazy(() => import('./pages/Attendance').then(m => ({ default: m.default })))
 const ExaminationDashboardPage = lazy(() => import('./pages/ExaminationDashboardPage').then(m => ({ default: m.default })))
 const ExaminationsPage = lazy(() => import('./pages/Examinations').then(m => ({ default: m.default })))
 const ExaminationSetupPage = lazy(() => import('./pages/ExaminationSetupPage').then(m => ({ default: m.default })))
@@ -183,7 +182,6 @@ function routeFor(pathname: string): ReactNode {
     case '/students': return <StudentsOverviewPage />
     case '/students/list': return <StudentsPage />
     case '/students/import': return <StudentImportPage />
-    case '/attendance': return <AttendancePage />
     case '/examinations': return <ExaminationDashboardPage />
     case '/examinations/setup': return <ExaminationSetupPage />
     case '/examinations/legacy-setup': return <ExaminationsPage />
@@ -223,7 +221,6 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
   const path = normalisePath(pathname)
   const requiredModule = path.startsWith('/scheduling/copilot') ? 'ai_tools' : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
     : path.startsWith('/setup/teachers') ? 'staff'
-    : path.startsWith('/attendance') ? 'attendance'
     : path.startsWith('/examinations') ? 'examinations'
     : path.startsWith('/finance') ? 'finance'
     : path.startsWith('/timetable') || path.startsWith('/my-timetable') || path.startsWith('/scheduling') || path.startsWith('/versions') || path.startsWith('/analytics') || path.startsWith('/setup/rooms') ? 'timetable'

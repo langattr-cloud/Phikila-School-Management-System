@@ -39,6 +39,8 @@ export type AcademicYear={id:number;name:string;start_date:string;end_date:strin
 export type Term={id:number;name:string;start_date?:string|null;end_date?:string|null;is_current:boolean;academic_year_id:number;school_id:number}
 export type LevelStatus='ACTIVE'|'INACTIVE'|'ARCHIVED'|boolean
 export type Level={id:number;name:string;code:string;display_order:number;status?:LevelStatus|null;school_id:number}
+export function canonicalLevelName(name:string):string { const key=name.trim().toLowerCase().replace(/[^a-z0-9]/g,''); if(key==='preprimary'||key==='preprimaryschool')return 'Pre-Primary School'; if(key==='primary'||key==='primaryschool')return 'Primary School'; if(key==='junior'||key==='juniorschool')return 'Junior School'; if(key==='senior'||key==='seniorschool')return 'Senior School'; return name.trim() }
+export function uniqueEducationLevels(levels:Level[]):Level[] { const chosen=new Map<string,Level>(); for(const level of levels){const canonical=canonicalLevelName(level.name);const current=chosen.get(canonical);if(!current||level.name.trim().toLowerCase()===canonical.toLowerCase()&&current.name.trim().toLowerCase()!==canonical.toLowerCase())chosen.set(canonical,level)} return [...chosen.values()].sort((a,b)=>a.display_order-b.display_order||canonicalLevelName(a.name).localeCompare(canonicalLevelName(b.name))) }
 export type Grade={id:number;name:string;code:string;status?:boolean|null;school_id:number;level_id:number}
 export type SchoolClassSetup={id:number;school_id:number;name:string;code:string;level_id?:number|null;academic_year_id?:number|null;status?:string|null;school_class_id?:number|null}
 export type StreamStatus='ACTIVE'|'INACTIVE'|'ARCHIVED'

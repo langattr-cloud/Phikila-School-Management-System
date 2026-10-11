@@ -28,9 +28,9 @@ const PLATFORM_NAV: NavGroup = {
 
 const NAV: NavGroup[] = [
   { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }, { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> }, { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> }] },
-  { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> }, { to: '/setup/levels', label: 'Levels', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Level, Grade & Stream', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }, { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> }] },
+  { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> }, { to: '/setup/academic-setup', label: 'Level, Grade & Stream', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }, { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> }] },
   { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> }] },
-  { label: 'Operations', items: [{ to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> }, { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
+  { label: 'Operations', items: [{ to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
   { label: 'Examination', items: [{ to: '/examinations', label: 'Examination', icon: <StackedLayersIcon /> }] },
   { label: 'Scheduling', items: [{ to: '/scheduling/requirements', label: 'Teaching Allocations', icon: <LayersIcon /> }, { to: '/scheduling/constraints', label: 'Constraints', icon: <CheckIcon /> }, { to: '/scheduling/generate', label: 'Generate timetable', icon: <SparkIcon /> }, { to: '/scheduling/copilot', label: 'Copilot', icon: <SparkIcon /> }] },
   { label: 'Tools & insights', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }, { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> }, { to: '/versions', label: 'Versions', icon: <SchoolIcon /> }] },
@@ -40,7 +40,6 @@ const BOTTOM_NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: <DashboardIcon /> },
   { to: '/students', label: 'Students', icon: <UserIcon /> },
   { to: '/setup/academic-years', label: 'Academics', icon: <LayersIcon /> },
-  { to: '/attendance', label: 'Attendance', icon: <CheckIcon /> },
   { to: '/my-timetable', label: 'Mine', icon: <UserIcon /> },
 ]
 
@@ -61,7 +60,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (to.startsWith('/platform/')) return null
     if (to.startsWith('/students')) return 'students'
     if (to.startsWith('/setup/teachers')) return 'staff'
-    if (to.startsWith('/attendance')) return 'attendance'
     if (to.startsWith('/examinations')) return 'examinations'
     if (to.startsWith('/finance')) return 'finance'
     if (to.startsWith('/scheduling/copilot')) return 'ai_tools'
