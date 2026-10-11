@@ -99,7 +99,7 @@ def create_app() -> FastAPI:
     ):
         _guard_module_routes(finance_module_router, "finance")
     for scheduling_module_router in (
-        calendar_router, scheduling_dashboard_router, timetable_projects_router,
+        calendar_router, timetable_projects_router,
         timetable_profile_router, timetable_types_router, scheduling_router,
         timetable_read_router, timetable_events_router,
     ):

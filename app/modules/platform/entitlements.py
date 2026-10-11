@@ -20,7 +20,9 @@ MODULES = {
     "ai_tools": {"label": "AI Tools", "description": "AI-powered assistance and analysis"},
 }
 
-DEFAULT_ENABLED_MODULES = {"students", "staff", "attendance", "examinations"}
+# Core modules needed for a usable school account, including the dashboard's
+# scheduling summary. Optional paid/specialist modules remain opt-in.
+DEFAULT_ENABLED_MODULES = {"students", "staff", "attendance", "examinations", "timetable"}
 
 
 class TtSchoolModuleEntitlement(Base):

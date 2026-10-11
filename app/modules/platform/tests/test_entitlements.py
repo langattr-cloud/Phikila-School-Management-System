@@ -12,9 +12,9 @@ class EntitlementTests(unittest.TestCase):
             "timetable", "library", "transport", "parent_portal", "ai_tools",
         })
 
-    def test_requested_starter_set_enables_only_four_modules(self):
+    def test_requested_starter_set_includes_dashboard_modules_only(self):
         self.assertEqual(DEFAULT_ENABLED_MODULES, {
-            "students", "staff", "attendance", "examinations",
+            "students", "staff", "attendance", "examinations", "timetable",
         })
         self.assertTrue(DEFAULT_ENABLED_MODULES < set(MODULES))
 
@@ -24,6 +24,7 @@ class EntitlementTests(unittest.TestCase):
 
     def test_unconfigured_school_uses_requested_starter_defaults(self):
         self.assertTrue(module_enabled(_DB(), 7, "students"))
+        self.assertTrue(module_enabled(_DB(), 7, "timetable"))
         self.assertFalse(module_enabled(_DB(), 7, "finance"))
 
 
