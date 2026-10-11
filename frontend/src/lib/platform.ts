@@ -70,6 +70,7 @@ export type SchoolModuleAccess = { school_id: number; school_name: string; modul
 export type SchoolUser = {
   user_id: string
   email: string | null
+  phone: string | null
   role: string
   is_active: boolean
   created_at: string
