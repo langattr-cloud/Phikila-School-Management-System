@@ -33,6 +33,7 @@ class Identity:
     user_id: str
     email: str | None
     is_super_admin: bool
+    must_change_password: bool = False
     # school_id -> role, from active membership rows.
     memberships: dict[int, str] = field(default_factory=dict)
 
@@ -96,6 +97,7 @@ def resolve_identity(
         user_id=user_id,
         email=claims.get("email"),
         is_super_admin=admin_row is not None,
+        must_change_password=bool((claims.get("app_metadata") or {}).get("must_change_password")),
         memberships=memberships,
     )
 
