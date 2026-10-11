@@ -86,7 +86,8 @@ class SchoolPatch(BaseModel):
 class AdministratorIn(BaseModel):
     email: EmailStr
     role: str = "admin"
-    delivery_method: Literal["email_invite", "temporary_password"] = "email_invite"
+    delivery_method: Literal["email_invite", "temporary_password", "phone_temporary_password"] = "email_invite"
+    phone_number: str | None = Field(default=None, min_length=7, max_length=24)
 
     @field_validator("role")
     @classmethod
@@ -94,6 +95,16 @@ class AdministratorIn(BaseModel):
         if value not in GRANTABLE_ROLES:
             raise ValueError(f"Role must be one of: {', '.join(GRANTABLE_ROLES)}")
         return value
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = re.sub(r"[\\s().-]", "", value)
+        if not re.fullmatch(r"\\+?[0-9]{7,15}", cleaned):
+            raise ValueError("Enter a phone number with 7–15 digits, optionally starting with +.")
+        return cleaned
 
 
 class AccessRequestIn(BaseModel):
@@ -224,6 +235,7 @@ def session(
         "user_id": identity.user_id,
         "email": identity.email,
         "is_super_admin": identity.is_super_admin,
+        "must_change_password": identity.must_change_password,
         "enabled_modules": enabled_modules,
         "schools": schools,
         "has_access": bool(identity.is_super_admin or identity.memberships),
@@ -827,13 +839,41 @@ def add_administrator(
     # membership/access-request rows can be stale, so they must not prevent
     # account creation. Never replace the password of an existing account
     # without a separate, explicit password-reset action.
-    if payload.delivery_method == "temporary_password":
+    if payload.delivery_method in {"temporary_password", "phone_temporary_password"}:
+        if payload.delivery_method == "phone_temporary_password" and not payload.phone_number:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A registered phone number is required for phone-based first login.")
         user_id = _find_registered_supabase_user_id(email)
-        if user_id is not None:
+        if payload.delivery_method == "phone_temporary_password":
+            temporary_password = payload.phone_number
+            service_key = settings.supabase_service_role_key
+            if not settings.supabase_url or not service_key:
+                raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Manual account setup is not configured.")
+            user_payload = {"password": temporary_password, "email_confirm": True, "app_metadata": {"must_change_password": True}}
+            if user_id is None:
+                user_payload["email"] = email
+                endpoint = f"{settings.supabase_url}/auth/v1/admin/users"
+                method = requests.post
+            else:
+                existing_account = True
+                endpoint = f"{settings.supabase_url}/auth/v1/admin/users/{user_id}"
+                method = requests.put
+            try:
+                response = method(endpoint, headers={"Authorization": f"Bearer {service_key}", "apikey": service_key}, json=user_payload, timeout=12)
+            except requests.RequestException:
+                raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Could not reach the authentication service. Try again later.") from None
+            if response.status_code not in (200, 201):
+                raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The authentication service could not configure this account.")
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            user = body.get("user") or body
+            user_id = user.get("id") if isinstance(user, dict) else user_id
+            if not user_id:
+                raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The authentication service did not return an account ID.")
+            created_account = not existing_account
+        elif user_id is not None:
             existing_account = True
-            # This mode explicitly asks for a usable offline-delivered
-            # credential, so rotate the existing account password and return
-            # it once for the operator to share privately.
             temporary_password = _reset_supabase_user_password(user_id)
         else:
             user_id, temporary_password = _create_supabase_user_with_temporary_password(email)
@@ -882,7 +922,7 @@ def add_administrator(
     db.commit()
 
     # Avoid email delivery when a temporary password was explicitly requested.
-    if not invited and not created_account:
+    if not invited and not created_account and payload.delivery_method != "phone_temporary_password":
         try:
             email_service.send_role_assigned_email(
                 to=email,
@@ -901,7 +941,8 @@ def add_administrator(
         "created_account": created_account,
         "existing_account": existing_account,
         "password_reset": existing_account and temporary_password is not None,
-        "temporary_password": temporary_password,
+        "temporary_password": temporary_password if payload.delivery_method != "phone_temporary_password" else None,
+        "initial_password_set": payload.delivery_method == "phone_temporary_password",
     }
 
 
