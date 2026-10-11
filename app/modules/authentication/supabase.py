@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 import requests
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from jwt import PyJWKClient
@@ -81,7 +81,25 @@ def _verify_with_supabase_auth_api(token: str) -> dict[str, Any] | None:
         return None
 
 
+def _enforce_initial_password_gate(claims: dict[str, Any], request: Request) -> None:
+    """Keep first-login accounts out of protected APIs until they set a password."""
+    metadata = claims.get("app_metadata") or {}
+    if not metadata.get("must_change_password"):
+        return
+    allowed_paths = {
+        "/api/v1/auth/me",
+        "/api/v1/auth/complete-initial-password",
+        "/api/v1/platform/session",
+    }
+    if request.url.path not in allowed_paths:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Set your personal password before accessing school features.",
+        )
+
+
 def get_supabase_claims(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> dict[str, Any]:
     """Validate the caller's access token and return its claims."""
@@ -105,6 +123,7 @@ def get_supabase_claims(
     # cannot reject a valid browser session.
     claims = _verify_with_supabase_auth_api(token)
     if claims is not None:
+        _enforce_initial_password_gate(claims, request)
         return claims
 
     # Keep local verification as a resilience path if Auth is temporarily
@@ -119,7 +138,7 @@ def get_supabase_claims(
             key = _jwks_client().get_signing_key_from_jwt(token).key
         else:
             raise jwt.InvalidAlgorithmError("Unsupported signing algorithm")
-        return jwt.decode(
+        claims = jwt.decode(
             token,
             key,
             algorithms=[algorithm],
@@ -127,5 +146,7 @@ def get_supabase_claims(
             issuer=settings.supabase_issuer,
             options={"require": ["exp", "sub"]},
         )
+        _enforce_initial_password_gate(claims, request)
+        return claims
     except (jwt.PyJWKClientError, jwt.PyJWTError, RuntimeError, requests.RequestException):
         raise unauthorized from None
