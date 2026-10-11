@@ -85,8 +85,19 @@ class SchoolPatch(BaseModel):
 
 class AdministratorIn(BaseModel):
     email: EmailStr
+    phone: str | None = Field(default=None, min_length=7, max_length=32)
     role: str = "admin"
     delivery_method: Literal["email_invite", "temporary_password"] = "email_invite"
+
+    @field_validator("phone")
+    @classmethod
+    def clean_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not re.fullmatch(r"[+]?[0-9][0-9 ()-]{5,30}", value):
+            raise ValueError("Enter a valid phone number.")
+        return value
 
     @field_validator("role")
     @classmethod
@@ -650,6 +661,7 @@ def school_users(
         {
             "user_id": r.user_id,
             "email": r.email,
+            "phone": r.phone,
             "role": r.role,
             "is_active": r.is_active,
             "created_at": r.created_at,
@@ -813,6 +825,8 @@ def add_administrator(
     Supabase Auth admin API resolves the account; an invitation is sent only
     when the email is not already registered.
     """
+    if not payload.phone:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Enter a phone number for this school account.")
     school = db.query(TtSchool).filter(TtSchool.id == school_id).first()
     if school is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown school.")
@@ -867,11 +881,13 @@ def add_administrator(
     )
     if membership is None:
         membership = TtMembership(
-            user_id=user_id, school_id=school_id, role=payload.role, email=email
+            user_id=user_id, school_id=school_id, role=payload.role, email=email, phone=payload.phone
         )
         db.add(membership)
     else:
         membership.role = payload.role
+        membership.phone = payload.phone
+        membership.email = email
         membership.is_active = True
 
     audit(

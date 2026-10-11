@@ -70,6 +70,7 @@ export type SchoolModuleAccess = { school_id: number; school_name: string; modul
 export type SchoolUser = {
   user_id: string
   email: string | null
+  phone: string | null
   role: string
   is_active: boolean
   created_at: string
@@ -169,11 +170,11 @@ export const platform = {
   setSchoolStatus: (id: number, active: boolean) =>
     send<School>(`${PLATFORM}/schools/${id}/status?active=${active}`, 'POST'),
   schoolUsers: (id: number) => get<SchoolUser[]>(`${PLATFORM}/schools/${id}/users`),
-  addAdministrator: (id: number, email: string, role: string, deliveryMethod: 'email_invite' | 'temporary_password' = 'email_invite') =>
+  addAdministrator: (id: number, email: string, phone: string, role: string, deliveryMethod: 'email_invite' | 'temporary_password' = 'email_invite') =>
     send<{ user_id: string; email: string; role: string; invited: boolean; created_account: boolean; existing_account: boolean; password_reset: boolean; temporary_password: string | null }>(
       `${PLATFORM}/schools/${id}/administrators`,
       'POST',
-      { email, role, delivery_method: deliveryMethod },
+      { email, phone, role, delivery_method: deliveryMethod },
     ),
   removeAdministrator: (id: number, userId: string) =>
     send<void>(`${PLATFORM}/schools/${id}/administrators/${userId}`, 'DELETE'),
