@@ -7,6 +7,7 @@ from app.modules.scheduling.tenancy import Principal, require_role
 router = APIRouter(tags=["School Profile"])
 
 
+@router.post("", response_model=schemas.SchoolResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=schemas.SchoolResponse, status_code=status.HTTP_201_CREATED)
 def create_school_profile(
     school_data: schemas.SchoolCreate,
@@ -24,6 +25,7 @@ def get_school_profile(
     return services.SchoolService(db).get_school_profile(principal.school_id)
 
 
+@router.patch("", response_model=schemas.SchoolResponse, include_in_schema=False)
 @router.patch("/", response_model=schemas.SchoolResponse)
 def update_school_profile(
     school_update: schemas.SchoolUpdate,
