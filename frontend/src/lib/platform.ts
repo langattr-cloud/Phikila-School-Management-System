@@ -11,6 +11,7 @@ export type SessionInfo = {
   enabled_modules: string[]
   schools: { id: number; name: string; role: string }[]
   has_access: boolean
+  must_change_password: boolean
   access_request: {
     status: 'pending' | 'approved' | 'rejected'
     requested_role: string
@@ -169,11 +170,11 @@ export const platform = {
   setSchoolStatus: (id: number, active: boolean) =>
     send<School>(`${PLATFORM}/schools/${id}/status?active=${active}`, 'POST'),
   schoolUsers: (id: number) => get<SchoolUser[]>(`${PLATFORM}/schools/${id}/users`),
-  addAdministrator: (id: number, email: string, role: string, deliveryMethod: 'email_invite' | 'temporary_password' = 'email_invite') =>
-    send<{ user_id: string; email: string; role: string; invited: boolean; created_account: boolean; existing_account: boolean; password_reset: boolean; temporary_password: string | null }>(
+  addAdministrator: (id: number, email: string, role: string, deliveryMethod: 'email_invite' | 'temporary_password' | 'phone_temporary_password' = 'email_invite', phoneNumber?: string) =>
+    send<{ user_id: string; email: string; role: string; invited: boolean; created_account: boolean; existing_account: boolean; password_reset: boolean; temporary_password: string | null; initial_password_set?: boolean }>(
       `${PLATFORM}/schools/${id}/administrators`,
       'POST',
-      { email, role, delivery_method: deliveryMethod },
+      { email, role, delivery_method: deliveryMethod, phone_number: phoneNumber },
     ),
   removeAdministrator: (id: number, userId: string) =>
     send<void>(`${PLATFORM}/schools/${id}/administrators/${userId}`, 'DELETE'),
