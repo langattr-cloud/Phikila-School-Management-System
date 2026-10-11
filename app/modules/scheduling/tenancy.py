@@ -43,6 +43,7 @@ class TtMembership(Base):
     school_id = Column(Integer, nullable=False, index=True)
     role = Column(String(20), default="viewer", nullable=False)
     email = Column(String(160))
+    phone = Column(String(32))
     teacher_id = Column(Integer)
     class_id = Column(Integer)
     is_active = Column(Boolean, default=True, nullable=False)
