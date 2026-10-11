@@ -101,7 +101,7 @@ class AdministratorIn(BaseModel):
     def validate_phone_number(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        cleaned = re.sub(r"[^0-9+]", "", value)
+        cleaned = "".join(character for character in value if character not in " ().-")
         if not re.fullmatch(r"\+?[0-9]{7,15}", cleaned):
             raise ValueError("Enter a phone number with 7–15 digits, optionally starting with +.")
         return cleaned
@@ -868,7 +868,7 @@ def add_administrator(
             except ValueError:
                 body = {}
             user = body.get("user") or body
-            user_id = user.get("id") if isinstance(user, dict) else user_id
+            user_id = (user.get("id") if isinstance(user, dict) else None) or user_id
             if not user_id:
                 raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The authentication service did not return an account ID.")
             created_account = not existing_account
