@@ -744,28 +744,41 @@ def add_administrator(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown school.")
 
     email = payload.email.lower()
-    known = (
-        db.query(TtMembership).filter(func.lower(TtMembership.email) == email).first()
-    )
-    user_id = known.user_id if known else None
-    if user_id is None:
-        request_row = (
-            db.query(TtAccessRequest)
-            .filter(func.lower(TtAccessRequest.email) == email)
-            .first()
-        )
-        user_id = request_row.user_id if request_row else None
     invited = False
     temporary_password = None
     created_account = False
-    if user_id is None:
+    existing_account = False
+
+    # For no-email credentials, Supabase Auth is the source of truth. Local
+    # membership/access-request rows can be stale, so they must not prevent
+    # account creation. Never replace the password of an existing account
+    # without a separate, explicit password-reset action.
+    if payload.delivery_method == "temporary_password":
         user_id = _find_registered_supabase_user_id(email)
-    if user_id is None and payload.delivery_method == "temporary_password":
-        user_id, temporary_password = _create_supabase_user_with_temporary_password(email)
-        created_account = True
-    elif user_id is None:
-        user_id = _invite_supabase_user(email)
-        invited = True
+        if user_id is not None:
+            existing_account = True
+        else:
+            user_id, temporary_password = _create_supabase_user_with_temporary_password(email)
+            created_account = True
+    else:
+        known = (
+            db.query(TtMembership)
+            .filter(func.lower(TtMembership.email) == email)
+            .first()
+        )
+        user_id = known.user_id if known else None
+        if user_id is None:
+            request_row = (
+                db.query(TtAccessRequest)
+                .filter(func.lower(TtAccessRequest.email) == email)
+                .first()
+            )
+            user_id = request_row.user_id if request_row else None
+        if user_id is None:
+            user_id = _find_registered_supabase_user_id(email)
+        if user_id is None:
+            user_id = _invite_supabase_user(email)
+            invited = True
 
     membership = (
         db.query(TtMembership)
@@ -808,6 +821,7 @@ def add_administrator(
         "role": payload.role,
         "invited": invited,
         "created_account": created_account,
+        "existing_account": existing_account,
         "temporary_password": temporary_password,
     }
 
