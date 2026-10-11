@@ -743,6 +743,21 @@ def _invite_supabase_user(email: str) -> str:
         )
     return str(user_id)
 
+def _phone_temporary_password(phone: str) -> str:
+    """Use a predictable digits-only representation for phone-based temporary passwords.
+
+    Phone fields commonly contain spaces, parentheses, or hyphens for readability.
+    Those formatting characters should not become part of the credential users type.
+    """
+    temporary_password = re.sub(r"\\D", "", phone)
+    if len(temporary_password) < 7:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "The phone number must contain at least seven digits to use as a temporary password.",
+        )
+    return temporary_password
+
+
 def _create_supabase_user_with_temporary_password(email: str, phone: str) -> tuple[str, str]:
     """Create a confirmed Supabase Auth account without sending an email."""
     service_key = settings.supabase_service_role_key
@@ -751,7 +766,7 @@ def _create_supabase_user_with_temporary_password(email: str, phone: str) -> tup
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "Manual account creation is not configured. Ask the platform operator to configure Supabase server credentials.",
         )
-    temporary_password = phone
+    temporary_password = _phone_temporary_password(phone)
     try:
         response = requests.post(
             f"{settings.supabase_url}/auth/v1/admin/users",
@@ -791,7 +806,7 @@ def _reset_supabase_user_password(user_id: str, phone: str) -> str:
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "Manual password reset is not configured. Ask the platform operator to configure Supabase server credentials.",
         )
-    temporary_password = phone
+    temporary_password = _phone_temporary_password(phone)
     try:
         response = requests.put(
             f"{settings.supabase_url}/auth/v1/admin/users/{user_id}",
