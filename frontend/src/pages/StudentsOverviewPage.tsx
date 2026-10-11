@@ -46,7 +46,7 @@ export default function StudentsOverviewPage() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(12rem,1fr))', gap:'var(--space-3)', marginBottom:'var(--space-5)' }}>
         <div className="card section"><p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.85rem'}}>Active learners</p><strong style={{fontSize:'1.7rem'}}>{totalLearners}</strong></div>
         <div className="card section"><p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.85rem'}}>Grades</p><strong style={{fontSize:'1.7rem'}}>{rows.length}</strong></div>
-        <div className="card section"><p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.85rem'}}>Streams</p><strong style={{fontSize:'1.7rem'}}>{streams.length}</strong></div>
+        <div className="card section"><p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.85rem'}} >Streams (optional)</p><strong style={{fontSize:'1.7rem'}}>{streams.length}</strong></div>
       </div>
       <div className="card section" style={{padding:0,overflow:'hidden'}}><div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.9rem'}}>
         <thead><tr style={{borderBottom:'2px solid var(--color-line)'}}><th style={{padding:'var(--space-3)',textAlign:'left'}}>Grade</th><th style={{padding:'var(--space-3)',textAlign:'left'}}>Level</th><th style={{padding:'var(--space-3)',textAlign:'right'}}>Learners</th><th style={{padding:'var(--space-3)',textAlign:'right'}}>View</th></tr></thead>
