@@ -85,13 +85,15 @@ class SchoolPatch(BaseModel):
 
 class AdministratorIn(BaseModel):
     email: EmailStr
-    phone: str = Field(min_length=7, max_length=32)
+    phone: str | None = Field(default=None, min_length=7, max_length=32)
     role: str = "admin"
     delivery_method: Literal["email_invite", "temporary_password"] = "email_invite"
 
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str) -> str:
+    def clean_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         value = value.strip()
         if not re.fullmatch(r"[+]?[0-9][0-9 ()-]{5,30}", value):
             raise ValueError("Enter a valid phone number.")
@@ -823,6 +825,8 @@ def add_administrator(
     Supabase Auth admin API resolves the account; an invitation is sent only
     when the email is not already registered.
     """
+    if not payload.phone:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Enter a phone number for this school account.")
     school = db.query(TtSchool).filter(TtSchool.id == school_id).first()
     if school is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown school.")
