@@ -78,7 +78,12 @@ export function DashboardPage() {
       <div className="dashboard-v2-actions"><Link className="button button--secondary button--sm" to="/timetable/whole-school">Open timetable</Link><Link className="button button--primary button--sm" to="/scheduling/generate">Generate timetable</Link></div>
     </header>
     {error && <Alert tone="error" title="Scheduling summary could not load">{error} <button type="button" className="link" onClick={reload}>Try again</button></Alert>}
-    {!school && !schoolQuery.loading && <Alert tone="info" title="Complete your school profile"><Link to="/setup/school">Set up your school profile</Link> to unlock the full operations overview.</Alert>}
+    <section className="dashboard-v2-welcome" aria-label="School welcome">
+      <p className="dashboard-v2-welcome__eyebrow">Welcome</p>
+      <h2>Welcome, {(school?.email || 'PRONOLANGAT@GMAIL.COM')}.</h2>
+      <p className="dashboard-v2-welcome__title">To Phikila School Management System</p>
+      {school?.motto && <p className="dashboard-v2-welcome__motto">“{school.motto}”</p>}
+    </section>
     {data && !data.solver_available && <Alert tone="error" title="Scheduling engine unavailable">Timetables cannot be generated until the optimisation engine is installed on the server.</Alert>}
     <section className="dashboard-v2-cards" aria-label="Key school metrics">
       {cards.map(card => <Link key={card.label} className={'dashboard-v2-card dashboard-v2-card--' + card.tone} to={card.to}>
