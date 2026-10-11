@@ -11,7 +11,7 @@
 .dashboard-hero .button--primary { background:var(--brand-gold); color:#172333; border-color:var(--brand-gold); }
 .dashboard-hero .button--secondary { background:rgba(255,255,255,.08); color:#fff; border-color:rgba(255,255,255,.25); }
 .dashboard-hero .button--secondary:hover { background:rgba(255,255,255,.14); }
-.dashboard-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.85rem; margin-bottom:1.25rem; }
+.dashboard-metrics { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:.85rem; margin-bottom:1.25rem; }
 .dashboard-metric { min-width:0; border:1px solid var(--color-line); border-radius:1rem; background:var(--color-surface); padding:1rem; box-shadow:var(--shadow-sm); transition:transform 140ms ease,box-shadow 140ms ease,border-color 140ms ease; }
 .dashboard-metric:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:var(--color-line-strong); }
 .dashboard-metric__top { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
@@ -58,18 +58,22 @@
 .dashboard-quick-action__title { display:block; font-size:.82rem; font-weight:800; overflow-wrap:anywhere; }
 .dashboard-quick-action__detail { display:block; margin-top:.12rem; color:var(--color-ink-muted); font-size:.7rem; overflow-wrap:anywhere; }
 .dashboard-alert { margin-top:1rem; }
+@media (max-width: 1280px) {
+  .dashboard-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
 @media (max-width: 1100px) {
   .dashboard-grid--primary { grid-template-columns:1fr; }
   .dashboard-quick-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 760px) {
-  .dashboard-metrics { grid-template-columns:1fr; }
+  .dashboard-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .dashboard-hero { align-items:flex-start; flex-direction:column; padding:1.1rem; }
   .dashboard-hero__actions { width:100%; }
   .dashboard-hero__actions .button { flex:1 1 12rem; }
   .dashboard-finance__amounts { grid-template-columns:1fr; }
 }
 @media (max-width: 560px) {
+  .dashboard-metrics { grid-template-columns:1fr; }
   .dashboard-page--premium { width:100%; }
   .dashboard-panel--premium { padding:.9rem; }
   .dashboard-panel__head { align-items:flex-start; gap:.65rem; flex-direction:column; }
