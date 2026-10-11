@@ -739,7 +739,7 @@ def _reset_supabase_user_password(user_id: str) -> str:
         response = requests.put(
             f"{settings.supabase_url}/auth/v1/admin/users/{user_id}",
             headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
-            json={"password": temporary_password},
+            json={"password": temporary_password, "email_confirm": True},
             timeout=12,
         )
     except requests.RequestException:
