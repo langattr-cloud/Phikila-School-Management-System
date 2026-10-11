@@ -3,7 +3,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { Badge } from '../components/States'
 import { useToast } from '../components/Toast'
-import { api, friendlyApiError, type AcademicYear, type Grade, type Level, type Stream, type Term } from '../lib/api'
+import { api, friendlyApiError, type AcademicYear, type Grade, type Level, type Stream, type Term, uniqueEducationLevels } from '../lib/api'
 
 const steps = ['Academic Year', 'Term', 'Level', 'Grade', 'Stream (optional)']
 type FormState = { yearId:string; yearName:string; startDate:string; endDate:string; termId:string; termName:string; termStartDate:string; termEndDate:string; levelId:string; gradeId:string; gradeName:string; gradeCode:string; streamName:string; streamCode:string }
@@ -28,7 +28,7 @@ export function AcademicSetupWizardPage(){
   setLoading(true);setError(null)
   try{
    const [y,t,l,g]=await Promise.all([api.academicYears(),api.terms(),api.levels(),api.grades()])
-   const orderedLevels=[...l].filter(x=>allowedLevels.includes(x.name)).sort((a,b)=>levelRank(a.name,a.display_order)-levelRank(b.name,b.display_order)||a.name.localeCompare(b.name))
+   const orderedLevels=uniqueEducationLevels(l.filter(x=>allowedLevels.includes(x.name)))
    setYears(y);setTerms(t);setLevels(orderedLevels);setGrades(g)
    const currentYear=y.find(x=>x.is_current)||y[0]
    const loadedStreams=currentYear?(await Promise.all(g.map(grade=>api.streams(currentYear.id,grade.id)))).flat():[]
