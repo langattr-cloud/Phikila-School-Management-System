@@ -5,12 +5,9 @@ import { Badge, EmptyState, LoadingBlock } from '../components/States'
 import { api, friendlyApiError, type AcademicYear, type Level } from '../lib/api'
 import { scheduling, type SchoolClass } from '../lib/scheduling'
 
-const allowedLevels = ['Pre Primary', 'Pre-Primary School', 'Primary', 'Primary School', 'Junior School', 'Senior School']
-
 function levelRank(level: Level) {
   if (Number.isFinite(Number(level.display_order))) return Number(level.display_order)
-  const index = allowedLevels.findIndex(name => name.toLowerCase() === level.name.trim().toLowerCase())
-  return index >= 0 ? index + 1 : 999
+  return 999
 }
 
 function isActive(status?: Level['status'] | null) {
@@ -36,7 +33,6 @@ export function ExaminationLevelsPage() {
           api.academicYears(),
         ])
         const ordered = levelRows
-          .filter(level => allowedLevels.includes(level.name) || levelRows.length <= allowedLevels.length)
           .sort((a, b) => levelRank(a) - levelRank(b) || a.name.localeCompare(b.name))
         setLevels(ordered)
         setClasses(classRows)
@@ -71,7 +67,7 @@ export function ExaminationLevelsPage() {
     <div>
       <PageHeader
         title="Examination Levels"
-        description="View the academic levels and classes already defined in Academic Setup. Examination does not duplicate or edit academic structure."
+        description="View the academic levels and grades already defined in Academic Setup. Examination does not duplicate or edit academic structure."
       />
 
       {error && <Alert tone="error">{error}</Alert>}
@@ -80,7 +76,7 @@ export function ExaminationLevelsPage() {
         <div>
           <strong>Academic structure is managed centrally</strong>
           <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>
-            Levels, grades/classes and academic years come from Academic Setup. Use this page only to confirm what is available for examinations.
+            Levels, grades, optional streams and academic years come from Academic Setup. Use this page only to confirm what is available for examinations.
           </p>
         </div>
         <a className="button button--ghost" href="/academic-setup">Open Academic Setup</a>
@@ -127,7 +123,7 @@ export function ExaminationLevelsPage() {
               </div>
 
               {!selectedClasses.length ? (
-                <EmptyState title="No classes in this level" description="Add the class in Academic Setup. It will automatically become available here." />
+                <EmptyState title="No grades or streams in this level" description="Add grades and optional streams in Academic Setup. It will automatically become available here." />
               ) : (
                 <table style={{ width: '100%' }}>
                   <thead><tr><th>Class</th><th>Code</th><th>Academic year</th><th>Examination availability</th></tr></thead>
