@@ -156,3 +156,17 @@
 .dashboard-v2-quick__links small { margin-top:.2rem; font-size:.7rem; color:#7e899a; }
 @media (max-width:1050px) { .dashboard-v2-cards { grid-template-columns:repeat(2,minmax(0,1fr)); } .dashboard-v2-panels { grid-template-columns:1fr; } }
 @media (max-width:650px) { .dashboard-v2-heading { align-items:flex-start; flex-direction:column; padding:1.1rem; } .dashboard-v2-actions { width:100%; } .dashboard-v2-cards { grid-template-columns:1fr; gap:.75rem; } .dashboard-v2-card { padding:1.1rem; } .dashboard-v2-finance { gap:.4rem; } .dashboard-v2-finance>div { padding:.6rem; } .dashboard-v2-panel { padding:1rem; } .dashboard-v2-quick__links { grid-template-columns:1fr; } }
+
+
+/* Live finance activity and configuration health */
+.dashboard-v2-activity { display:flex; flex-direction:column; gap:1rem; margin:1rem 0 0; padding:0; list-style:none; }
+.dashboard-v2-activity__item { display:flex; align-items:flex-start; gap:.65rem; min-width:0; }
+.dashboard-v2-activity__dot { width:.52rem; height:.52rem; margin-top:.42rem; flex:0 0 auto; border-radius:50%; background:#059669; }
+.dashboard-v2-activity__dot--inbox { background:#7c3aed; }
+.dashboard-v2-activity__body { min-width:0; flex:1; }
+.dashboard-v2-activity__title { font-size:.78rem; line-height:1.4; font-weight:750; overflow-wrap:anywhere; }
+.dashboard-v2-activity__detail,.dashboard-v2-activity__time { margin-top:.18rem; color:#7b8494; font-size:.69rem; line-height:1.45; overflow-wrap:anywhere; }
+.dashboard-v2-activity__status { flex:0 0 auto; max-width:7rem; padding:.25rem .45rem; border-radius:999px; background:#eef2f7; color:#475569; font-size:.59rem; font-weight:900; text-align:center; text-transform:uppercase; overflow-wrap:anywhere; }
+.dashboard-v2-activity__status--success { background:#dff7e8; color:#087443; }
+.dashboard-v2-activity__status--matched { background:#ede9fe; color:#6d28d9; }
+@media (max-width:650px) { .dashboard-v2-activity__item { gap:.5rem; } .dashboard-v2-activity__status { max-width:5.2rem; font-size:.54rem; padding:.22rem .35rem; } }
