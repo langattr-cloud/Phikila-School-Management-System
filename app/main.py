@@ -6,7 +6,6 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.core.rate_limit import rate_limit_ocr, rate_limit_platform_mutation, rate_limit_scheduling_mutation
 from app.modules.academics.router import router as academics_router
-from app.modules.attendance.router import router as attendance_router
 from app.modules.authentication.router import router as auth_router
 from app.modules.authentication.supabase import get_supabase_claims
 from app.modules.email.router import router as email_router
@@ -90,7 +89,6 @@ def create_app() -> FastAPI:
     protected = [Depends(get_supabase_claims)]
     _guard_module_routes(students_import_router, "students")
     _guard_module_routes(students_router, "students")
-    _guard_module_routes(attendance_router, "attendance")
     _guard_module_routes(exams_router, "examinations")
     for finance_module_router in (
         finance_router, finance_sms_router, finance_statement_import_router,
@@ -120,7 +118,6 @@ def create_app() -> FastAPI:
     app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(students_import_router, prefix="/api/v1", tags=["Students"])
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
-    app.include_router(attendance_router, prefix="/api/v1", tags=["Attendance"])
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
     app.include_router(outlook_router, prefix="/api/v1/outlook", tags=["Microsoft Outlook"])
     app.include_router(finance_router, prefix="/api/v1", tags=["Finance"])
