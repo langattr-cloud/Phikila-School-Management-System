@@ -659,6 +659,7 @@ def school_users(
         {
             "user_id": r.user_id,
             "email": r.email,
+            "phone": r.phone,
             "role": r.role,
             "is_active": r.is_active,
             "created_at": r.created_at,
