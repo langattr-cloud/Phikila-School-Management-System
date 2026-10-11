@@ -749,7 +749,7 @@ def _phone_temporary_password(phone: str) -> str:
     Phone fields commonly contain spaces, parentheses, or hyphens for readability.
     Those formatting characters should not become part of the credential users type.
     """
-    temporary_password = re.sub(r"\\D", "", phone)
+    temporary_password = re.sub(r"\D", "", phone)
     if len(temporary_password) < 7:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
