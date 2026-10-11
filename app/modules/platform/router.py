@@ -101,8 +101,8 @@ class AdministratorIn(BaseModel):
     def validate_phone_number(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        cleaned = re.sub(r"[\\s().-]", "", value)
-        if not re.fullmatch(r"\\+?[0-9]{7,15}", cleaned):
+        cleaned = re.sub(r"[^0-9+]", "", value)
+        if not re.fullmatch(r"\+?[0-9]{7,15}", cleaned):
             raise ValueError("Enter a phone number with 7–15 digits, optionally starting with +.")
         return cleaned
 
