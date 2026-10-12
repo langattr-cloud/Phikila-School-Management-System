@@ -48,6 +48,7 @@ export function AcademicSetupWizardPage(){
   if(step===1&&!form.termId&&(!form.termName.trim()||!form.termStartDate||!form.termEndDate))throw Error('Select a term or enter the term and its dates.')
   if(step===2&&!form.levelId&&(!form.newLevelName.trim()||!form.newLevelCode.trim()))throw Error('Select an existing level or enter a level name and code.')
   if(step===3&&!form.gradeId&&(!form.gradeName.trim()||!form.gradeCode.trim()))throw Error('Select an existing grade or enter a grade name and code.')
+  if(step===4&&form.streamChoices.includes('__custom__')&&!form.streamName.trim())throw Error('Enter a name for the custom stream, or uncheck Customize.')
  }
  async function saveYear():Promise<AcademicYear|null>{
   if(form.yearId)return years.find(y=>String(y.id)===form.yearId)||null
