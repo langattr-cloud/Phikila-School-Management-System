@@ -16,7 +16,7 @@ function timetablingStreamCode(grade: Grade | undefined, streamName: string): st
  const streamCode=streamName.trim().match(/[A-Za-z0-9]+/)?.[0]?.slice(0,1).toUpperCase()||''
  return gradeCode&&streamCode?`${gradeCode}${streamCode}`:null
 }
-function presetsForLevel(levelName=''){const level=levelName.trim().toLowerCase();if(level.includes('primary'))return ['Primary','Custom'];if(level.includes('junior'))return ['Junior','Custom'];return ['Letters','Directions','Custom']}
+function presetsForLevel(levelName=''){const level=levelName.trim().toLowerCase();if(level.includes('pre primary')||level.includes('pre-primary')||level.includes('preschool'))return ['Custom'];if(level.includes('primary'))return ['Primary','Custom'];if(level.includes('junior'))return ['Junior','Custom'];return ['Letters','Directions','Custom']}
 function streamCodeOnly(streamName: string): string | null {
  return streamName.trim().match(/[A-Za-z0-9]+/)?.[0]?.slice(0,1).toUpperCase()||null
 }
