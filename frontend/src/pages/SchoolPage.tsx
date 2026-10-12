@@ -39,7 +39,7 @@ export function SchoolPage() {
       // exists, load it and switch directly into the edit form. Do not leave
       // the user stuck with an error telling them to update without offering
       // the update action.
-      if (creating && err instanceof ApiError && err.status === 409 && /profile already exists|use update|refresh and update/i.test(err.message)) {
+      if (creating && err instanceof ApiError && err.status === 409) {
         try {
           const existing = await api.school()
           setForm(toForm(existing))
