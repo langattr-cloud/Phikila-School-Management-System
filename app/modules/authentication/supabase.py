@@ -100,15 +100,10 @@ def get_supabase_claims(
             raise unauthorized
         return local
 
-    # Supabase has changed signing algorithms over time. Prefer the provider's
-    # own validation endpoint first so a stale JWT secret/JWKS configuration
-    # cannot reject a valid browser session.
-    claims = _verify_with_supabase_auth_api(token)
-    if claims is not None:
-        return claims
-
-    # Keep local verification as a resilience path if Auth is temporarily
-    # unreachable. It still enforces issuer, audience, expiry and signature.
+    # Verify the JWT locally first. This validates signature, issuer, audience,
+    # and expiry without making a network request on every authenticated API call.
+    # If local verification cannot complete (for example, a transient JWKS issue),
+    # fall back to Supabase Auth as the authoritative validator.
     try:
         algorithm = jwt.get_unverified_header(token).get("alg")
         if algorithm == "HS256":
@@ -128,4 +123,7 @@ def get_supabase_claims(
             options={"require": ["exp", "sub"]},
         )
     except (jwt.PyJWKClientError, jwt.PyJWTError, RuntimeError, requests.RequestException):
+        claims = _verify_with_supabase_auth_api(token)
+        if claims is not None:
+            return claims
         raise unauthorized from None
