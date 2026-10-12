@@ -49,6 +49,7 @@ export function AcademicSetupWizardPage(){
   if(step===1&&!form.levelId&&(!form.newLevelName.trim()||!form.newLevelCode.trim()))throw Error('Select an existing level or enter a level name and code.')
   if(step===2&&!form.gradeId&&(!form.gradeName.trim()||!form.gradeCode.trim()))throw Error('Select an existing grade or enter a grade name and code.')
   if(step===3&&form.streamChoices.includes('__custom__')&&!form.streamName.trim())throw Error('Enter a name for the custom stream, or uncheck Customize.')
+  if(step===3){const names=[...form.streamChoices.filter(choice=>choice!=='__custom__'),...(form.streamChoices.includes('__custom__')&&form.streamName.trim()?[form.streamName.trim()]:[])];const normalized=names.map(name=>name.trim().toLowerCase());if(new Set(normalized).size!==normalized.length)throw Error('The selected stream list contains duplicates. Remove repeated streams before saving.')}
  }
  async function saveYear():Promise<AcademicYear|null>{
   if(form.yearId)return years.find(y=>String(y.id)===form.yearId)||null
