@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import './streams.css'
 import { PageHeader } from '../components/PageHeader'
 import { Badge, EmptyState, ErrorState } from '../components/States'
@@ -18,7 +18,6 @@ export function AcademicsPage() {
   const [query, setQuery] = useState(''); const [editing, setEditing] = useState<Editing | null>(null)
   const [name, setName] = useState(''); const [start, setStart] = useState(''); const [end, setEnd] = useState(''); const [current, setCurrent] = useState(false); const [status, setStatus] = useState('ACTIVE'); const [academicYearId, setAcademicYearId] = useState(''); const [termYearFilter, setTermYearFilter] = useState(''); const [saving, setSaving] = useState(false); const [saveError, setSaveError] = useState<string | null>(null)
   const term = query.trim().toLowerCase(); const years = useMemo(() => (Array.isArray(data?.years) ? data.years : []).filter(year => !term || year.name.toLowerCase().includes(term)), [data, term]); const terms = useMemo(() => (Array.isArray(data?.terms) ? data.terms : []).filter(item => (!term || item.name.toLowerCase().includes(term)) && (!termYearFilter || String(item.academic_year_id) === termYearFilter)), [data, term, termYearFilter]);
-  useEffect(() => { if (!termYearFilter && data?.years?.length) { const defaultYear = data.years.find(year => year.is_current) || data.years[0]; setTermYearFilter(String(defaultYear.id)) } }, [data, termYearFilter])
 
   function openYearCreate() { setEditing({ kind: 'year', row: null }); setName(''); setStart(''); setEnd(''); setCurrent(false); setStatus('ACTIVE'); setAcademicYearId(''); setSaveError(null) }
   function openTermCreate() { const defaultYear = data?.years?.find(y => String(y.id) === termYearFilter) || data?.years?.find(y => y.is_current) || data?.years?.[0]; setEditing({ kind: 'term', row: null }); setName(''); setStart(''); setEnd(''); setCurrent(false); setStatus(''); setAcademicYearId(defaultYear ? String(defaultYear.id) : ''); setSaveError(null) }
