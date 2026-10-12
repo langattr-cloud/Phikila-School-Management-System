@@ -18,11 +18,12 @@ class SchoolService:
         return school
 
     def create_school_profile(self, school_id: int, school_data: schemas.SchoolCreate) -> models.SchoolInfo:
-        if self.repository.get_school(school_id):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="This school's profile already exists. Use update instead.",
-            )
+        # Setup can be retried after access is granted, a page refresh, or a
+        # transient network error. The platform school ID is the stable tenant
+        # key, so an existing profile must be reused without overwriting it.
+        existing_school = self.repository.get_school(school_id)
+        if existing_school:
+            return existing_school
 
         existing_code = self.repository.get_school_by_code(school_data.code)
         if existing_code and existing_code.id != school_id:
@@ -33,10 +34,13 @@ class SchoolService:
         try:
             return self.repository.create_school(school_id, school_data)
         except Exception as exc:
-            # Translate unique-key races to a useful conflict without masking unrelated errors.
+            # Another request may have completed setup between our initial
+            # lookup and insert. Roll back, then reuse that committed profile.
+            # If this was a different conflict or database failure, preserve it.
             self.repository.db.rollback()
-            if self.repository.get_school(school_id):
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This school's profile already exists. Refresh and update it instead.") from exc
+            existing_school = self.repository.get_school(school_id)
+            if existing_school:
+                return existing_school
             raise
 
     def update_school_profile(self, school_id: int, school_update: schemas.SchoolUpdate) -> models.SchoolInfo:

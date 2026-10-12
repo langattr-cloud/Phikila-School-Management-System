@@ -34,7 +34,26 @@ export function SchoolPage() {
     try { const payload: Record<string, unknown> = {}; for (const { key } of EDIT_FIELDS) payload[key as string] = form[key as string]?.trim() || null; payload.name = name; payload.code = code
       await apiFetch<SchoolProfile>('/api/v1/school', { method: creating ? 'POST' : 'PATCH', body: JSON.stringify(payload) })
       notify(creating ? 'School profile created.' : 'School profile saved.', 'success'); setEditing(false); setCreating(false); await reload()
-    } catch (err) { setFormError(friendlyApiError(err, creating ? 'create the school profile' : 'save the school profile')) } finally { setSaving(false) }
+    } catch (err) {
+      // If an older deployed API rejects POST because the profile already
+      // exists, load it and switch directly into the edit form. Do not leave
+      // the user stuck with an error telling them to update without offering
+      // the update action.
+      if (creating && err instanceof ApiError && err.status === 409 && /profile already exists|use update|refresh and update/i.test(err.message)) {
+        try {
+          const existing = await api.school()
+          setForm(toForm(existing))
+          setCreating(false)
+          setEditing(true)
+          setFormError('This school profile already exists. Review the saved details below and select Save changes to update it.')
+          await reload()
+          return
+        } catch {
+          // Fall back to the original error if the existing profile cannot load.
+        }
+      }
+      setFormError(friendlyApiError(err, creating ? 'create the school profile' : 'save the school profile'))
+    } finally { setSaving(false) }
   }
   async function saveCurrentProfile() {
     if (!data || saving) return; setSaving(true)
