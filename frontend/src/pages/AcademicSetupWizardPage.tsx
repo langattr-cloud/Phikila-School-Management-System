@@ -26,8 +26,9 @@ export function AcademicSetupWizardPage(){
   setLoading(true);setError(null)
   try{
    const [y,t,l,g]=await Promise.all([api.academicYears(),api.terms(),api.levels(),api.grades()])
-   const orderedLevels=uniqueEducationLevels(l)
-   setYears(y);setTerms(t);setLevels(orderedLevels);setGrades(g)
+   const activeLevels=uniqueEducationLevels(l.filter(level=>level.status==null||level.status===true||String(level.status).toUpperCase()==='ACTIVE'))
+   const activeGrades=g.filter(grade=>grade.status==null||grade.status===true)
+   setYears(y);setTerms(t);setLevels(activeLevels);setGrades(activeGrades)
    const currentYear=y.find(x=>x.is_current)||y[0]
    const loadedStreams=currentYear?(await Promise.all(g.map(grade=>api.streams(currentYear.id,grade.id)))).flat():[]
    setStreams(loadedStreams)
@@ -105,7 +106,7 @@ export function AcademicSetupWizardPage(){
  const levelName=(levelId?:number|null)=>levels.find(l=>Number(l.id)===Number(levelId))?.name||'—'
  const yearName=(yearId?:number|null)=>years.find(y=>Number(y.id)===Number(yearId))?.name||'—'
  const termsForYear=(yearId?:number|null)=>terms.filter(t=>Number(t.academic_year_id)===Number(yearId)).map(t=>t.name).join(', ')||'—'
- const visibleGrades=[...grades].filter(g=>g.level_id===Number(form.levelId)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}))
+ const visibleGrades=[...grades].filter(g=>g.level_id===Number(form.levelId)&&(g.status==null||g.status===true)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}))
  const normalizedLevelName=(selectedLevel?.name||'').trim().toLowerCase()
  const streamPresets=normalizedLevelName.includes('primary')?['E','W','S','N']:normalizedLevelName.includes('junior')?['R','B','Y','G']:[]
  return <><PageHeader title="Academic setup" description="Configure Academic Year → Level → Grade → optional Streams. Existing grades are filtered by level; streams are scoped to the academic year and grade." breadcrumbs={[{label:'Dashboard',to:'/'},{label:'Academic setup'}]}/>{error&&<Alert tone="error" title="Setup could not continue">{error}</Alert>}<section className="card section"><div className="chip-list" aria-label="Setup progress">{steps.map((label,i)=><Badge key={label} tone={i===step?'success':undefined}>{i+1}. {label}</Badge>)}</div>{loading?<p>Loading setup options…</p>:<form className="form" onSubmit={e=>{e.preventDefault();void next()}}><h2 className="section__title">Step {step+1}: {steps[step]}</h2>
