@@ -13,7 +13,6 @@ import app.modules.class_register.models
 import app.modules.users.models
 import app.modules.ocr.models
 import app.modules.students.models_v2
-import app.modules.attendance.models
 import app.modules.examinations.models_v2
 import app.modules.finance.models
 import app.modules.scheduling.tenancy
