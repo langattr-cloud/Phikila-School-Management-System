@@ -13,7 +13,6 @@ type Props = { onPosted?: () => void }
 
 export function FinancePaymentMatcher({ onPosted }: Props) {
   const [input, setInput] = useState('')
-  const [decoded, setDecoded] = useState<Decoded | null>(null)
   const [student, setStudent] = useState<Student | null>(null)
   const [inbox, setInbox] = useState<PaymentInboxItem[]>([])
   const [receipts, setReceipts] = useState<Receipt[]>([])
@@ -58,7 +57,7 @@ export function FinancePaymentMatcher({ onPosted }: Props) {
         setStudent(found)
         if (!found) return
       } catch (err) {
-        if (!cancelled) setError(friendlyApiError(err, 'find the student and open invoices'))
+        if (!cancelled) setError(friendlyApiError(err, 'find the student by admission number'))
       }
     }, 250)
     return () => { cancelled = true; window.clearTimeout(timer) }
