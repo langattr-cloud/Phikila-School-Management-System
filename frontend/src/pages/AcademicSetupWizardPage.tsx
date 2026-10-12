@@ -53,14 +53,23 @@ export function AcademicSetupWizardPage(){
  }
  async function saveYear():Promise<AcademicYear|null>{
   if(form.yearId)return years.find(y=>String(y.id)===form.yearId)||null
-  const y=await api.createAcademicYear({name:form.yearName.trim(),start_date:form.startDate,end_date:form.endDate,is_current:false,status:'ACTIVE'})
-  setYears(v=>[...v,y]);setForm(v=>({...v,yearId:String(y.id)}));return y
+  const name=form.yearName.trim()
+  const duplicate=years.find(y=>y.name.trim().toLowerCase()===name.toLowerCase())
+  if(duplicate){
+   if(duplicate.start_date!==form.startDate||duplicate.end_date!==form.endDate)throw Error(`Academic year "${duplicate.name}" already exists with different dates. Select the existing year and review its dates.`)
+   setForm(v=>({...v,yearId:String(duplicate.id)}));return duplicate
+  }
+  const y=await api.createAcademicYear({name,start_date:form.startDate,end_date:form.endDate,is_current:false,status:'ACTIVE'})
+  setYears(v=>v.some(item=>item.id===y.id)?v:[...v,y]);setForm(v=>({...v,yearId:String(y.id)}));return y
  }
  async function saveLevel():Promise<Level>{
   if(form.levelId){const existing=levels.find(l=>String(l.id)===form.levelId);if(existing)return existing;throw Error('The selected level could not be found.')}
   const name=form.newLevelName.trim();const code=form.newLevelCode.trim().toUpperCase()
   const duplicate=levels.find(l=>l.name.trim().toLowerCase()===name.toLowerCase()||l.code.trim().toLowerCase()===code.toLowerCase())
-  if(duplicate)throw Error(`A level named "${duplicate.name}" or code "${duplicate.code}" already exists. Select the existing level instead.`)
+  if(duplicate){
+   if(duplicate.name.trim().toLowerCase()!==name.toLowerCase()||duplicate.code.trim().toLowerCase()!==code.toLowerCase())throw Error(`The level name or code conflicts with "${duplicate.name}" (${duplicate.code}). Select it or use a different name and code.`)
+   setForm(v=>({...v,levelId:String(duplicate.id),newLevelName:'',newLevelCode:''}));return duplicate
+  }
   const created=await api.createLevel({name,code,display_order:levels.length+1,status:'ACTIVE'})
   setLevels(v=>uniqueEducationLevels([...v,created]));setForm(v=>({...v,levelId:String(created.id),newLevelName:'',newLevelCode:''}));return created
  }
@@ -73,20 +82,27 @@ export function AcademicSetupWizardPage(){
    const levelId=Number(level.id)
    let grade=grades.find(g=>String(g.id)===form.gradeId)
    if(!grade){
-    const duplicate=grades.find(g=>g.level_id===levelId&&(g.name.trim().toLowerCase()===form.gradeName.trim().toLowerCase()||g.code.trim().toLowerCase()===form.gradeCode.trim().toLowerCase()))
-    if(duplicate)throw Error(`A grade named "${duplicate.name}" or code "${duplicate.code}" already exists in this level. Select the existing grade instead.`)
-    grade=await api.createGrade({level_id:levelId,name:form.gradeName.trim(),code:form.gradeCode.trim(),status:true})
-    setGrades(v=>[...v,grade!])
+    const gradeName=form.gradeName.trim(),gradeCode=form.gradeCode.trim()
+    const duplicate=grades.find(g=>g.level_id===levelId&&(g.name.trim().toLowerCase()===gradeName.toLowerCase()||g.code.trim().toLowerCase()===gradeCode.toLowerCase()))
+    if(duplicate){
+     if(duplicate.name.trim().toLowerCase()!==gradeName.toLowerCase()||duplicate.code.trim().toLowerCase()!==gradeCode.toLowerCase())throw Error(`The grade name or code conflicts with "${duplicate.name}" (${duplicate.code}) in this level.`)
+     grade=duplicate
+    }else{
+     grade=await api.createGrade({level_id:levelId,name:gradeName,code:gradeCode,status:true})
+     setGrades(v=>v.some(item=>item.id===grade!.id)?v:[...v,grade!])
+    }
    }
    const streamNames=[...form.streamChoices.filter(choice=>choice!=='__custom__'),...(form.streamChoices.includes('__custom__')&&form.streamName.trim()?[form.streamName.trim()]:[])]
    const existingStreams=await api.streams(yearId,grade.id)
    const pendingStreams=streamNames.map(name=>{const custom=name===form.streamName.trim()&&form.streamChoices.includes('__custom__');const gradeNumber=String(grade?.code||grade?.name||'').match(/\\d+/)?.[0]||'';const defaultCode=gradeNumber?(gradeNumber+(name.trim().match(/[A-Za-z0-9]+/)?.[0]?.slice(0,1).toUpperCase()||'')):name.trim().match(/[A-Za-z0-9]+/)?.[0]?.slice(0,1).toUpperCase()||name;return {name,code:custom&&form.streamCode.trim()?form.streamCode.trim():defaultCode}})
-   const duplicate=pendingStreams.find((item,index)=>pendingStreams.findIndex(other=>other.name.toLowerCase()===item.name.toLowerCase()||(item.code&&other.code.toLowerCase()===item.code.toLowerCase()))!==index||existingStreams.some(existing=>existing.name.trim().toLowerCase()===item.name.toLowerCase()||(item.code&&String(existing.code||'').trim().toLowerCase()===item.code.toLowerCase())))
-   if(duplicate)throw Error(`Stream "${duplicate.name}" or its code already exists for this grade and academic year.`)
+   const duplicate=pendingStreams.find((item,index)=>pendingStreams.findIndex(other=>other.name.trim().toLowerCase()===item.name.trim().toLowerCase()||(item.code&&other.code.trim().toLowerCase()===item.code.trim().toLowerCase()))!==index)
+   if(duplicate)throw Error(`The selected streams contain duplicate name/code "${duplicate.name}". Remove duplicates and try again.`)
+   const missingStreams=pendingStreams.filter(item=>!existingStreams.some(existing=>existing.name.trim().toLowerCase()===item.name.trim().toLowerCase()||(item.code&&String(existing.code||'').trim().toLowerCase()===item.code.trim().toLowerCase())))
    const createdStreams=[] as Stream[]
-   for(const item of pendingStreams){const created=await api.createStream({academic_year_id:yearId,level_id:levelId,grade_id:grade.id,name:item.name,code:item.code||undefined});createdStreams.push(created)}
-   setStreams(v=>[...v,...createdStreams])
-   notify(createdStreams.length?`Grade and ${createdStreams.length} stream${createdStreams.length===1?'':'s'} saved.`:'Grade saved without a stream.','success')
+   for(const item of missingStreams){const created=await api.createStream({academic_year_id:yearId,level_id:levelId,grade_id:grade.id,name:item.name,code:item.code||undefined});createdStreams.push(created)}
+   setStreams(v=>[...v.filter(existing=>!createdStreams.some(created=>created.id===existing.id)),...createdStreams])
+   const alreadyThere=pendingStreams.length-missingStreams.length
+   notify(createdStreams.length||alreadyThere?`Academic setup saved: ${createdStreams.length} stream(s) added, ${alreadyThere} already existed.`:'Grade saved without a stream.','success')
    await load();setStep(0);setForm(initialForm)
   }catch(e){setError(friendlyApiError(e,'save academic setup'))}
   finally{setSaving(false)}
