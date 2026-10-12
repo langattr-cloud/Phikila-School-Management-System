@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert } from './Alert'
 import { Badge, LoadingBlock } from './States'
 import { apiFetch, friendlyApiError } from '../lib/api'
-import { finance, type Invoice, type PaymentInboxItem, type Receipt } from '../lib/finance'
+import { finance, type PaymentInboxItem, type Receipt } from '../lib/finance'
 
 type Student = { id:number; admission_number:string; first_name:string; middle_name?:string; last_name:string; status:string }
 type StudentList = { items:Student[]; total:number; page:number; page_size:number; pages:number }
