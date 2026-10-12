@@ -54,11 +54,6 @@ export function AcademicSetupWizardPage(){
   const y=await api.createAcademicYear({name:form.yearName.trim(),start_date:form.startDate,end_date:form.endDate,is_current:false,status:'ACTIVE'})
   setYears(v=>[...v,y]);setForm(v=>({...v,yearId:String(y.id)}));return y
  }
- async function saveTerm(yearId:number):Promise<Term|null>{
-  if(form.termId)return terms.find(t=>String(t.id)===form.termId)||null
-  const t=await api.createTerm({name:form.termName.trim(),start_date:form.termStartDate,end_date:form.termEndDate,is_current:false,academic_year_id:yearId})
-  setTerms(v=>[...v,t]);setForm(v=>({...v,termId:String(t.id)}));return t
- }
  async function saveLevel():Promise<Level>{
   if(form.levelId){const existing=levels.find(l=>String(l.id)===form.levelId);if(existing)return existing;throw Error('The selected level could not be found.')}
   const name=form.newLevelName.trim();const code=form.newLevelCode.trim().toUpperCase()
@@ -100,13 +95,11 @@ export function AcademicSetupWizardPage(){
   try{
    validate()
    if(step<steps.length-1){
-    if(step===0){const year=await saveYear();if(!year&&!form.yearId)throw Error('The academic year could not be resolved.')}
     setStep(v=>v+1)
    }else await finish()
   }catch(e){setError(friendlyApiError(e,'continue academic setup'))}
  }
  const selectedYear=years.find(y=>String(y.id)===form.yearId)
- const selectedTerm=terms.find(t=>String(t.id)===form.termId)
  const selectedLevel=levels.find(l=>String(l.id)===form.levelId)
  const selectedGrade=grades.find(g=>String(g.id)===form.gradeId)
  const levelName=(levelId?:number|null)=>levels.find(l=>Number(l.id)===Number(levelId))?.name||'—'
