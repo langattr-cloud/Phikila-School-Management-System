@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.modules.school.repository import SchoolRepository
 from app.modules.school import schemas, models
+from app.modules.scheduling.tenancy import TtSchool
 
 
 class SchoolService:
@@ -10,12 +11,31 @@ class SchoolService:
 
     def get_school_profile(self, school_id: int) -> models.SchoolInfo:
         school = self.repository.get_school(school_id)
-        if not school:
+        if school:
+            return school
+
+        # The platform school can be registered before its detailed profile
+        # is initialized. Build the profile under the same tenant ID so the
+        # profile page can display it and admins can update it.
+        platform_school = (
+            self.repository.db.query(TtSchool)
+            .filter(TtSchool.id == school_id)
+            .first()
+        )
+        if platform_school is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="School profile not configured yet. Please create this school's profile.",
+                detail="This school is not registered on the platform.",
             )
-        return school
+
+        code = (platform_school.slug or f"SCHOOL-{school_id}").strip().upper()[:50]
+        code_owner = self.repository.get_school_by_code(code)
+        if code_owner and code_owner.id != school_id:
+            code = f"SCHOOL-{school_id}"
+        return self.repository.create_school(
+            school_id,
+            schemas.SchoolCreate(name=platform_school.name, code=code),
+        )
 
     def create_school_profile(self, school_id: int, school_data: schemas.SchoolCreate) -> models.SchoolInfo:
         # Setup can be retried after access is granted, a page refresh, or a
