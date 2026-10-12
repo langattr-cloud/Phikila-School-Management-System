@@ -1,46 +1,23 @@
-"""Resend email service implementation for Phikila School Management System."""
+"""Email delivery interface. Delivery is disabled until a supported provider is configured."""
 
 from __future__ import annotations
 
-import json
 import logging
-import urllib.error
-import urllib.request
 from typing import Any, Dict, List, Optional, Union
 
-from app.config import settings
 from app.modules.email.templates import get_templates_catalog, render_template
 
 logger = logging.getLogger("phikila.email")
 
-# Try importing official resend library
-try:
-    import resend
-    RESEND_AVAILABLE = True
-except ImportError:
-    resend = None  # type: ignore
-    RESEND_AVAILABLE = False
 
+class EmailDeliveryService:
+    """Keep template rendering available without a configured delivery provider."""
 
-class ResendEmailService:
-    """Service to send emails using the Resend API with template rendering support."""
-
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        default_from: Optional[str] = None,
-    ) -> None:
-        self.api_key = api_key or getattr(settings, "resend_api_key", "")
-        self.default_from = default_from or getattr(
-            settings, "resend_from_email", "Phikila School System <onboarding@resend.dev>"
-        )
-
-        if RESEND_AVAILABLE and self.api_key:
-            resend.api_key = self.api_key
+    api_key = ""
+    default_from = ""
 
     def is_configured(self) -> bool:
-        """Returns True if a valid API key is present."""
-        return bool(self.api_key and self.api_key.startswith("re_"))
+        return False
 
     def send_email(
         self,
@@ -52,94 +29,13 @@ class ResendEmailService:
         reply_to: Optional[str] = None,
         tags: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
-        """Send an email using Resend API.
-
-        Falls back to direct HTTPS call if the SDK encounters an environment issue.
-        """
-        if not self.is_configured():
-            logger.warning("Resend API key is not configured. Email not sent.")
-            return {
-                "success": False,
-                "error": "Resend API key is not configured.",
-                "to": to,
-                "subject": subject,
-            }
-
-        recipients = [to] if isinstance(to, str) else to
-        sender = from_email or self.default_from
-
-        payload: Dict[str, Any] = {
-            "from": sender,
-            "to": recipients,
+        logger.warning("Email delivery is disabled; no message was sent.")
+        return {
+            "success": False,
+            "error": "Email delivery is disabled. Configure a supported provider before sending email.",
+            "to": to,
             "subject": subject,
         }
-        if html:
-            payload["html"] = html
-        if text:
-            payload["text"] = text
-        if reply_to:
-            payload["reply_to"] = reply_to
-        if tags:
-            payload["tags"] = tags
-
-        if RESEND_AVAILABLE:
-            try:
-                resend.api_key = self.api_key
-                response = resend.Emails.send(payload)
-                email_id = getattr(response, "id", None) or (
-                    response.get("id") if isinstance(response, dict) else str(response)
-                )
-                logger.info(f"Email sent successfully via Resend SDK to {recipients}: {email_id}")
-                return {
-                    "success": True,
-                    "id": email_id,
-                    "to": recipients,
-                    "subject": subject,
-                }
-            except Exception as exc:
-                logger.warning(
-                    f"Resend SDK send attempt failed: {exc}. Attempting direct HTTP fallback..."
-                )
-
-        try:
-            req_data = json.dumps(payload).encode("utf-8")
-            req = urllib.request.Request(
-                "https://api.resend.com/emails",
-                data=req_data,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                    "User-Agent": "Phikila-School-System/1.0",
-                },
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                resp_data = json.loads(resp.read().decode("utf-8"))
-                email_id = resp_data.get("id", "sent")
-                logger.info(f"Email sent via Resend HTTP API to {recipients}: {email_id}")
-                return {
-                    "success": True,
-                    "id": email_id,
-                    "to": recipients,
-                    "subject": subject,
-                }
-        except urllib.error.HTTPError as http_err:
-            error_body = http_err.read().decode("utf-8", errors="replace")
-            logger.error(f"Resend HTTP error {http_err.code}: {error_body}")
-            return {
-                "success": False,
-                "error": f"Resend API error ({http_err.code}): {error_body}",
-                "to": recipients,
-                "subject": subject,
-            }
-        except Exception as err:
-            logger.error(f"Failed to deliver email to {recipients}: {err}")
-            return {
-                "success": False,
-                "error": str(err),
-                "to": recipients,
-                "subject": subject,
-            }
 
     def send_templated_email(
         self,
@@ -189,8 +85,8 @@ class ResendEmailService:
             tmpl = catalog.get(template_id)
             sample_ctx = tmpl["sample_context"] if tmpl else {}
             return self.send_templated_email(to=to, template_id=template_id, context=sample_ctx)
-        return self.send_templated_email(to=to, template_id="general_notification", context={"name": to.split("@")[0].capitalize(), "title": "Phikila Resend Integration Test", "message": "This is a test email sent from Phikila School Management System verifying your Resend email configuration and API key.", "school_name": "Phikila System", "action_label": "Go to Dashboard", "action_url": "https://phikila.school", "details_table": {"Provider": "Resend", "API Key Status": "Active", "Environment": getattr(settings, "environment", "production")}})
+        return self.send_templated_email(to=to, template_id="general_notification", context={"name": to.split("@")[0].capitalize(), "title": "Phikila Email Delivery Test", "message": "Email delivery is currently disabled in this deployment.", "school_name": "Phikila System", "action_label": "Go to Dashboard", "action_url": "https://phikila.school", "details_table": {"Provider": "Disabled", "Delivery Status": "Disabled", "Environment": getattr(settings, "environment", "production")}})
 
 
 # Global singleton instance
-email_service = ResendEmailService()
+email_service = EmailDeliveryService()
