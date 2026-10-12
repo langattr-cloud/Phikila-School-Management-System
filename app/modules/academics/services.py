@@ -4,7 +4,6 @@ from sqlalchemy.exc import IntegrityError
 from app.modules.academics import models, schemas
 from app.modules.academics.repository import AcademicYearRepository, LevelRepository, GradeRepository, StreamRepository, TermRepository
 from app.modules.students import models_v2 as student_models
-from app.modules.attendance import models as attendance_models
 from app.modules.examinations import models_v2 as examination_models
 
 
@@ -177,25 +176,19 @@ class StreamService:
     def delete(self, school_id, stream_id):
         stream = self.get_stream_by_id(school_id, stream_id)
 
-        attendance_exists = self.db.query(attendance_models.AttendanceSession.id).filter(
-            attendance_models.AttendanceSession.school_id == school_id,
-            attendance_models.AttendanceSession.stream_id == stream_id,
-        ).first() is not None
-
+        # The legacy attendance module has been removed. Keep the active
+        # examination dependency check here; database foreign-key constraints
+        # below continue to prevent deletion when any remaining table references
+        # this stream.
         exam_subject_exists = self.db.query(examination_models.ExamSubject.id).filter(
             examination_models.ExamSubject.school_id == school_id,
             examination_models.ExamSubject.stream_id == stream_id,
         ).first() is not None
 
-        if attendance_exists or exam_subject_exists:
-            dependencies = []
-            if attendance_exists:
-                dependencies.append("attendance sessions")
-            if exam_subject_exists:
-                dependencies.append("exam subjects")
+        if exam_subject_exists:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
-                "Cannot delete this stream because it is referenced by " + " and ".join(dependencies) + ".",
+                "Cannot delete this stream because it is referenced by exam subjects.",
             )
 
         try:
