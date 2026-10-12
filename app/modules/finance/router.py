@@ -355,6 +355,7 @@ def ingest_payment(payload: s.PaymentInboxCreate, db: Session = Depends(get_db),
             m.StudentInvoice.balance > 0,
         ).order_by(m.StudentInvoice.created_at.asc(), m.StudentInvoice.id.asc()).all()
         if open_invoices:
+            nested = db.begin_nested()
             try:
                 invoice = open_invoices[0]
                 payment, _ = post_fee_payment(
@@ -373,20 +374,13 @@ def ingest_payment(payload: s.PaymentInboxCreate, db: Session = Depends(get_db),
                 item.reviewed_at = now
                 _audit(db, principal, "post", "payment_inbox", item.id,
                        f"Automatically posted {external_reference} as payment #{payment.id} against invoice #{invoice.id}")
+                nested.commit()
             except HTTPException as exc:
-                # Keep the parsed inbox row for audit/retry if accounting setup
-                # prevents posting; never discard a pasted transaction.
-                db.rollback()
-                item = db.query(m.PaymentInbox).filter(
-                    m.PaymentInbox.school_id == principal.school_id,
-                    m.PaymentInbox.source == payload.source,
-                    m.PaymentInbox.external_reference == external_reference,
-                ).first()
-                if item:
-                    item.status = "MATCHED"
-                    item.notes = f"Auto-post deferred: {exc.detail}"
-        elif matched_student:
-            item.notes = "Student matched by admission number; no single open invoice has enough balance for this payment."
+                nested.rollback()
+                item.status = "MATCHED"
+                item.notes = f"Auto-post deferred: {exc.detail}"
+        else:
+            item.notes = "Student matched by admission number; no open invoice has enough balance for this payment."
     db.commit(); db.refresh(item); return item
 
 @router.post("/finance/payment-inbox/{inbox_id}/post", response_model=s.PaymentInboxResponse)
