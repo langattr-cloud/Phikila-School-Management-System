@@ -23,7 +23,7 @@ export default function StudentsOverviewPage() {
       setLoading(true); setError(null)
       try {
         const [loadedLevels, loadedGrades, years] = await Promise.all([api.levels(), api.grades(), api.academicYears()]); const currentYear = years.find(y => y.is_current) ?? years[0]; const loadedStreams = currentYear ? (await Promise.all(loadedGrades.map(g => api.streams(currentYear.id, g.id)))).flat() : []
-        const gradeResults = await Promise.all(loadedGrades.map(async grade => ({ id: grade.id, total: (await students.list({ page: 1, page_size: 1, status: 'active', grade_id: grade.id })).total })))
+        const gradeResults = await Promise.all(loadedGrades.map(async grade => ({ id: grade.id, total: currentYear ? (await students.list({ page: 1, page_size: 1, status: 'active', academic_year_id: currentYear.id, grade_id: grade.id })).total : 0 })))
         if (!active) return
         setLevels(loadedLevels); setGrades(loadedGrades); setStreams(loadedStreams)
         setLearnerCounts(Object.fromEntries(gradeResults.map(result => [result.id, result.total])))
