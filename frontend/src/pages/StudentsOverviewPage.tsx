@@ -23,7 +23,8 @@ export default function StudentsOverviewPage() {
       setLoading(true); setError(null)
       try {
         const [loadedLevels, loadedGrades, years] = await Promise.all([api.levels(), api.grades(), api.academicYears()]); const currentYear = years.find(y => y.is_current) ?? years[0]; const loadedStreams = currentYear ? (await Promise.all(loadedGrades.map(g => api.streams(currentYear.id, g.id)))).flat() : []
-        const gradeResults = await Promise.all(loadedGrades.map(async grade => ({ id: grade.id, total: currentYear ? (await students.list({ page: 1, page_size: 1, status: 'active', academic_year_id: currentYear.id, grade_id: grade.id })).total : 0 })))
+        const activeGrades = loadedGrades.filter(grade => grade.status !== false && loadedLevels.some(level => level.id === grade.level_id && ((level.status as unknown) === 'ACTIVE' || level.status === true || level.status === undefined)))
+        const gradeResults = await Promise.all(activeGrades.map(async grade => ({ id: grade.id, total: currentYear ? (await students.list({ page: 1, page_size: 1, status: 'active', academic_year_id: currentYear.id, grade_id: grade.id })).total : 0 })))
         if (!active) return
         setLevels(loadedLevels); setGrades(loadedGrades); setStreams(loadedStreams)
         setLearnerCounts(Object.fromEntries(gradeResults.map(result => [result.id, result.total])))
@@ -46,7 +47,7 @@ export default function StudentsOverviewPage() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(12rem,1fr))', gap:'var(--space-3)', marginBottom:'var(--space-5)' }}>
         <div className="card section"><p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.85rem'}}>Active learners</p><strong style={{fontSize:'1.7rem'}}>{totalLearners}</strong></div>
         <div className="card section"><p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.85rem'}}>Grades</p><strong style={{fontSize:'1.7rem'}}>{rows.length}</strong></div>
-        <div className="card section"><p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.85rem'}} >Streams (optional)</p><strong style={{fontSize:'1.7rem'}}>{streams.length}</strong></div>
+        <div className="card section"><p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.85rem'}} >Streams (optional)</p><strong style={{fontSize:'1.7rem'}}>{streams.filter(stream => stream.status !== 'INACTIVE' && stream.status !== 'ARCHIVED').length}</strong></div>
       </div>
       <div className="card section" style={{padding:0,overflow:'hidden'}}><div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.9rem'}}>
         <thead><tr style={{borderBottom:'2px solid var(--color-line)'}}><th style={{padding:'var(--space-3)',textAlign:'left'}}>Grade</th><th style={{padding:'var(--space-3)',textAlign:'left'}}>Level</th><th style={{padding:'var(--space-3)',textAlign:'right'}}>Learners</th><th style={{padding:'var(--space-3)',textAlign:'right'}}>View</th></tr></thead>
