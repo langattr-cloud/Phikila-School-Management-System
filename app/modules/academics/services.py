@@ -126,7 +126,6 @@ class GradeService:
     def delete(self, school_id, grade_id):
         grade = self.get(school_id, grade_id)
         streams = self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.grade_id == grade_id).all()
-        stream_ids = [stream.id for stream in streams]
         enrollment_query = self.db.query(student_models.StudentEnrollment).filter(
             student_models.StudentEnrollment.school_id == school_id,
             student_models.StudentEnrollment.grade_id == grade_id,
@@ -144,6 +143,8 @@ class GradeService:
 class StreamService:
     def __init__(self, db): self.repository = StreamRepository(db); self.db = db
     def get_streams(self, school_id, academic_year_id, grade_id):
+        year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == academic_year_id, models.AcademicYear.school_id == school_id).first()
+        if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
         grade = self.db.query(models.Grade).filter(models.Grade.id == grade_id, models.Grade.school_id == school_id).first()
         if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade not found")
         return self.repository.get_streams(school_id, academic_year_id, grade_id)
@@ -152,6 +153,7 @@ class StreamService:
         if not stream: raise HTTPException(status.HTTP_404_NOT_FOUND, "Stream not found")
         return stream
     def create_stream(self, school_id, data):
+        if not data.name.strip(): raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Stream name cannot be empty.")
         year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == data.academic_year_id, models.AcademicYear.school_id == school_id).first()
         grade = self.db.query(models.Grade).filter(models.Grade.id == data.grade_id, models.Grade.school_id == school_id, models.Grade.level_id == data.level_id).first()
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
@@ -163,6 +165,9 @@ class StreamService:
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
         if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade does not belong to selected level")
         existing = self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == data.academic_year_id, models.Stream.grade_id == data.grade_id).all(); existing_by_name = {s.name.strip().casefold():s for s in existing}; streams=[]
+        incoming_names = [item.name.strip().casefold() for item in data.streams]
+        if any(not name for name in incoming_names): raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Stream names cannot be empty.")
+        if len(incoming_names) != len(set(incoming_names)): raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Stream names must be unique.")
         try:
             for item in data.streams:
                 name=item.name.strip(); stream=existing_by_name.get(name.casefold())
