@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from app.modules.academics import models, schemas
 from app.modules.academics.repository import AcademicYearRepository, LevelRepository, GradeRepository, StreamRepository, TermRepository
@@ -88,9 +89,23 @@ class LevelService:
             if duplicate and duplicate.id != level.id: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
         return self.repository.update_level(level, data)
     def delete_level(self, school_id, level_id):
-        # Grade/Stream are retired from the application and their database tables
-        # may no longer exist. Do not query those legacy tables from the Levels API.
         level = self.get_level_by_id(school_id, level_id)
+        grade_ids = [row[0] for row in self.db.query(models.Grade.id).filter(
+            models.Grade.school_id == school_id, models.Grade.level_id == level_id
+        ).all()]
+        stream_ids = [row[0] for row in self.db.query(models.Stream.id).filter(
+            models.Stream.school_id == school_id, models.Stream.level_id == level_id
+        ).all()]
+        enrollment_reference = self.db.query(student_models.StudentEnrollment.id).filter(
+            student_models.StudentEnrollment.school_id == school_id,
+            or_(
+                student_models.StudentEnrollment.level_id == level_id,
+                student_models.StudentEnrollment.grade_id.in_(grade_ids),
+                student_models.StudentEnrollment.stream_id.in_(stream_ids),
+            ),
+        ).first()
+        if enrollment_reference:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this level because it is referenced by student enrollments. Move or archive those enrollments first.")
         try:
             self.db.delete(level)
             self.db.commit()
