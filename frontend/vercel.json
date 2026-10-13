@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://phikila-school-management-system.onrender.com/api/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://phikila-school-management-system.onrender.com/health"
+    },
+    {
+      "source": "/ready",
+      "destination": "https://phikila-school-management-system.onrender.com/ready"
+    },
+    {
+      "source": "/((?!api(?:/|$)|health$|ready$|assets(?:/|$)|brand(?:/|$)|favicon\\.(?:svg|ico)$|site\\.webmanifest$|sw\\.js$).*)",
+      "destination": "/"
+    }
+  ]
+}
