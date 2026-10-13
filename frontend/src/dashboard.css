@@ -12,7 +12,17 @@
 .dashboard-hero .button--secondary { background:rgba(255,255,255,.08); color:#fff; border-color:rgba(255,255,255,.25); }
 .dashboard-hero .button--secondary:hover { background:rgba(255,255,255,.14); }
 .dashboard-metrics { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:.85rem; margin-bottom:1.25rem; }
-.dashboard-metric { min-width:0; border:1px solid var(--color-line); border-radius:1rem; background:var(--color-surface); padding:1rem; box-shadow:var(--shadow-sm); transition:transform 140ms ease,box-shadow 140ms ease,border-color 140ms ease; }
+.dashboard-metric { --metric-accent:var(--brand-navy); min-width:0; border:1px solid var(--color-line); border-top:3px solid var(--metric-accent); border-radius:1rem; background:var(--color-surface); padding:calc(1rem - 2px) 1rem 1rem; box-shadow:var(--shadow-sm); transition:transform 140ms ease,box-shadow 140ms ease,border-color 140ms ease; }
+.dashboard-metric--navy { --metric-accent:var(--brand-navy); }
+.dashboard-metric--gold { --metric-accent:var(--brand-gold); }
+.dashboard-metric--green { --metric-accent:var(--brand-emerald); }
+.dashboard-metric--danger { --metric-accent:var(--color-danger); }
+.dashboard-metric--blue { --metric-accent:#3979bd; }
+.dashboard-metric--violet { --metric-accent:#8763c5; }
+.dashboard-metric--teal { --metric-accent:#169ca0; }
+.dashboard-metric__icon--blue { background:#e8f1fc; color:#2866a5; }
+.dashboard-metric__icon--violet { background:#f0eafb; color:#7050ad; }
+.dashboard-metric__icon--teal { background:#e2f5f3; color:#087e83; }
 .dashboard-metric:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:var(--color-line-strong); }
 .dashboard-metric__top { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
 .dashboard-metric__icon { display:inline-flex; align-items:center; justify-content:center; width:2.55rem; height:2.55rem; border-radius:.75rem; background:var(--color-primary-soft); color:var(--brand-navy); flex:0 0 auto; }
