@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/api/v1/school/",
+      "destination": "https://phikila-school-management-system.onrender.com/api/v1/school/"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://phikila-school-management-system.onrender.com/api/:path*"
     },
