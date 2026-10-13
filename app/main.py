@@ -11,6 +11,7 @@ from app.modules.authentication.supabase import get_supabase_claims
 from app.modules.email.router import router as email_router
 from app.modules.examinations.router_v2 import router as exams_router
 from app.modules.finance.router import router as finance_router
+from app.modules.finance.supplier_payments import router as supplier_payments_router, Supplier, SupplierInvoice, SupplierPayment
 from app.modules.finance.payment_sms_router import router as finance_sms_router
 from app.modules.finance.payment_statement_import import router as finance_statement_import_router
 from app.modules.finance.operations_router import router as finance_operations_router
@@ -73,6 +74,12 @@ def create_app() -> FastAPI:
         app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_origin_regex=settings.cors_origin_regex, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "Accept"])
     from app.middleware import SecurityHeadersMiddleware, AccessLogMiddleware
     app.add_middleware(AccessLogMiddleware); app.add_middleware(SecurityHeadersMiddleware)
+    @app.on_event("startup")
+    def ensure_supplier_payment_tables():
+        # Create only the new additive supplier-payment tables; existing tables are untouched.
+        from app.core.database import engine
+        from app.core.database import Base
+        Base.metadata.create_all(bind=engine, tables=[Supplier.__table__, SupplierInvoice.__table__, SupplierPayment.__table__])
     @app.get("/health", tags=["Health"])
     def health_check():
         from app.modules.scheduling.solver import ORTOOLS_AVAILABLE
@@ -91,7 +98,7 @@ def create_app() -> FastAPI:
     _guard_module_routes(students_router, "students")
     _guard_module_routes(exams_router, "examinations")
     for finance_module_router in (
-        finance_router, finance_sms_router, finance_statement_import_router,
+        finance_router, supplier_payments_router, finance_sms_router, finance_statement_import_router,
         finance_operations_router, finance_account_mapping_router,
         finance_reports_router, finance_completion_router,
     ):
@@ -121,6 +128,7 @@ def create_app() -> FastAPI:
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
     app.include_router(outlook_router, prefix="/api/v1/outlook", tags=["Microsoft Outlook"])
     app.include_router(finance_router, prefix="/api/v1", tags=["Finance"])
+    app.include_router(supplier_payments_router, prefix="/api/v1", tags=["Supplier Payments"])
     app.include_router(finance_sms_router, prefix="/api/v1", tags=["Finance SMS Payments"])
     app.include_router(finance_statement_import_router, prefix="/api/v1", tags=["Finance Statement Import"])
     app.include_router(finance_operations_router, prefix="/api/v1", tags=["Finance Operations"])
