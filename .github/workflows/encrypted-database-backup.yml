@@ -1,0 +1,75 @@
+name: Encrypted database backup
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phikila-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump, encrypt, and upload PostgreSQL backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Install backup tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes age postgresql-client awscli
+
+      - name: Validate configuration
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_URL" || { echo "::error::Missing SUPABASE_DB_URL secret"; exit 1; }
+          test -n "$R2_ACCOUNT_ID" || { echo "::error::Missing R2_ACCOUNT_ID secret"; exit 1; }
+          test -n "$R2_ACCESS_KEY_ID" || { echo "::error::Missing R2_ACCESS_KEY_ID secret"; exit 1; }
+          test -n "$R2_SECRET_ACCESS_KEY" || { echo "::error::Missing R2_SECRET_ACCESS_KEY secret"; exit 1; }
+          test -n "$R2_BUCKET" || { echo "::error::Missing R2_BUCKET variable"; exit 1; }
+          case "$BACKUP_AGE_RECIPIENT" in age1*) ;; *) echo "::error::BACKUP_AGE_RECIPIENT must be an age public recipient"; exit 1 ;; esac
+
+      - name: Dump and encrypt database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          pg_dump "$SUPABASE_DB_URL" --format=custom --no-owner --no-acl --file="$RUNNER_TEMP/phikila.dump"
+          age --recipient "$BACKUP_AGE_RECIPIENT" --output "$RUNNER_TEMP/phikila.dump.age" "$RUNNER_TEMP/phikila.dump"
+          rm -f "$RUNNER_TEMP/phikila.dump"
+          test -s "$RUNNER_TEMP/phikila.dump.age"
+          sha256sum "$RUNNER_TEMP/phikila.dump.age" > "$RUNNER_TEMP/phikila.dump.age.sha256"
+
+      - name: Upload encrypted backup to Cloudflare R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
+          export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+          export AWS_DEFAULT_REGION=auto
+          STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          aws --endpoint-url "$ENDPOINT" s3 cp "$RUNNER_TEMP/phikila.dump.age" "s3://${R2_BUCKET}/daily/${STAMP}.dump.age"
+          aws --endpoint-url "$ENDPOINT" s3 cp "$RUNNER_TEMP/phikila.dump.age.sha256" "s3://${R2_BUCKET}/daily/${STAMP}.dump.age.sha256"
+          aws --endpoint-url "$ENDPOINT" s3api head-object --bucket "$R2_BUCKET" --key "daily/${STAMP}.dump.age" >/dev/null
+
+      - name: Remove temporary files
+        if: always()
+        run: rm -f "$RUNNER_TEMP/phikila.dump" "$RUNNER_TEMP/phikila.dump.age" "$RUNNER_TEMP/phikila.dump.age.sha256"
