@@ -15,6 +15,7 @@ import app.modules.ocr.models
 import app.modules.students.models_v2
 import app.modules.examinations.models_v2
 import app.modules.finance.models
+import app.modules.finance.supplier_payments
 import app.modules.scheduling.tenancy
 import app.modules.platform.entitlements
 import app.modules.outlook.router
