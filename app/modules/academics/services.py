@@ -126,11 +126,14 @@ class GradeService:
     def delete(self, school_id, grade_id):
         grade = self.get(school_id, grade_id)
         streams = self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.grade_id == grade_id).all()
+        stream_ids = [stream.id for stream in streams]
+        enrollment_query = self.db.query(student_models.StudentEnrollment).filter(
+            student_models.StudentEnrollment.school_id == school_id,
+            student_models.StudentEnrollment.grade_id == grade_id,
+        )
+        if enrollment_query.first():
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this grade because it is referenced by student enrollments. Move or archive those enrollments first.")
         if streams:
-            stream_ids = [stream.id for stream in streams]
-            student_count = self.db.query(student_models.Student).filter(student_models.Student.school_id == school_id, student_models.Student.stream_id.in_(stream_ids)).count()
-            if student_count:
-                raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this grade because its streams still have students assigned. Reassign the students first.")
             for stream in streams: self.db.delete(stream)
         self.db.delete(grade)
         try: self.db.commit()
@@ -179,10 +182,15 @@ class StreamService:
     def delete(self, school_id, stream_id):
         stream = self.get_stream_by_id(school_id, stream_id)
 
-        # The legacy attendance module has been removed. Keep the active
-        # examination dependency check here; database foreign-key constraints
-        # below continue to prevent deletion when any remaining table references
-        # this stream.
+        # Protect historical as well as active enrollment references before deleting a stream.
+        enrollment_exists = self.db.query(student_models.StudentEnrollment.id).filter(
+            student_models.StudentEnrollment.school_id == school_id,
+            student_models.StudentEnrollment.stream_id == stream_id,
+        ).first() is not None
+        if enrollment_exists:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this stream because it is referenced by student enrollments. Reassign those enrollments first.")
+
+        # Keep the examination dependency check as a second guard.
         exam_subject_exists = self.db.query(examination_models.ExamSubject.id).filter(
             examination_models.ExamSubject.school_id == school_id,
             examination_models.ExamSubject.stream_id == stream_id,
