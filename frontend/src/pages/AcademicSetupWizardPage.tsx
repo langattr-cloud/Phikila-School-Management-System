@@ -42,10 +42,10 @@ export function AcademicSetupWizardPage(){
  function selectLevel(id:string){setForm(v=>({...v,levelId:id,newLevelName:'',newLevelCode:'',gradeId:'',gradeName:'',gradeCode:'',streamChoices:[],streamName:'',streamCode:''}))}
  function selectGrade(id:string){const grade=grades.find(g=>String(g.id)===id);setForm(v=>({...v,gradeId:id,gradeName:grade?.name||'',gradeCode:grade?.code||'',streamChoices:[],streamName:'',streamCode:''}))}
  function validate(){
-  if(step===0&&!form.yearId&&(!form.yearName.trim()||!form.startDate||!form.endDate))throw Error('Select an academic year or enter the year and its dates.')
-  if(step===2&&!form.levelId&&(!form.newLevelName.trim()||!form.newLevelCode.trim()))throw Error('Select an existing level or enter a level name and code.')
-  if(step===3&&!form.gradeId&&(!form.gradeName.trim()||!form.gradeCode.trim()))throw Error('Select an existing grade or enter a grade name and code.')
-  if(step===4&&form.streamChoices.includes('__custom__')&&!form.streamName.trim())throw Error('Enter a name for the custom stream, or uncheck Customize.')
+  if(step===0&&!form.yearId&&(!form.yearName.trim()||!form.startDate||!form.endDate))throw Error('Select an academic year or enter the year and its dates.'); if(step===0&&!form.yearId&&form.startDate&&form.endDate&&form.startDate>form.endDate)throw Error('The academic year start date must be on or before its end date.')
+  if(step===1&&!form.levelId&&(!form.newLevelName.trim()||!form.newLevelCode.trim()))throw Error('Select an existing level or enter a level name and code.')
+  if(step===2&&!form.gradeId&&(!form.gradeName.trim()||!form.gradeCode.trim()))throw Error('Select an existing grade or enter a grade name and code.')
+  if(step===3&&form.streamChoices.includes('__custom__')&&!form.streamName.trim())throw Error('Enter a name for the custom stream, or uncheck Customize.')
  }
  async function saveYear():Promise<AcademicYear|null>{
   if(form.yearId)return years.find(y=>String(y.id)===form.yearId)||null
