@@ -33,7 +33,7 @@ export default function StudentsOverviewPage() {
     void load(); return () => { active = false }
   }, [])
 
-  const rows = useMemo<GradeRow[]>(() => grades.filter(g => g.status !== false).map(g => {
+  const rows = useMemo<GradeRow[]>(() => grades.filter(g => g.status !== false && levels.some(l => l.id === g.level_id && ((l.status as unknown) === 'ACTIVE' || l.status === true || l.status === undefined))).map(g => {
     const level = levels.find(l => l.id === g.level_id)
     return { ...g, levelName: level?.name || 'Level', learnerCount: learnerCounts[g.id] || 0, streams: streams.filter(s => s.grade_id === g.id && s.status !== 'INACTIVE' && s.status !== 'ARCHIVED') }
   }).sort((a,b) => a.levelName.localeCompare(b.levelName) || a.name.localeCompare(b.name)), [grades, levels, streams, learnerCounts])
