@@ -11,9 +11,29 @@ class AcademicYearCreate(BaseModel):
     end_date: date
     is_current: Optional[bool] = False
     status: Optional[str] = "ACTIVE"
+
+    @model_validator(mode="after")
+    def validate_date_range(self):
+        if self.start_date > self.end_date:
+            raise ValueError("Academic year start date must be before its end date.")
+        return self
+
 class AcademicYearUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=4, max_length=20)
-    start_date: Optional[date] = None; end_date: Optional[date] = None; is_current: Optional[bool] = None; status: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_current: Optional[bool] = None
+    status: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_date_range(self):
+        if "start_date" in self.model_fields_set and self.start_date is None:
+            raise ValueError("Academic year start date cannot be empty.")
+        if "end_date" in self.model_fields_set and self.end_date is None:
+            raise ValueError("Academic year end date cannot be empty.")
+        if self.start_date is not None and self.end_date is not None and self.start_date > self.end_date:
+            raise ValueError("Academic year start date must be before its end date.")
+        return self
 class AcademicYearResponse(AcademicYearCreate):
     id: int; school_id: int; created_at: datetime; updated_at: Optional[datetime] = None
     class Config: from_attributes = True
