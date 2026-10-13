@@ -14,10 +14,13 @@ class AcademicYearService:
         year = self.repository.get_by_id(school_id, year_id)
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
         return year
-    def create_academic_year(self, school_id, data): return self.repository.create(school_id, data)
+    def create_academic_year(self, school_id, data):
+        if data.start_date > data.end_date: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Academic year start date must be before its end date.")
+        return self.repository.create(school_id, data)
     def update_academic_year(self, school_id, year_id, data):
         year = self.get_academic_year_by_id(school_id, year_id); values = data.model_dump(exclude_unset=True)
         start = values.get("start_date", year.start_date); end = values.get("end_date", year.end_date)
+        if start is None or end is None: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Academic year start and end dates are required.")
         if start > end: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Academic year start date must be before its end date.")
         if values.get("is_current") is True: self.repository.db.query(models.AcademicYear).filter(models.AcademicYear.school_id == school_id, models.AcademicYear.id != year_id).update({models.AcademicYear.is_current: False})
         return self.repository.update(year, data)
