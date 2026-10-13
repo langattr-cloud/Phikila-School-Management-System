@@ -149,7 +149,7 @@ function VoteHeadsView() {
       </div>
     </div>
     {!heads.length ? <EmptyState title="No vote heads configured" description="Add the categories your school uses for fees." /> : <div className="finance-list">{heads.map(h => <div className="finance-list__row" key={h.id}>
-      <div className="finance-list__main"><strong>{h.name}</strong><span className="muted-text">{h.code ? (h.code.trim().toLocaleLowerCase() !== h.name.trim().toLocaleLowerCase() ? h.code : null) : 'No code'}{h.description ? `${!h.code || h.code.trim().toLocaleLowerCase() !== h.name.trim().toLocaleLowerCase() ? ' — ' : ''}${h.description}` : ''}</span></div>
+      <div className="finance-list__main"><strong>{h.name}</strong><span className="muted-text">{h.code && h.code.replace(/[^a-z0-9]/gi, '').toLocaleLowerCase() !== h.name.replace(/[^a-z0-9]/gi, '').toLocaleLowerCase() ? <><span>{h.code}</span>{h.description ? ' — ' : ''}</> : h.description ? null : !h.code ? 'No code' : null}{h.description}</span></div>
       <div className="finance-list__value"><Badge tone={h.status === 'ACTIVE' ? 'success' : 'warning'}>{h.status}</Badge><button className="button button--secondary button--sm" onClick={() => edit(h)}>Edit</button></div>
     </div>)}</div>}
   </section>
