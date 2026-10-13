@@ -5,6 +5,7 @@ import { Badge, EmptyState, LoadingBlock } from '../components/States'
 import { FinancePaymentMatcher } from '../components/FinancePaymentMatcher'
 import { FinanceReceipts } from '../components/FinanceReceipts'
 import { FinanceBanking } from '../components/FinanceBanking'
+import { SupplierPayments } from './SupplierPayments'
 import { api, friendlyApiError } from '../lib/api'
 import { finance, type BalanceSheet, type FeeStructure, type GeneralLedgerRow, type Invoice, type Payment, type FinanceOverview, type TrialBalanceRow, type VoteHead } from '../lib/finance'
 import { students, type Student } from '../lib/students'
@@ -21,7 +22,7 @@ export default function FinancePage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'receipts' | 'vote-heads' | 'trial-balance' | 'general-ledger' | 'balance-sheet' | 'banking' | 'balances'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'fees' | 'invoices' | 'matcher' | 'receipts' | 'vote-heads' | 'trial-balance' | 'general-ledger' | 'balance-sheet' | 'banking' | 'balances' | 'suppliers'>('overview')
   const [showNewFee, setShowNewFee] = useState(false)
   const [reviewingFeeId, setReviewingFeeId] = useState<number | null>(null)
   const [showNewInvoice, setShowNewInvoice] = useState(false)
@@ -58,7 +59,7 @@ export default function FinancePage() {
     <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
-      {(['overview', 'matcher', 'receipts', 'fees', 'vote-heads', 'invoices', 'payments', 'balances', 'banking', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
+      {(['overview', 'matcher', 'receipts', 'fees', 'vote-heads', 'invoices', 'payments', 'balances', 'banking', 'suppliers', 'trial-balance', 'general-ledger', 'balance-sheet'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab === 'suppliers' ? 'Supplier Payments' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
     </div>
 
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
@@ -66,6 +67,7 @@ export default function FinancePage() {
       {activeTab === 'receipts' && <FinanceReceipts />}
       {activeTab === 'vote-heads' && <VoteHeadsView />}
       {activeTab === 'banking' && <FinanceBanking />}
+      {activeTab === 'suppliers' && <SupplierPayments />}
       {activeTab === 'balances' && <StudentBalancesReport onCreateFee={() => { setShowNewFee(true); setActiveTab('fees') }} />}
       {activeTab === 'trial-balance' && <TrialBalanceView />}
       {activeTab === 'general-ledger' && <GeneralLedgerView />}
