@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from app.modules.academics import models, schemas
 from app.modules.academics.repository import AcademicYearRepository, LevelRepository, GradeRepository, StreamRepository, TermRepository
@@ -80,12 +80,26 @@ class LevelService:
         return level
     def create_level(self, school_id, data):
         code = data.code.strip()
+        name = data.name.strip()
+        duplicate_name = self.db.query(models.Level).filter(
+            models.Level.school_id == school_id,
+            func.lower(func.trim(models.Level.name)) == name.casefold(),
+        ).first()
+        if duplicate_name: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this name already exists.")
         if self.repository.get_level_by_code(school_id, code): raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
         return self.repository.create_level(school_id, data)
     def update_level(self, school_id, level_id, data):
         level = self.get_level_by_id(school_id, level_id)
-        if data.code:
-            duplicate = self.repository.get_level_by_code(school_id, data.code.strip())
+        values = data.model_dump(exclude_unset=True)
+        if values.get("name"):
+            duplicate_name = self.db.query(models.Level).filter(
+                models.Level.school_id == school_id,
+                func.lower(func.trim(models.Level.name)) == values["name"].strip().casefold(),
+                models.Level.id != level.id,
+            ).first()
+            if duplicate_name: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this name already exists.")
+        if values.get("code"):
+            duplicate = self.repository.get_level_by_code(school_id, values["code"].strip())
             if duplicate and duplicate.id != level.id: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
         return self.repository.update_level(level, data)
     def delete_level(self, school_id, level_id):
@@ -123,6 +137,11 @@ class GradeService:
     def create(self, school_id, data):
         level = self.db.query(models.Level).filter(models.Level.id == data.level_id, models.Level.school_id == school_id).first()
         if not level: raise HTTPException(status.HTTP_404_NOT_FOUND, "Level not found")
+        duplicate_name = self.db.query(models.Grade).filter(
+            models.Grade.school_id == school_id, models.Grade.level_id == data.level_id,
+            func.lower(func.trim(models.Grade.name)) == data.name.strip().casefold(),
+        ).first()
+        if duplicate_name: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this name already exists in this level.")
         if self.repository.get_by_code(school_id, data.level_id, data.code.strip()): raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in this level.")
         return self.repository.create(school_id, data)
     def update(self, school_id, grade_id, data):
@@ -131,6 +150,13 @@ class GradeService:
         if target_level_id != grade.level_id:
             target_level = self.db.query(models.Level).filter(models.Level.id == target_level_id, models.Level.school_id == school_id).first()
             if not target_level: raise HTTPException(status.HTTP_404_NOT_FOUND, "Target level not found")
+        name = values.get("name", grade.name)
+        duplicate_name = self.db.query(models.Grade).filter(
+            models.Grade.school_id == school_id, models.Grade.level_id == target_level_id,
+            func.lower(func.trim(models.Grade.name)) == name.strip().casefold(),
+            models.Grade.id != grade.id,
+        ).first()
+        if duplicate_name: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this name already exists in the target level.")
         code = values.get("code", grade.code)
         duplicate = self.repository.get_by_code(school_id, target_level_id, code.strip())
         if duplicate and duplicate.id != grade.id: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in the target level.")
