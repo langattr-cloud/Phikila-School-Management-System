@@ -5,9 +5,8 @@ import { jsonError } from '../lib/http'
 
 export const financeRoutes = new Hono()
 
-// The legacy worker schema lacks school_id on core finance tables. Until a
-// tenant-aware schema is in place, block this API for multi-school deployments
-// and require an approved finance/admin membership for the sole school.
+// Every finance request is authorized against an active school membership.
+// Each table read/write is scoped to that verified school; never trust a body school_id.
 financeRoutes.use('*', async (c, next) => {
   const { error } = await requireFinanceSchoolAccess(c as never)
   if (error) return error
@@ -19,11 +18,11 @@ financeRoutes.get('/overview', async (c) => {
   if (error) return error
   const client = db()
   const [fees, invoices, payments, inbox, accounts] = await Promise.all([
-    client.from('fee_structures').select('*'),
-    client.from('student_invoices').select('*'),
-    client.from('payments').select('*'),
-    client.from('payment_inbox').select('*'),
-    client.from('chart_of_accounts').select('*'),
+    client.from('fee_structures').select('*').eq('school_id', c.get('financeSchoolId')),
+    client.from('student_invoices').select('*').eq('school_id', c.get('financeSchoolId')),
+    client.from('payments').select('*').eq('school_id', c.get('financeSchoolId')),
+    client.from('payment_inbox').select('*').eq('school_id', c.get('financeSchoolId')),
+    client.from('chart_of_accounts').select('*').eq('school_id', c.get('financeSchoolId')),
   ])
   return c.json({
     fee_structures: fees.data ?? [],
@@ -37,7 +36,7 @@ financeRoutes.get('/overview', async (c) => {
 financeRoutes.get('/vote-heads', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data, error: queryError } = await db().from('finance_vote_heads').select('*').order('display_order').order('name')
+  const { data, error: queryError } = await db().from('finance_vote_heads').select('*').eq('school_id', c.get('financeSchoolId')).order('display_order').order('name')
   if (queryError) return jsonError(c, queryError.message, 400)
   return c.json(data ?? [])
 })
@@ -45,7 +44,7 @@ financeRoutes.post('/vote-heads', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('finance_vote_heads').insert(body).select().single()
+  const { data, error: insertError } = await db().from('finance_vote_heads').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -53,14 +52,14 @@ financeRoutes.patch('/vote-heads/:id', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: updateError } = await db().from('finance_vote_heads').update(body).eq('id', c.req.param('id')).select().maybeSingle()
+  const { data, error: updateError } = await db().from('finance_vote_heads').update({ ...body, school_id: c.get('financeSchoolId') }).eq('school_id', c.get('financeSchoolId')).eq('id', c.req.param('id')).select().maybeSingle()
   if (updateError) return jsonError(c, updateError.message, 400)
   return c.json(data)
 })
 financeRoutes.get('/fee-structures/:id/items', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data, error: queryError } = await db().from('fee_structure_items').select('*').eq('fee_structure_id', c.req.param('id')).order('display_order')
+  const { data, error: queryError } = await db().from('fee_structure_items').select('*').eq('school_id', c.get('financeSchoolId')).eq('fee_structure_id', c.req.param('id')).order('display_order')
   if (queryError) return jsonError(c, queryError.message, 400)
   return c.json(data ?? [])
 })
@@ -68,31 +67,31 @@ financeRoutes.post('/fee-structures/:id/items', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('fee_structure_items').insert({ ...body, fee_structure_id: Number(c.req.param('id')) }).select().single()
+  const { data, error: insertError } = await db().from('fee_structure_items').insert({ ...body, school_id: c.get('financeSchoolId'), fee_structure_id: Number(c.req.param('id')) }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
 financeRoutes.get('/payments/:id/allocations', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data, error: queryError } = await db().from('payment_allocations').select('*').eq('payment_id', c.req.param('id')).order('id')
+  const { data, error: queryError } = await db().from('payment_allocations').select('*').eq('school_id', c.get('financeSchoolId')).eq('payment_id', c.req.param('id')).order('id')
   if (queryError) return jsonError(c, queryError.message, 400)
   return c.json(data ?? [])
 })
 financeRoutes.get('/students/:studentId/fee-credits', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data, error: queryError } = await db().from('student_fee_credits').select('*').eq('student_id', c.req.param('studentId')).eq('status','AVAILABLE').order('created_at')
+  const { data, error: queryError } = await db().from('student_fee_credits').select('*').eq('school_id', c.get('financeSchoolId')).eq('student_id', c.req.param('studentId')).eq('status','AVAILABLE').order('created_at')
   if (queryError) return jsonError(c, queryError.message, 400)
   return c.json(data ?? [])
 })
 financeRoutes.get('/students/:studentId/fee-obligations', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data: invoices, error: invoiceError } = await db().from('student_invoices').select('*').eq('student_id', c.req.param('studentId')).gt('balance',0).order('created_at')
+  const { data: invoices, error: invoiceError } = await db().from('student_invoices').select('*').eq('school_id', c.get('financeSchoolId')).eq('student_id', c.req.param('studentId')).gt('balance',0).order('created_at')
   if (invoiceError) return jsonError(c, invoiceError.message, 400)
   const ids = (invoices ?? []).map((i: any) => i.id)
-  const { data: items } = ids.length ? await db().from('student_invoice_items').select('*').in('invoice_id', ids) : { data: [] as any[] }
+  const { data: items } = ids.length ? await db().from('student_invoice_items').select('*').eq('school_id', c.get('financeSchoolId')).in('invoice_id', ids) : { data: [] as any[] }
   return c.json({ invoices: invoices ?? [], items: items ?? [] })
 })
 financeRoutes.post('/payments/allocate', async (c) => {
@@ -112,7 +111,7 @@ financeRoutes.post('/payments/allocate', async (c) => {
 financeRoutes.get('/fee-structures', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data } = await db().from('fee_structures').select('*').order('id')
+  const { data } = await db().from('fee_structures').select('*').eq('school_id', c.get('financeSchoolId')).order('id')
   return c.json(data ?? [])
 })
 
@@ -120,7 +119,7 @@ financeRoutes.post('/fee-structures', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('fee_structures').insert(body).select().single()
+  const { data, error: insertError } = await db().from('fee_structures').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -131,7 +130,8 @@ financeRoutes.patch('/fee-structures/:id', async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const { data, error: updateError } = await db()
     .from('fee_structures')
-    .update(body)
+    .update({ ...body, school_id: c.get('financeSchoolId') })
+    .eq('school_id', c.get('financeSchoolId'))
     .eq('id', c.req.param('id'))
     .select()
     .maybeSingle()
@@ -142,7 +142,7 @@ financeRoutes.patch('/fee-structures/:id', async (c) => {
 financeRoutes.delete('/fee-structures/:id', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  await db().from('fee_structures').delete().eq('id', c.req.param('id'))
+  await db().from('fee_structures').delete().eq('school_id', c.get('financeSchoolId')).eq('id', c.req.param('id'))
   return c.body(null, 204)
 })
 
@@ -150,7 +150,7 @@ financeRoutes.delete('/fee-structures/:id', async (c) => {
 financeRoutes.get('/invoices', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data } = await db().from('student_invoices').select('*').order('created_at', { ascending: false })
+  const { data } = await db().from('student_invoices').select('*').eq('school_id', c.get('financeSchoolId')).order('created_at', { ascending: false })
   return c.json(data ?? [])
 })
 
@@ -158,7 +158,7 @@ financeRoutes.post('/invoices', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('student_invoices').insert(body).select().single()
+  const { data, error: insertError } = await db().from('student_invoices').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -169,7 +169,8 @@ financeRoutes.patch('/invoices/:id', async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const { data, error: updateError } = await db()
     .from('student_invoices')
-    .update(body)
+    .update({ ...body, school_id: c.get('financeSchoolId') })
+    .eq('school_id', c.get('financeSchoolId'))
     .eq('id', c.req.param('id'))
     .select()
     .maybeSingle()
@@ -181,7 +182,7 @@ financeRoutes.patch('/invoices/:id', async (c) => {
 financeRoutes.get('/payments', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data } = await db().from('payments').select('*').order('created_at', { ascending: false })
+  const { data } = await db().from('payments').select('*').eq('school_id', c.get('financeSchoolId')).order('created_at', { ascending: false })
   return c.json(data ?? [])
 })
 
@@ -201,7 +202,8 @@ financeRoutes.post('/payments', async (c) => {
     return c.json(data, 201)
   }
   const client = db()
-  const { data, error: insertError } = await client.from('payments').insert(body).select().single()
+  if (!body.student_id || !(Number(body.amount) > 0)) return c.json({ detail: 'A valid student and positive amount are required.' }, 400)
+  const { data, error: insertError } = await client.from('payments').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -210,7 +212,7 @@ financeRoutes.post('/payments', async (c) => {
 financeRoutes.get('/payment-inbox', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data } = await db().from('payment_inbox').select('*').order('created_at', { ascending: false })
+  const { data } = await db().from('payment_inbox').select('*').eq('school_id', c.get('financeSchoolId')).order('created_at', { ascending: false })
   return c.json(data ?? [])
 })
 
@@ -220,7 +222,8 @@ financeRoutes.patch('/payment-inbox/:id', async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const { data, error: updateError } = await db()
     .from('payment_inbox')
-    .update(body)
+    .update({ ...body, school_id: c.get('financeSchoolId') })
+    .eq('school_id', c.get('financeSchoolId'))
     .eq('id', c.req.param('id'))
     .select()
     .maybeSingle()
@@ -232,7 +235,7 @@ financeRoutes.patch('/payment-inbox/:id', async (c) => {
 financeRoutes.get('/receipts', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data } = await db().from('finance_receipts').select('*').order('created_at', { ascending: false })
+  const { data } = await db().from('finance_receipts').select('*').eq('school_id', c.get('financeSchoolId')).order('issued_at', { ascending: false })
   return c.json(data ?? [])
 })
 
@@ -240,7 +243,7 @@ financeRoutes.post('/receipts', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('finance_receipts').insert(body).select().single()
+  const { data, error: insertError } = await db().from('finance_receipts').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -249,7 +252,7 @@ financeRoutes.post('/receipts', async (c) => {
 financeRoutes.get('/chart-of-accounts', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data } = await db().from('chart_of_accounts').select('*').order('code')
+  const { data } = await db().from('chart_of_accounts').select('*').eq('school_id', c.get('financeSchoolId')).order('code')
   return c.json(data ?? [])
 })
 
@@ -257,7 +260,7 @@ financeRoutes.post('/chart-of-accounts', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('chart_of_accounts').insert(body).select().single()
+  const { data, error: insertError } = await db().from('chart_of_accounts').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -265,7 +268,7 @@ financeRoutes.post('/chart-of-accounts', async (c) => {
 financeRoutes.get('/journals', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data } = await db().from('finance_journals').select('*').order('created_at', { ascending: false })
+  const { data } = await db().from('finance_journals').select('*').eq('school_id', c.get('financeSchoolId')).order('created_at', { ascending: false })
   return c.json(data ?? [])
 })
 
@@ -274,7 +277,7 @@ financeRoutes.post('/journals', async (c) => {
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
   const client = db()
-  const { data, error: insertError } = await client.from('finance_journals').insert(body).select().single()
+  const { data, error: insertError } = await client.from('finance_journals').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   if (Array.isArray(body.entries)) {
     await client
