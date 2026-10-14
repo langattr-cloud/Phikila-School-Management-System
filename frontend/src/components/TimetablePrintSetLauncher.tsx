@@ -136,7 +136,7 @@ export function TimetablePrintSetLauncher() {
     const pages: string[] = []
     for (let index = 0; index < captured.length; index += config.perPage) {
       const chunk = captured.slice(index, index + config.perPage)
-      pages.push(`<div class="print-page">${chunk.map((item) => `<section class="sheet"><header>${config.showSchoolName ? `<p>${escapeHtml(config.schoolName)}</p>` : ''}${config.showTitle ? `<h1>${escapeHtml(item.title)}</h1>` : ''}${config.headerText ? `<p>${escapeHtml(config.headerText)}</p>` : ''}</header><div class="grid-wrap">${item.html}</div><div class="print-footer"><span>${escapeHtml(config.footerText)}</span>${config.showPageNumber ? `<span>Page ${Math.floor(index / config.perPage) + 1}</span>` : ''}</div></section>`).join('')}</div>`)
+      pages.push(`<div class="print-page">${chunk.map((item) => `<section class="sheet"><header>${schoolProfile?.logo ? `<img class="school-logo" src="${escapeHtml(schoolProfile.logo)}" alt="School logo">` : ''}${config.showSchoolName ? `<p>${escapeHtml(schoolProfile?.name || config.schoolName)}</p>` : ''}${config.showTitle ? `<h1>${escapeHtml(item.title)}</h1>` : ''}${config.headerText ? `<p>${escapeHtml(config.headerText)}</p>` : ''}</header><div class="grid-wrap">${item.html}</div><div class="print-footer"><span>${escapeHtml(config.footerText)}</span>${config.showPageNumber ? `<span>Page ${Math.floor(index / config.perPage) + 1}</span>` : ''}</div></section>`).join('')}</div>`)
     }
     return pages.join('')
   }
