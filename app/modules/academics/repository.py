@@ -42,13 +42,13 @@ class LevelRepository:
     def __init__(self, db: Session): self.db = db
     def get_levels(self, school_id: int): return self.db.query(models.Level).filter(models.Level.school_id == school_id).order_by(models.Level.display_order).all()
     def get_level_by_id(self, school_id: int, level_id: int): return self.db.query(models.Level).filter(models.Level.school_id == school_id, models.Level.id == level_id).first()
-    def get_level_by_code(self, school_id: int, code: str): return self.db.query(models.Level).filter(models.Level.school_id == school_id, models.Level.code == code).first()
+    def get_level_by_code(self, school_id: int, code: str): return self.db.query(models.Level).filter(models.Level.school_id == school_id, func.lower(func.trim(models.Level.code)) == code.strip().casefold()).first()
     def create_level(self, school_id: int, data: schemas.LevelCreate):
-        status = "ACTIVE" if data.status is not False else "INACTIVE"
+        status = data.status if data.status in {"ACTIVE", "INACTIVE", "ARCHIVED"} else "ACTIVE"
         db_level = models.Level(name=data.name.strip(), code=data.code.strip(), display_order=data.display_order, status=status, school_id=school_id); self.db.add(db_level); self.db.commit(); self.db.refresh(db_level); return db_level
     def update_level(self, level: models.Level, data: schemas.LevelUpdate):
         values = data.model_dump(exclude_unset=True)
-        if "status" in values: values["status"] = "ACTIVE" if values["status"] is not False else "INACTIVE"
+        if "status" in values and isinstance(values["status"], bool): values["status"] = "ACTIVE" if values["status"] else "INACTIVE"
         for key, value in values.items(): setattr(level, key, value.strip() if isinstance(value, str) else value)
         self.db.commit(); self.db.refresh(level); return level
 
@@ -61,7 +61,7 @@ class GradeRepository:
         numeric_grade = cast(numeric_text, Integer)
         return q.order_by(numeric_grade.nulls_last(), models.Grade.name).all()
     def get_by_id(self, school_id: int, grade_id: int): return self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.id == grade_id).first()
-    def get_by_code(self, school_id: int, level_id: int, code: str): return self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.level_id == level_id, models.Grade.code == code).first()
+    def get_by_code(self, school_id: int, level_id: int, code: str): return self.db.query(models.Grade).filter(models.Grade.school_id == school_id, models.Grade.level_id == level_id, func.lower(func.trim(models.Grade.code)) == code.strip().casefold()).first()
     def create(self, school_id: int, data: schemas.GradeCreate):
         db_grade = models.Grade(name=data.name.strip(), code=data.code.strip(), level_id=data.level_id, status=data.status, school_id=school_id); self.db.add(db_grade); self.db.commit(); self.db.refresh(db_grade); return db_grade
     def update(self, grade: models.Grade, data: schemas.GradeUpdate):
@@ -73,7 +73,7 @@ class StreamRepository:
     def get_streams(self, school_id: int, academic_year_id: int, grade_id: int):
         return self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == academic_year_id, models.Stream.grade_id == grade_id).order_by(models.Stream.id).all()
     def get_stream_by_id(self, school_id: int, stream_id: int): return self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.id == stream_id).first()
-    def get_stream_by_name_context(self, school_id: int, academic_year_id: int, grade_id: int, name: str): return self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == academic_year_id, models.Stream.grade_id == grade_id, models.Stream.name == name).first()
+    def get_stream_by_name_context(self, school_id: int, academic_year_id: int, grade_id: int, name: str): return self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == academic_year_id, models.Stream.grade_id == grade_id, func.lower(func.trim(models.Stream.name)) == name.strip().casefold()).first()
     def create_stream(self, school_id: int, data: schemas.StreamCreate):
         db_stream = models.Stream(name=data.name.strip(), code=data.code.strip() if data.code else None, status=data.status, academic_year_id=data.academic_year_id, level_id=data.level_id, grade_id=data.grade_id, school_id=school_id)
         self.db.add(db_stream); self.db.commit(); self.db.refresh(db_stream); return db_stream

@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from app.modules.academics import models, schemas
 from app.modules.academics.repository import AcademicYearRepository, LevelRepository, GradeRepository, StreamRepository, TermRepository
@@ -14,10 +15,13 @@ class AcademicYearService:
         year = self.repository.get_by_id(school_id, year_id)
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
         return year
-    def create_academic_year(self, school_id, data): return self.repository.create(school_id, data)
+    def create_academic_year(self, school_id, data):
+        if data.start_date > data.end_date: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Academic year start date must be before its end date.")
+        return self.repository.create(school_id, data)
     def update_academic_year(self, school_id, year_id, data):
         year = self.get_academic_year_by_id(school_id, year_id); values = data.model_dump(exclude_unset=True)
         start = values.get("start_date", year.start_date); end = values.get("end_date", year.end_date)
+        if start is None or end is None: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Academic year start and end dates are required.")
         if start > end: raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Academic year start date must be before its end date.")
         if values.get("is_current") is True: self.repository.db.query(models.AcademicYear).filter(models.AcademicYear.school_id == school_id, models.AcademicYear.id != year_id).update({models.AcademicYear.is_current: False})
         return self.repository.update(year, data)
@@ -76,18 +80,46 @@ class LevelService:
         return level
     def create_level(self, school_id, data):
         code = data.code.strip()
+        name = data.name.strip()
+        duplicate_name = self.db.query(models.Level).filter(
+            models.Level.school_id == school_id,
+            func.lower(func.trim(models.Level.name)) == name.casefold(),
+        ).first()
+        if duplicate_name: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this name already exists.")
         if self.repository.get_level_by_code(school_id, code): raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
         return self.repository.create_level(school_id, data)
     def update_level(self, school_id, level_id, data):
         level = self.get_level_by_id(school_id, level_id)
-        if data.code:
-            duplicate = self.repository.get_level_by_code(school_id, data.code.strip())
+        values = data.model_dump(exclude_unset=True)
+        if values.get("name"):
+            duplicate_name = self.db.query(models.Level).filter(
+                models.Level.school_id == school_id,
+                func.lower(func.trim(models.Level.name)) == values["name"].strip().casefold(),
+                models.Level.id != level.id,
+            ).first()
+            if duplicate_name: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this name already exists.")
+        if values.get("code"):
+            duplicate = self.repository.get_level_by_code(school_id, values["code"].strip())
             if duplicate and duplicate.id != level.id: raise HTTPException(status.HTTP_409_CONFLICT, "A level with this code already exists.")
         return self.repository.update_level(level, data)
     def delete_level(self, school_id, level_id):
-        # Grade/Stream are retired from the application and their database tables
-        # may no longer exist. Do not query those legacy tables from the Levels API.
         level = self.get_level_by_id(school_id, level_id)
+        grade_ids = [row[0] for row in self.db.query(models.Grade.id).filter(
+            models.Grade.school_id == school_id, models.Grade.level_id == level_id
+        ).all()]
+        stream_ids = [row[0] for row in self.db.query(models.Stream.id).filter(
+            models.Stream.school_id == school_id, models.Stream.level_id == level_id
+        ).all()]
+        enrollment_reference = self.db.query(student_models.StudentEnrollment.id).filter(
+            student_models.StudentEnrollment.school_id == school_id,
+            or_(
+                student_models.StudentEnrollment.level_id == level_id,
+                student_models.StudentEnrollment.grade_id.in_(grade_ids),
+                student_models.StudentEnrollment.stream_id.in_(stream_ids),
+            ),
+        ).first()
+        if enrollment_reference:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this level because it is referenced by student enrollments. Move or archive those enrollments first.")
         try:
             self.db.delete(level)
             self.db.commit()
@@ -105,6 +137,11 @@ class GradeService:
     def create(self, school_id, data):
         level = self.db.query(models.Level).filter(models.Level.id == data.level_id, models.Level.school_id == school_id).first()
         if not level: raise HTTPException(status.HTTP_404_NOT_FOUND, "Level not found")
+        duplicate_name = self.db.query(models.Grade).filter(
+            models.Grade.school_id == school_id, models.Grade.level_id == data.level_id,
+            func.lower(func.trim(models.Grade.name)) == data.name.strip().casefold(),
+        ).first()
+        if duplicate_name: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this name already exists in this level.")
         if self.repository.get_by_code(school_id, data.level_id, data.code.strip()): raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in this level.")
         return self.repository.create(school_id, data)
     def update(self, school_id, grade_id, data):
@@ -113,6 +150,13 @@ class GradeService:
         if target_level_id != grade.level_id:
             target_level = self.db.query(models.Level).filter(models.Level.id == target_level_id, models.Level.school_id == school_id).first()
             if not target_level: raise HTTPException(status.HTTP_404_NOT_FOUND, "Target level not found")
+        name = values.get("name", grade.name)
+        duplicate_name = self.db.query(models.Grade).filter(
+            models.Grade.school_id == school_id, models.Grade.level_id == target_level_id,
+            func.lower(func.trim(models.Grade.name)) == name.strip().casefold(),
+            models.Grade.id != grade.id,
+        ).first()
+        if duplicate_name: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this name already exists in the target level.")
         code = values.get("code", grade.code)
         duplicate = self.repository.get_by_code(school_id, target_level_id, code.strip())
         if duplicate and duplicate.id != grade.id: raise HTTPException(status.HTTP_409_CONFLICT, "A grade with this code already exists in the target level.")
@@ -123,11 +167,13 @@ class GradeService:
     def delete(self, school_id, grade_id):
         grade = self.get(school_id, grade_id)
         streams = self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.grade_id == grade_id).all()
+        enrollment_query = self.db.query(student_models.StudentEnrollment).filter(
+            student_models.StudentEnrollment.school_id == school_id,
+            student_models.StudentEnrollment.grade_id == grade_id,
+        )
+        if enrollment_query.first():
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this grade because it is referenced by student enrollments. Move or archive those enrollments first.")
         if streams:
-            stream_ids = [stream.id for stream in streams]
-            student_count = self.db.query(student_models.Student).filter(student_models.Student.school_id == school_id, student_models.Student.stream_id.in_(stream_ids)).count()
-            if student_count:
-                raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this grade because its streams still have students assigned. Reassign the students first.")
             for stream in streams: self.db.delete(stream)
         self.db.delete(grade)
         try: self.db.commit()
@@ -138,6 +184,8 @@ class GradeService:
 class StreamService:
     def __init__(self, db): self.repository = StreamRepository(db); self.db = db
     def get_streams(self, school_id, academic_year_id, grade_id):
+        year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == academic_year_id, models.AcademicYear.school_id == school_id).first()
+        if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
         grade = self.db.query(models.Grade).filter(models.Grade.id == grade_id, models.Grade.school_id == school_id).first()
         if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade not found")
         return self.repository.get_streams(school_id, academic_year_id, grade_id)
@@ -146,6 +194,7 @@ class StreamService:
         if not stream: raise HTTPException(status.HTTP_404_NOT_FOUND, "Stream not found")
         return stream
     def create_stream(self, school_id, data):
+        if not data.name.strip(): raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Stream name cannot be empty.")
         year = self.db.query(models.AcademicYear).filter(models.AcademicYear.id == data.academic_year_id, models.AcademicYear.school_id == school_id).first()
         grade = self.db.query(models.Grade).filter(models.Grade.id == data.grade_id, models.Grade.school_id == school_id, models.Grade.level_id == data.level_id).first()
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
@@ -157,6 +206,9 @@ class StreamService:
         if not year: raise HTTPException(status.HTTP_404_NOT_FOUND, "Academic year not found")
         if not grade: raise HTTPException(status.HTTP_404_NOT_FOUND, "Grade does not belong to selected level")
         existing = self.db.query(models.Stream).filter(models.Stream.school_id == school_id, models.Stream.academic_year_id == data.academic_year_id, models.Stream.grade_id == data.grade_id).all(); existing_by_name = {s.name.strip().casefold():s for s in existing}; streams=[]
+        incoming_names = [item.name.strip().casefold() for item in data.streams]
+        if any(not name for name in incoming_names): raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Stream names cannot be empty.")
+        if len(incoming_names) != len(set(incoming_names)): raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Stream names must be unique.")
         try:
             for item in data.streams:
                 name=item.name.strip(); stream=existing_by_name.get(name.casefold())
@@ -176,10 +228,15 @@ class StreamService:
     def delete(self, school_id, stream_id):
         stream = self.get_stream_by_id(school_id, stream_id)
 
-        # The legacy attendance module has been removed. Keep the active
-        # examination dependency check here; database foreign-key constraints
-        # below continue to prevent deletion when any remaining table references
-        # this stream.
+        # Protect historical as well as active enrollment references before deleting a stream.
+        enrollment_exists = self.db.query(student_models.StudentEnrollment.id).filter(
+            student_models.StudentEnrollment.school_id == school_id,
+            student_models.StudentEnrollment.stream_id == stream_id,
+        ).first() is not None
+        if enrollment_exists:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cannot delete this stream because it is referenced by student enrollments. Reassign those enrollments first.")
+
+        # Keep the examination dependency check as a second guard.
         exam_subject_exists = self.db.query(examination_models.ExamSubject.id).filter(
             examination_models.ExamSubject.school_id == school_id,
             examination_models.ExamSubject.stream_id == stream_id,

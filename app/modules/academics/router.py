@@ -54,6 +54,21 @@ def update_grade(grade_id:int,data:schemas.GradeUpdate,principal:Principal=Depen
 def delete_grade(grade_id:int,principal:Principal=Depends(require_academic_role("admin")),db:Session=Depends(get_db)): services.GradeService(db).delete(principal.school_id,grade_id)
 @router.get("/years/{academic_year_id}/grades/{grade_id}/streams",response_model=List[schemas.StreamResponse])
 def get_streams(academic_year_id:int,grade_id:int,principal:Principal=Depends(require_academic_role("viewer","teacher","admin")),db:Session=Depends(get_db)): return services.StreamService(db).get_streams(principal.school_id,academic_year_id,grade_id)
+@router.get("/streams/{stream_id}/eligible-students",response_model=List[schemas.StreamStudentResponse])
+def list_eligible_stream_students(stream_id:int,principal:Principal=Depends(require_academic_role("viewer","teacher","admin")),db:Session=Depends(get_db)):
+    stream=services.StreamService(db).get_stream_by_id(principal.school_id,stream_id)
+    rows=db.query(student_models.Student,student_models.StudentEnrollment).join(
+        student_models.StudentEnrollment,student_models.StudentEnrollment.student_id==student_models.Student.id
+    ).filter(
+        student_models.Student.school_id==principal.school_id,
+        student_models.StudentEnrollment.school_id==principal.school_id,
+        student_models.StudentEnrollment.academic_year_id==stream.academic_year_id,
+        student_models.StudentEnrollment.grade_id==stream.grade_id,
+        student_models.StudentEnrollment.level_id==stream.level_id,
+        student_models.StudentEnrollment.status=="active",
+        (student_models.StudentEnrollment.stream_id.is_(None)) | (student_models.StudentEnrollment.stream_id==stream.id),
+    ).order_by(student_models.Student.last_name,student_models.Student.first_name).all()
+    return [{"id":student.id,"admission_number":student.admission_number,"first_name":student.first_name,"middle_name":student.middle_name,"last_name":student.last_name,"current_class_id":enrollment.school_class_id or enrollment.class_id,"level_id":enrollment.level_id,"stream_id":enrollment.stream_id,"status":student.status} for student,enrollment in rows]
 @router.get("/streams/{stream_id}",response_model=schemas.StreamResponse)
 def get_stream(stream_id:int,principal:Principal=Depends(require_academic_role("viewer","teacher","admin")),db:Session=Depends(get_db)): return services.StreamService(db).get_stream_by_id(principal.school_id,stream_id)
 @router.post("/streams",response_model=schemas.StreamResponse,status_code=status.HTTP_201_CREATED)
@@ -67,13 +82,35 @@ def update_stream(stream_id:int,data:schemas.StreamUpdate,principal:Principal=De
 def delete_stream(stream_id:int,principal:Principal=Depends(require_academic_role("admin")),db:Session=Depends(get_db)): services.StreamService(db).delete(principal.school_id,stream_id)
 @router.get("/streams/{stream_id}/students",response_model=List[schemas.StreamStudentResponse])
 def list_stream_students(stream_id:int,principal:Principal=Depends(require_academic_role("viewer","teacher","admin")),db:Session=Depends(get_db)):
-    stream=services.StreamService(db).get_stream_by_id(principal.school_id,stream_id); return db.query(student_models.Student).filter(student_models.Student.school_id==principal.school_id,student_models.Student.stream_id==stream.id).order_by(student_models.Student.last_name,student_models.Student.first_name).all()
+    stream=services.StreamService(db).get_stream_by_id(principal.school_id,stream_id)
+    rows=db.query(student_models.Student,student_models.StudentEnrollment).join(
+        student_models.StudentEnrollment,student_models.StudentEnrollment.student_id==student_models.Student.id
+    ).filter(
+        student_models.Student.school_id==principal.school_id,
+        student_models.StudentEnrollment.school_id==principal.school_id,
+        student_models.StudentEnrollment.academic_year_id==stream.academic_year_id,
+        student_models.StudentEnrollment.stream_id==stream.id,
+        student_models.StudentEnrollment.status=="active",
+    ).order_by(student_models.Student.last_name,student_models.Student.first_name).all()
+    return [{"id":student.id,"admission_number":student.admission_number,"first_name":student.first_name,"middle_name":student.middle_name,"last_name":student.last_name,"current_class_id":enrollment.school_class_id or enrollment.class_id,"level_id":enrollment.level_id,"stream_id":enrollment.stream_id,"status":student.status} for student,enrollment in rows]
 @router.post("/streams/{stream_id}/students",response_model=schemas.StreamStudentResponse)
 def assign_student_to_stream(stream_id:int,data:schemas.StreamAssignment,principal:Principal=Depends(require_academic_role("admin","scheduler")),db:Session=Depends(get_db)):
-    stream=services.StreamService(db).get_stream_by_id(principal.school_id,stream_id); student=db.query(student_models.Student).filter(student_models.Student.id==data.student_id,student_models.Student.school_id==principal.school_id).first()
+    stream=services.StreamService(db).get_stream_by_id(principal.school_id,stream_id)
+    student=db.query(student_models.Student).filter(student_models.Student.id==data.student_id,student_models.Student.school_id==principal.school_id).first()
     if not student: raise HTTPException(status.HTTP_404_NOT_FOUND,"Student not found")
     if stream.status!="ACTIVE": raise HTTPException(status.HTTP_409_CONFLICT,"Cannot assign a student to an inactive stream")
-    student.level_id=stream.level_id; student.grade_id=stream.grade_id; student.stream_id=stream.id; db.commit(); db.refresh(student); return student
+    enrollment=db.query(student_models.StudentEnrollment).filter(
+        student_models.StudentEnrollment.school_id==principal.school_id,
+        student_models.StudentEnrollment.student_id==student.id,
+        student_models.StudentEnrollment.academic_year_id==stream.academic_year_id,
+        student_models.StudentEnrollment.status=="active",
+    ).first()
+    if not enrollment: raise HTTPException(status.HTTP_409_CONFLICT,"The student has no active enrollment in this academic year. Enroll the student first.")
+    if enrollment.level_id!=stream.level_id or enrollment.grade_id!=stream.grade_id:
+        raise HTTPException(status.HTTP_409_CONFLICT,"The student is enrolled in a different level or grade. Update the enrollment before assigning a stream.")
+    enrollment.stream_id=stream.id
+    db.commit();db.refresh(enrollment)
+    return {"id":student.id,"admission_number":student.admission_number,"first_name":student.first_name,"middle_name":student.middle_name,"last_name":student.last_name,"current_class_id":enrollment.school_class_id or enrollment.class_id,"level_id":enrollment.level_id,"stream_id":enrollment.stream_id,"status":student.status}
 @router.get("/classes",response_model=List[schemas.SchoolClassResponse])
 def get_school_classes(principal:Principal=Depends(require_academic_role("viewer","teacher","admin")),db:Session=Depends(get_db)):
     return db.query(SchoolClass).filter(SchoolClass.school_id==principal.school_id).order_by(SchoolClass.academic_year_id.desc(),SchoolClass.level_id,SchoolClass.name,SchoolClass.code).all()
