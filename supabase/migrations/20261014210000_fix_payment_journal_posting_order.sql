@@ -26,7 +26,7 @@ begin
   where id = p_payment_id
   for update;
 
-  if not found or v_payment.reversed or coalesce(v_payment.amount,0) <= 0 then
+  if not found or coalesce(v_payment.reversed,false) or coalesce(v_payment.amount,0) <= 0 then
     return;
   end if;
 
