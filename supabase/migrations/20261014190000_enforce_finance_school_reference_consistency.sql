@@ -33,7 +33,12 @@ $$;
 
 drop trigger if exists trg_enforce_finance_invoice_school_scope on public.student_invoices;
 create trigger trg_enforce_finance_invoice_school_scope
-before insert or update of school_id, student_id, fee_structure_id
+before insert
+on public.student_invoices
+for each row execute function public.enforce_finance_invoice_school_scope();
+drop trigger if exists trg_enforce_finance_invoice_school_scope_update on public.student_invoices;
+create trigger trg_enforce_finance_invoice_school_scope_update
+before update of school_id, student_id, fee_structure_id
 on public.student_invoices
 for each row execute function public.enforce_finance_invoice_school_scope();
 
@@ -69,7 +74,12 @@ $$;
 
 drop trigger if exists trg_enforce_finance_payment_school_scope on public.payments;
 create trigger trg_enforce_finance_payment_school_scope
-before insert or update of school_id, student_id, invoice_id
+before insert
+on public.payments
+for each row execute function public.enforce_finance_payment_school_scope();
+drop trigger if exists trg_enforce_finance_payment_school_scope_update on public.payments;
+create trigger trg_enforce_finance_payment_school_scope_update
+before update of school_id, student_id, invoice_id
 on public.payments
 for each row execute function public.enforce_finance_payment_school_scope();
 
@@ -116,7 +126,12 @@ $$;
 
 drop trigger if exists trg_enforce_payment_allocation_school_scope on public.payment_allocations;
 create trigger trg_enforce_payment_allocation_school_scope
-before insert or update of school_id, payment_id, invoice_id, invoice_item_id, vote_head_id
+before insert
+on public.payment_allocations
+for each row execute function public.enforce_payment_allocation_school_scope();
+drop trigger if exists trg_enforce_payment_allocation_school_scope_update on public.payment_allocations;
+create trigger trg_enforce_payment_allocation_school_scope_update
+before update of school_id, payment_id, invoice_id, invoice_item_id, vote_head_id
 on public.payment_allocations
 for each row execute function public.enforce_payment_allocation_school_scope();
 
@@ -141,6 +156,11 @@ $$;
 
 drop trigger if exists trg_enforce_finance_receipt_school_scope on public.finance_receipts;
 create trigger trg_enforce_finance_receipt_school_scope
-before insert or update of school_id, payment_id, student_id
+before insert
+on public.finance_receipts
+for each row execute function public.enforce_finance_receipt_school_scope();
+drop trigger if exists trg_enforce_finance_receipt_school_scope_update on public.finance_receipts;
+create trigger trg_enforce_finance_receipt_school_scope_update
+before update of school_id, payment_id, student_id
 on public.finance_receipts
 for each row execute function public.enforce_finance_receipt_school_scope();
