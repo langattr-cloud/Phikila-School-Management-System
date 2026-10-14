@@ -72,17 +72,21 @@ def import_reference_catalogue(db: Session = Depends(get_db), principal: Princip
                 existing.append(found.id)
                 continue
             template = m.CapitationTemplate(
-                school_id=principal.school_id, name=name, school_type=catalogue["school_type"],
-                programme=catalogue["programme"], source_circular=catalogue["source_circular"],
-                source_url=catalogue.get("source_url"), effective_from=_date(catalogue["effective_from"], "effective_from"),
-                version=1, status="DRAFT", notes=catalogue.get("reference_note"), created_by=principal.user_id,
+                school_id=principal.school_id, name=name, school_type=entry.get("school_type", catalogue.get("school_type", "public_school")),
+                programme=entry.get("programme", catalogue.get("programme", "Government capitation")),
+                source_circular=entry.get("source_circular", catalogue["source_circular"]),
+                source_url=entry.get("source_url", catalogue.get("source_url")),
+                effective_from=_date(entry.get("effective_from", catalogue["effective_from"]), "effective_from"),
+                version=1, status="DRAFT", notes=entry.get("reference_note", catalogue.get("reference_note")), created_by=principal.user_id,
             )
             db.add(template)
             db.flush()
             for index, head in enumerate(entry.get("vote_heads", [])):
                 db.add(m.CapitationVoteHead(
                     school_id=principal.school_id, template_id=template.id, code=head["code"],
-                    name=head["name"], per_learner_rate=_money(head["per_learner_rate"], "per_learner_rate"),
+                    name=head["name"], description=(head.get("description") or "") + (f" | Per-school allocation: KES {head['per_school_amount']:,.2f}" if head.get("per_school_amount") is not None else ""),
+                    per_learner_rate=_money(head["per_learner_rate"], "per_learner_rate") if head.get("per_learner_rate") is not None else None,
+                    permitted_amount=_money(head["per_school_amount"], "per_school_amount") if head.get("per_school_amount") is not None and float(head["per_school_amount"]) > 0 else None,
                     display_order=index, status="ACTIVE",
                 ))
             _audit(db, principal, "import", "capitation_template", template.id,
