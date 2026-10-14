@@ -1,0 +1,106 @@
+{
+  "catalogue_name": "Kenya Ministry of Education public primary FPE capitation reference",
+  "source_circular": "MOE. DBE/6/2/3/30",
+  "circular_date": "2026-08-18",
+  "source_url": "https://educationboard.co.ke/ministry-circular-guidelines-on-term-3-2026-fpe-capitation-disbursement-vote-head-allocations/",
+  "reference_note": "Reference transcription of the Term 3 2026 public primary Account 1 (SIMBA) and Account 2 (GPA) allocation circular. Verify against the school's copy of the Ministry circular before activation. Rates are KES per learner and are not total receipt allocations.",
+  "school_type": "public_primary",
+  "programme": "Free Primary Education capitation",
+  "effective_from": "2026-08-18",
+  "templates": [
+    {
+      "name": "Public Primary FPE — Account 1 (SIMBA) — Term 3 2026",
+      "account": "Account 1 — SIMBA",
+      "per_learner_total": 133.7,
+      "vote_heads": [
+        {
+          "code": "SIMBA-01",
+          "name": "Textbooks and supplementary readers",
+          "per_learner_rate": 31.37
+        },
+        {
+          "code": "SIMBA-02",
+          "name": "Textbooks Maintenance",
+          "per_learner_rate": 4.39
+        },
+        {
+          "code": "SIMBA-03",
+          "name": "Exercise Books",
+          "per_learner_rate": 61.41
+        },
+        {
+          "code": "SIMBA-04",
+          "name": "Teachers Guides and Reference Materials",
+          "per_learner_rate": 21.93
+        },
+        {
+          "code": "SIMBA-05",
+          "name": "Stationery",
+          "per_learner_rate": 14.6
+        }
+      ]
+    },
+    {
+      "name": "Public Primary FPE — Account 2 (GPA) — Term 3 2026",
+      "account": "Account 2 — GPA",
+      "per_learner_total": 126,
+      "vote_heads": [
+        {
+          "code": "GPA-01",
+          "name": "Support Staff Wages (SSW)",
+          "per_learner_rate": 38.58
+        },
+        {
+          "code": "GPA-02",
+          "name": "Renovation of Classroom, Buildings of Toilets, Repairs Maintenance and Improvement (RMI) of Physical Facilities",
+          "per_learner_rate": 20.67
+        },
+        {
+          "code": "GPA-03",
+          "name": "Activity",
+          "per_learner_rate": 3.35
+        },
+        {
+          "code": "GPA-04",
+          "name": "Local transport and travelling (LT&T)",
+          "per_learner_rate": 6.89
+        },
+        {
+          "code": "GPA-05",
+          "name": "Electricity Water and Conservancy (EWC)",
+          "per_learner_rate": 12.4
+        },
+        {
+          "code": "GPA-06",
+          "name": "Telephone/Box Rental/Postage",
+          "per_learner_rate": 4.14
+        },
+        {
+          "code": "GPA-07",
+          "name": "Environment & Sanitation",
+          "per_learner_rate": 11.02
+        },
+        {
+          "code": "GPA-08",
+          "name": "Capacity Building and Meetings (BOM)",
+          "per_learner_rate": 16.54
+        },
+        {
+          "code": "GPA-09",
+          "name": "Contingencies",
+          "per_learner_rate": 2.76
+        },
+        {
+          "code": "GPA-10",
+          "name": "Science and Applied Technology",
+          "per_learner_rate": 2.76
+        },
+        {
+          "code": "GPA-11",
+          "name": "Assessments & Examinations",
+          "per_learner_rate": 6.89
+        }
+      ]
+    }
+  ]
+}
