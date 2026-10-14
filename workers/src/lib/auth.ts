@@ -54,16 +54,15 @@ export function requireAuth(c: { get: (k: 'authUser') => AuthUser | null }): Aut
 }
 
 /**
- * Finance worker routes use a service-role database client and legacy finance
- * tables that do not consistently carry school_id. Until those tables have
- * tenant keys and every query is scoped, fail closed when more than one school
- * exists. An authenticated identity or platform-admin status alone is not
- * permission to view school financial records.
+ * Resolve school context from an explicit X-School-Id header or a single
+ * active membership. The worker uses a service-role client, so membership and
+ * role checks must be performed here before any finance route can execute.
  */
 export async function requireFinanceSchoolAccess(
   c: {
     get: (k: 'authUser') => AuthUser | null
     set: (k: 'financeSchoolId', value: number) => void
+    req: { header: (name: string) => string | undefined }
     json: (body: unknown, status?: number) => Response
   },
 ): Promise<{ error: Response | null; schoolId: number | null; user: AuthUser | null }> {
@@ -71,44 +70,57 @@ export async function requireFinanceSchoolAccess(
   if (error || !user) return { error, schoolId: null, user: null }
 
   const client = db()
-  const { data: schools, error: schoolError } = await client
-    .from('school_info')
-    .select('id')
-    .order('id')
-    .limit(2)
-
-  if (schoolError || !schools) {
-    return { error: c.json({ detail: 'Finance access could not be verified.' }, 503), schoolId: null, user }
-  }
-  if (schools.length !== 1) {
-    return {
-      error: c.json(
-        { detail: 'Finance worker is disabled until finance data is tenant-scoped for every school.' },
-        503,
-      ),
-      schoolId: null,
-      user,
-    }
-  }
-
-  const schoolId = Number(schools[0].id)
-  const { data: access, error: accessError } = await client
-    .from('tt_access_requests')
-    .select('requested_school_id, requested_role, status')
+  const requestedSchool = c.req.header('X-School-Id')
+  const membershipsQuery = client
+    .from('tt_memberships')
+    .select('school_id, role, is_active')
     .eq('user_id', user.id)
-    .eq('status', 'approved')
+    .eq('is_active', true)
+
+  const { data: memberships, error: membershipError } = await membershipsQuery
+  if (membershipError) {
+    return { error: c.json({ detail: 'School finance access could not be verified.' }, 503), schoolId: null, user }
+  }
+
+  const eligibleRoles = ['admin', 'finance', 'accountant', 'bursar']
+  const eligible = (memberships ?? []).filter((m) =>
+    eligibleRoles.includes(String(m.role ?? '').toLowerCase()),
+  )
+  let membership = null as (typeof eligible)[number] | null
+
+  if (requestedSchool) {
+    const parsed = Number(requestedSchool)
+    if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+      return { error: c.json({ detail: 'Invalid X-School-Id header.' }, 400), schoolId: null, user }
+    }
+    membership = eligible.find((m) => Number(m.school_id) === parsed) ?? null
+    if (!membership) {
+      return { error: c.json({ detail: 'Active school finance membership required.' }, 403), schoolId: null, user }
+    }
+  } else {
+    const schoolIds = [...new Set(eligible.map((m) => Number(m.school_id)))]
+    if (schoolIds.length > 1) {
+      return { error: c.json({ detail: 'X-School-Id is required for users with multiple school memberships.' }, 400), schoolId: null, user }
+    }
+    membership = eligible[0] ?? null
+  }
+
+  if (!membership) {
+    return { error: c.json({ detail: 'Active school finance membership required.' }, 403), schoolId: null, user }
+  }
+
+  const schoolId = Number(membership.school_id)
+  const { data: school, error: schoolError } = await client
+    .from('school_info')
+    .select('id, is_active')
+    .eq('id', schoolId)
     .maybeSingle()
 
-  if (accessError) {
-    return { error: c.json({ detail: 'Finance access could not be verified.' }, 503), schoolId: null, user }
+  if (schoolError || !school) {
+    return { error: c.json({ detail: 'School finance access could not be verified.' }, 503), schoolId: null, user }
   }
-  const role = String(access?.requested_role ?? '').toLowerCase()
-  if (
-    !access ||
-    Number(access.requested_school_id) !== schoolId ||
-    !['admin', 'finance'].includes(role)
-  ) {
-    return { error: c.json({ detail: 'School finance access required.' }, 403), schoolId: null, user }
+  if (school.is_active === false) {
+    return { error: c.json({ detail: 'Finance access is disabled for this school.' }, 403), schoolId: null, user }
   }
 
   c.set('financeSchoolId', schoolId)
