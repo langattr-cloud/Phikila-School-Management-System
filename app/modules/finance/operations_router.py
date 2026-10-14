@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.scheduling.tenancy import Principal, require_role
 from . import operations_models as m
+from . import models as core
 router = APIRouter()
 def _audit(db,p,a,e,i,s):
     from app.modules.scheduling.models import TtAuditEntry
@@ -39,6 +40,8 @@ def budgets(db:Session=Depends(get_db),principal:Principal=Depends(require_role(
 @router.post('/finance/budgets',status_code=201)
 def create_budget(payload:dict,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin'))):
     if not payload.get('name'):raise HTTPException(400,'Budget name is required')
+    fiscal_period_id=payload.get('fiscal_period_id')
+    if fiscal_period_id is not None and not db.query(m.FinanceFiscalPeriod).filter_by(id=fiscal_period_id,school_id=principal.school_id).first():raise HTTPException(404,'Fiscal period not found')
     r=m.FinanceBudget(school_id=principal.school_id,name=payload['name'],fiscal_period_id=payload.get('fiscal_period_id'),total_amount=_money(payload.get('total_amount')));db.add(r);_audit(db,principal,'create','budget',0,f'Created budget {r.name}');db.commit();db.refresh(r);return r
 @router.get('/finance/payment-vouchers')
 def payment_vouchers(db:Session=Depends(get_db),principal:Principal=Depends(require_role('viewer','admin'))):return db.query(m.FinancePaymentVoucher).filter_by(school_id=principal.school_id).order_by(m.FinancePaymentVoucher.created_at.desc()).all()
@@ -74,6 +77,8 @@ def create_asset(payload:dict,db:Session=Depends(get_db),principal:Principal=Dep
     for k in ('asset_number','category','description','cost'):
         if payload.get(k) is None:raise HTTPException(400,f'{k} is required')
     if db.query(m.FinanceAsset).filter_by(school_id=principal.school_id,asset_number=payload['asset_number']).first():raise HTTPException(409,'Asset number already exists')
+    supplier_id=payload.get('supplier_id')
+    if supplier_id is not None and not db.query(m.FinanceSupplier).filter_by(id=supplier_id,school_id=principal.school_id).first():raise HTTPException(404,'Supplier not found')
     c=_money(payload['cost']);r=m.FinanceAsset(school_id=principal.school_id,asset_number=payload['asset_number'],category=payload['category'],description=payload['description'],purchase_date=payload.get('purchase_date'),cost=c,supplier_id=payload.get('supplier_id'),location=payload.get('location'),responsible_department=payload.get('responsible_department'),serial_number=payload.get('serial_number'),asset_tag=payload.get('asset_tag'),useful_life_months=payload.get('useful_life_months'),book_value=c);db.add(r);_audit(db,principal,'create','asset',0,f'Created asset {r.asset_number}');db.commit();db.refresh(r);return r
 @router.get('/finance/capitation')
 def capitation(db:Session=Depends(get_db),principal:Principal=Depends(require_role('viewer','admin'))):return db.query(m.FinanceCapitationRecord).filter_by(school_id=principal.school_id).all()
@@ -82,7 +87,9 @@ def other_income(db:Session=Depends(get_db),principal:Principal=Depends(require_
 @router.post('/finance/other-income',status_code=201)
 def create_other_income(payload:dict,db:Session=Depends(get_db),principal:Principal=Depends(require_role('admin'))):
     if not payload.get('income_type') or payload.get('amount') is None:raise HTTPException(400,'income_type and amount are required')
-    r=m.FinanceOtherIncome(school_id=principal.school_id,income_type=payload['income_type'],description=payload.get('description'),amount=_money(payload['amount']),received_date=payload.get('received_date',datetime.now(timezone.utc)),reference=payload.get('reference'),account_id=payload.get('account_id'),created_by=principal.user_id);db.add(r);_audit(db,principal,'create','other_income',0,f'Recorded other income {r.amount}');db.commit();db.refresh(r);return r
+    account_id=payload.get('account_id')
+    if account_id is not None and not db.query(core.ChartOfAccount).filter(core.ChartOfAccount.id==account_id,core.ChartOfAccount.school_id==principal.school_id).first():raise HTTPException(404,'Ledger account not found')
+    r=m.FinanceOtherIncome(school_id=principal.school_id,income_type=payload['income_type'],description=payload.get('description'),amount=_money(payload['amount']),received_date=payload.get('received_date',datetime.now(timezone.utc)),reference=payload.get('reference'),account_id=account_id,created_by=principal.user_id);db.add(r);_audit(db,principal,'create','other_income',0,f'Recorded other income {r.amount}');db.commit();db.refresh(r);return r
 @router.get('/finance/vote-book')
 def vote_book(db:Session=Depends(get_db),principal:Principal=Depends(require_role('viewer','admin'))):
     rows=db.query(m.FinanceBudgetLine).join(m.FinanceBudget,m.FinanceBudget.id==m.FinanceBudgetLine.budget_id).filter(m.FinanceBudget.school_id==principal.school_id).all();return [{'id':r.id,'budget_id':r.budget_id,'account_id':r.account_id,'budget':_money(r.budget_amount),'revised':_money(r.revised_amount),'committed':_money(r.committed_amount),'actual':_money(r.actual_amount),'available':_money(r.revised_amount or r.budget_amount)-_money(r.committed_amount)-_money(r.actual_amount),'variance':_money(r.revised_amount or r.budget_amount)-_money(r.actual_amount)} for r in rows]
