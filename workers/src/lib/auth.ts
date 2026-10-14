@@ -1,5 +1,5 @@
 import { createMiddleware } from 'hono/factory'
-import { anonDb } from './db'
+import { anonDb, db } from './db'
 
 export type AuthUser = {
   id: string
@@ -70,7 +70,7 @@ export async function requireFinanceSchoolAccess(
   const { error, user } = requireAuth(c)
   if (error || !user) return { error, schoolId: null, user: null }
 
-  const client = (await import('./db')).db()
+  const client = db()
   const { data: schools, error: schoolError } = await client
     .from('school_info')
     .select('id')
