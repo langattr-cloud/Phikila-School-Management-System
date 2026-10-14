@@ -33,7 +33,8 @@ def _school_predicate(query_mock, model, school_id=SCHOOL_ID):
     matching = [
         predicate
         for predicate in predicates
-        if getattr(predicate, "left", None) is getattr(model, "school_id", None)
+        if getattr(getattr(predicate, "left", None), "name", None) == "school_id"
+        and getattr(getattr(predicate, "left", None), "table", None) is model.__table__
         and getattr(predicate, "right", None) is not None
     ]
     assert matching, f"No {model.__tablename__}.school_id predicate found"
@@ -74,12 +75,14 @@ def test_invoice_lookup_requires_both_invoice_id_and_school_id():
     assert result is None
     predicates = db.query.return_value.filter.call_args.args
     assert any(
-        getattr(predicate, "left", None) is finance_models.StudentInvoice.school_id
+        getattr(getattr(predicate, "left", None), "name", None) == "school_id"
+        and getattr(getattr(predicate, "left", None), "table", None) is finance_models.StudentInvoice.__table__
         and 81 in predicate.compile().params.values()
         for predicate in predicates
     )
     assert any(
-        getattr(predicate, "left", None) is finance_models.StudentInvoice.id
+        getattr(getattr(predicate, "left", None), "name", None) == "id"
+        and getattr(getattr(predicate, "left", None), "table", None) is finance_models.StudentInvoice.__table__
         and 123 in predicate.compile().params.values()
         for predicate in predicates
     )
