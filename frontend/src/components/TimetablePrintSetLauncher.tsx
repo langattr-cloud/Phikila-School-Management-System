@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { api, type SchoolProfile } from '../lib/api'
 
 type Report = 'class' | 'teacher' | 'room' | 'subject' | 'all'
 type Tab = 'selection' | 'appearance' | 'page' | 'header'
@@ -56,7 +57,7 @@ function printCss(config: PrintSetConfig) {
     .print-page { display: grid; grid-template-columns: repeat(${cols}, minmax(0,1fr)); grid-template-rows: repeat(${rows}, minmax(0,1fr)); gap: 5mm; width: 100%; min-height: calc(100vh - ${config.margin * 2}mm); break-after: page; page-break-after: always; }
     .print-page:last-child { break-after: auto; page-break-after: auto; }
     .sheet { min-width: 0; min-height: 0; overflow: hidden; border: .3mm solid #999; border-radius: 1mm; padding: 3mm; break-inside: avoid; page-break-inside: avoid; }
-    .sheet header { margin: 0 0 2.5mm; padding: 0 0 2mm; border-bottom: .3mm solid #111; text-align: center; }
+    .sheet .school-logo { width: 14mm; height: 14mm; object-fit: contain; margin: 0 auto 1mm; display: block; }\n    .sheet header { margin: 0 0 2.5mm; padding: 0 0 2mm; border-bottom: .3mm solid #111; text-align: center; }
     .sheet h1 { margin: 0; font-size: 5mm; line-height: 1.05; font-weight: 800; }
     .sheet p { margin: 1mm 0 0; font-size: 2.4mm; line-height: 1.1; color: #555; }
     .grid-wrap { width: 100%; overflow: hidden; transform: scale(${config.scale / 100}); transform-origin: top left; width: ${10000 / config.scale}%; }
@@ -89,6 +90,7 @@ export function TimetablePrintSetLauncher() {
   const [options, setOptions] = useState<Option[]>([])
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState(false)
+  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null)
 
   const reportOptions = useMemo(() => [
     ['all', 'Whole school'], ['class', 'Classes'], ['teacher', 'Teachers'], ['room', 'Rooms'], ['subject', 'Subjects'],
@@ -97,6 +99,8 @@ export function TimetablePrintSetLauncher() {
   useEffect(() => {
     if (open) setSavedSets(loadSaved())
   }, [open])
+
+  useEffect(() => { void api.school().then(setSchoolProfile).catch(() => setSchoolProfile(null)) }, [])
 
   useEffect(() => {
     if (!open) return
