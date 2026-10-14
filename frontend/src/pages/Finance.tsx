@@ -15,6 +15,38 @@ import './Finance.css'
 const levelLabel = (name: string) => /pre\s*primary|pre\s*school/i.test(name) ? 'Pre school' : /primary/i.test(name) && !/junior/i.test(name) ? 'Primary' : /junior/i.test(name) ? 'Junior' : /senior/i.test(name) ? 'Senior' : name
 const gradeLabel = (name: string) => name.replace(/^Grade\s+/i, '')
 
+const financeTabLabels: Record<string, string> = {
+  overview: 'Overview', matcher: 'M-PESA Matcher', receipts: 'Receipts', fees: 'Fees',
+  'vote-heads': 'Vote-heads', invoices: 'Invoices', payments: 'Payments', balances: 'Balances',
+  banking: 'Banking & Reconciliation', suppliers: 'Supplier Payments', 'trial-balance': 'Trial Balance',
+  'general-ledger': 'General Ledger', 'balance-sheet': 'Balance Sheet', capitation: 'Government Capitation',
+}
+const financeTabIcons: Record<string, string> = {
+  overview: '⌂', matcher: '↔', receipts: '▤', fees: '◇', 'vote-heads': '▦',
+  invoices: '▧', payments: '▣', balances: '◉', banking: '▤', suppliers: '⇄',
+  'trial-balance': '⚖', 'general-ledger': '▤', 'balance-sheet': '▥', capitation: '▤',
+}
+
+const FinanceNavIcon = ({ tab }: { tab: string }) => {
+  const common = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true as const }
+  switch (tab) {
+    case 'overview': return <svg {...common}><path d="m3 10 9-7 9 7" /><path d="M5 9v11h14V9M9 20v-7h6v7" /></svg>
+    case 'matcher': return <svg {...common}><path d="M17 3h4v4M3 17v4h4M21 3l-7 7M3 21l7-7" /><path d="M14 3h-4a7 7 0 0 0-7 7v1M10 21h4a7 7 0 0 0 7-7v-1" /></svg>
+    case 'receipts': return <svg {...common}><path d="M5 3h14v18l-3-2-4 2-4-2-3 2z" /><path d="M8 8h8M8 12h8M8 16h4" /></svg>
+    case 'fees': return <svg {...common}><path d="M20.6 13.4 13 21l-10-10V3h8z" /><circle cx="7.5" cy="7.5" r="1" /><path d="m13 7 4 4" /></svg>
+    case 'vote-heads': return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+    case 'invoices': return <svg {...common}><path d="M6 3h9l4 4v14H6z" /><path d="M14 3v5h5M9 12h7M9 16h7" /></svg>
+    case 'payments': return <svg {...common}><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" /></svg>
+    case 'balances': return <svg {...common}><rect x="3" y="5" width="18" height="15" rx="2" /><path d="M16 14h5M7 5V3h10v2" /><circle cx="16" cy="14" r="1" /></svg>
+    case 'banking': return <svg {...common}><path d="m3 9 9-6 9 6M4 10h16M5 10v9M9 10v9M15 10v9M19 10v9M3 21h18" /></svg>
+    case 'suppliers': return <svg {...common}><path d="M3 7h11v11H3zM14 11h4l3 3v4h-7z" /><circle cx="7" cy="19" r="2" /><circle cx="18" cy="19" r="2" /></svg>
+    case 'trial-balance': return <svg {...common}><path d="M12 3v18M5 6h14M7 6l-4 8h8zM17 6l-4 8h8zM7 21h10" /></svg>
+    case 'general-ledger': return <svg {...common}><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 1 4 17.5z" /><path d="M4 6h16M8 10h8M8 14h8" /></svg>
+    case 'balance-sheet': return <svg {...common}><path d="M3 3v18h18" /><path d="M7 15v-4M12 15V6M17 15V9" /></svg>
+    default: return <svg {...common}><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M8 9h.01M16 9h.01" /></svg>
+  }
+}
+
 
 export default function FinancePage() {
   const [overview, setOverview] = useState<FinanceOverview | null>(null)
@@ -60,7 +92,7 @@ export default function FinancePage() {
     <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
-      {(['overview', 'matcher', 'receipts', 'fees', 'vote-heads', 'invoices', 'payments', 'balances', 'banking', 'suppliers', 'trial-balance', 'general-ledger', 'balance-sheet', 'capitation'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button ${activeTab === tab ? 'button--primary' : 'button--secondary'} button--sm`} onClick={() => setActiveTab(tab)}>{tab === 'matcher' ? 'M-PESA Matcher' : tab === 'trial-balance' ? 'Trial Balance' : tab === 'general-ledger' ? 'General Ledger' : tab === 'balance-sheet' ? 'Balance Sheet' : tab === 'banking' ? 'Banking & Reconciliation' : tab === 'suppliers' ? 'Supplier Payments' : tab === 'capitation' ? 'Government Capitation' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
+      {(['overview', 'matcher', 'receipts', 'fees', 'vote-heads', 'invoices', 'payments', 'balances', 'banking', 'suppliers', 'trial-balance', 'general-ledger', 'balance-sheet', 'capitation'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button button--sm finance-tab ${activeTab === tab ? 'finance-tab--active' : ''}`} onClick={() => setActiveTab(tab)}><span className={`finance-tab__icon finance-tab__icon--${tab}`}><FinanceNavIcon tab={tab} /></span><span>{financeTabLabels[tab]}</span></button>)}
     </div>
 
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
@@ -75,11 +107,13 @@ export default function FinancePage() {
       {activeTab === 'general-ledger' && <GeneralLedgerView />}
       {activeTab === 'balance-sheet' && <BalanceSheetView />}
       {activeTab === 'overview' && overview && <div className="summary-grid finance-summary">{[
-        { label: 'Total Invoiced', value: `KES ${Number(overview.total_invoiced).toLocaleString()}` },
-        { label: 'Total Collected', value: `KES ${Number(overview.total_collected).toLocaleString()}` },
-        { label: 'Outstanding', value: `KES ${Number(overview.total_outstanding).toLocaleString()}`, tone: Number(overview.total_outstanding) > 0 ? 'warning' : undefined },
-        { label: 'Invoices', value: overview.invoices_count }, { label: 'Paid', value: overview.paid_count }, { label: 'Pending', value: overview.pending_count },
-      ].map((c) => <div key={c.label} className="card finance-summary__card"><p className="finance-summary__label">{c.label}</p><p className={`finance-summary__value ${c.tone === 'warning' ? 'finance-summary__value--warning' : ''}`}>{c.value}</p></div>)}</div>}
+        { label: 'TOTAL INVOICED', value: `KES ${Number(overview.total_invoiced).toLocaleString()}`, sub: 'Total value of recorded invoices' },
+        { label: 'TOTAL COLLECTED', value: `KES ${Number(overview.total_collected).toLocaleString()}`, sub: 'Payments recorded against fees' },
+        { label: 'OUTSTANDING', value: `KES ${Number(overview.total_outstanding).toLocaleString()}`, sub: 'Unpaid invoice balances' },
+        { label: 'INVOICES', value: overview.invoices_count, sub: 'Recorded invoices' },
+        { label: 'PAID', value: overview.paid_count, sub: 'Fully paid invoices' },
+        { label: 'PENDING', value: overview.pending_count, sub: 'Invoices awaiting full payment' },
+      ].map((c) => <div key={c.label} className="card finance-summary__card"><p className="finance-summary__label">{c.label}</p><p className="finance-summary__value">{c.value}</p><p className="finance-summary__sub">{c.sub}</p></div>)}</div>}
 
       {activeTab === 'fees' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Fee Structures</h2><button className="button button--primary button--sm" onClick={() => setShowNewFee(!showNewFee)}>+ Fee Structure</button></div>
         {showNewFee && <NewFeeForm existingFeeStructures={feeStructures} onCreated={() => { setShowNewFee(false); load() }} onCancel={() => setShowNewFee(false)} />}
