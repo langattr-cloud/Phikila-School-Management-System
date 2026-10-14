@@ -1,5 +1,7 @@
 """School-scoped government capitation API with configurable vote-head templates."""
 from datetime import date
+import json
+from pathlib import Path
 from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
@@ -50,6 +52,51 @@ def _receipt(db, principal, receipt_id):
     return item
 
 
+
+@router.post("/finance/capitation/import-reference", status_code=201)
+def import_reference_catalogue(db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+    """Copy the versioned reference catalogue into this school's editable database records."""
+    path = Path(__file__).resolve().parents[3] / "data" / "kenya_capitation_reference.json"
+    try:
+        catalogue = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(500, "The capitation reference catalogue could not be loaded.") from exc
+    created, existing = [], []
+    try:
+        for entry in catalogue.get("templates", []):
+            name = entry["name"]
+            found = db.query(m.CapitationTemplate).filter_by(
+                school_id=principal.school_id, name=name, version=1
+            ).first()
+            if found:
+                existing.append(found.id)
+                continue
+            template = m.CapitationTemplate(
+                school_id=principal.school_id, name=name, school_type=catalogue["school_type"],
+                programme=catalogue["programme"], source_circular=catalogue["source_circular"],
+                source_url=catalogue.get("source_url"), effective_from=_date(catalogue["effective_from"], "effective_from"),
+                version=1, status="DRAFT", notes=catalogue.get("reference_note"), created_by=principal.user_id,
+            )
+            db.add(template)
+            db.flush()
+            for index, head in enumerate(entry.get("vote_heads", [])):
+                db.add(m.CapitationVoteHead(
+                    school_id=principal.school_id, template_id=template.id, code=head["code"],
+                    name=head["name"], per_learner_rate=_money(head["per_learner_rate"], "per_learner_rate"),
+                    display_order=index, status="ACTIVE",
+                ))
+            _audit(db, principal, "import", "capitation_template", template.id,
+                   f"Imported government reference vote heads from {catalogue['source_circular']}")
+            created.append(template)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {"created": [{"id": t.id, "name": t.name, "status": t.status} for t in created],
+            "already_present_ids": existing, "source_circular": catalogue["source_circular"],
+            "reference_note": catalogue.get("reference_note")}
+
+
 @router.get("/finance/capitation/templates")
 def list_templates(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     return db.query(m.CapitationTemplate).filter_by(school_id=principal.school_id).order_by(m.CapitationTemplate.created_at.desc()).all()
@@ -81,6 +128,7 @@ def create_template(payload: dict, db: Session = Depends(get_db), principal: Pri
                 raise HTTPException(422, "Each vote head needs a code and name.")
             db.add(m.CapitationVoteHead(school_id=principal.school_id, template_id=item.id, code=code,
                 name=name, description=row.get("description"), permitted_amount=_money(row["permitted_amount"], "permitted_amount") if row.get("permitted_amount") not in (None, "") else None,
+                per_learner_rate=_money(row["per_learner_rate"], "per_learner_rate") if row.get("per_learner_rate") not in (None, "") else None,
                 display_order=int(row.get("display_order", index)), status="ACTIVE"))
         _audit(db, principal, "create", "capitation_template", item.id, f"Created capitation template '{item.name}' version {version}")
         db.commit()
@@ -108,6 +156,7 @@ def create_vote_head(template_id: int, payload: dict, db: Session = Depends(get_
     item = m.CapitationVoteHead(school_id=principal.school_id, template_id=template_id, code=payload["code"].strip(),
         name=payload["name"].strip(), description=payload.get("description"), parent_id=payload.get("parent_id"),
         permitted_amount=_money(payload["permitted_amount"], "permitted_amount") if payload.get("permitted_amount") not in (None, "") else None,
+        per_learner_rate=_money(payload["per_learner_rate"], "per_learner_rate") if payload.get("per_learner_rate") not in (None, "") else None,
         display_order=int(payload.get("display_order", 0)), status=payload.get("status", "ACTIVE"))
     db.add(item)
     try:
