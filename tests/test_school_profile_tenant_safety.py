@@ -43,7 +43,8 @@ def make_service(school_id, registry_school=None, existing_profile=None, code_ow
 def test_missing_profile_is_materialized_for_each_authorized_tenant(
     school_id, registry_id, name, slug
 ):
-    registry_school = Mock(id=registry_id, name=name, slug=slug)
+    registry_school = Mock(id=registry_id, slug=slug)
+    registry_school.name = name
     service, repo, db, resolved_id = make_service(
         school_id, registry_school=registry_school
     )
@@ -98,7 +99,8 @@ def test_missing_registry_school_returns_not_found_instead_of_creating_orphan():
 
 
 def test_duplicate_slug_code_does_not_claim_another_schools_profile():
-    registry_school = Mock(id=27, name="North Ridge School", slug="shared-code")
+    registry_school = Mock(id=27, slug="shared-code")
+    registry_school.name = "North Ridge School"
     other_school_profile = Mock(id=3, code="SHARED-CODE")
     service, repo, _db, school_id = make_service(
         27, registry_school=registry_school, code_owner=other_school_profile

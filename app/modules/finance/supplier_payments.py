@@ -11,26 +11,12 @@ from sqlalchemy.orm import Session
 
 from app.core.database import Base, get_db
 from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.finance.operations_models import FinanceSupplier as Supplier
 def _audit(db, principal, action, entity, eid, summary):
     from app.modules.scheduling.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=principal.school_id, actor=principal.email or principal.user_id, action=action, entity=entity, entity_id=eid, summary=summary))
 
 router = APIRouter()
-
-
-class Supplier(Base):
-    __tablename__ = "finance_suppliers"
-    __table_args__ = (UniqueConstraint("school_id", "name", name="uq_finance_supplier_name"), {"extend_existing": True})
-    id = Column(Integer, primary_key=True, index=True)
-    school_id = Column(Integer, nullable=False, index=True)
-    name = Column(String(180), nullable=False)
-    contact_person = Column(String(150))
-    phone = Column(String(50))
-    email = Column(String(254))
-    address = Column(Text)
-    tax_pin = Column(String(50))
-    status = Column(String(20), nullable=False, default="ACTIVE")
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class SupplierInvoice(Base):
@@ -127,7 +113,12 @@ class ChequeStatusUpdate(BaseModel):
 
 
 def _supplier_dict(row):
-    return {k: getattr(row, k) for k in ("id", "school_id", "name", "contact_person", "phone", "email", "address", "tax_pin", "status", "created_at")}
+    return {
+        "id": row.id, "school_id": row.school_id, "name": row.name,
+        "contact_person": row.contact, "phone": row.phone, "email": row.email,
+        "address": row.address, "tax_pin": row.tax_identifier,
+        "status": row.status, "created_at": row.created_at,
+    }
 
 
 def _invoice_dict(db, row):
@@ -149,7 +140,7 @@ def _payment_dict(row):
 
 @router.get("/finance/suppliers")
 def list_suppliers(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
-    rows = db.query(Supplier).filter(Supplier.school_id == principal.school_id, Supplier.status == "ACTIVE").order_by(Supplier.name).all()
+    rows = db.query(Supplier).filter(Supplier.school_id == principal.school_id, __import__("sqlalchemy").func.upper(Supplier.status) == "ACTIVE").order_by(Supplier.name).all()
     return [_supplier_dict(row) for row in rows]
 
 
@@ -158,7 +149,7 @@ def create_supplier(payload: SupplierCreate, db: Session = Depends(get_db), prin
     name = payload.name.strip()
     if db.query(Supplier).filter(Supplier.school_id == principal.school_id, Supplier.name.ilike(name)).first():
         raise HTTPException(409, "A supplier with this name already exists.")
-    row = Supplier(school_id=principal.school_id, name=name, contact_person=payload.contact_person, phone=payload.phone, email=payload.email, address=payload.address, tax_pin=payload.tax_pin)
+    row = Supplier(school_id=principal.school_id, name=name, contact=payload.contact_person, phone=payload.phone, email=payload.email, address=payload.address, tax_identifier=payload.tax_pin)
     db.add(row)
     db.flush()
     _audit(db, principal, "create", "supplier", row.id, f"Created supplier '{name}'")
@@ -180,7 +171,7 @@ def list_supplier_invoices(status_filter: str | None = Query(default=None, alias
 
 @router.post("/finance/supplier-invoices", status_code=201)
 def create_supplier_invoice(payload: SupplierInvoiceCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
-    supplier = db.query(Supplier).filter(Supplier.id == payload.supplier_id, Supplier.school_id == principal.school_id, Supplier.status == "ACTIVE").first()
+    supplier = db.query(Supplier).filter(Supplier.id == payload.supplier_id, Supplier.school_id == principal.school_id, __import__("sqlalchemy").func.upper(Supplier.status) == "ACTIVE").first()
     if not supplier:
         raise HTTPException(404, "Supplier not found.")
     if payload.due_date and payload.due_date < payload.invoice_date:
@@ -218,7 +209,11 @@ def create_supplier_payment(payload: SupplierPaymentCreate, db: Session = Depend
     status_value = "ISSUED" if payload.payment_method == "cheque" else "CLEARED"
     row = SupplierPayment(school_id=principal.school_id, supplier_id=supplier.id, invoice_id=invoice.id, payment_date=payload.payment_date, amount=payload.amount, payment_method=payload.payment_method, payment_reference=payload.payment_reference, bank_account=payload.bank_account, cheque_number=payload.cheque_number.strip() if payload.cheque_number else None, cheque_date=payload.cheque_date, cheque_payee=payload.cheque_payee.strip() if payload.cheque_payee else None, status=status_value, notes=payload.notes, created_by=principal.user_id)
     db.add(row)
-    db.flush()
+    try:
+        db.flush()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(409, "Payment could not be recorded; check cheque uniqueness and invoice balance.") from exc
     _audit(db, principal, "create", "supplier_payment", row.id, f"Recorded {payload.payment_method} payment {row.amount} against supplier invoice #{invoice.id}; status={status_value}")
     db.commit()
     db.refresh(row)
