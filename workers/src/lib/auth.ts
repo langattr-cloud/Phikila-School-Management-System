@@ -82,7 +82,7 @@ export async function requireFinanceSchoolAccess(
     return { error: c.json({ detail: 'School finance access could not be verified.' }, 503), schoolId: null, user }
   }
 
-  const eligibleRoles = ['admin', 'finance', 'accountant', 'bursar']
+  const eligibleRoles = ['admin', 'super_admin', 'finance', 'accountant', 'bursar']
   const eligible = (memberships ?? []).filter((m) =>
     eligibleRoles.includes(String(m.role ?? '').toLowerCase()),
   )
