@@ -51,3 +51,63 @@ export function requireAuth(c: { get: (k: 'authUser') => AuthUser | null }): Aut
   }
   return { error: null, user }
 }
+
+/**
+ * Finance worker routes use a service-role database client and legacy finance
+ * tables that do not consistently carry school_id. Until those tables have
+ * tenant keys and every query is scoped, fail closed when more than one school
+ * exists. An authenticated identity or platform-admin status alone is not
+ * permission to view school financial records.
+ */
+export async function requireFinanceSchoolAccess(
+  c: {
+    get: (k: 'authUser') => AuthUser | null
+    json: (body: unknown, status?: number) => Response
+  },
+): Promise<{ error: Response | null; schoolId: number | null; user: AuthUser | null }> {
+  const { error, user } = requireAuth(c)
+  if (error || !user) return { error, schoolId: null, user: null }
+
+  const client = (await import('./db')).db()
+  const { data: schools, error: schoolError } = await client
+    .from('school_info')
+    .select('id')
+    .order('id')
+    .limit(2)
+
+  if (schoolError || !schools) {
+    return { error: c.json({ detail: 'Finance access could not be verified.' }, 503), schoolId: null, user }
+  }
+  if (schools.length !== 1) {
+    return {
+      error: c.json(
+        { detail: 'Finance worker is disabled until finance data is tenant-scoped for every school.' },
+        503,
+      ),
+      schoolId: null,
+      user,
+    }
+  }
+
+  const schoolId = Number(schools[0].id)
+  const { data: access, error: accessError } = await client
+    .from('tt_access_requests')
+    .select('requested_school_id, requested_role, status')
+    .eq('user_id', user.id)
+    .eq('status', 'approved')
+    .maybeSingle()
+
+  if (accessError) {
+    return { error: c.json({ detail: 'Finance access could not be verified.' }, 503), schoolId: null, user }
+  }
+  const role = String(access?.requested_role ?? '').toLowerCase()
+  if (
+    !access ||
+    Number(access.requested_school_id) !== schoolId ||
+    !['admin', 'finance'].includes(role)
+  ) {
+    return { error: c.json({ detail: 'School finance access required.' }, 403), schoolId: null, user }
+  }
+
+  return { error: null, schoolId, user }
+}
