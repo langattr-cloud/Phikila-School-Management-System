@@ -182,9 +182,18 @@ financeRoutes.patch('/invoices/:id', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
+  const schoolId = c.get('financeSchoolId')
+  if (body.student_id != null) {
+    const { data: enrollment } = await db().from('student_enrollments').select('student_id').eq('school_id', schoolId).eq('student_id', Number(body.student_id)).eq('status', 'active').limit(1).maybeSingle()
+    if (!enrollment) return c.json({ detail: 'Student is not actively enrolled in this school.' }, 404)
+  }
+  if (body.fee_structure_id != null) {
+    const { data: structure } = await db().from('fee_structures').select('id').eq('id', Number(body.fee_structure_id)).eq('school_id', schoolId).maybeSingle()
+    if (!structure) return c.json({ detail: 'Fee structure not found for this school.' }, 404)
+  }
   const { data, error: updateError } = await db()
     .from('student_invoices')
-    .update({ ...body, school_id: c.get('financeSchoolId') })
+    .update({ ...body, school_id: schoolId })
     .eq('school_id', c.get('financeSchoolId'))
     .eq('id', c.req.param('id'))
     .select()
@@ -235,9 +244,19 @@ financeRoutes.patch('/payment-inbox/:id', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
+  const schoolId = c.get('financeSchoolId')
+  if (body.student_id != null || body.matched_student_id != null) {
+    const studentId = Number(body.student_id ?? body.matched_student_id)
+    const { data: enrollment } = await db().from('student_enrollments').select('student_id').eq('school_id', schoolId).eq('student_id', studentId).eq('status', 'active').limit(1).maybeSingle()
+    if (!enrollment) return c.json({ detail: 'Student is not actively enrolled in this school.' }, 404)
+  }
+  if (body.posted_payment_id != null) {
+    const { data: payment } = await db().from('payments').select('id').eq('id', Number(body.posted_payment_id)).eq('school_id', schoolId).maybeSingle()
+    if (!payment) return c.json({ detail: 'Payment not found for this school.' }, 404)
+  }
   const { data, error: updateError } = await db()
     .from('payment_inbox')
-    .update({ ...body, school_id: c.get('financeSchoolId') })
+    .update({ ...body, school_id: schoolId })
     .eq('school_id', c.get('financeSchoolId'))
     .eq('id', c.req.param('id'))
     .select()
