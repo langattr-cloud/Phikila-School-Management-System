@@ -11,6 +11,8 @@ from app.modules.authentication.supabase import get_supabase_claims
 from app.modules.email.router import router as email_router
 from app.modules.examinations.router_v2 import router as exams_router
 from app.modules.finance.router import router as finance_router
+from app.modules.finance.capitation_router import router as capitation_router
+from app.modules.finance import capitation_models as capitation_models  # register ORM tables for migrations
 from app.modules.finance.supplier_payments import router as supplier_payments_router, Supplier, SupplierInvoice, SupplierPayment
 from app.modules.finance.payment_sms_router import router as finance_sms_router
 from app.modules.finance.payment_statement_import import router as finance_statement_import_router
@@ -98,7 +100,7 @@ def create_app() -> FastAPI:
     _guard_module_routes(students_router, "students")
     _guard_module_routes(exams_router, "examinations")
     for finance_module_router in (
-        finance_router, supplier_payments_router, finance_sms_router, finance_statement_import_router,
+        finance_router, capitation_router, supplier_payments_router, finance_sms_router, finance_statement_import_router,
         finance_operations_router, finance_account_mapping_router,
         finance_reports_router, finance_completion_router,
     ):
@@ -128,6 +130,7 @@ def create_app() -> FastAPI:
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
     app.include_router(outlook_router, prefix="/api/v1/outlook", tags=["Microsoft Outlook"])
     app.include_router(finance_router, prefix="/api/v1", tags=["Finance"])
+    app.include_router(capitation_router, prefix="/api/v1", tags=["Government Capitation"])
     app.include_router(supplier_payments_router, prefix="/api/v1", tags=["Supplier Payments"])
     app.include_router(finance_sms_router, prefix="/api/v1", tags=["Finance SMS Payments"])
     app.include_router(finance_statement_import_router, prefix="/api/v1", tags=["Finance Statement Import"])
