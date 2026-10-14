@@ -171,7 +171,7 @@ def list_supplier_invoices(status_filter: str | None = Query(default=None, alias
 
 @router.post("/finance/supplier-invoices", status_code=201)
 def create_supplier_invoice(payload: SupplierInvoiceCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
-    supplier = db.query(Supplier).filter(Supplier.id == payload.supplier_id, Supplier.school_id == principal.school_id, Supplier.status == "ACTIVE").first()
+    supplier = db.query(Supplier).filter(Supplier.id == payload.supplier_id, Supplier.school_id == principal.school_id, __import__("sqlalchemy").func.upper(Supplier.status) == "ACTIVE").first()
     if not supplier:
         raise HTTPException(404, "Supplier not found.")
     if payload.due_date and payload.due_date < payload.invoice_date:
@@ -209,7 +209,11 @@ def create_supplier_payment(payload: SupplierPaymentCreate, db: Session = Depend
     status_value = "ISSUED" if payload.payment_method == "cheque" else "CLEARED"
     row = SupplierPayment(school_id=principal.school_id, supplier_id=supplier.id, invoice_id=invoice.id, payment_date=payload.payment_date, amount=payload.amount, payment_method=payload.payment_method, payment_reference=payload.payment_reference, bank_account=payload.bank_account, cheque_number=payload.cheque_number.strip() if payload.cheque_number else None, cheque_date=payload.cheque_date, cheque_payee=payload.cheque_payee.strip() if payload.cheque_payee else None, status=status_value, notes=payload.notes, created_by=principal.user_id)
     db.add(row)
-    db.flush()
+    try:
+        db.flush()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(409, "Payment could not be recorded; check cheque uniqueness and invoice balance.") from exc
     _audit(db, principal, "create", "supplier_payment", row.id, f"Recorded {payload.payment_method} payment {row.amount} against supplier invoice #{invoice.id}; status={status_value}")
     db.commit()
     db.refresh(row)
