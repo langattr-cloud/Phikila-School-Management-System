@@ -18,59 +18,77 @@ def _audit(db, principal, action, entity, eid, summary):
 router = APIRouter()
 
 
-class Supplier(Base):
-    __tablename__ = "finance_suppliers"
-    __table_args__ = (UniqueConstraint("school_id", "name", name="uq_finance_supplier_name"), {"extend_existing": True})
-    id = Column(Integer, primary_key=True, index=True)
-    school_id = Column(Integer, nullable=False, index=True)
-    name = Column(String(180), nullable=False)
-    contact_person = Column(String(150))
-    phone = Column(String(50))
-    email = Column(String(254))
-    address = Column(Text)
-    tax_pin = Column(String(50))
-    status = Column(String(20), nullable=False, default="ACTIVE")
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+if "finance_suppliers" in Base.metadata.tables:
+    class Supplier(Base):
+        # Reuse the table when this model has already been registered through
+        # another import path in the same process.
+        __table__ = Base.metadata.tables["finance_suppliers"]
+else:
+    class Supplier(Base):
+        __tablename__ = "finance_suppliers"
+        __table_args__ = (UniqueConstraint("school_id", "name", name="uq_finance_supplier_name"), {"extend_existing": True})
+        id = Column(Integer, primary_key=True, index=True)
+        school_id = Column(Integer, nullable=False, index=True)
+        name = Column(String(180), nullable=False)
+        contact_person = Column(String(150))
+        phone = Column(String(50))
+        email = Column(String(254))
+        address = Column(Text)
+        tax_pin = Column(String(50))
+        status = Column(String(20), nullable=False, default="ACTIVE")
+        created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
-class SupplierInvoice(Base):
-    __tablename__ = "finance_supplier_invoices"
-    __table_args__ = (UniqueConstraint("school_id", "supplier_id", "invoice_number", name="uq_supplier_invoice_number"), {"extend_existing": True})
-    id = Column(Integer, primary_key=True, index=True)
-    school_id = Column(Integer, nullable=False, index=True)
-    supplier_id = Column(Integer, ForeignKey("finance_suppliers.id"), nullable=False, index=True)
-    invoice_number = Column(String(100), nullable=False)
-    invoice_date = Column(Date, nullable=False)
-    due_date = Column(Date)
-    description = Column(Text, nullable=False)
-    expense_category = Column(String(120), nullable=False)
-    amount = Column(Numeric(14, 2), nullable=False)
-    currency = Column(String(3), nullable=False, default="KES")
-    status = Column(String(20), nullable=False, default="OPEN")
-    document_url = Column(Text)
-    created_by = Column(String(100))
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+if "finance_supplier_invoices" in Base.metadata.tables:
+    class SupplierInvoice(Base):
+        # Reuse the table when this model has already been registered through
+        # another import path in the same process.
+        __table__ = Base.metadata.tables["finance_supplier_invoices"]
+else:
+    class SupplierInvoice(Base):
+        __tablename__ = "finance_supplier_invoices"
+        __table_args__ = (UniqueConstraint("school_id", "supplier_id", "invoice_number", name="uq_supplier_invoice_number"), {"extend_existing": True})
+        id = Column(Integer, primary_key=True, index=True)
+        school_id = Column(Integer, nullable=False, index=True)
+        supplier_id = Column(Integer, ForeignKey("finance_suppliers.id"), nullable=False, index=True)
+        invoice_number = Column(String(100), nullable=False)
+        invoice_date = Column(Date, nullable=False)
+        due_date = Column(Date)
+        description = Column(Text, nullable=False)
+        expense_category = Column(String(120), nullable=False)
+        amount = Column(Numeric(14, 2), nullable=False)
+        currency = Column(String(3), nullable=False, default="KES")
+        status = Column(String(20), nullable=False, default="OPEN")
+        document_url = Column(Text)
+        created_by = Column(String(100))
+        created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
-class SupplierPayment(Base):
-    __tablename__ = "finance_supplier_payments"
-    __table_args__ = (UniqueConstraint("school_id", "cheque_number", name="uq_supplier_cheque_number"), {"extend_existing": True})
-    id = Column(Integer, primary_key=True, index=True)
-    school_id = Column(Integer, nullable=False, index=True)
-    supplier_id = Column(Integer, ForeignKey("finance_suppliers.id"), nullable=False, index=True)
-    invoice_id = Column(Integer, ForeignKey("finance_supplier_invoices.id"), nullable=False, index=True)
-    payment_date = Column(Date, nullable=False)
-    amount = Column(Numeric(14, 2), nullable=False)
-    payment_method = Column(String(20), nullable=False)
-    payment_reference = Column(String(120))
-    bank_account = Column(String(180))
-    cheque_number = Column(String(80))
-    cheque_date = Column(Date)
-    cheque_payee = Column(String(180))
-    status = Column(String(20), nullable=False, default="CLEARED")
-    notes = Column(Text)
-    created_by = Column(String(100))
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+if "finance_supplier_payments" in Base.metadata.tables:
+    class SupplierPayment(Base):
+        # Reuse the table when this model has already been registered through
+        # another import path in the same process.
+        __table__ = Base.metadata.tables["finance_supplier_payments"]
+else:
+    class SupplierPayment(Base):
+        __tablename__ = "finance_supplier_payments"
+        __table_args__ = (UniqueConstraint("school_id", "cheque_number", name="uq_supplier_cheque_number"), {"extend_existing": True})
+        id = Column(Integer, primary_key=True, index=True)
+        school_id = Column(Integer, nullable=False, index=True)
+        supplier_id = Column(Integer, ForeignKey("finance_suppliers.id"), nullable=False, index=True)
+        invoice_id = Column(Integer, ForeignKey("finance_supplier_invoices.id"), nullable=False, index=True)
+        payment_date = Column(Date, nullable=False)
+        amount = Column(Numeric(14, 2), nullable=False)
+        payment_method = Column(String(20), nullable=False)
+        payment_reference = Column(String(120))
+        bank_account = Column(String(180))
+        cheque_number = Column(String(80))
+        cheque_date = Column(Date)
+        cheque_payee = Column(String(180))
+        status = Column(String(20), nullable=False, default="CLEARED")
+        notes = Column(Text)
+        created_by = Column(String(100))
+        created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class SupplierCreate(BaseModel):
