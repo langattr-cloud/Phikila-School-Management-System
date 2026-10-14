@@ -67,7 +67,15 @@ financeRoutes.post('/fee-structures/:id/items', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('fee_structure_items').insert({ ...body, school_id: c.get('financeSchoolId'), fee_structure_id: Number(c.req.param('id')) }).select().single()
+  const schoolId = c.get('financeSchoolId')
+  const feeStructureId = Number(c.req.param('id'))
+  const [structure, voteHead] = await Promise.all([
+    db().from('fee_structures').select('id').eq('id', feeStructureId).eq('school_id', schoolId).maybeSingle(),
+    db().from('finance_vote_heads').select('id').eq('id', Number(body.vote_head_id)).eq('school_id', schoolId).maybeSingle(),
+  ])
+  if (!structure.data) return c.json({ detail: 'Fee structure not found for this school.' }, 404)
+  if (body.vote_head_id && !voteHead.data) return c.json({ detail: 'Vote head not found for this school.' }, 404)
+  const { data, error: insertError } = await db().from('fee_structure_items').insert({ ...body, school_id: schoolId, fee_structure_id: feeStructureId }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -158,7 +166,14 @@ financeRoutes.post('/invoices', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('student_invoices').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
+  const schoolId = c.get('financeSchoolId')
+  const { data: enrollment } = await db().from('student_enrollments').select('student_id').eq('school_id', schoolId).eq('student_id', Number(body.student_id)).eq('status', 'active').limit(1).maybeSingle()
+  if (!body.student_id || !enrollment) return c.json({ detail: 'Student is not actively enrolled in this school.' }, 404)
+  if (body.fee_structure_id) {
+    const { data: structure } = await db().from('fee_structures').select('id').eq('id', Number(body.fee_structure_id)).eq('school_id', schoolId).maybeSingle()
+    if (!structure) return c.json({ detail: 'Fee structure not found for this school.' }, 404)
+  }
+  const { data, error: insertError } = await db().from('student_invoices').insert({ ...body, school_id: schoolId }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -243,7 +258,12 @@ financeRoutes.post('/receipts', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('finance_receipts').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
+  const schoolId = c.get('financeSchoolId')
+  const { data: payment } = await db().from('payments').select('id, student_id, amount').eq('id', Number(body.payment_id)).eq('school_id', schoolId).maybeSingle()
+  if (!payment) return c.json({ detail: 'Payment not found for this school.' }, 404)
+  if (body.student_id && Number(body.student_id) !== Number(payment.student_id)) return c.json({ detail: 'Receipt student must match the payment student.' }, 400)
+  if (body.amount != null && Number(body.amount) !== Number(payment.amount)) return c.json({ detail: 'Receipt amount must match the payment amount.' }, 400)
+  const { data, error: insertError } = await db().from('finance_receipts').insert({ ...body, student_id: payment.student_id, amount: payment.amount, school_id: schoolId }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -276,13 +296,26 @@ financeRoutes.post('/journals', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
+  const schoolId = c.get('financeSchoolId')
   const client = db()
-  const { data, error: insertError } = await client.from('finance_journals').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
+  if (!Array.isArray(body.entries) || body.entries.length < 2) return c.json({ detail: 'A journal requires at least two entries.' }, 400)
+  const debitTotal = body.entries.reduce((sum: number, entry: Record<string, unknown>) => sum + Number(entry.debit ?? 0), 0)
+  const creditTotal = body.entries.reduce((sum: number, entry: Record<string, unknown>) => sum + Number(entry.credit ?? 0), 0)
+  if (!Number.isFinite(debitTotal) || !Number.isFinite(creditTotal) || debitTotal <= 0 || Math.abs(debitTotal - creditTotal) > 0.005) {
+    return c.json({ detail: 'Journal debits and credits must balance and be positive.' }, 400)
+  }
+  const accountIds = [...new Set(body.entries.map((entry: Record<string, unknown>) => Number(entry.account_id)))]
+  if (accountIds.some((id: number) => !Number.isSafeInteger(id) || id <= 0)) return c.json({ detail: 'Every journal entry requires a valid ledger account.' }, 400)
+  const { data: accounts, error: accountsError } = await client.from('chart_of_accounts').select('id').eq('school_id', schoolId).in('id', accountIds)
+  if (accountsError || (accounts ?? []).length !== accountIds.length) return c.json({ detail: 'All ledger accounts must belong to this school.' }, 400)
+  const { data, error: insertError } = await client.from('finance_journals').insert({ ...body, entries: undefined, school_id: schoolId }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
-  if (Array.isArray(body.entries)) {
-    await client
-      .from('finance_journal_entries')
-      .insert(body.entries.map((e: Record<string, unknown>) => ({ journal_id: data.id, ...e })))
+  const { error: entriesError } = await client
+    .from('finance_journal_entries')
+    .insert(body.entries.map((e: Record<string, unknown>) => ({ ...e, journal_id: data.id })))
+  if (entriesError) {
+    await client.from('finance_journals').delete().eq('id', data.id).eq('school_id', schoolId)
+    return jsonError(c, entriesError.message, 400)
   }
   return c.json(data, 201)
 })
