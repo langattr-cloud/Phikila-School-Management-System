@@ -304,7 +304,7 @@
 }
 
 
-/* FinanceHub navigation icons: distinct accent color per finance section. */
+/* FinanceHub navigation icons: distinct accent colors with selectors strong enough to override the base icon rule. */
 .finance-page .finance-tabs .finance-tab .finance-tab__icon {
   display:inline-flex;
   align-items:center;
@@ -316,18 +316,18 @@
   background:transparent;
   color:#10b981;
 }
-.finance-page .finance-tab__icon svg { display:block; width:20px; height:20px; }
-.finance-page .finance-tab__icon--overview { color:#10b981; }
-.finance-page .finance-tab__icon--matcher { color:#2563eb; }
-.finance-page .finance-tab__icon--receipts { color:#f97316; }
-.finance-page .finance-tab__icon--fees { color:#a855f7; }
-.finance-page .finance-tab__icon--vote-heads { color:#ea580c; }
-.finance-page .finance-tab__icon--invoices { color:#0891b2; }
-.finance-page .finance-tab__icon--payments { color:#db2777; }
-.finance-page .finance-tab__icon--balances { color:#0d9488; }
-.finance-page .finance-tab__icon--banking { color:#3b82f6; }
-.finance-page .finance-tab__icon--suppliers { color:#ca8a04; }
-.finance-page .finance-tab__icon--trial-balance { color:#14b8a6; }
-.finance-page .finance-tab__icon--general-ledger { color:#9333ea; }
-.finance-page .finance-tab__icon--balance-sheet { color:#4f46e5; }
-.finance-page .finance-tab__icon--capitation { color:#16a34a; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon svg { display:block; width:20px; height:20px; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--overview { color:#10b981; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--matcher { color:#2563eb; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--receipts { color:#f97316; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--fees { color:#a855f7; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--vote-heads { color:#ea580c; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--invoices { color:#0891b2; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--payments { color:#db2777; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--balances { color:#0d9488; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--banking { color:#3b82f6; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--suppliers { color:#ca8a04; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--trial-balance { color:#14b8a6; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--general-ledger { color:#9333ea; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--balance-sheet { color:#4f46e5; }
+.finance-page .finance-tabs .finance-tab .finance-tab__icon--capitation { color:#16a34a; }
