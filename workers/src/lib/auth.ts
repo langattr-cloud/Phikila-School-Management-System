@@ -73,7 +73,7 @@ export async function requireFinanceSchoolAccess(
   const client = db()
   const { data: schools, error: schoolError } = await client
     .from('school_info')
-    .select('id, status')
+    .select('id')
     .order('id')
     .limit(2)
 
@@ -92,9 +92,6 @@ export async function requireFinanceSchoolAccess(
   }
 
   const schoolId = Number(schools[0].id)
-  if (schools[0].status && String(schools[0].status).toLowerCase() !== 'active') {
-    return { error: c.json({ detail: 'Finance access is disabled for this school.' }, 403), schoolId: null, user }
-  }
   const { data: access, error: accessError } = await client
     .from('tt_access_requests')
     .select('requested_school_id, requested_role, status')
