@@ -1,5 +1,5 @@
 {
-  "catalogue_name": "Kenya Ministry of Education public primary and junior school capitation reference",
+  "catalogue_name": "Kenya Ministry of Education capitation reference catalogue",
   "source_circular": "MOE. DBE/6/2/3/30",
   "circular_date": "2026-08-18",
   "source_url": "https://educationboard.co.ke/ministry-circular-guidelines-on-term-3-2026-fpe-capitation-disbursement-vote-head-allocations/",
@@ -103,114 +103,134 @@
       ]
     },
     {
-      "name": "Public Junior School FDJSE — Term 3 2026",
+      "name": "Public Junior School FDJSE — Operations Account — Term 3 2026",
+      "account": "Operations Account",
       "school_type": "public_junior_school",
       "programme": "Free Day Junior School Education (FDJSE)",
       "source_circular": "MOE.HQs/3/7/33 (15)",
       "source_url": "https://arena.co.ke/ministry-circular-guide-on-term-3-junior-school-capitation-disbursement-vote-head-allocations/",
-      "circular_date": "2026-08-19",
       "effective_from": "2026-08-19",
-      "reference_note": "Reference transcription of the Term 3 2026 FDJSE circular. Verify against the school's applicable Ministry circular before activation. Per-learner and per-school allocations are distinct. Keep tuition, operations, and infrastructure/RMI banking and cashbooks separate as required by the circular. Centralized procurement allocations are not cash received by the school.",
+      "per_learner_total": 359,
+      "per_school_total": 37520,
       "vote_heads": [
         {
           "code": "JSS-OPS-SCHOOL-01",
           "name": "Rental Box and Postage, Telephone Charges, BOM Meetings and BOM Capacity Building",
           "per_learner_rate": null,
-          "description": "Per-school allocation: KES 3,620.00"
+          "per_school_amount": 3620
         },
         {
           "code": "JSS-OPS-SCHOOL-02",
           "name": "Electricity, Water and Conservancy",
           "per_learner_rate": null,
-          "description": "Per-school allocation: KES 2,880.00"
+          "per_school_amount": 2880
         },
         {
           "code": "JSS-OPS-SCHOOL-03",
           "name": "Internet Connectivity and ICT Integration",
           "per_learner_rate": null,
-          "description": "Per-school allocation: KES 4,500.00"
+          "per_school_amount": 4500
         },
         {
           "code": "JSS-OPS-SCHOOL-04",
           "name": "Personal Emolument",
           "per_learner_rate": null,
-          "description": "Per-school allocation: KES 26,520.00"
-        },
-        {
-          "code": "JSS-TUITION-SCHOOL-01",
-          "name": "Teachers' Guides and Reference Materials",
-          "per_learner_rate": null,
-          "description": "Per-school allocation: KES 696.97"
-        },
-        {
-          "code": "JSS-OPS-01",
-          "name": "Repairs, Maintenance and Improvement (RMI) of Physical Facilities",
-          "per_learner_rate": 640,
-          "description": "Per learner; apply the circular's infrastructure-account and approval requirements"
+          "per_school_amount": 26520
         },
         {
           "code": "JSS-OPS-02",
           "name": "Administrative Costs",
-          "per_learner_rate": 78,
-          "description": "Per learner"
+          "per_learner_rate": 78
         },
         {
           "code": "JSS-OPS-03",
           "name": "Co-curricular Activities",
-          "per_learner_rate": 140,
-          "description": "Per learner"
+          "per_learner_rate": 140
         },
         {
           "code": "JSS-OPS-04",
           "name": "Local Transport and Travel",
-          "per_learner_rate": 96,
-          "description": "Per learner"
+          "per_learner_rate": 96
         },
         {
           "code": "JSS-OPS-05",
           "name": "Medical and Insurance",
-          "per_learner_rate": 45,
-          "description": "Per learner"
-        },
+          "per_learner_rate": 45
+        }
+      ],
+      "reference_note": "Reference transcription of the Ministry's Term 3 2026 FDJSE circular. Verify against the school's applicable circular before activation. Per-school, per-learner, and centralized-procurement allocations are distinct. Keep Operations, Tuition and Infrastructure accounts/cashbooks separate as required."
+    },
+    {
+      "name": "Public Junior School FDJSE — Tuition Account — Term 3 2026",
+      "account": "Tuition Account",
+      "school_type": "public_junior_school",
+      "programme": "Free Day Junior School Education (FDJSE)",
+      "source_circular": "MOE.HQs/3/7/33 (15)",
+      "source_url": "https://arena.co.ke/ministry-circular-guide-on-term-3-junior-school-capitation-disbursement-vote-head-allocations/",
+      "effective_from": "2026-08-19",
+      "per_learner_total": 502.64,
+      "per_school_total": 696.97,
+      "vote_heads": [
         {
-          "code": "JSS-TUI-01",
-          "name": "Capacity Building (SMASSE)",
-          "per_learner_rate": 20,
-          "description": "Per learner; centralized procurement allocation, not cash received by school"
-        },
-        {
-          "code": "JSS-TUI-02",
-          "name": "Textbooks and Supplementary Readers (KICD)",
-          "per_learner_rate": 224,
-          "description": "Per learner; centralized procurement allocation, not cash received by school"
+          "code": "JSS-TUI-SCHOOL-01",
+          "name": "Teachers' Guides and Reference Materials",
+          "per_learner_rate": null,
+          "per_school_amount": 696.97
         },
         {
           "code": "JSS-TUI-03",
           "name": "Laboratory Materials",
-          "per_learner_rate": 81,
-          "description": "Per learner"
+          "per_learner_rate": 81
         },
         {
           "code": "JSS-TUI-04",
           "name": "Materials for Practicals Under CBC",
-          "per_learner_rate": 144,
-          "description": "Per learner"
+          "per_learner_rate": 144
         },
         {
           "code": "JSS-TUI-05",
           "name": "Assessment",
-          "per_learner_rate": 77.64,
-          "description": "Per learner"
+          "per_learner_rate": 77.64
         },
         {
           "code": "JSS-TUI-06",
           "name": "Stationery and Writing Materials",
-          "per_learner_rate": 200,
-          "description": "Per learner"
+          "per_learner_rate": 200
+        },
+        {
+          "code": "JSS-TUI-CENTRAL-01",
+          "name": "Capacity Building (SMASSE) — centralized procurement",
+          "per_learner_rate": 20,
+          "description": "Reference only; centralized procurement allocation, not cash paid to school"
+        },
+        {
+          "code": "JSS-TUI-CENTRAL-02",
+          "name": "Textbooks and Supplementary Readers (KICD) — centralized procurement",
+          "per_learner_rate": 224,
+          "description": "Reference only; centralized procurement allocation, not cash paid to school"
         }
       ],
-      "per_learner_total": 1745.64,
-      "per_school_total": 38216.97
+      "reference_note": "Reference transcription of the Ministry's Term 3 2026 FDJSE circular. Verify against the school's applicable circular before activation. Per-school, per-learner, and centralized-procurement allocations are distinct. Keep Operations, Tuition and Infrastructure accounts/cashbooks separate as required."
+    },
+    {
+      "name": "Public Junior School FDJSE — Infrastructure Account (RMI) — Term 3 2026",
+      "account": "Infrastructure Account",
+      "school_type": "public_junior_school",
+      "programme": "Free Day Junior School Education (FDJSE) — RMI",
+      "source_circular": "MOE.HQs/3/7/33 (15)",
+      "source_url": "https://arena.co.ke/ministry-circular-guide-on-term-3-junior-school-capitation-disbursement-vote-head-allocations/",
+      "effective_from": "2026-08-19",
+      "per_learner_total": 640,
+      "per_school_total": 0,
+      "vote_heads": [
+        {
+          "code": "JSS-RMI-01",
+          "name": "Repairs, Maintenance and Improvement (RMI) of Physical Facilities",
+          "per_learner_rate": 640,
+          "description": "Infrastructure funds must be transferred to the infrastructure account; obtain required approvals before use"
+        }
+      ],
+      "reference_note": "Reference transcription of the Ministry's Term 3 2026 FDJSE circular. Verify against the school's applicable circular before activation. Per-school, per-learner, and centralized-procurement allocations are distinct. Keep Operations, Tuition and Infrastructure accounts/cashbooks separate as required."
     }
   ]
 }
