@@ -125,6 +125,27 @@ begin
   end if;
 
   update public.payments set journal_id = v_journal where id = v_payment.id;
+
+  -- The worker/RPC posting path does not create its receipt in Python. Issue
+  -- one here atomically with the journal. The Python path is handled above by
+  -- linking its pre-created FEE journal and continues creating its own receipt.
+  insert into public.finance_receipts(
+    receipt_number, payment_id, student_id, amount, issued_at, school_id, status, issued_by
+  )
+  select
+    'RCPT-' || v_payment.id::text,
+    v_payment.id,
+    v_payment.student_id,
+    v_payment.amount,
+    coalesce(v_payment.paid_at, now()),
+    v_payment.school_id,
+    'ISSUED',
+    v_payment.received_by
+  where not exists (
+    select 1 from public.finance_receipts r
+    where r.payment_id = v_payment.id and r.school_id = v_payment.school_id
+  )
+  on conflict do nothing;
 end;
 $function$;
 
