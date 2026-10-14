@@ -1,9 +1,18 @@
 import { Hono } from 'hono'
 import { db } from '../lib/db'
-import { requireAuth } from '../lib/auth'
+import { requireAuth, requireFinanceSchoolAccess } from '../lib/auth'
 import { jsonError } from '../lib/http'
 
 export const financeRoutes = new Hono()
+
+// The legacy worker schema lacks school_id on core finance tables. Until a
+// tenant-aware schema is in place, block this API for multi-school deployments
+// and require an approved finance/admin membership for the sole school.
+financeRoutes.use('*', async (c, next) => {
+  const { error } = await requireFinanceSchoolAccess(c as never)
+  if (error) return error
+  await next()
+})
 
 financeRoutes.get('/overview', async (c) => {
   const { error } = requireAuth(c as never)
@@ -91,7 +100,7 @@ financeRoutes.post('/payments/allocate', async (c) => {
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
   const { data, error: rpcError } = await db().rpc('post_student_fee_payment', {
-    p_school_id: Number(body.school_id ?? 1), p_student_id: Number(body.student_id), p_amount: Number(body.amount),
+    p_school_id: c.get('financeSchoolId'), p_student_id: Number(body.student_id), p_amount: Number(body.amount),
     p_payment_method: body.payment_method ?? body.method ?? 'cash', p_reference_number: body.reference_number ?? body.reference ?? null,
     p_notes: body.notes ?? null, p_received_by: body.received_by ?? null, p_invoice_id: body.invoice_id ? Number(body.invoice_id) : null,
   })
