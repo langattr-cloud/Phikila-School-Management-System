@@ -11,6 +11,7 @@ export type AuthUser = {
 declare module 'hono' {
   interface ContextVariableMap {
     authUser: AuthUser | null
+    financeSchoolId: number
   }
 }
 
@@ -62,6 +63,7 @@ export function requireAuth(c: { get: (k: 'authUser') => AuthUser | null }): Aut
 export async function requireFinanceSchoolAccess(
   c: {
     get: (k: 'authUser') => AuthUser | null
+    set: (k: 'financeSchoolId', value: number) => void
     json: (body: unknown, status?: number) => Response
   },
 ): Promise<{ error: Response | null; schoolId: number | null; user: AuthUser | null }> {
@@ -109,5 +111,6 @@ export async function requireFinanceSchoolAccess(
     return { error: c.json({ detail: 'School finance access required.' }, 403), schoolId: null, user }
   }
 
+  c.set('financeSchoolId', schoolId)
   return { error: null, schoolId, user }
 }
