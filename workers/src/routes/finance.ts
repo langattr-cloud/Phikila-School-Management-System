@@ -304,7 +304,7 @@ financeRoutes.post('/journals', async (c) => {
   if (!Number.isFinite(debitTotal) || !Number.isFinite(creditTotal) || debitTotal <= 0 || Math.abs(debitTotal - creditTotal) > 0.005) {
     return c.json({ detail: 'Journal debits and credits must balance and be positive.' }, 400)
   }
-  const accountIds = [...new Set(body.entries.map((entry: Record<string, unknown>) => Number(entry.account_id)))]
+  const accountIds: number[] = [...new Set<number>(body.entries.map((entry: Record<string, unknown>) => Number(entry.account_id)))]
   if (accountIds.some((id: number) => !Number.isSafeInteger(id) || id <= 0)) return c.json({ detail: 'Every journal entry requires a valid ledger account.' }, 400)
   const { data: accounts, error: accountsError } = await client.from('chart_of_accounts').select('id').eq('school_id', schoolId).in('id', accountIds)
   if (accountsError || (accounts ?? []).length !== accountIds.length) return c.json({ detail: 'All ledger accounts must belong to this school.' }, 400)
