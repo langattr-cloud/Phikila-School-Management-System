@@ -44,7 +44,12 @@ financeRoutes.post('/vote-heads', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('finance_vote_heads').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
+  const schoolId = c.get('financeSchoolId')
+  if (body.revenue_account_id != null) {
+    const { data: account } = await db().from('chart_of_accounts').select('id').eq('id', Number(body.revenue_account_id)).eq('school_id', schoolId).maybeSingle()
+    if (!account) return c.json({ detail: 'Revenue account not found for this school.' }, 404)
+  }
+  const { data, error: insertError } = await db().from('finance_vote_heads').insert({ ...body, school_id: schoolId }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -52,7 +57,12 @@ financeRoutes.patch('/vote-heads/:id', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: updateError } = await db().from('finance_vote_heads').update({ ...body, school_id: c.get('financeSchoolId') }).eq('school_id', c.get('financeSchoolId')).eq('id', c.req.param('id')).select().maybeSingle()
+  const schoolId = c.get('financeSchoolId')
+  if (body.revenue_account_id != null) {
+    const { data: account } = await db().from('chart_of_accounts').select('id').eq('id', Number(body.revenue_account_id)).eq('school_id', schoolId).maybeSingle()
+    if (!account) return c.json({ detail: 'Revenue account not found for this school.' }, 404)
+  }
+  const { data, error: updateError } = await db().from('finance_vote_heads').update({ ...body, school_id: schoolId }).eq('school_id', schoolId).eq('id', c.req.param('id')).select().maybeSingle()
   if (updateError) return jsonError(c, updateError.message, 400)
   return c.json(data)
 })
@@ -316,7 +326,12 @@ financeRoutes.post('/chart-of-accounts', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('chart_of_accounts').insert({ ...body, school_id: c.get('financeSchoolId') }).select().single()
+  const schoolId = c.get('financeSchoolId')
+  if (body.parent_id != null) {
+    const { data: parent } = await db().from('chart_of_accounts').select('id').eq('id', Number(body.parent_id)).eq('school_id', schoolId).maybeSingle()
+    if (!parent) return c.json({ detail: 'Parent ledger account not found for this school.' }, 404)
+  }
+  const { data, error: insertError } = await db().from('chart_of_accounts').insert({ ...body, school_id: schoolId }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -335,9 +350,14 @@ financeRoutes.post('/journals', async (c) => {
   const schoolId = c.get('financeSchoolId')
   const client = db()
   if (!Array.isArray(body.entries) || body.entries.length < 2) return c.json({ detail: 'A journal requires at least two entries.' }, 400)
+  const entriesValid = body.entries.every((entry: Record<string, unknown>) => {
+    const debit = Number(entry.debit ?? 0)
+    const credit = Number(entry.credit ?? 0)
+    return Number.isFinite(debit) && Number.isFinite(credit) && debit >= 0 && credit >= 0 && !((debit > 0) && (credit > 0)) && (debit > 0 || credit > 0)
+  })
   const debitTotal = body.entries.reduce((sum: number, entry: Record<string, unknown>) => sum + Number(entry.debit ?? 0), 0)
   const creditTotal = body.entries.reduce((sum: number, entry: Record<string, unknown>) => sum + Number(entry.credit ?? 0), 0)
-  if (!Number.isFinite(debitTotal) || !Number.isFinite(creditTotal) || debitTotal <= 0 || Math.abs(debitTotal - creditTotal) > 0.005) {
+  if (!entriesValid || !Number.isFinite(debitTotal) || !Number.isFinite(creditTotal) || debitTotal <= 0 || Math.abs(debitTotal - creditTotal) > 0.005) {
     return c.json({ detail: 'Journal debits and credits must balance and be positive.' }, 400)
   }
   const accountIds: number[] = [...new Set<number>(body.entries.map((entry: Record<string, unknown>) => Number(entry.account_id)))]
