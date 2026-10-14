@@ -40,6 +40,7 @@ def upgrade() -> None:
         sa.Column("description", sa.Text()),
         sa.Column("parent_id", sa.Integer(), sa.ForeignKey("finance_capitation_vote_heads.id")),
         sa.Column("permitted_amount", sa.Numeric(14, 2)),
+        sa.Column("per_learner_rate", sa.Numeric(12, 2)),
         sa.Column("display_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("status", sa.String(20), nullable=False, server_default="ACTIVE"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
