@@ -10,6 +10,8 @@ import pytest
 
 from app.modules.finance import models as finance_models
 from app.modules.finance import router as finance_router
+from app.modules.finance import supplier_payments
+from app.modules.finance.operations_models import FinanceSupplier
 from app.modules.scheduling.tenancy import Principal
 
 
@@ -47,6 +49,9 @@ def _school_predicate(query_mock, model, school_id=SCHOOL_ID):
         (finance_router.list_invoices, finance_models.StudentInvoice),
         (finance_router.list_payments, finance_models.Payment),
         (finance_router.list_receipts, finance_models.FinanceReceipt),
+        (supplier_payments.list_supplier_invoices, supplier_payments.SupplierInvoice),
+        (supplier_payments.list_supplier_payments, supplier_payments.SupplierPayment),
+        (supplier_payments.list_suppliers, FinanceSupplier),
     ],
 )
 def test_finance_list_routes_scope_queries_to_the_principals_school(route, model):
@@ -59,6 +64,8 @@ def test_finance_list_routes_scope_queries_to_the_principals_school(route, model
 
     if route is finance_router.list_invoices:
         result = route(student_id=None, status_filter=None, db=db, principal=_principal())
+    elif route is supplier_payments.list_supplier_invoices:
+        result = route(status_filter=None, db=db, principal=_principal())
     else:
         result = route(db=db, principal=_principal())
 
