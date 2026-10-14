@@ -72,7 +72,7 @@ export default function FinancePage() {
     <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
     {error && <Alert tone="error">{error}</Alert>}
     <div className="finance-tabs" role="tablist" aria-label="Finance sections">
-      {(['overview', 'matcher', 'receipts', 'fees', 'vote-heads', 'invoices', 'payments', 'balances', 'banking', 'suppliers', 'trial-balance', 'general-ledger', 'balance-sheet', 'capitation'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button button--sm finance-tab ${activeTab === tab ? 'finance-tab--active' : ''}`} onClick={() => setActiveTab(tab)}><span className={`finance-tab__icon finance-tab__icon--${tab}`} aria-hidden="true">{financeTabIcons[tab]}</span><span>{financeTabLabels[tab]}</span></button>)}
+      {(['overview', 'matcher', 'receipts', 'fees', 'vote-heads', 'invoices', 'payments', 'balances', 'banking', 'suppliers', 'trial-balance', 'general-ledger', 'balance-sheet', 'capitation'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button button--sm finance-tab ${activeTab === tab ? 'finance-tab--active' : ''}`} onClick={() => setActiveTab(tab)}><span className={`finance-tab__icon finance-tab__icon--${tab}`} aria-hidden="true" /><span>{financeTabLabels[tab]}</span></button>)}
     </div>
 
     {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
@@ -87,13 +87,13 @@ export default function FinancePage() {
       {activeTab === 'general-ledger' && <GeneralLedgerView />}
       {activeTab === 'balance-sheet' && <BalanceSheetView />}
       {activeTab === 'overview' && overview && <div className="summary-grid finance-summary">{[
-        { label: 'Total Invoiced', value: `KES ${Number(overview.total_invoiced).toLocaleString()}`, icon: '▧', sub: 'Total value of recorded invoices' },
-        { label: 'Total Collected', value: `KES ${Number(overview.total_collected).toLocaleString()}`, icon: '↗', sub: 'Payments recorded against fees' },
-        { label: 'Outstanding', value: `KES ${Number(overview.total_outstanding).toLocaleString()}`, icon: '◉', sub: 'Unpaid invoice balances', tone: Number(overview.total_outstanding) > 0 ? 'warning' : undefined },
-        { label: 'Invoices', value: overview.invoices_count, icon: '▤', sub: 'Recorded invoices' },
-        { label: 'Paid', value: overview.paid_count, icon: '✓', sub: 'Fully paid invoices' },
-        { label: 'Pending', value: overview.pending_count, icon: '◷', sub: 'Invoices awaiting full payment' },
-      ].map((c) => <div key={c.label} className="card finance-summary__card"><div className="finance-summary__top"><span className="finance-summary__icon" aria-hidden="true">{c.icon}</span><p className="finance-summary__label">{c.label}</p></div><p className={`finance-summary__value ${c.tone === 'warning' ? 'finance-summary__value--warning' : ''}`}>{c.value}</p><p className="finance-summary__sub">{c.sub}</p></div>)}</div>}
+        { label: 'TOTAL INVOICED', value: `KES ${Number(overview.total_invoiced).toLocaleString()}`, sub: 'Total value of recorded invoices' },
+        { label: 'TOTAL COLLECTED', value: `KES ${Number(overview.total_collected).toLocaleString()}`, sub: 'Payments recorded against fees' },
+        { label: 'OUTSTANDING', value: `KES ${Number(overview.total_outstanding).toLocaleString()}`, sub: 'Unpaid invoice balances' },
+        { label: 'INVOICES', value: overview.invoices_count, sub: 'Recorded invoices' },
+        { label: 'PAID', value: overview.paid_count, sub: 'Fully paid invoices' },
+        { label: 'PENDING', value: overview.pending_count, sub: 'Invoices awaiting full payment' },
+      ].map((c) => <div key={c.label} className="card finance-summary__card"><p className="finance-summary__label">{c.label}</p><p className="finance-summary__value">{c.value}</p><p className="finance-summary__sub">{c.sub}</p></div>)}</div>}
 
       {activeTab === 'fees' && <section className="section card"><div className="finance-section-heading"><h2 className="section__title">Fee Structures</h2><button className="button button--primary button--sm" onClick={() => setShowNewFee(!showNewFee)}>+ Fee Structure</button></div>
         {showNewFee && <NewFeeForm existingFeeStructures={feeStructures} onCreated={() => { setShowNewFee(false); load() }} onCancel={() => setShowNewFee(false)} />}
