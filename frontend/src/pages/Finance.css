@@ -182,3 +182,123 @@
 @media (max-width: 380px) {
   .finance-page .finance-summary { grid-template-columns: 1fr; }
 }
+
+
+/* Final FinanceHub reference match: confined to this page. */
+.finance-page {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1rem;
+  background: #fff;
+  color: #111827;
+}
+.finance-page .finance-tabs {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:.5rem;
+  margin:.2rem 0 0;
+}
+.finance-page .finance-tabs .finance-tab {
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  min-height:2.45rem;
+  padding:.5rem .9rem;
+  border:1px solid #e5e7eb;
+  border-radius:999px;
+  background:#f2f2f2;
+  color:#111827;
+  box-shadow:none;
+  font-size:.875rem;
+  font-weight:500;
+}
+.finance-page .finance-tabs .finance-tab:hover { background:#e9e9e9; }
+.finance-page .finance-tabs .finance-tab--active {
+  background:#f2f2f2;
+  border-color:#d1d5db;
+  box-shadow:inset 0 0 0 1px #d1d5db;
+}
+.finance-page .finance-tab__icon {
+  width:1.5rem;
+  height:1.5rem;
+  flex:0 0 1.5rem;
+  border-radius:.375rem;
+  background:linear-gradient(135deg,#3b82f6,#4ade80);
+}
+.finance-page .finance-tab__icon--overview { background:linear-gradient(135deg,#34d399,#facc15); }
+.finance-page .finance-tab__icon--matcher { background:linear-gradient(135deg,#22c55e,#2563eb); }
+.finance-page .finance-tab__icon--receipts { background:linear-gradient(135deg,#fb923c,#ef4444); }
+.finance-page .finance-tab__icon--fees { background:linear-gradient(135deg,#8b5cf6,#ec4899); }
+.finance-page .finance-tab__icon--vote-heads { background:linear-gradient(135deg,#ea580c,#dc2626); }
+.finance-page .finance-tab__icon--invoices { background:linear-gradient(135deg,#22d3ee,#2563eb); }
+.finance-page .finance-tab__icon--payments { background:linear-gradient(135deg,#ec4899,#9333ea); }
+.finance-page .finance-tab__icon--balances { background:linear-gradient(135deg,#22d3ee,#22c55e); }
+.finance-page .finance-tab__icon--banking { background:linear-gradient(135deg,#2563eb,#22c55e); }
+.finance-page .finance-tab__icon--suppliers { background:linear-gradient(135deg,#eab308,#ef4444); }
+.finance-page .finance-tab__icon--trial-balance { background:linear-gradient(135deg,#2dd4bf,#2563eb); }
+.finance-page .finance-tab__icon--general-ledger { background:linear-gradient(135deg,#9333ea,#ec4899); }
+.finance-page .finance-tab__icon--balance-sheet { background:linear-gradient(135deg,#3b82f6,#facc15); }
+.finance-page .finance-tab__icon--capitation { background:linear-gradient(135deg,#16a34a,#ca8a04); }
+.finance-page .finance-summary {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.75rem;
+  margin:1.5rem 0 0;
+}
+.finance-page .finance-summary__card {
+  box-sizing:border-box;
+  height:110px;
+  min-height:110px;
+  padding:1rem;
+  border:0;
+  border-radius:.75rem;
+  box-shadow:none;
+  overflow:hidden;
+  color:#fff;
+}
+.finance-page .finance-summary__card:nth-child(1) { background:#3B82F6; }
+.finance-page .finance-summary__card:nth-child(2) { background:#16A34A; }
+.finance-page .finance-summary__card:nth-child(3) { background:#F43F5E; }
+.finance-page .finance-summary__card:nth-child(4) { background:#7C3AED; }
+.finance-page .finance-summary__card:nth-child(5) { background:#14B8A6; }
+.finance-page .finance-summary__card:nth-child(6) { background:#F97316; }
+.finance-page .finance-summary__label {
+  margin:0;
+  color:rgba(255,255,255,.95);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.025em;
+  line-height:1.25;
+}
+.finance-page .finance-summary__value {
+  margin:.3rem 0 0;
+  color:#fff;
+  font-size:clamp(1.25rem,2.5vw,1.875rem);
+  font-weight:800;
+  line-height:1.12;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+}
+.finance-page .finance-summary__sub {
+  margin:.3rem 0 0;
+  color:rgba(255,255,255,.85);
+  font-size:.75rem;
+  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+@media(max-width:700px) {
+  .finance-page .finance-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .finance-page .finance-summary__card { padding:.8rem; }
+  .finance-page .finance-summary__value { font-size:clamp(1.15rem,4.5vw,1.6rem); }
+  .finance-page .finance-summary__sub { font-size:.68rem; }
+}
+@media(max-width:480px) {
+  .finance-page { padding:.65rem; }
+  .finance-page .finance-tabs { justify-content:flex-start; flex-wrap:nowrap; overflow-x:auto; padding-bottom:.35rem; }
+  .finance-page .finance-tabs .finance-tab { flex:0 0 auto; }
+}
