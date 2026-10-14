@@ -191,7 +191,7 @@ financeRoutes.post('/payments', async (c) => {
   const body = await c.req.json().catch(() => ({}))
   if (body.student_id && Number(body.amount) > 0) {
     const { data, error: rpcError } = await db().rpc('post_student_fee_payment', {
-      p_school_id: Number(body.school_id ?? 1), p_student_id: Number(body.student_id), p_amount: Number(body.amount),
+      p_school_id: c.get('financeSchoolId'), p_student_id: Number(body.student_id), p_amount: Number(body.amount),
       p_payment_method: body.payment_method ?? body.method ?? 'cash',
       p_reference_number: body.reference_number ?? body.reference ?? null,
       p_notes: body.notes ?? null, p_received_by: body.received_by ?? null,
