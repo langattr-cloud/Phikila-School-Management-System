@@ -98,10 +98,15 @@ begin
   end if;
 
   if new.invoice_id is not null and not exists (
-    select 1 from public.student_invoices i
-    where i.id = new.invoice_id and i.school_id = new.school_id
+    select 1
+    from public.student_invoices i
+    join public.payments p on p.id = new.payment_id
+    where i.id = new.invoice_id
+      and i.school_id = new.school_id
+      and p.school_id = new.school_id
+      and i.student_id = p.student_id
   ) then
-    raise exception 'Allocation invoice must belong to the allocation school';
+    raise exception 'Allocation invoice must belong to the payment student and school';
   end if;
 
   if new.invoice_item_id is not null and not exists (
@@ -109,6 +114,7 @@ begin
     where ii.id = new.invoice_item_id
       and ii.school_id = new.school_id
       and ii.invoice_id = new.invoice_id
+      and (new.vote_head_id is null or ii.vote_head_id = new.vote_head_id)
   ) then
     raise exception 'Allocation invoice item must belong to the allocation invoice and school';
   end if;
