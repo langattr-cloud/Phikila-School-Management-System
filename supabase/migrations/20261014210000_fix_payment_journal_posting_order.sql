@@ -3,6 +3,12 @@
 -- Do not attempt to journal it until the cash allocations account for the full
 -- payment; the allocation trigger retries after each allocation insert.
 
+-- One payment should have at most one receipt. A read-only audit before
+-- adding this index found no duplicate payment_id values in finance_receipts.
+create unique index if not exists uq_finance_receipts_payment_id
+  on public.finance_receipts(payment_id)
+  where payment_id is not null;
+
 -- Keep receipt creation idempotent and independent of which journal path wins.
 -- This also repairs a missing receipt when a valid journal already exists.
 create or replace function public.ensure_finance_payment_receipt(p_payment_id bigint)
