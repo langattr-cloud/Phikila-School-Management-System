@@ -414,7 +414,7 @@ financeRoutes.post('/receipts', async (c) => {
       amount: payment.amount,
       school_id: schoolId,
       status: 'ISSUED',
-      issued_by: body.issued_by ?? null,
+      issued_by: c.get('authUser')?.id ?? null,
     })
     .select()
     .single()
