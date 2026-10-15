@@ -392,11 +392,27 @@ financeRoutes.post('/journals', async (c) => {
   if (accountIds.some((id: number) => !Number.isSafeInteger(id) || id <= 0)) return c.json({ detail: 'Every journal entry requires a valid ledger account.' }, 400)
   const { data: accounts, error: accountsError } = await client.from('chart_of_accounts').select('id').eq('school_id', schoolId).in('id', accountIds)
   if (accountsError || (accounts ?? []).length !== accountIds.length) return c.json({ detail: 'All ledger accounts must belong to this school.' }, 400)
-  const { data, error: insertError } = await client.from('finance_journals').insert({ ...body, entries: undefined, school_id: schoolId }).select().single()
+  // Whitelist writable fields. Do not pass request-controlled IDs, school IDs,
+  // created_by, or nested entry objects into the database insert.
+  const journalPayload = {
+    journal_date: body.journal_date ?? null,
+    description: typeof body.description === 'string' ? body.description : null,
+    reference: typeof body.reference === 'string' ? body.reference : null,
+    status: 'POSTED',
+    school_id: schoolId,
+  }
+  const { data, error: insertError } = await client.from('finance_journals').insert(journalPayload).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
+  const entryPayload = body.entries.map((e: Record<string, unknown>) => ({
+    journal_id: data.id,
+    account_id: Number(e.account_id),
+    debit: Number(e.debit ?? 0),
+    credit: Number(e.credit ?? 0),
+    description: typeof e.description === 'string' ? e.description : null,
+  }))
   const { error: entriesError } = await client
     .from('finance_journal_entries')
-    .insert(body.entries.map((e: Record<string, unknown>) => ({ ...e, journal_id: data.id })))
+    .insert(entryPayload)
   if (entriesError) {
     await client.from('finance_journals').delete().eq('id', data.id).eq('school_id', schoolId)
     return jsonError(c, entriesError.message, 400)
