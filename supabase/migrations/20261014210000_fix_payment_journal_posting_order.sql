@@ -3,6 +3,42 @@
 -- Do not attempt to journal it until the cash allocations account for the full
 -- payment; the allocation trigger retries after each allocation insert.
 
+-- Keep receipt creation idempotent and independent of which journal path wins.
+-- This also repairs a missing receipt when a valid journal already exists.
+create or replace function public.ensure_finance_payment_receipt(p_payment_id bigint)
+returns void
+language plpgsql
+set search_path = public
+as $function$
+begin
+  insert into public.finance_receipts(
+    receipt_number, payment_id, student_id, amount, issued_at, school_id, status, issued_by
+  )
+  select
+    'RCPT-' || p.id::text,
+    p.id,
+    p.student_id,
+    p.amount,
+    coalesce(p.paid_at, now()),
+    p.school_id,
+    'ISSUED',
+    p.received_by
+  from public.payments p
+  join public.finance_journals j
+    on j.id = p.journal_id
+   and j.school_id = p.school_id
+   and upper(coalesce(j.status,'')) = 'POSTED'
+  where p.id = p_payment_id
+    and not coalesce(p.reversed,false)
+    and coalesce(p.amount,0) > 0
+    and not exists (
+      select 1 from public.finance_receipts r
+      where r.payment_id = p.id and r.school_id = p.school_id
+    )
+  on conflict do nothing;
+end;
+$function$;
+
 create or replace function public.post_finance_payment_journal_for_payment(
   p_payment_id bigint
 )
@@ -43,10 +79,12 @@ begin
 
   if v_journal is not null then
     update public.payments set journal_id = v_journal where id = v_payment.id;
+    perform public.ensure_finance_payment_receipt(v_payment.id);
     return;
   end if;
 
   if v_payment.journal_id is not null then
+    perform public.ensure_finance_payment_receipt(v_payment.id);
     return;
   end if;
 
@@ -59,6 +97,7 @@ begin
 
   if v_journal is not null then
     update public.payments set journal_id = v_journal where id = v_payment.id;
+    perform public.ensure_finance_payment_receipt(v_payment.id);
     return;
   end if;
 
@@ -126,26 +165,8 @@ begin
 
   update public.payments set journal_id = v_journal where id = v_payment.id;
 
-  -- The worker/RPC posting path does not create its receipt in Python. Issue
-  -- one here atomically with the journal. The Python path is handled above by
-  -- linking its pre-created FEE journal and continues creating its own receipt.
-  insert into public.finance_receipts(
-    receipt_number, payment_id, student_id, amount, issued_at, school_id, status, issued_by
-  )
-  select
-    'RCPT-' || v_payment.id::text,
-    v_payment.id,
-    v_payment.student_id,
-    v_payment.amount,
-    coalesce(v_payment.paid_at, now()),
-    v_payment.school_id,
-    'ISSUED',
-    v_payment.received_by
-  where not exists (
-    select 1 from public.finance_receipts r
-    where r.payment_id = v_payment.id and r.school_id = v_payment.school_id
-  )
-  on conflict do nothing;
+  -- Issue the receipt atomically once the payment is linked to a posted journal.
+  perform public.ensure_finance_payment_receipt(v_payment.id);
 end;
 $function$;
 
