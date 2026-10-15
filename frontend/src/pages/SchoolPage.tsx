@@ -85,11 +85,13 @@ export function SchoolPage() {
     if (file.size > 2 * 1024 * 1024) { setLogoError('The logo must be 2 MB or smaller.'); setLogoInputKey(value => value + 1); return }
     if (!supabase) { setLogoError('Logo uploads require the configured Supabase Storage connection.'); setLogoInputKey(value => value + 1); return }
     setLogoBusy(true); setLogoError(null)
+    let uploadedPath: string | null = null
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser()
       if (authError || !authData.user) throw new Error('Your sign-in could not be verified. Please sign in again.')
       const extension = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp'
       const path = `${authData.user.id}/school-${data.id}.${extension}`
+      uploadedPath = path
       const { error: uploadError } = await supabase.storage.from('school-logos').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' })
       if (uploadError) throw new Error(uploadError.message.includes('Bucket not found') ? 'School logo storage is not configured yet. Please contact the system administrator.' : uploadError.message)
       const { data: publicData } = supabase.storage.from('school-logos').getPublicUrl(path)
@@ -98,6 +100,9 @@ export function SchoolPage() {
       notify('School logo updated.', 'success')
       await reload()
     } catch (err) {
+      if (uploadedPath) {
+        try { await supabase.storage.from('school-logos').remove([uploadedPath]) } catch { /* Cleanup is best-effort; preserve the original error. */ }
+      }
       setLogoError(friendlyApiError(err, 'upload the school logo'))
     } finally { setLogoBusy(false); setLogoInputKey(value => value + 1) }
   }
