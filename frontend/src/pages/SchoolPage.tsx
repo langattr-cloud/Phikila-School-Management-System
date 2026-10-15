@@ -211,6 +211,20 @@ export function SchoolPage() {
               <div className="school-profile-banner__status">{data.is_active === false ? <Badge tone="warning">Inactive</Badge> : <Badge tone="success">Active</Badge>}</div>
             </div>
             <div className="school-profile-content">
+              <section className="school-profile-logo-panel" aria-labelledby="school-logo-title">
+                <div className="school-profile-logo-preview">{data.logo ? <img src={data.logo} alt="Current school logo" /> : <SchoolIcon width={34} height={34} />}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 id="school-logo-title" className="school-profile-section-title">School logo</h3>
+                  <p className="school-profile-section-copy" style={{ marginBottom: 10 }}>Upload your school crest once. It will be used on supported printouts.</p>
+                  <div className="school-profile-logo-actions">
+                    <label className="button button--primary button--sm" htmlFor="school-logo-upload">{logoBusy ? 'Uploading…' : data.logo ? 'Replace logo' : 'Upload logo'}</label>
+                    <input key={logoInputKey} id="school-logo-upload" type="file" accept="image/png,image/jpeg,image/webp" disabled={logoBusy} onChange={event => void saveLogo(event.target.files?.[0] ?? null)} style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }} />
+                    {data.logo && <button type="button" className="button button--secondary button--sm" disabled={logoBusy} onClick={() => void removeLogo()}>Remove logo</button>}
+                  </div>
+                  <p className="school-profile-logo-help">PNG, JPG/JPEG or WebP · Maximum 2 MB</p>
+                  {logoError && <p className="school-profile-logo-error" role="alert">{logoError}</p>}
+                </div>
+              </section>
               <h3 className="school-profile-section-title">Registration and contact</h3>
               <p className="school-profile-section-copy">The core details currently recorded for this school.</p>
               <dl className="school-profile-details">
