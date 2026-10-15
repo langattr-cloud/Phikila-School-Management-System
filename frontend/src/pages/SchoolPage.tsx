@@ -17,6 +17,14 @@ const EDIT_FIELDS: Array<{ key: keyof SchoolProfile; label: string; type?: strin
 type SchoolForm = Record<string, string>
 function emptyForm(): SchoolForm { return Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, ''])) }
 function toForm(data: SchoolProfile): SchoolForm { return Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, data[key] == null ? '' : String(data[key])])) }
+function schoolLogoObjectPath(publicUrl: string | null | undefined): string | null {
+  const marker = '/storage/v1/object/public/school-logos/'
+  if (!publicUrl) return null
+  const markerIndex = publicUrl.indexOf(marker)
+  if (markerIndex < 0) return null
+  const path = publicUrl.slice(markerIndex + marker.length).split('?')[0]
+  return path || null
+}
 
 export function SchoolPage() {
   const { notify } = useToast()
@@ -57,6 +65,18 @@ export function SchoolPage() {
     try { const payload = Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, data[key] ?? null])); await apiFetch<SchoolProfile>('/api/v1/school', { method: 'PATCH', body: JSON.stringify(payload) }); notify('School profile saved.', 'success'); await reload() }
     catch (err) { notify(friendlyApiError(err, 'save the school profile'), 'error') } finally { setSaving(false) }
   }
+  async function removeStoredLogoIfOwned(publicUrl: string | null | undefined) {
+    if (!supabase || !publicUrl) return
+    try {
+      const { data: authData } = await supabase.auth.getUser()
+      const path = schoolLogoObjectPath(publicUrl)
+      if (!authData.user || !path || !path.startsWith(`${authData.user.id}/`)) return
+      await supabase.storage.from('school-logos').remove([path])
+    } catch {
+      // The profile URL is authoritative; stale object cleanup is best-effort.
+    }
+  }
+
   async function saveLogo(file: File | null) {
     if (!data || logoBusy) return
     if (!file) return
@@ -74,6 +94,7 @@ export function SchoolPage() {
       if (uploadError) throw new Error(uploadError.message.includes('Bucket not found') ? 'School logo storage is not configured yet. Please contact the system administrator.' : uploadError.message)
       const { data: publicData } = supabase.storage.from('school-logos').getPublicUrl(path)
       await apiFetch<SchoolProfile>('/api/v1/school/', { method: 'PATCH', body: JSON.stringify({ logo: publicData.publicUrl }) })
+      if (data.logo && data.logo !== publicData.publicUrl) await removeStoredLogoIfOwned(data.logo)
       notify('School logo updated.', 'success')
       await reload()
     } catch (err) {
@@ -85,6 +106,7 @@ export function SchoolPage() {
     setLogoBusy(true); setLogoError(null)
     try {
       await apiFetch<SchoolProfile>('/api/v1/school/', { method: 'PATCH', body: JSON.stringify({ logo: null }) })
+      await removeStoredLogoIfOwned(data.logo)
       notify('School logo removed.', 'success')
       await reload()
     } catch (err) { setLogoError(friendlyApiError(err, 'remove the school logo')) }
