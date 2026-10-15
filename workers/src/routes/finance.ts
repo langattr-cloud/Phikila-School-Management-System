@@ -326,6 +326,20 @@ financeRoutes.patch('/payment-inbox/:id', async (c) => {
     if (enrollmentError) return jsonError(c, enrollmentError.message, 400)
     if (!enrollment) return c.json({ detail: 'Student is not actively enrolled in this school.' }, 404)
   }
+  if (body.duplicate_of != null && body.duplicate_of !== '') {
+    const duplicateId = Number(body.duplicate_of)
+    if (!Number.isSafeInteger(duplicateId) || duplicateId <= 0 || String(duplicateId) === c.req.param('id')) {
+      return c.json({ detail: 'Invalid duplicate reference.' }, 400)
+    }
+    const { data: duplicate, error: duplicateError } = await db()
+      .from('payment_inbox')
+      .select('id')
+      .eq('id', duplicateId)
+      .eq('school_id', schoolId)
+      .maybeSingle()
+    if (duplicateError) return jsonError(c, duplicateError.message, 400)
+    if (!duplicate) return c.json({ detail: 'Duplicate reference must belong to this school.' }, 404)
+  }
   if (body.posted_payment_id != null) {
     const postedPaymentId = Number(body.posted_payment_id)
     if (!Number.isSafeInteger(postedPaymentId) || postedPaymentId <= 0) {
