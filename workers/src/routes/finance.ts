@@ -118,15 +118,20 @@ financeRoutes.post('/payments/allocate', async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const schoolId = c.get('financeSchoolId')
   const studentId = Number(body.student_id)
-  if (!Number.isSafeInteger(studentId) || studentId <= 0 || !(Number(body.amount) > 0)) return c.json({ detail: 'A valid student and positive amount are required.' }, 400)
-  const { data: enrollment } = await db().from('student_enrollments').select('student_id').eq('school_id', schoolId).eq('student_id', studentId).limit(1).maybeSingle()
-  if (!enrollment) return c.json({ detail: 'Student is not enrolled in this school.' }, 404)
-  if (body.invoice_id) {
-    const { data: invoice } = await db().from('student_invoices').select('id').eq('id', Number(body.invoice_id)).eq('school_id', schoolId).eq('student_id', studentId).maybeSingle()
+  const amount = Number(body.amount)
+  if (!Number.isSafeInteger(studentId) || studentId <= 0 || !Number.isFinite(amount) || amount <= 0) {
+    return c.json({ detail: 'A valid student and positive amount are required.' }, 400)
+  }
+  const { data: enrollment } = await db().from('student_enrollments').select('student_id').eq('school_id', schoolId).eq('student_id', studentId).eq('status', 'active').limit(1).maybeSingle()
+  if (!enrollment) return c.json({ detail: 'Student is not actively enrolled in this school.' }, 404)
+  const invoiceId = body.invoice_id == null || body.invoice_id === '' ? null : Number(body.invoice_id)
+  if (invoiceId !== null) {
+    if (!Number.isSafeInteger(invoiceId) || invoiceId <= 0) return c.json({ detail: 'Invalid invoice ID.' }, 400)
+    const { data: invoice } = await db().from('student_invoices').select('id').eq('id', invoiceId).eq('school_id', schoolId).eq('student_id', studentId).maybeSingle()
     if (!invoice) return c.json({ detail: 'Invoice does not belong to this student and school.' }, 404)
   }
   const { data, error: rpcError } = await db().rpc('post_student_fee_payment', {
-    p_school_id: schoolId, p_student_id: studentId, p_amount: Number(body.amount),
+    p_school_id: schoolId, p_student_id: studentId, p_amount: amount,
     p_payment_method: body.payment_method ?? body.method ?? 'cash', p_reference_number: body.reference_number ?? body.reference ?? null,
     p_notes: body.notes ?? null, p_received_by: body.received_by ?? null, p_invoice_id: body.invoice_id ? Number(body.invoice_id) : null,
   })
