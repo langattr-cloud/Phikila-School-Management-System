@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert } from './Alert'
 import { Badge, EmptyState, LoadingBlock } from './States'
-import { friendlyApiError } from '../lib/api'
+import { api, friendlyApiError, type SchoolProfile } from '../lib/api'
 import { finance, type Payment, type PaymentAllocation, type Receipt, type VoteHead } from '../lib/finance'
 
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -11,7 +11,7 @@ const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (
 const money = (value: number) => `KES ${Number(value || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const dateLabel = (value?: string) => value ? new Date(value).toLocaleString() : '—'
 
-function printReceipts(receipts: Receipt[], payments: Payment[], allocations: PaymentAllocation[], voteHeads: VoteHead[]) {
+function printReceipts(receipts: Receipt[], payments: Payment[], allocations: PaymentAllocation[], voteHeads: VoteHead[], school: SchoolProfile | null) {
   const paymentById = new Map(payments.map((payment) => [payment.id, payment]))
   const voteHeadById = new Map(voteHeads.map((head) => [head.id, head]))
   const allocationsByPayment = new Map<number, PaymentAllocation[]>()
@@ -46,7 +46,7 @@ function printReceipts(receipts: Receipt[], payments: Payment[], allocations: Pa
       ? `<h2 class="allocation-heading">Payment allocation</h2>${allocationRows}`
       : `<h2 class="allocation-heading">Payment allocation</h2><p class="allocation-note">No vote-head allocation was recorded for this payment.</p>`
     return `<article class="receipt">
-      <header><h1>PHIKILA SCHOOL</h1><p>OFFICIAL FEE PAYMENT RECEIPT</p></header>
+      <header>${school?.logo ? `<img class="school-logo" src="${escapeHtml(school.logo)}" alt="School logo">` : ''}<h1>${escapeHtml(school?.name || 'PHIKILA SCHOOL')}</h1>${school?.motto ? `<p class="school-motto">${escapeHtml(school.motto)}</p>` : ''}<p>OFFICIAL FEE PAYMENT RECEIPT</p></header>
       <div class="receipt-number"><span>Receipt No.</span><strong>${escapeHtml(receipt.receipt_number)}</strong></div>
       <div class="line"><span>Student</span><strong>Student #${escapeHtml(receipt.student_id)}</strong></div>
       <div class="line"><span>Payment ID</span><strong>#${escapeHtml(receipt.payment_id)}</strong></div>
@@ -69,6 +69,7 @@ function printReceipts(receipts: Receipt[], payments: Payment[], allocations: Pa
     *{box-sizing:border-box}body{font:14px Arial,sans-serif;color:#111;margin:0;padding:20px}
     .receipt{max-width:720px;margin:0 auto 24px;padding:28px;border:1px solid #bbb;page-break-after:always}
     .receipt:last-child{page-break-after:auto}header{text-align:center;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:18px}
+    .school-logo{display:block;width:64px;height:64px;object-fit:contain;margin:0 auto 8px}.school-motto{font-style:italic;margin:5px 0}
     h1{font-size:22px;margin:0 0 6px}header p{margin:0;font-size:12px;letter-spacing:1px}
     .receipt-number{display:flex;justify-content:space-between;padding:12px;background:#f2f2f2;margin-bottom:12px}
     .line{display:flex;justify-content:space-between;gap:20px;padding:9px 0;border-bottom:1px solid #ddd}
@@ -90,6 +91,7 @@ export function FinanceReceipts() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -115,6 +117,7 @@ export function FinanceReceipts() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => { void api.school().then(setSchoolProfile).catch(() => setSchoolProfile(null)) }, [])
 
   const paymentById = useMemo(() => new Map(payments.map((payment) => [payment.id, payment])), [payments])
   const visible = useMemo(() => {
@@ -138,14 +141,14 @@ export function FinanceReceipts() {
     <div className="finance-form__grid">
       <div className="field"><label className="field__label" htmlFor="receipt-search">Search receipts</label><input id="receipt-search" className="input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Receipt number, student ID, M-Pesa reference…" /></div>
       <div className="finance-form__actions">
-        <button className="button button--primary" disabled={!selectedReceipts.length} onClick={() => printReceipts(selectedReceipts, payments, allocations, voteHeads)}>Print selected / Save as PDF ({selectedReceipts.length})</button>
+        <button className="button button--primary" disabled={!selectedReceipts.length} onClick={() => printReceipts(selectedReceipts, payments, allocations, voteHeads, schoolProfile)}>Print selected / Save as PDF ({selectedReceipts.length})</button>
         <button className="button button--secondary" disabled={!visible.length} onClick={() => setSelected((current) => Array.from(new Set([...current, ...visible.map((receipt) => receipt.id)])))}>Select visible</button>
         <button className="button button--secondary" disabled={!selected.length} onClick={() => setSelected([])}>Clear selection</button>
       </div>
     </div>
     {loading ? <LoadingBlock label="Loading receipts" rows={5} /> : !visible.length ? <EmptyState title="No receipts found" description={receipts.length ? 'Try a different search.' : 'Receipts appear here after payments are successfully posted.'} /> : <div className="table-scroll"><table><thead><tr><th><input type="checkbox" aria-label="Select all visible receipts" checked={visible.length > 0 && visible.every((receipt) => selected.includes(receipt.id))} onChange={(event) => setSelected((current) => event.target.checked ? Array.from(new Set([...current, ...visible.map((receipt) => receipt.id)])) : current.filter((id) => !visible.some((receipt) => receipt.id === id)))} /></th><th>Receipt No.</th><th>Student</th><th>Payment Date</th><th>Method</th><th>Reference</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{visible.map((receipt) => {
       const payment = paymentById.get(receipt.payment_id)
-      return <tr key={receipt.id}><td><input type="checkbox" aria-label={`Select receipt ${receipt.receipt_number}`} checked={selected.includes(receipt.id)} onChange={() => toggle(receipt.id)} /></td><td><strong>{receipt.receipt_number}</strong></td><td>Student #{receipt.student_id}</td><td>{dateLabel(payment?.created_at || receipt.issued_at)}</td><td>{payment?.payment_method || '—'}</td><td>{payment?.reference_number || '—'}</td><td className="number-cell">{money(receipt.amount)}</td><td><Badge tone={receipt.status === 'ISSUED' ? 'success' : receipt.status === 'REVERSED' ? 'danger' : 'warning'}>{receipt.status}</Badge></td><td><button className="button button--secondary button--sm" onClick={() => printReceipts([receipt], payments, allocations, voteHeads)}>Print / PDF</button></td></tr>
+      return <tr key={receipt.id}><td><input type="checkbox" aria-label={`Select receipt ${receipt.receipt_number}`} checked={selected.includes(receipt.id)} onChange={() => toggle(receipt.id)} /></td><td><strong>{receipt.receipt_number}</strong></td><td>Student #{receipt.student_id}</td><td>{dateLabel(payment?.created_at || receipt.issued_at)}</td><td>{payment?.payment_method || '—'}</td><td>{payment?.reference_number || '—'}</td><td className="number-cell">{money(receipt.amount)}</td><td><Badge tone={receipt.status === 'ISSUED' ? 'success' : receipt.status === 'REVERSED' ? 'danger' : 'warning'}>{receipt.status}</Badge></td><td><button className="button button--secondary button--sm" onClick={() => printReceipts([receipt], payments, allocations, voteHeads, schoolProfile)}>Print / PDF</button></td></tr>
     })}</tbody></table></div>}
     <p className="muted-text">Use the print dialog's “Save as PDF” option to download receipts. For privacy, only print receipts for students you are authorised to access.</p>
   </section>
