@@ -394,12 +394,15 @@ financeRoutes.post('/journals', async (c) => {
   if (accountsError || (accounts ?? []).length !== accountIds.length) return c.json({ detail: 'All ledger accounts must belong to this school.' }, 400)
   // Whitelist writable fields. Do not pass request-controlled IDs, school IDs,
   // created_by, or nested entry objects into the database insert.
-  const journalPayload = {
-    journal_date: body.journal_date ?? null,
+  const journalPayload: Record<string, unknown> = {
     description: typeof body.description === 'string' ? body.description : null,
     reference: typeof body.reference === 'string' ? body.reference : null,
     status: 'POSTED',
     school_id: schoolId,
+  }
+  // Omit the date when not supplied so the database default applies.
+  if (typeof body.journal_date === 'string' && body.journal_date.length > 0) {
+    journalPayload.journal_date = body.journal_date
   }
   const { data, error: insertError } = await client.from('finance_journals').insert(journalPayload).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
