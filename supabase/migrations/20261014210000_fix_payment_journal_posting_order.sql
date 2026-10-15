@@ -190,6 +190,7 @@ grant execute on function public.post_finance_payment_journal_for_payment(bigint
 create or replace function public.post_finance_payment_journal()
 returns trigger
 language plpgsql
+security definer
 set search_path = public
 as $function$
 begin
@@ -238,6 +239,7 @@ $function$;
 create or replace function public.post_finance_payment_journal_after_allocation()
 returns trigger
 language plpgsql
+security definer
 set search_path = public
 as $function$
 begin
