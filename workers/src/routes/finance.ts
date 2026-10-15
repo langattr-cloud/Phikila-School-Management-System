@@ -395,7 +395,15 @@ financeRoutes.post('/receipts', async (c) => {
     .eq('school_id', schoolId)
     .maybeSingle()
   if (existingError) return jsonError(c, existingError.message, 400)
-  if (existing) return c.json(existing, 200)
+  if (existing) {
+    const matchesPayment =
+      Number(existing.student_id) === Number(payment.student_id) &&
+      Math.abs(Number(existing.amount) - Number(payment.amount)) <= 0.005
+    if (!matchesPayment) {
+      return c.json({ detail: 'An existing receipt conflicts with the payment record; manual reconciliation is required.' }, 409)
+    }
+    return c.json(existing, 200)
+  }
 
   const { data, error: insertError } = await db()
     .from('finance_receipts')
@@ -420,7 +428,15 @@ financeRoutes.post('/receipts', async (c) => {
         .eq('payment_id', payment.id)
         .eq('school_id', schoolId)
         .maybeSingle()
-      if (racedReceipt) return c.json(racedReceipt, 200)
+      if (racedReceipt) {
+        const matchesPayment =
+          Number(racedReceipt.student_id) === Number(payment.student_id) &&
+          Math.abs(Number(racedReceipt.amount) - Number(payment.amount)) <= 0.005
+        if (!matchesPayment) {
+          return c.json({ detail: 'A concurrent receipt conflicts with the payment record; manual reconciliation is required.' }, 409)
+        }
+        return c.json(racedReceipt, 200)
+      }
     }
     return jsonError(c, insertError.message, 400)
   }
