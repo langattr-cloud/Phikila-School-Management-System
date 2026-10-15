@@ -41,6 +41,7 @@ The newer application migration `20261007_fee_vote_heads_and_allocations.sql` de
 - Dry-run reconciliation reports zero unexplained ownership conflicts.
 - Before/after financial totals reconcile exactly to the currency precision.
 - Cross-school negative tests pass for reads, writes, posting, allocations, receipts, and reversals.
+- A staging or disposable-database regression test verifies payment allocations, allocation-before-journal posting, receipt idempotency, and compatibility with the existing Python posting path.
 - Backup and rollback procedures are rehearsed.
 - School owners approve the reconciliation report before production migration.
 
