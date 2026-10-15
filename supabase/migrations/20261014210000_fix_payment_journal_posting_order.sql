@@ -250,7 +250,8 @@ $function$;
 
 drop trigger if exists trg_post_finance_payment_journal_after_allocation
   on public.payment_allocations;
-create trigger trg_post_finance_payment_journal_after_allocation
+create constraint trigger trg_post_finance_payment_journal_after_allocation
 after insert on public.payment_allocations
+deferrable initially deferred
 for each row
 execute function public.post_finance_payment_journal_after_allocation();
