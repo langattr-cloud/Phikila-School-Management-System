@@ -375,6 +375,18 @@ financeRoutes.post('/receipts', async (c) => {
   if (!journal || String(journal.status ?? '').toUpperCase() !== 'POSTED') {
     return c.json({ detail: 'A posted journal is required before issuing a receipt.' }, 409)
   }
+  const { data: entries, error: entriesError } = await db()
+    .from('finance_journal_entries')
+    .select('debit, credit')
+    .eq('journal_id', payment.journal_id)
+  if (entriesError) return jsonError(c, entriesError.message, 400)
+  const journalBalance = (entries ?? []).reduce(
+    (sum, entry) => sum + Number(entry.debit ?? 0) - Number(entry.credit ?? 0),
+    0,
+  )
+  if (!entries?.length || !Number.isFinite(journalBalance) || Math.abs(journalBalance) > 0.005) {
+    return c.json({ detail: 'A balanced journal is required before issuing a receipt.' }, 409)
+  }
 
   const { data: existing, error: existingError } = await db()
     .from('finance_receipts')
