@@ -185,10 +185,24 @@ begin
   -- positive, non-reversed payment without a linked journal.
   if not coalesce(new.reversed,false) and coalesce(new.amount,0) > 0
      and not exists (
-       select 1 from public.payments p
-       where p.id = new.id and p.journal_id is not null
+       select 1
+       from public.payments p
+       join public.finance_journals j
+         on j.id = p.journal_id
+        and j.school_id = p.school_id
+       where p.id = new.id
+         and upper(coalesce(j.status,'')) = 'POSTED'
+         and exists (
+           select 1 from public.finance_journal_entries e
+           where e.journal_id = j.id
+         )
+         and abs(coalesce((
+           select sum(e.debit - e.credit)
+           from public.finance_journal_entries e
+           where e.journal_id = j.id
+         ),0)) <= 0.005
      ) then
-    raise exception 'Payment % was not journaled; allocations do not account for its full amount', new.id;
+    raise exception 'Payment % has no linked, posted, balanced journal', new.id;
   end if;
 
   return new;
