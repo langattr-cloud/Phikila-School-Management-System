@@ -176,6 +176,15 @@ begin
 end;
 $function$;
 
+-- These helpers write financial records and are intended for trigger/internal
+-- use only. Do not leave PostgreSQL's default PUBLIC EXECUTE grant in place.
+revoke all on function public.ensure_finance_payment_receipt(bigint) from public;
+revoke all on function public.ensure_finance_payment_receipt(bigint) from anon, authenticated;
+revoke all on function public.post_finance_payment_journal_for_payment(bigint) from public;
+revoke all on function public.post_finance_payment_journal_for_payment(bigint) from anon, authenticated;
+grant execute on function public.ensure_finance_payment_receipt(bigint) to service_role;
+grant execute on function public.post_finance_payment_journal_for_payment(bigint) to service_role;
+
 -- Preserve the existing AFTER INSERT payment trigger for Python-created payments
 -- and route both paths through the same idempotent posting helper.
 create or replace function public.post_finance_payment_journal()
