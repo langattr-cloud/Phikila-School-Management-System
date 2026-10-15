@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:link": "supabase link --project-ref xpsazsigjurnmrjibgsn",
     "db:up": "supabase db push",
-    "db:migrate": "supabase db reset --linked",
+    "db:migrate": "supabase db reset",
     "db:gen": "supabase gen types typescript --project-id xpsazsigjurnmrjibgsn > src/types/database.gen.ts"
   },
   "dependencies": {
