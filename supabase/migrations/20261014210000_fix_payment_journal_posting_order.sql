@@ -201,8 +201,19 @@ begin
            from public.finance_journal_entries e
            where e.journal_id = j.id
          ),0)) <= 0.005
+     )
+     or (
+       not coalesce(new.reversed,false)
+       and coalesce(new.amount,0) > 0
+       and not exists (
+         select 1 from public.finance_receipts r
+         where r.payment_id = new.id
+           and r.school_id = new.school_id
+           and r.student_id = new.student_id
+           and abs(r.amount - new.amount) <= 0.005
+       )
      ) then
-    raise exception 'Payment % has no linked, posted, balanced journal', new.id;
+    raise exception 'Payment % must have a linked, posted, balanced journal and matching receipt', new.id;
   end if;
 
   return new;
