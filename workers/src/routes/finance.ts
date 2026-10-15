@@ -306,19 +306,66 @@ financeRoutes.patch('/payment-inbox/:id', async (c) => {
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
   const schoolId = c.get('financeSchoolId')
-  if (body.student_id != null || body.matched_student_id != null) {
-    const studentId = Number(body.student_id ?? body.matched_student_id)
-    const { data: enrollment } = await db().from('student_enrollments').select('student_id').eq('school_id', schoolId).eq('student_id', studentId).eq('status', 'active').limit(1).maybeSingle()
+  const suppliedStudentIds = [body.student_id, body.matched_student_id]
+    .filter((value) => value != null && value !== '')
+    .map(Number)
+  if (suppliedStudentIds.some((id) => !Number.isSafeInteger(id) || id <= 0) ||
+      new Set(suppliedStudentIds).size > 1) {
+    return c.json({ detail: 'Provide one consistent, valid matched student ID.' }, 400)
+  }
+  const studentId = suppliedStudentIds[0]
+  if (studentId != null) {
+    const { data: enrollment, error: enrollmentError } = await db()
+      .from('student_enrollments')
+      .select('student_id')
+      .eq('school_id', schoolId)
+      .eq('student_id', studentId)
+      .eq('status', 'active')
+      .limit(1)
+      .maybeSingle()
+    if (enrollmentError) return jsonError(c, enrollmentError.message, 400)
     if (!enrollment) return c.json({ detail: 'Student is not actively enrolled in this school.' }, 404)
   }
   if (body.posted_payment_id != null) {
-    const { data: payment } = await db().from('payments').select('id').eq('id', Number(body.posted_payment_id)).eq('school_id', schoolId).maybeSingle()
+    const postedPaymentId = Number(body.posted_payment_id)
+    if (!Number.isSafeInteger(postedPaymentId) || postedPaymentId <= 0) {
+      return c.json({ detail: 'Invalid posted payment ID.' }, 400)
+    }
+    const { data: payment, error: paymentError } = await db()
+      .from('payments')
+      .select('id, student_id')
+      .eq('id', postedPaymentId)
+      .eq('school_id', schoolId)
+      .maybeSingle()
+    if (paymentError) return jsonError(c, paymentError.message, 400)
     if (!payment) return c.json({ detail: 'Payment not found for this school.' }, 404)
+    if (studentId != null && Number(payment.student_id) !== studentId) {
+      return c.json({ detail: 'Matched student must match the posted payment student.' }, 400)
+    }
+  }
+
+  // Whitelist mutable reconciliation fields; never accept client-supplied IDs,
+  // school ownership, audit timestamps, or reviewer identities.
+  const updatePayload: Record<string, unknown> = {}
+  for (const key of ['status', 'match_method', 'match_confidence', 'duplicate_of', 'posted_payment_id', 'notes'] as const) {
+    if (Object.prototype.hasOwnProperty.call(body, key)) updatePayload[key] = body[key]
+  }
+  if (studentId != null) {
+    updatePayload.student_id = studentId
+    updatePayload.matched_student_id = studentId
+    updatePayload.matched_by = c.get('authUser')?.id ?? null
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'status') || studentId != null || body.posted_payment_id != null) {
+    updatePayload.reviewed_by = c.get('authUser')?.id ?? null
+    updatePayload.reviewed_at = new Date().toISOString()
+  }
+  if (Object.keys(updatePayload).length === 0) {
+    return c.json({ detail: 'No supported payment-inbox fields were supplied.' }, 400)
   }
   const { data, error: updateError } = await db()
     .from('payment_inbox')
-    .update({ ...body, school_id: schoolId })
-    .eq('school_id', c.get('financeSchoolId'))
+    .update(updatePayload)
+    .eq('school_id', schoolId)
     .eq('id', c.req.param('id'))
     .select()
     .maybeSingle()
