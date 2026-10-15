@@ -191,7 +191,7 @@ create or replace function public.post_finance_payment_journal()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = pg_catalog, public
 as $function$
 begin
   perform public.post_finance_payment_journal_for_payment(new.id);
@@ -240,7 +240,7 @@ create or replace function public.post_finance_payment_journal_after_allocation(
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = pg_catalog, public
 as $function$
 begin
   perform public.post_finance_payment_journal_for_payment(new.payment_id);
