@@ -133,7 +133,7 @@ financeRoutes.post('/payments/allocate', async (c) => {
   const { data, error: rpcError } = await db().rpc('post_student_fee_payment', {
     p_school_id: schoolId, p_student_id: studentId, p_amount: amount,
     p_payment_method: body.payment_method ?? body.method ?? 'cash', p_reference_number: body.reference_number ?? body.reference ?? null,
-    p_notes: body.notes ?? null, p_received_by: body.received_by ?? null, p_invoice_id: body.invoice_id ? Number(body.invoice_id) : null,
+    p_notes: body.notes ?? null, p_received_by: body.received_by ?? null, p_invoice_id: invoiceId,
   })
   if (rpcError) return jsonError(c, rpcError.message, 400)
   return c.json(data, 201)
@@ -252,6 +252,7 @@ financeRoutes.post('/payments', async (c) => {
     .select('student_id')
     .eq('school_id', schoolId)
     .eq('student_id', studentId)
+    .eq('status', 'active')
     .limit(1)
     .maybeSingle()
 
