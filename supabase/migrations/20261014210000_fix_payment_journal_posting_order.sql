@@ -1,7 +1,8 @@
 -- Fix payment posting order without changing the existing finance workflow.
 -- The payment row is inserted before its allocations by post_student_fee_payment.
 -- Do not attempt to journal it until the cash allocations account for the full
--- payment; the allocation trigger retries after each allocation insert.
+-- payment; a deferred allocation trigger retries at transaction end, after all
+-- allocation rows created by the RPC are present.
 
 -- One payment should have at most one receipt. A read-only audit before
 -- adding this index found no duplicate payment_id values in finance_receipts.
