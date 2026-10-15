@@ -158,6 +158,18 @@ set search_path = public
 as $function$
 begin
   perform public.post_finance_payment_journal_for_payment(new.id);
+
+  -- This trigger is deferred until transaction end. By then all allocations
+  -- should exist. Preserve the old fail-closed behavior: never commit a
+  -- positive, non-reversed payment without a linked journal.
+  if not coalesce(new.reversed,false) and coalesce(new.amount,0) > 0
+     and not exists (
+       select 1 from public.payments p
+       where p.id = new.id and p.journal_id is not null
+     ) then
+    raise exception 'Payment % was not journaled; allocations do not account for its full amount', new.id;
+  end if;
+
   return new;
 end;
 $function$;
