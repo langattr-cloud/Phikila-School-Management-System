@@ -86,21 +86,25 @@ export function SchoolPage() {
     if (!supabase) { setLogoError('Logo uploads require the configured Supabase Storage connection.'); setLogoInputKey(value => value + 1); return }
     setLogoBusy(true); setLogoError(null)
     let uploadedPath: string | null = null
+    let uploadCompleted = false
+    let profileSaved = false
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser()
       if (authError || !authData.user) throw new Error('Your sign-in could not be verified. Please sign in again.')
       const extension = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp'
-      const path = `${authData.user.id}/school-${data.id}.${extension}`
+      const path = `${authData.user.id}/school-${data.id}-${crypto.randomUUID()}.${extension}`
       uploadedPath = path
-      const { error: uploadError } = await supabase.storage.from('school-logos').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' })
+      const { error: uploadError } = await supabase.storage.from('school-logos').upload(path, file, { upsert: false, contentType: file.type, cacheControl: '3600' })
       if (uploadError) throw new Error(uploadError.message.includes('Bucket not found') ? 'School logo storage is not configured yet. Please contact the system administrator.' : uploadError.message)
+      uploadCompleted = true
       const { data: publicData } = supabase.storage.from('school-logos').getPublicUrl(path)
       await apiFetch<SchoolProfile>('/api/v1/school/', { method: 'PATCH', body: JSON.stringify({ logo: publicData.publicUrl }) })
+      profileSaved = true
       if (data.logo && data.logo !== publicData.publicUrl) await removeStoredLogoIfOwned(data.logo)
       notify('School logo updated.', 'success')
       await reload()
     } catch (err) {
-      if (uploadedPath) {
+      if (uploadCompleted && !profileSaved && uploadedPath) {
         try { await supabase.storage.from('school-logos').remove([uploadedPath]) } catch { /* Cleanup is best-effort; preserve the original error. */ }
       }
       setLogoError(friendlyApiError(err, 'upload the school logo'))
