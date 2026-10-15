@@ -339,12 +339,79 @@ financeRoutes.post('/receipts', async (c) => {
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
   const schoolId = c.get('financeSchoolId')
-  const { data: payment } = await db().from('payments').select('id, student_id, amount').eq('id', Number(body.payment_id)).eq('school_id', schoolId).maybeSingle()
+  const paymentId = Number(body.payment_id)
+  if (!Number.isSafeInteger(paymentId) || paymentId <= 0) {
+    return c.json({ detail: 'A valid payment ID is required.' }, 400)
+  }
+
+  const { data: payment, error: paymentError } = await db()
+    .from('payments')
+    .select('id, student_id, amount, journal_id, reversed')
+    .eq('id', paymentId)
+    .eq('school_id', schoolId)
+    .maybeSingle()
+  if (paymentError) return jsonError(c, paymentError.message, 400)
   if (!payment) return c.json({ detail: 'Payment not found for this school.' }, 404)
-  if (body.student_id && Number(body.student_id) !== Number(payment.student_id)) return c.json({ detail: 'Receipt student must match the payment student.' }, 400)
-  if (body.amount != null && Number(body.amount) !== Number(payment.amount)) return c.json({ detail: 'Receipt amount must match the payment amount.' }, 400)
-  const { data, error: insertError } = await db().from('finance_receipts').insert({ ...body, student_id: payment.student_id, amount: payment.amount, school_id: schoolId }).select().single()
-  if (insertError) return jsonError(c, insertError.message, 400)
+  if (payment.reversed || !(Number(payment.amount) > 0)) {
+    return c.json({ detail: 'A receipt can only be issued for a positive, non-reversed payment.' }, 400)
+  }
+  if (body.student_id != null && Number(body.student_id) !== Number(payment.student_id)) {
+    return c.json({ detail: 'Receipt student must match the payment student.' }, 400)
+  }
+  if (body.amount != null && (!Number.isFinite(Number(body.amount)) || Math.abs(Number(body.amount) - Number(payment.amount)) > 0.005)) {
+    return c.json({ detail: 'Receipt amount must match the payment amount.' }, 400)
+  }
+  if (!payment.journal_id) {
+    return c.json({ detail: 'A posted journal is required before issuing a receipt.' }, 409)
+  }
+
+  const { data: journal, error: journalError } = await db()
+    .from('finance_journals')
+    .select('id, status')
+    .eq('id', payment.journal_id)
+    .eq('school_id', schoolId)
+    .maybeSingle()
+  if (journalError) return jsonError(c, journalError.message, 400)
+  if (!journal || String(journal.status ?? '').toUpperCase() !== 'POSTED') {
+    return c.json({ detail: 'A posted journal is required before issuing a receipt.' }, 409)
+  }
+
+  const { data: existing, error: existingError } = await db()
+    .from('finance_receipts')
+    .select('*')
+    .eq('payment_id', payment.id)
+    .eq('school_id', schoolId)
+    .maybeSingle()
+  if (existingError) return jsonError(c, existingError.message, 400)
+  if (existing) return c.json(existing, 200)
+
+  const { data, error: insertError } = await db()
+    .from('finance_receipts')
+    .insert({
+      receipt_number: `RCPT-${payment.id}`,
+      payment_id: payment.id,
+      student_id: payment.student_id,
+      amount: payment.amount,
+      school_id: schoolId,
+      status: 'ISSUED',
+      issued_by: body.issued_by ?? null,
+    })
+    .select()
+    .single()
+  if (insertError) {
+    // Concurrent requests can race after the existence check; return the
+    // winner's receipt rather than creating a second receipt or failing.
+    if (insertError.code === '23505') {
+      const { data: racedReceipt } = await db()
+        .from('finance_receipts')
+        .select('*')
+        .eq('payment_id', payment.id)
+        .eq('school_id', schoolId)
+        .maybeSingle()
+      if (racedReceipt) return c.json(racedReceipt, 200)
+    }
+    return jsonError(c, insertError.message, 400)
+  }
   return c.json(data, 201)
 })
 
