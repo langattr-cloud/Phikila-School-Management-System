@@ -4,6 +4,20 @@
 -- payment; a deferred allocation trigger retries at transaction end, after all
 -- allocation rows created by the RPC are present.
 
+-- The legacy table migration created payment_allocations_type_check with
+-- only FEE/CREDIT/REVERSAL. A later migration added a second check that includes
+-- CREDIT_APPLIED, but PostgreSQL enforces both, so CREDIT_APPLIED still fails.
+-- Replace both checks with one authoritative constraint before posting relies
+-- on CREDIT_APPLIED allocations. Existing rows must already satisfy the
+-- supported allocation vocabulary; no financial rows are rewritten.
+alter table public.payment_allocations
+  drop constraint if exists payment_allocations_type_check;
+alter table public.payment_allocations
+  drop constraint if exists payment_allocations_allocation_type_check;
+alter table public.payment_allocations
+  add constraint payment_allocations_allocation_type_check
+  check (allocation_type in ('FEE','CREDIT','CREDIT_APPLIED','REVERSAL'));
+
 -- One payment should have at most one receipt. A read-only audit before
 -- adding this index found no duplicate payment_id values in finance_receipts.
 create unique index if not exists uq_finance_receipts_payment_id
