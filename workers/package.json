@@ -12,7 +12,8 @@
     "db:up": "supabase migration up",
     "db:migrate": "supabase migration up",
     "db:gen": "supabase gen types typescript --project-id xpsazsigjurnmrjibgsn > src/types/database.gen.ts",
-    "db:up:linked": "supabase migration up --linked"
+    "db:up:linked": "supabase migration up --linked",
+    "test:finance-migrations": "node --test tests/finance-migration-regression.test.mjs"
   },
   "dependencies": {
     "hono": "^4.6.3",
