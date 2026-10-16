@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { AscFloatingTimetable } from './AscFloatingTimetable'
+import { api, type SchoolProfile } from '../../lib/api'
 
 export type AscReportScope = 'all' | 'class' | 'teacher' | 'room' | 'subject' | 'summary-class' | 'summary-teacher' | 'summary-room' | 'summary-subject' | 'lesson-grid' | 'modify'
 export type AscReportSettings = { rowHeight: 'compact' | 'standard' | 'large'; columnWidth: 'compact' | 'standard' | 'wide'; showTimes: boolean; showNonTeaching: boolean }
@@ -60,6 +61,8 @@ export function AscReportViewer({
   open, title, versionLabel, scope, reportIndex, reportItems, days, periods, lessons,
   reportDefinitions, onScopeChange, onPrevious, onNext, onSelectIndex, onPrint, onVersionChange, reportVersions = [], activeVersionId, onClose,
 }: Props) {
+  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null)
+  useEffect(() => { void api.school().then(setSchoolProfile).catch(() => setSchoolProfile(null)) }, [])
   const [filterOpen, setFilterOpen] = useState(false)
   const [entitySearch, setEntitySearch] = useState('')
   const [showTimes, setShowTimes] = useState(true)
@@ -439,6 +442,10 @@ export function AscReportViewer({
 
       <main style={{ flex: 1, overflow: 'auto', padding: fit === 'paper' ? 24 : 10 }}>
         <section style={{ width: fit === 'paper' ? (layout === 'compact' ? 820 : layout === 'wide' ? 1040 : 900) : 'min(1400px, calc(100vw - 20px))', minHeight: 650, margin: '0 auto', background: '#fff', boxShadow: '0 2px 14px rgba(0,0,0,.35)', padding: 22, boxSizing: 'border-box', fontFamily: 'Arial,Helvetica,sans-serif' }}>
+          {printHeader && (schoolProfile?.logo || schoolProfile?.name) && <div className="asc-report-school-brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8, textAlign: 'center' }}>
+            {schoolProfile.logo && <img src={schoolProfile.logo} alt="" style={{ width: 42, height: 42, objectFit: 'contain' }} />}
+            <div><div style={{ fontSize: 13, fontWeight: 800 }}>{schoolProfile.name}</div>{schoolProfile.motto && <div style={{ fontSize: 9, fontStyle: 'italic' }}>{schoolProfile.motto}</div>}</div>
+          </div>}
           <div className="asc-report-paper-header" data-print-header={String(printHeader)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, borderBottom: '2px solid #222', paddingBottom: 7 }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>

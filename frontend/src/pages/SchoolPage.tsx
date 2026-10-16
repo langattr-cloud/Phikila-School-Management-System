@@ -7,6 +7,7 @@ import { api, ApiError, apiFetch, friendlyApiError, type SchoolProfile } from '.
 import { useAsync } from '../lib/useAsync'
 import { useToast } from '../components/Toast'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { supabase } from '../lib/supabase'
 
 const EDIT_FIELDS: Array<{ key: keyof SchoolProfile; label: string; type?: string }> = [
   { key: 'name', label: 'School name' }, { key: 'code', label: 'School code' }, { key: 'county', label: 'County' },
@@ -16,6 +17,14 @@ const EDIT_FIELDS: Array<{ key: keyof SchoolProfile; label: string; type?: strin
 type SchoolForm = Record<string, string>
 function emptyForm(): SchoolForm { return Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, ''])) }
 function toForm(data: SchoolProfile): SchoolForm { return Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, data[key] == null ? '' : String(data[key])])) }
+function schoolLogoObjectPath(publicUrl: string | null | undefined): string | null {
+  const marker = '/storage/v1/object/public/school-logos/'
+  if (!publicUrl) return null
+  const markerIndex = publicUrl.indexOf(marker)
+  if (markerIndex < 0) return null
+  const path = publicUrl.slice(markerIndex + marker.length).split('?')[0]
+  return path || null
+}
 
 export function SchoolPage() {
   const { notify } = useToast()
@@ -23,6 +32,7 @@ export function SchoolPage() {
   const { data, loading, error, reload } = useAsync<SchoolProfile>(api.school, toMessage)
   const [editing, setEditing] = useState(false); const [creating, setCreating] = useState(false); const [form, setForm] = useState<SchoolForm>(emptyForm)
   const [saving, setSaving] = useState(false); const [formError, setFormError] = useState<string | null>(null); const [confirmRemove, setConfirmRemove] = useState(false)
+  const [logoBusy, setLogoBusy] = useState(false); const [logoError, setLogoError] = useState<string | null>(null); const [logoInputKey, setLogoInputKey] = useState(0)
   useEffect(() => { if (data && !editing && !creating) setForm(toForm(data)) }, [data, editing, creating])
   function startCreating() { setForm(emptyForm()); setFormError(null); setCreating(true) }
   function startEditing() { if (!data) return; setForm(toForm(data)); setFormError(null); setEditing(true) }
@@ -55,6 +65,63 @@ export function SchoolPage() {
     try { const payload = Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, data[key] ?? null])); await apiFetch<SchoolProfile>('/api/v1/school', { method: 'PATCH', body: JSON.stringify(payload) }); notify('School profile saved.', 'success'); await reload() }
     catch (err) { notify(friendlyApiError(err, 'save the school profile'), 'error') } finally { setSaving(false) }
   }
+  async function removeStoredLogoIfOwned(publicUrl: string | null | undefined) {
+    if (!supabase || !publicUrl) return
+    try {
+      const { data: authData } = await supabase.auth.getUser()
+      const path = schoolLogoObjectPath(publicUrl)
+      if (!authData.user || !path || !path.startsWith(`${authData.user.id}/`)) return
+      await supabase.storage.from('school-logos').remove([path])
+    } catch {
+      // The profile URL is authoritative; stale object cleanup is best-effort.
+    }
+  }
+
+  async function saveLogo(file: File | null) {
+    if (!data || logoBusy) return
+    if (!file) return
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
+    if (!allowedTypes.includes(file.type)) { setLogoError('Choose a PNG, JPG/JPEG, or WebP image.'); setLogoInputKey(value => value + 1); return }
+    if (file.size > 2 * 1024 * 1024) { setLogoError('The logo must be 2 MB or smaller.'); setLogoInputKey(value => value + 1); return }
+    if (!supabase) { setLogoError('Logo uploads require the configured Supabase Storage connection.'); setLogoInputKey(value => value + 1); return }
+    setLogoBusy(true); setLogoError(null)
+    let uploadedPath: string | null = null
+    let uploadCompleted = false
+    let profileSaved = false
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser()
+      if (authError || !authData.user) throw new Error('Your sign-in could not be verified. Please sign in again.')
+      const extension = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp'
+      const path = `${authData.user.id}/school-${data.id}-${crypto.randomUUID()}.${extension}`
+      uploadedPath = path
+      const { error: uploadError } = await supabase.storage.from('school-logos').upload(path, file, { upsert: false, contentType: file.type, cacheControl: '3600' })
+      if (uploadError) throw new Error(uploadError.message.includes('Bucket not found') ? 'School logo storage is not configured yet. Please contact the system administrator.' : uploadError.message)
+      uploadCompleted = true
+      const { data: publicData } = supabase.storage.from('school-logos').getPublicUrl(path)
+      await apiFetch<SchoolProfile>('/api/v1/school/', { method: 'PATCH', body: JSON.stringify({ logo: publicData.publicUrl }) })
+      profileSaved = true
+      if (data.logo && data.logo !== publicData.publicUrl) await removeStoredLogoIfOwned(data.logo)
+      notify('School logo updated.', 'success')
+      await reload()
+    } catch (err) {
+      if (uploadCompleted && !profileSaved && uploadedPath) {
+        try { await supabase.storage.from('school-logos').remove([uploadedPath]) } catch { /* Cleanup is best-effort; preserve the original error. */ }
+      }
+      setLogoError(friendlyApiError(err, 'upload the school logo'))
+    } finally { setLogoBusy(false); setLogoInputKey(value => value + 1) }
+  }
+  async function removeLogo() {
+    if (!data || logoBusy) return
+    setLogoBusy(true); setLogoError(null)
+    try {
+      await apiFetch<SchoolProfile>('/api/v1/school/', { method: 'PATCH', body: JSON.stringify({ logo: null }) })
+      await removeStoredLogoIfOwned(data.logo)
+      notify('School logo removed.', 'success')
+      await reload()
+    } catch (err) { setLogoError(friendlyApiError(err, 'remove the school logo')) }
+    finally { setLogoBusy(false) }
+  }
+
   async function removeSchool() { if (!data || saving) return; setSaving(true); try { await apiFetch<SchoolProfile>('/api/v1/school', { method: 'PATCH', body: JSON.stringify({ is_active: false }) }); notify('School profile removed from active use.', 'success'); setConfirmRemove(false); await reload() } catch (err) { notify(friendlyApiError(err, 'remove the school profile'), 'error') } finally { setSaving(false) } }
 
   const formView = <div className="school-profile-form">
@@ -104,6 +171,12 @@ export function SchoolPage() {
       .school-profile-code { margin:8px 0 0; color:#e0e7ff; font-size:13px; }
       .school-profile-code strong { color:#fff; font-weight:750; }
       .school-profile-banner__status { align-self:flex-start; position:relative; z-index:1; padding:5px 9px; border-radius:999px; background:rgba(255,255,255,.94); }
+      .school-profile-logo-panel { display:flex; align-items:center; gap:18px; padding:18px; margin-bottom:22px; border:1px solid #e3eaf5; border-radius:14px; background:#fff; }
+      .school-profile-logo-preview { width:104px; height:104px; flex:0 0 104px; display:grid; place-items:center; overflow:hidden; border:1px dashed #cbd5e1; border-radius:12px; background:#f8fafc; color:#64748b; }
+      .school-profile-logo-preview img { width:100%; height:100%; object-fit:contain; padding:8px; }
+      .school-profile-logo-actions { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+      .school-profile-logo-help { margin:7px 0 0; color:#64748b; font-size:12px; line-height:1.5; }
+      .school-profile-logo-error { margin:8px 0 0; color:#b91c1c; font-size:13px; }
       .school-profile-content { padding:28px; background:linear-gradient(180deg,#fff 0%,#fbfdff 100%); }
       .school-profile-section-title { margin:0 0 6px; color:var(--sp-ink); font-size:16px; font-weight:800; letter-spacing:-.02em; }
       .school-profile-section-copy { margin:0 0 20px; color:var(--sp-muted); font-size:13px; line-height:1.6; }
@@ -146,6 +219,8 @@ export function SchoolPage() {
         .school-profile-banner { align-items:flex-start; padding:23px 18px; gap:13px; }
         .school-profile-mark { width:47px; height:47px; flex-basis:47px; border-radius:14px; }
         .school-profile-content,.school-profile-form { padding:21px 17px; }
+        .school-profile-logo-panel { align-items:flex-start; flex-direction:column; }
+        .school-profile-logo-preview { width:88px; height:88px; flex-basis:88px; }
         .school-profile-details { grid-template-columns:minmax(0,1fr); gap:10px; }
         .school-profile-detail--wide { grid-column:auto; }
         .school-profile-form__footer { align-items:stretch; flex-direction:column; }
@@ -162,11 +237,25 @@ export function SchoolPage() {
           : error ? <div className="school-profile-content"><ErrorState title="School profile could not load" message={error} onRetry={reload} /></div>
           : data ? <>
             <div className="school-profile-banner">
-              <div className="school-profile-mark"><SchoolIcon width={28} height={28} /></div>
+              <div className="school-profile-mark">{data.logo ? <img src={data.logo} alt="" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 8 }} /> : <SchoolIcon width={28} height={28} />}</div>
               <div className="school-profile-banner__main"><p className="school-profile-eyebrow">School identity</p><h2 className="school-profile-name">{data.name}</h2><p className="school-profile-code">School code: <strong>{data.code || 'Not recorded'}</strong></p></div>
               <div className="school-profile-banner__status">{data.is_active === false ? <Badge tone="warning">Inactive</Badge> : <Badge tone="success">Active</Badge>}</div>
             </div>
             <div className="school-profile-content">
+              <section className="school-profile-logo-panel" aria-labelledby="school-logo-title">
+                <div className="school-profile-logo-preview">{data.logo ? <img src={data.logo} alt="Current school logo" /> : <SchoolIcon width={34} height={34} />}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 id="school-logo-title" className="school-profile-section-title">School logo</h3>
+                  <p className="school-profile-section-copy" style={{ marginBottom: 10 }}>Upload your school crest once. It will be used on supported printouts.</p>
+                  <div className="school-profile-logo-actions">
+                    <label className="button button--primary button--sm" htmlFor="school-logo-upload">{logoBusy ? 'Uploading…' : data.logo ? 'Replace logo' : 'Upload logo'}</label>
+                    <input key={logoInputKey} id="school-logo-upload" type="file" accept="image/png,image/jpeg,image/webp" disabled={logoBusy} onChange={event => void saveLogo(event.target.files?.[0] ?? null)} style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }} />
+                    {data.logo && <button type="button" className="button button--secondary button--sm" disabled={logoBusy} onClick={() => void removeLogo()}>Remove logo</button>}
+                  </div>
+                  <p className="school-profile-logo-help">PNG, JPG/JPEG or WebP · Maximum 2 MB</p>
+                  {logoError && <p className="school-profile-logo-error" role="alert">{logoError}</p>}
+                </div>
+              </section>
               <h3 className="school-profile-section-title">Registration and contact</h3>
               <p className="school-profile-section-copy">The core details currently recorded for this school.</p>
               <dl className="school-profile-details">
