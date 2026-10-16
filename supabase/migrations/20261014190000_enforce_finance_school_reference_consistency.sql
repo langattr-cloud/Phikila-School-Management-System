@@ -188,8 +188,11 @@ begin
     where p.id = new.payment_id
       and p.school_id = new.school_id
       and p.student_id = new.student_id
+      and not coalesce(p.reversed, false)
+      and coalesce(p.amount, 0) > 0
+      and abs(p.amount - new.amount) <= 0.005
   ) then
-    raise exception 'Receipt payment and student must belong to the receipt school';
+    raise exception 'Receipt must match a positive, non-reversed payment for the same student and school';
   end if;
   return new;
 end;
