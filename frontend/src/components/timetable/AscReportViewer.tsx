@@ -95,6 +95,7 @@ export function AscReportViewer({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [rowHeight, setRowHeight] = useState<'compact' | 'standard' | 'large'>('standard')
   const [showNonTeaching, setShowNonTeaching] = useState(true)
+  const [colorMode, setColorMode] = useState<'subject' | 'mono'>('subject')
   const [printSettingsOpen, setPrintSettingsOpen] = useState(false)
   const [printOrientation, setPrintOrientation] = useState<'landscape' | 'portrait'>('landscape')
   const [printMargins, setPrintMargins] = useState<'narrow' | 'standard' | 'wide'>('standard')
@@ -229,8 +230,6 @@ export function AscReportViewer({
     }
   }, [isSpecialReport, pagedItems, activeItems, reportIndex, onSelectIndex])
 
-  if (!open) return null
-
   const toggleEntity = (id: number) => {
     setSelectedEntityIds(current => {
       const next = new Set(current)
@@ -271,6 +270,8 @@ export function AscReportViewer({
     if (!isSummary) return
     setSummaryPage(0)
   }, [scope, selectedEntityIds, selectedDays, selectedPeriodRange, showNonTeaching, isSummary])
+
+  if (!open) return null
 
   const toggleDay = (index: number) => {
     setSelectedWeek('all')
@@ -388,7 +389,12 @@ export function AscReportViewer({
           <button type="button" onClick={() => setFit(value => value === 'paper' ? 'wide' : 'paper')} style={buttonStyle}>{fit === 'paper' ? 'Fit paper' : 'Fit wide'}</button>
           <select aria-label="Layout" value={layout} onChange={event => setLayout(event.target.value as typeof layout)} style={{ ...buttonStyle, width: 88 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide columns</option></select>
           <button type="button" onClick={() => setBellTimes(value => !value)} style={buttonStyle}>{bellTimes ? 'Bell times' : 'No times'}</button>
-          <button type="button" onClick={() => setSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={settingsOpen}>Settings</button>
+          <button type="button" onClick={() => setSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={settingsOpen}>Global settings</button>
+          <button type="button" onClick={() => setSettingsOpen(true)} style={buttonStyle}>Modify current</button>
+          <button type="button" onClick={() => setSettingsOpen(true)} style={buttonStyle}>Extra columns/rows</button>
+          <button type="button" onClick={() => setSettingsOpen(true)} style={buttonStyle}>Sizes/widths</button>
+          <button type="button" onClick={() => setSettingsOpen(true)} style={buttonStyle}>Design</button>
+          <button type="button" onClick={() => { setColorMode(value => value === 'subject' ? 'mono' : 'subject'); setSettingsOpen(true) }} style={buttonStyle}>Colors</button>
           <button type="button" onClick={() => setPrintSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={printSettingsOpen}>Print settings</button>
           <button type="button" onClick={onPrint} style={buttonStyle}>Print</button>
           <button type="button" onClick={onClose} title="Close preview" aria-label="Close preview" style={{ ...buttonStyle, fontSize: 17, lineHeight: 1 }}>×</button>
@@ -397,7 +403,7 @@ export function AscReportViewer({
 
       {settingsOpen && (
         <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: '#ededed', borderBottom: '1px solid #aaa', fontFamily: 'Arial,Helvetica,sans-serif' }}>
-          <strong style={{ fontSize: 11 }}>Report settings:</strong>
+          <strong style={{ fontSize: 11 }}>Report settings:</strong><span style={{ fontSize: 10, color: '#555' }}>Rows, columns, breaks and display options</span>
           <label style={{ fontSize: 11 }}>Rows <select value={rowHeight} onChange={event => setRowHeight(event.target.value as typeof rowHeight)} style={{ height: 26, fontSize: 11 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="large">Large</option></select></label>
           <label style={{ fontSize: 11 }}>Columns <select value={layout} onChange={event => setLayout(event.target.value as typeof layout)} style={{ height: 26, fontSize: 11 }}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
           <label style={{ fontSize: 11 }}><input type="checkbox" checked={showNonTeaching} onChange={event => setShowNonTeaching(event.target.checked)} /> Show non-teaching periods</label>
@@ -583,6 +589,7 @@ export function AscReportViewer({
               showTimes={showTimes}
               bellTimes={bellTimes}
               rowHeight={rowHeight}
+              colorMode={colorMode}
             />
           )}
 
