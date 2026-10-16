@@ -1,0 +1,54 @@
+name: Apply final timetable UI polish
+
+on:
+  push:
+    branches: [ui/timetable-final-polish]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !startsWith(github.event.head_commit.message, 'fix: finalize timetable UI') && !startsWith(github.event.head_commit.message, 'fix: finalize timetable UI layout') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply requested timetable fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          grid = Path('frontend/src/components/TimetableGrid.tsx')
+          s = grid.read_text()
+          s = s.replace("gridTemplateColumns: `2.5rem repeat(${Math.max(1, orderedPeriods.length)}, minmax(0, 1fr))`", "gridTemplateColumns: `1.75rem repeat(${Math.max(1, orderedPeriods.length)}, minmax(0, 1fr))`", 1)
+          s = s.replace("{cellLessons.map((lesson) => renderCard(lesson, true))}</div>", "{!isBreak && cellLessons.map((lesson) => renderCard(lesson, true))}</div>")
+          s = s.replace("{cellLessons.map((lesson) => renderCard(lesson))}</div>", "{!isBreak && cellLessons.map((lesson) => renderCard(lesson))}</div>")
+          grid.write_text(s)
+
+          page = Path('frontend/src/pages/TimetablePage.tsx')
+          p = page.read_text()
+          p = p.replace('<PageHeader title="Timetable - Whole School"', '<PageHeader title="Timetable"', 1)
+          page.write_text(p)
+
+          css = Path('frontend/src/components/timetable-time-grid.css')
+          c = css.read_text()
+          marker = '/* Final timetable sizing and break-content guard. */'
+          if marker not in c:
+              c += '\n' + marker + '\n'
+              c += '.timetable__time-grid{grid-template-columns:1.75rem repeat(var(--tt-period-count,1),minmax(0,1fr))!important}\n'
+              c += '.timetable__time-grid .timetable__day-label,.timetable__time-grid .timetable__corner{width:auto;min-width:0}\n'
+              c += '.timetable__time-grid .timetable__cell--break .lesson-card,.timetable__time-grid .timetable__cell--break > *:not(.timetable__break-vertical){display:none!important}\n'
+              c += '.timetable__whole-slot--break .lesson-card{display:none!important}\n'
+              c += '@media(max-width:767px){.timetable__time-grid{grid-template-columns:1.75rem repeat(var(--tt-period-count,1),minmax(0,1fr))!important}}\n'
+          css.write_text(c)
+          PY
+
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add frontend/src/components/TimetableGrid.tsx frontend/src/pages/TimetablePage.tsx frontend/src/components/timetable-time-grid.css
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: finalize timetable UI layout"
+          git push
