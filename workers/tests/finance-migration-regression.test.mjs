@@ -35,7 +35,7 @@ test('posted journal is checked for balanced entries and a matching receipt', ()
 
 test('receipt trigger checks payment school, student, amount and status', () => {
   assert.match(ownershipMigration, /p\.school_id = new\.school_id[\s\S]*?p\.student_id = new\.student_id[\s\S]*?not coalesce\(p\.reversed, false\)[\s\S]*?abs\(p\.amount - new\.amount\) <= 0\.005/i)
-  assert.match(ownershipMigration, /before update of school_id, payment_id, student_id[\s\S]*?execute function public\.enforce_finance_receipt_school_scope\(\)/i)
+  assert.match(ownershipMigration, /before update of school_id, payment_id, student_id, amount[\s\S]*?execute function public\.enforce_finance_receipt_school_scope\(\)/i)
 })
 
 test('invoice, payment, and allocation writes have school-scope triggers on insert and ownership updates', () => {
