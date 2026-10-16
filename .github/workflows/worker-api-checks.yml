@@ -29,5 +29,7 @@ jobs:
         run: npm ci
       - name: Type-check worker API
         run: npm run typecheck
+      - name: Finance migration regression checks
+        run: npm run test:finance-migrations
       - name: Build worker API (dry run)
         run: npm run build
