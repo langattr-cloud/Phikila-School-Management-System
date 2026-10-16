@@ -211,6 +211,6 @@ on public.finance_receipts
 for each row execute function public.enforce_finance_receipt_school_scope();
 drop trigger if exists trg_enforce_finance_receipt_school_scope_update on public.finance_receipts;
 create trigger trg_enforce_finance_receipt_school_scope_update
-before update of school_id, payment_id, student_id
+before update of school_id, payment_id, student_id, amount
 on public.finance_receipts
 for each row execute function public.enforce_finance_receipt_school_scope();
