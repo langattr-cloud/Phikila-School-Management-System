@@ -11,7 +11,8 @@
     "db:link": "supabase link --project-ref xpsazsigjurnmrjibgsn",
     "db:up": "supabase migration up",
     "db:migrate": "supabase migration up",
-    "db:gen": "supabase gen types typescript --project-id xpsazsigjurnmrjibgsn > src/types/database.gen.ts"
+    "db:gen": "supabase gen types typescript --project-id xpsazsigjurnmrjibgsn > src/types/database.gen.ts",
+    "db:up:linked": "supabase migration up --linked"
   },
   "dependencies": {
     "hono": "^4.6.3",
