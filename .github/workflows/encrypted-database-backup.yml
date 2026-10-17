@@ -25,25 +25,9 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --yes age postgresql-client curl unzip
-
-          case "$(uname -m)" in
-            x86_64) AWS_CLI_ARCH="x86_64" ;;
-            aarch64|arm64) AWS_CLI_ARCH="aarch64" ;;
-            *) echo "::error::Unsupported runner architecture: $(uname -m)"; exit 1 ;;
-          esac
-
-          AWS_CLI_ZIP="$RUNNER_TEMP/awscliv2.zip"
-          AWS_CLI_DIR="$RUNNER_TEMP/aws"
-          curl --fail --silent --show-error --location \
-            "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_CLI_ARCH}.zip" \
-            --output "$AWS_CLI_ZIP"
-          curl --fail --silent --show-error --location \
-            "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_CLI_ARCH}.zip.sha256" \
-            --output "$AWS_CLI_ZIP.sha256"
-          (cd "$RUNNER_TEMP" && printf "%s  %s\\n" "$(cat "$(basename "$AWS_CLI_ZIP").sha256")" "$(basename "$AWS_CLI_ZIP")" | sha256sum --check --status)
-          unzip -q "$AWS_CLI_ZIP" -d "$RUNNER_TEMP"
-          sudo "$AWS_CLI_DIR/install" --update
+          sudo apt-get install --yes age postgresql-client
+          # GitHub-hosted Ubuntu runners include AWS CLI v2; avoid the
+          # unavailable Ubuntu awscli package and do not download an unverified binary.
           aws --version
 
       - name: Validate configuration
