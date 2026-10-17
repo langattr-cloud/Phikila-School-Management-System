@@ -13,7 +13,8 @@
     "db:migrate": "supabase migration up",
     "db:gen": "supabase gen types typescript --project-id xpsazsigjurnmrjibgsn > src/types/database.gen.ts",
     "db:up:linked": "supabase migration up --linked",
-    "test:finance-migrations": "node --test tests/finance-migration-regression.test.mjs"
+    "test:finance-migrations": "node --test tests/finance-migration-regression.test.mjs",
+    "test:finance-auth": "node --import tsx --test tests/finance-auth-regression.test.mjs"
   },
   "dependencies": {
     "hono": "^4.6.3",
