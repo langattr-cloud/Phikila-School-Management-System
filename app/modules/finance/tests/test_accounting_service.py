@@ -34,3 +34,29 @@ def test_post_journal_creates_balanced_entries(db_session):
     assert journal.id
     lines = db_session.query(JournalEntry).filter(JournalEntry.journal_id == journal.id).all()
     assert sum(x.debit for x in lines) == sum(x.credit for x in lines)
+
+
+
+def test_post_journal_rejects_account_from_another_school(db_session):
+    db_session.add_all([
+        ChartOfAccount(school_id=27, code="1000", name="School 27 Cash", account_type="asset"),
+        ChartOfAccount(school_id=81, code="4000", name="School 81 Income", account_type="income"),
+    ])
+    db_session.commit()
+    school_27_account = db_session.query(ChartOfAccount).filter_by(school_id=27).one()
+    school_81_account = db_session.query(ChartOfAccount).filter_by(school_id=81).one()
+
+    with pytest.raises(HTTPException) as exc:
+        post_journal(
+            db_session,
+            school_id=27,
+            journal_number="TENANT-LEAK-1",
+            description="Must reject cross-school account",
+            entries=[
+                {"account_id": school_27_account.id, "debit": Decimal("100")},
+                {"account_id": school_81_account.id, "credit": Decimal("100")},
+            ],
+        )
+
+    assert exc.value.status_code == 400
+    assert db_session.query(JournalEntry).count() == 0
