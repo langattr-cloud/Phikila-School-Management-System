@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --yes age
+          sudo apt-get install --yes age postgresql-client
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v3.0.1
