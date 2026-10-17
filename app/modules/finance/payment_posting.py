@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from . import models as m
 from .accounting_service import post_journal
 from .account_mapping_models import FinanceAccountMapping
@@ -12,11 +13,20 @@ from .account_mapping_models import FinanceAccountMapping
 def post_fee_payment(db: Session, *, school_id: int, invoice: m.StudentInvoice, student_id: int,
                      amount: Decimal, payment_method: str | None, reference_number: str | None,
                      notes: str | None, actor: str | None) -> tuple[m.Payment, m.FinanceReceipt]:
+    # Serialize payments against this invoice so concurrent requests cannot spend the same balance.
+    invoice = (
+        db.query(m.StudentInvoice)
+        .filter(m.StudentInvoice.id == invoice.id, m.StudentInvoice.school_id == school_id)
+        .with_for_update()
+        .first()
+    )
+    if not invoice:
+        raise HTTPException(404, "Invoice not found.")
     if invoice.student_id != student_id:
         raise HTTPException(400, "Student does not match invoice.")
     if amount <= 0 or amount > Decimal(str(invoice.balance)):
         raise HTTPException(400, "Payment amount must be positive and cannot exceed the invoice balance.")
-    if reference_number and db.query(m.Payment).filter(m.Payment.school_id == school_id, m.Payment.reference_number == reference_number, m.Payment.status != "REVERSED").first():
+    if reference_number and db.query(m.Payment).filter(m.Payment.school_id == school_id, func.lower(m.Payment.reference_number) == reference_number.lower(), func.upper(m.Payment.status) != "REVERSED").first():
         raise HTTPException(409, "Payment reference has already been processed.")
     mapping = db.query(FinanceAccountMapping).filter_by(school_id=school_id, mapping_key="FEE_PAYMENT").first()
     if not mapping or not mapping.is_active:

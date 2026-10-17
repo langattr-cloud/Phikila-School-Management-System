@@ -34,3 +34,20 @@ def test_post_journal_creates_balanced_entries(db_session):
     assert journal.id
     lines = db_session.query(JournalEntry).filter(JournalEntry.journal_id == journal.id).all()
     assert sum(x.debit for x in lines) == sum(x.credit for x in lines)
+
+
+
+@pytest.mark.parametrize(
+    ("account_type", "debit", "credit", "expected"),
+    [
+        ("ASSET", Decimal("100"), Decimal("20"), Decimal("80")),
+        ("EXPENSE", Decimal("30"), Decimal("5"), Decimal("25")),
+        ("LIABILITY", Decimal("10"), Decimal("40"), Decimal("30")),
+        ("EQUITY", Decimal("0"), Decimal("75"), Decimal("75")),
+        ("INCOME", Decimal("12"), Decimal("50"), Decimal("38")),
+    ],
+)
+def test_general_ledger_normal_balance_delta(account_type, debit, credit, expected):
+    from app.modules.finance.reports_router import _normal_balance_delta
+
+    assert _normal_balance_delta(account_type, debit, credit) == expected
