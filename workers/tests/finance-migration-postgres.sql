@@ -247,4 +247,40 @@ BEGIN
   END;
 END $$;
 
+-- Existing parent rows with dependent finance data cannot be re-parented.
+DO $invoice_update$
+BEGIN
+  BEGIN
+    UPDATE public.student_invoices
+    SET school_id = 2, student_id = 202, fee_structure_id = 12
+    WHERE id = 21;
+    RAISE EXCEPTION 'invoice ownership update was unexpectedly accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM = 'invoice ownership update was unexpectedly accepted' THEN RAISE; END IF;
+  END;
+END $invoice_update$;
+
+DO $payment_update$
+BEGIN
+  BEGIN
+    UPDATE public.payments SET school_id = 2, student_id = 202, invoice_id = 23
+    WHERE id = 1001;
+    RAISE EXCEPTION 'payment ownership update was unexpectedly accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM = 'payment ownership update was unexpectedly accepted' THEN RAISE; END IF;
+  END;
+END $payment_update$;
+
+DO $allocation_school$
+BEGIN
+  BEGIN
+    INSERT INTO public.payment_allocations(
+      school_id, payment_id, invoice_id, amount, allocation_type
+    ) VALUES (2, 1001, 23, 1.00, 'FEE');
+    RAISE EXCEPTION 'cross-school allocation was unexpectedly accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM = 'cross-school allocation was unexpectedly accepted' THEN RAISE; END IF;
+  END;
+END $allocation_school$;
+
 \echo 'Finance PostgreSQL integration checks passed.'
