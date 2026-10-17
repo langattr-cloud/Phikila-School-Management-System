@@ -44,6 +44,8 @@ jobs:
         run: npm run typecheck
       - name: Finance migration source regression checks
         run: npm run test:finance-migrations
+      - name: Finance API authentication and CORS regression checks
+        run: npm run test:finance-auth
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
