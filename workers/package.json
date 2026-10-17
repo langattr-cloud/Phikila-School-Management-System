@@ -9,9 +9,12 @@
     "build": "wrangler deploy --dry-run --outdir dist",
     "typecheck": "tsc --noEmit",
     "db:link": "supabase link --project-ref xpsazsigjurnmrjibgsn",
-    "db:up": "supabase db push",
-    "db:migrate": "supabase db reset --linked",
-    "db:gen": "supabase gen types typescript --project-id xpsazsigjurnmrjibgsn > src/types/database.gen.ts"
+    "db:up": "supabase migration up",
+    "db:migrate": "supabase migration up",
+    "db:gen": "supabase gen types typescript --project-id xpsazsigjurnmrjibgsn > src/types/database.gen.ts",
+    "db:up:linked": "supabase migration up --linked",
+    "test:finance-migrations": "node --test tests/finance-migration-regression.test.mjs",
+    "test:finance-auth": "node --import tsx --test tests/finance-auth-regression.test.mjs"
   },
   "dependencies": {
     "hono": "^4.6.3",

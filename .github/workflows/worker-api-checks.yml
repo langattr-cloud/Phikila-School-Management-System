@@ -15,6 +15,19 @@ on:
 jobs:
   typecheck-and-build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: workers
@@ -29,5 +42,17 @@ jobs:
         run: npm ci
       - name: Type-check worker API
         run: npm run typecheck
+      - name: Finance migration source regression checks
+        run: npm run test:finance-migrations
+      - name: Finance API authentication and CORS regression checks
+        run: npm run test:finance-auth
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Execute finance migrations and PostgreSQL regression checks
+        env:
+          PGPASSWORD: postgres
+        run: psql --host 127.0.0.1 --username postgres --dbname postgres --set ON_ERROR_STOP=1 --file tests/finance-migration-postgres.sql
       - name: Build worker API (dry run)
         run: npm run build

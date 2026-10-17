@@ -1,0 +1,272 @@
+-- Fix payment posting order without changing the existing finance workflow.
+-- The payment row is inserted before its allocations by post_student_fee_payment.
+-- Do not attempt to journal it until the cash allocations account for the full
+-- payment; a deferred allocation trigger retries at transaction end, after all
+-- allocation rows created by the RPC are present.
+
+-- The legacy table migration created payment_allocations_type_check with
+-- only FEE/CREDIT/REVERSAL. A later migration added a second check that includes
+-- CREDIT_APPLIED, but PostgreSQL enforces both, so CREDIT_APPLIED still fails.
+-- Replace both checks with one authoritative constraint before posting relies
+-- on CREDIT_APPLIED allocations. Existing rows must already satisfy the
+-- supported allocation vocabulary; no financial rows are rewritten.
+alter table public.payment_allocations
+  drop constraint if exists payment_allocations_type_check;
+alter table public.payment_allocations
+  drop constraint if exists payment_allocations_allocation_type_check;
+alter table public.payment_allocations
+  add constraint payment_allocations_allocation_type_check
+  check (allocation_type in ('FEE','CREDIT','CREDIT_APPLIED','REVERSAL'));
+
+-- One payment should have at most one receipt. A read-only audit before
+-- adding this index found no duplicate payment_id values in finance_receipts.
+create unique index if not exists uq_finance_receipts_payment_id
+  on public.finance_receipts(payment_id)
+  where payment_id is not null;
+
+-- Keep receipt creation idempotent and independent of which journal path wins.
+-- This also repairs a missing receipt when a valid journal already exists.
+create or replace function public.ensure_finance_payment_receipt(p_payment_id bigint)
+returns void
+language plpgsql
+set search_path = public
+as $function$
+begin
+  insert into public.finance_receipts(
+    receipt_number, payment_id, student_id, amount, issued_at, school_id, status, issued_by
+  )
+  select
+    'RCPT-' || p.id::text,
+    p.id,
+    p.student_id,
+    p.amount,
+    coalesce(p.paid_at, now()),
+    p.school_id,
+    'ISSUED',
+    p.received_by
+  from public.payments p
+  join public.finance_journals j
+    on j.id = p.journal_id
+   and j.school_id = p.school_id
+   and upper(coalesce(j.status,'')) = 'POSTED'
+  where p.id = p_payment_id
+    and not coalesce(p.reversed,false)
+    and coalesce(p.amount,0) > 0
+    and not exists (
+      select 1 from public.finance_receipts r
+      where r.payment_id = p.id and r.school_id = p.school_id
+    )
+  on conflict do nothing;
+end;
+$function$;
+
+create or replace function public.post_finance_payment_journal_for_payment(
+  p_payment_id bigint
+)
+returns void
+language plpgsql
+set search_path = public
+as $function$
+declare
+  v_payment public.payments%rowtype;
+  v_ar bigint;
+  v_cash bigint;
+  v_deposit bigint;
+  v_journal bigint;
+  v_method text;
+  v_fee_allocated numeric(14,2);
+  v_credit_created numeric(14,2);
+  v_credit_applied numeric(14,2);
+begin
+  select * into v_payment
+  from public.payments
+  where id = p_payment_id
+  for update;
+
+  if not found or coalesce(v_payment.reversed,false) or coalesce(v_payment.amount,0) <= 0 then
+    return;
+  end if;
+
+  -- The Python posting path writes its balanced journal first. Link it rather
+  -- than creating a duplicate journal.
+  select j.id into v_journal
+  from public.finance_journals j
+  where j.school_id = v_payment.school_id
+    and j.journal_number = 'FEE-' || v_payment.id::text
+    and j.reference is not distinct from v_payment.reference_number
+    and upper(j.status) = 'POSTED'
+  order by j.id
+  limit 1;
+
+  if v_journal is not null then
+    update public.payments set journal_id = v_journal where id = v_payment.id;
+    perform public.ensure_finance_payment_receipt(v_payment.id);
+    return;
+  end if;
+
+  if v_payment.journal_id is not null then
+    perform public.ensure_finance_payment_receipt(v_payment.id);
+    return;
+  end if;
+
+  select j.id into v_journal
+  from public.finance_journals j
+  where j.school_id = v_payment.school_id
+    and j.reference = 'PAYMENT:' || v_payment.id::text
+  order by j.id
+  limit 1;
+
+  if v_journal is not null then
+    update public.payments set journal_id = v_journal where id = v_payment.id;
+    perform public.ensure_finance_payment_receipt(v_payment.id);
+    return;
+  end if;
+
+  select coalesce(sum(amount),0) into v_fee_allocated
+  from public.payment_allocations
+  where payment_id = v_payment.id and allocation_type = 'FEE';
+
+  select coalesce(sum(amount),0) into v_credit_created
+  from public.payment_allocations
+  where payment_id = v_payment.id and allocation_type = 'CREDIT';
+
+  select coalesce(sum(amount),0) into v_credit_applied
+  from public.payment_allocations
+  where payment_id = v_payment.id and allocation_type = 'CREDIT_APPLIED';
+
+  -- A payment is inserted before its allocations. Waiting here avoids creating
+  -- an unbalanced journal on that initial insert. The last allocation retries
+  -- this function once the payment amount is fully accounted for.
+  if abs(v_payment.amount - v_fee_allocated - v_credit_created) > 0.005 then
+    return;
+  end if;
+
+  v_ar := public.ensure_finance_account(v_payment.school_id,'1100','Student Receivables','ASSET');
+  v_deposit := public.ensure_finance_account(v_payment.school_id,'2000','Student Fee Credits / Customer Deposits','LIABILITY');
+  v_method := lower(coalesce(v_payment.payment_method,v_payment.method,'cash'));
+
+  if v_method in ('bank','cheque','check') then
+    v_cash := public.ensure_finance_account(v_payment.school_id,'1010','Bank','ASSET');
+  elsif v_method in ('mpesa','m-pesa','mobile money') then
+    v_cash := public.ensure_finance_account(v_payment.school_id,'1020','M-PESA','ASSET');
+  else
+    v_cash := public.ensure_finance_account(v_payment.school_id,'1000','Cash on Hand','ASSET');
+  end if;
+
+  insert into public.finance_journals(
+    journal_date, description, reference, status, school_id, journal_number
+  )
+  values(
+    coalesce(v_payment.paid_at::date,v_payment.created_at::date,current_date),
+    'Student fee payment '||coalesce(v_payment.payment_number,v_payment.id::text),
+    'PAYMENT:'||v_payment.id::text,
+    'POSTED',
+    v_payment.school_id,
+    'PAY-'||v_payment.id::text
+  )
+  returning id into v_journal;
+
+  insert into public.finance_journal_entries(journal_id,account_id,debit,credit,description)
+  values(v_journal,v_cash,v_payment.amount,0,'Cash / bank received');
+
+  if v_fee_allocated + v_credit_applied > 0 then
+    insert into public.finance_journal_entries(journal_id,account_id,debit,credit,description)
+    values(v_journal,v_ar,0,v_fee_allocated+v_credit_applied,'Student receivable settled');
+  end if;
+
+  if v_credit_applied > 0 then
+    insert into public.finance_journal_entries(journal_id,account_id,debit,credit,description)
+    values(v_journal,v_deposit,v_credit_applied,0,'Customer credit applied');
+  end if;
+
+  if v_credit_created > 0 then
+    insert into public.finance_journal_entries(journal_id,account_id,debit,credit,description)
+    values(v_journal,v_deposit,0,v_credit_created,'Unapplied student credit');
+  end if;
+
+  update public.payments set journal_id = v_journal where id = v_payment.id;
+
+  -- Issue the receipt atomically once the payment is linked to a posted journal.
+  perform public.ensure_finance_payment_receipt(v_payment.id);
+end;
+$function$;
+
+-- These helpers write financial records and are intended for trigger/internal
+-- use only. Do not leave PostgreSQL's default PUBLIC EXECUTE grant in place.
+revoke all on function public.ensure_finance_payment_receipt(bigint) from public;
+revoke all on function public.ensure_finance_payment_receipt(bigint) from anon, authenticated;
+revoke all on function public.post_finance_payment_journal_for_payment(bigint) from public;
+revoke all on function public.post_finance_payment_journal_for_payment(bigint) from anon, authenticated;
+grant execute on function public.ensure_finance_payment_receipt(bigint) to service_role;
+grant execute on function public.post_finance_payment_journal_for_payment(bigint) to service_role;
+
+-- Preserve the existing AFTER INSERT payment trigger for Python-created payments
+-- and route both paths through the same idempotent posting helper.
+create or replace function public.post_finance_payment_journal()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $function$
+begin
+  perform public.post_finance_payment_journal_for_payment(new.id);
+
+  -- This trigger is deferred until transaction end. By then all allocations
+  -- should exist. Preserve the old fail-closed behavior: never commit a
+  -- positive, non-reversed payment without a linked journal.
+  if not coalesce(new.reversed,false) and coalesce(new.amount,0) > 0
+     and not exists (
+       select 1
+       from public.payments p
+       join public.finance_journals j
+         on j.id = p.journal_id
+        and j.school_id = p.school_id
+       where p.id = new.id
+         and upper(coalesce(j.status,'')) = 'POSTED'
+         and exists (
+           select 1 from public.finance_journal_entries e
+           where e.journal_id = j.id
+         )
+         and abs(coalesce((
+           select sum(e.debit - e.credit)
+           from public.finance_journal_entries e
+           where e.journal_id = j.id
+         ),0)) <= 0.005
+     )
+     or (
+       not coalesce(new.reversed,false)
+       and coalesce(new.amount,0) > 0
+       and not exists (
+         select 1 from public.finance_receipts r
+         where r.payment_id = new.id
+           and r.school_id = new.school_id
+           and r.student_id = new.student_id
+           and abs(r.amount - new.amount) <= 0.005
+       )
+     ) then
+    raise exception 'Payment % must have a linked, posted, balanced journal and matching receipt', new.id;
+  end if;
+
+  return new;
+end;
+$function$;
+
+create or replace function public.post_finance_payment_journal_after_allocation()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $function$
+begin
+  perform public.post_finance_payment_journal_for_payment(new.payment_id);
+  return new;
+end;
+$function$;
+
+drop trigger if exists trg_post_finance_payment_journal_after_allocation
+  on public.payment_allocations;
+create constraint trigger trg_post_finance_payment_journal_after_allocation
+after insert on public.payment_allocations
+deferrable initially deferred
+for each row
+execute function public.post_finance_payment_journal_after_allocation();
