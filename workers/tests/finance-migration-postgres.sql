@@ -170,6 +170,35 @@ BEGIN
     THEN RAISE EXCEPTION 'receipt creation is not idempotent'; END IF;
 END $$;
 
+-- Existing Python posting path compatibility: retain its balanced FEE journal,
+-- link it to the payment, and do not create a second journal.
+INSERT INTO public.finance_journals(
+  id, journal_date, description, reference, status, school_id, journal_number
+) VALUES (
+  9003, current_date, 'Python-created fee payment', 'PY-REF-1003', 'POSTED', 1, 'FEE-1003'
+);
+INSERT INTO public.finance_journal_entries(journal_id, account_id, debit, credit, description)
+VALUES
+  (9003, 1000, 100.00, 0, 'Cash received by Python path'),
+  (9003, 1100, 0, 100.00, 'Receivable settled by Python path');
+BEGIN;
+INSERT INTO public.payments(
+  id, school_id, student_id, invoice_id, amount, payment_method, payment_number, reference_number
+) VALUES (1003, 1, 101, 21, 100.00, 'cash', 'PAY-1003', 'PY-REF-1003');
+INSERT INTO public.payment_allocations(
+  school_id, payment_id, invoice_id, amount, allocation_type
+) VALUES (1, 1003, 21, 100.00, 'FEE');
+COMMIT;
+DO $
+BEGIN
+  IF (SELECT journal_id FROM public.payments WHERE id = 1003) <> 9003
+    THEN RAISE EXCEPTION 'Python-created journal was not linked to the payment'; END IF;
+  IF (SELECT count(*) FROM public.finance_journals WHERE school_id = 1 AND reference = 'PY-REF-1003') <> 1
+    THEN RAISE EXCEPTION 'Python compatibility path created a duplicate journal'; END IF;
+  IF (SELECT count(*) FROM public.finance_receipts WHERE payment_id = 1003) <> 1
+    THEN RAISE EXCEPTION 'Python compatibility path did not create exactly one receipt'; END IF;
+END $;
+
 -- CREDIT_APPLIED must be accepted by the single surviving allocation check,
 -- and its journal treatment must still balance.
 INSERT INTO public.student_enrollments(school_id, student_id) VALUES (1, 102);
