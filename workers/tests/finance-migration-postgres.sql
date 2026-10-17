@@ -189,7 +189,7 @@ INSERT INTO public.payment_allocations(
   school_id, payment_id, invoice_id, amount, allocation_type
 ) VALUES (1, 1003, 21, 100.00, 'FEE');
 COMMIT;
-DO $
+DO $py$
 BEGIN
   IF (SELECT journal_id FROM public.payments WHERE id = 1003) <> 9003
     THEN RAISE EXCEPTION 'Python-created journal was not linked to the payment'; END IF;
@@ -197,7 +197,7 @@ BEGIN
     THEN RAISE EXCEPTION 'Python compatibility path created a duplicate journal'; END IF;
   IF (SELECT count(*) FROM public.finance_receipts WHERE payment_id = 1003) <> 1
     THEN RAISE EXCEPTION 'Python compatibility path did not create exactly one receipt'; END IF;
-END $;
+END $py$;
 
 -- CREDIT_APPLIED must be accepted by the single surviving allocation check,
 -- and its journal treatment must still balance.
