@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/encrypted-database-backup.yml'
 
 permissions:
   contents: read
@@ -20,10 +23,15 @@ jobs:
     steps:
       - name: Install backup tools
         run: |
+          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --yes age postgresql-client awscli
+          sudo apt-get install --yes age postgresql-client
+          # GitHub-hosted Ubuntu runners include AWS CLI v2; avoid the
+          # unavailable Ubuntu awscli package and do not download an unverified binary.
+          aws --version
 
       - name: Validate configuration
+        if: github.event_name != 'pull_request'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -41,6 +49,7 @@ jobs:
           case "$BACKUP_AGE_RECIPIENT" in age1*) ;; *) echo "::error::BACKUP_AGE_RECIPIENT must be an age public recipient"; exit 1 ;; esac
 
       - name: Dump and encrypt database
+        if: github.event_name != 'pull_request'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
@@ -54,6 +63,7 @@ jobs:
           sha256sum "$RUNNER_TEMP/phikila.dump.age" > "$RUNNER_TEMP/phikila.dump.age.sha256"
 
       - name: Upload encrypted backup to Cloudflare R2
+        if: github.event_name != 'pull_request'
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
