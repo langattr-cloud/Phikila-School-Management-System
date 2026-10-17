@@ -21,69 +21,95 @@ concurrency:
 
 jobs:
   backup:
-    name: Dump, encrypt, and upload PostgreSQL backup
+    name: Export, encrypt, and retain Supabase database backup
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Install backup tools
+      - name: Install encryption tool
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --yes age postgresql-client
-          # GitHub-hosted Ubuntu runners include AWS CLI v2; avoid the
-          # unavailable Ubuntu awscli package and do not download an unverified binary.
-          aws --version
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v3.0.1
+        with:
+          version: 2.113.0
 
       - name: Validate configuration
         if: github.event_name != 'pull_request'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
           BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
         run: |
           set -euo pipefail
           test -n "$SUPABASE_DB_URL" || { echo "::error::Missing SUPABASE_DB_URL secret"; exit 1; }
-          test -n "$R2_ACCOUNT_ID" || { echo "::error::Missing R2_ACCOUNT_ID secret"; exit 1; }
-          test -n "$R2_ACCESS_KEY_ID" || { echo "::error::Missing R2_ACCESS_KEY_ID secret"; exit 1; }
-          test -n "$R2_SECRET_ACCESS_KEY" || { echo "::error::Missing R2_SECRET_ACCESS_KEY secret"; exit 1; }
-          test -n "$R2_BUCKET" || { echo "::error::Missing R2_BUCKET variable"; exit 1; }
-          case "$BACKUP_AGE_RECIPIENT" in age1*) ;; *) echo "::error::BACKUP_AGE_RECIPIENT must be an age public recipient"; exit 1 ;; esac
+          case "$SUPABASE_DB_URL" in
+            postgres://*|postgresql://*) ;;
+            *) echo "::error::SUPABASE_DB_URL must be a PostgreSQL connection URI"; exit 1 ;;
+          esac
+          case "$BACKUP_AGE_RECIPIENT" in
+            age1*) ;;
+            *) echo "::error::BACKUP_AGE_RECIPIENT must be an age public recipient (age1...)"; exit 1 ;;
+          esac
 
-      - name: Dump and encrypt database
+      - name: Export Supabase-compatible logical database files
         if: github.event_name != 'pull_request'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
         run: |
           set -euo pipefail
           umask 077
-          pg_dump "$SUPABASE_DB_URL" --format=custom --no-owner --no-acl --file="$RUNNER_TEMP/phikila.dump"
-          age --recipient "$BACKUP_AGE_RECIPIENT" --output "$RUNNER_TEMP/phikila.dump.age" "$RUNNER_TEMP/phikila.dump"
-          rm -f "$RUNNER_TEMP/phikila.dump"
-          test -s "$RUNNER_TEMP/phikila.dump.age"
-          sha256sum "$RUNNER_TEMP/phikila.dump.age" > "$RUNNER_TEMP/phikila.dump.age.sha256"
+          BACKUP_DIR="$RUNNER_TEMP/phikila-backup"
+          mkdir -p "$BACKUP_DIR"
 
-      - name: Upload encrypted backup to Cloudflare R2
+          # Supabase CLI filters managed/internal schemas from its logical dumps.
+          # The output covers application schemas, roles, and application data.
+          supabase db dump --db-url "$SUPABASE_DB_URL" --file "$BACKUP_DIR/roles.sql" --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" --file "$BACKUP_DIR/schema.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --file "$BACKUP_DIR/data.sql" --use-copy --data-only \
+            -x "storage.buckets_vectors" \
+            -x "storage.vector_indexes"
+
+          test -s "$BACKUP_DIR/roles.sql"
+          test -s "$BACKUP_DIR/schema.sql"
+          test -s "$BACKUP_DIR/data.sql"
+
+      - name: Encrypt and checksum backup
         if: github.event_name != 'pull_request'
         env:
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
         run: |
           set -euo pipefail
-          export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
-          export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
-          export AWS_DEFAULT_REGION=auto
           STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
-          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-          aws --endpoint-url "$ENDPOINT" s3 cp "$RUNNER_TEMP/phikila.dump.age" "s3://${R2_BUCKET}/daily/${STAMP}.dump.age"
-          aws --endpoint-url "$ENDPOINT" s3 cp "$RUNNER_TEMP/phikila.dump.age.sha256" "s3://${R2_BUCKET}/daily/${STAMP}.dump.age.sha256"
-          aws --endpoint-url "$ENDPOINT" s3api head-object --bucket "$R2_BUCKET" --key "daily/${STAMP}.dump.age" >/dev/null
+          BACKUP_DIR="$RUNNER_TEMP/phikila-backup"
+          ARCHIVE="$RUNNER_TEMP/phikila-${STAMP}.tar.gz"
+          ENCRYPTED="$ARCHIVE.age"
+          CHECKSUM="$ENCRYPTED.sha256"
 
-      - name: Remove temporary files
+          tar -C "$RUNNER_TEMP" -czf "$ARCHIVE" phikila-backup
+          age --recipient "$BACKUP_AGE_RECIPIENT" --output "$ENCRYPTED" "$ARCHIVE"
+          test -s "$ENCRYPTED"
+          (cd "$RUNNER_TEMP" && sha256sum "$(basename "$ENCRYPTED")" > "$(basename "$CHECKSUM")")
+          (cd "$RUNNER_TEMP" && sha256sum --check "$(basename "$CHECKSUM")")
+
+          rm -f "$ARCHIVE"
+          rm -rf "$BACKUP_DIR"
+
+      - name: Store encrypted backup as a short-lived workflow artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: phikila-encrypted-db-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/phikila-*.tar.gz.age
+            ${{ runner.temp }}/phikila-*.tar.gz.age.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Remove temporary backup files
         if: always()
-        run: rm -f "$RUNNER_TEMP/phikila.dump" "$RUNNER_TEMP/phikila.dump.age" "$RUNNER_TEMP/phikila.dump.age.sha256"
+        run: |
+          rm -rf "$RUNNER_TEMP/phikila-backup"
+          rm -f "$RUNNER_TEMP"/phikila-*.tar.gz "$RUNNER_TEMP"/phikila-*.tar.gz.age "$RUNNER_TEMP"/phikila-*.tar.gz.age.sha256
