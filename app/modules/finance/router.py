@@ -342,7 +342,46 @@ def ingest_payment(payload: s.PaymentInboxCreate, db: Session = Depends(get_db),
     matched_student = find_student_by_admission_number(db, school_id=principal.school_id, admission_number=student_identifier)
     inbox_status = "MATCHED" if matched_student else "UNMATCHED"
     item = m.PaymentInbox(school_id=principal.school_id, source=payload.source, source_account=payload.source_account, account_name=payload.account_name or decoded["account_name"], raw_message=payload.raw_message, amount=amount, external_reference=external_reference, student_identifier=student_identifier, received_at=received_at, payment_channel=payload.payment_channel or decoded["payment_channel"], matched_student_id=matched_student.id if matched_student else None, match_method="admission_number" if matched_student else None, match_confidence=Decimal("100.00") if matched_student else None, status=inbox_status)
-    db.add(item); _audit(db, principal, "create", "payment_inbox", 0, f"Ingested external payment {external_reference} — {amount}; status={inbox_status}"); db.commit(); db.refresh(item); return item
+    db.add(item); db.flush()
+    _audit(db, principal, "create", "payment_inbox", item.id, f"Ingested external payment {external_reference} — {amount}; status={inbox_status}")
+    # Fast path: when the admission number uniquely identifies a student and one
+    # open invoice can cover the payment, post it immediately. No invoice picker
+    # or separate confirmation step is required for the normal case.
+    if matched_student:
+        open_invoices = db.query(m.StudentInvoice).filter(
+            m.StudentInvoice.school_id == principal.school_id,
+            m.StudentInvoice.student_id == matched_student.id,
+            m.StudentInvoice.balance >= amount,
+            m.StudentInvoice.balance > 0,
+        ).order_by(m.StudentInvoice.created_at.asc(), m.StudentInvoice.id.asc()).all()
+        if open_invoices:
+            nested = db.begin_nested()
+            try:
+                invoice = open_invoices[0]
+                payment, _ = post_fee_payment(
+                    db, school_id=principal.school_id, invoice=invoice,
+                    student_id=matched_student.id, amount=amount,
+                    payment_method=item.payment_channel or payload.source,
+                    reference_number=external_reference,
+                    notes=f"Automatically posted from matched M-Pesa message #{item.id}",
+                    actor=principal.user_id,
+                )
+                now = datetime.now(timezone.utc)
+                item.status = "POSTED"
+                item.posted_payment_id = payment.id
+                item.posted_at = now
+                item.reviewed_by = principal.user_id
+                item.reviewed_at = now
+                _audit(db, principal, "post", "payment_inbox", item.id,
+                       f"Automatically posted {external_reference} as payment #{payment.id} against invoice #{invoice.id}")
+                nested.commit()
+            except HTTPException as exc:
+                nested.rollback()
+                item.status = "MATCHED"
+                item.notes = f"Auto-post deferred: {exc.detail}"
+        else:
+            item.notes = "Student matched by admission number; no open invoice has enough balance for this payment."
+    db.commit(); db.refresh(item); return item
 
 @router.post("/finance/payment-inbox/{inbox_id}/post", response_model=s.PaymentInboxResponse)
 def post_payment_inbox(inbox_id: int, payload: s.PaymentInboxPostRequest | None = None, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
