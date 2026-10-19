@@ -1,0 +1,106 @@
+name: Retain encrypted database backups off-site
+
+on:
+  schedule:
+    # Run after the daily database export workflow.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: phikila-offsite-backup-copy
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    name: Copy encrypted backup to independent object storage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate off-site storage configuration
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_S3_BUCKET" || { echo "::error::Set repository variable BACKUP_S3_BUCKET"; exit 1; }
+          test -n "$AWS_ACCESS_KEY_ID" || { echo "::error::Set secret BACKUP_S3_ACCESS_KEY_ID"; exit 1; }
+          test -n "$AWS_SECRET_ACCESS_KEY" || { echo "::error::Set secret BACKUP_S3_SECRET_ACCESS_KEY"; exit 1; }
+
+      - name: Locate latest successful main-branch backup
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/encrypted-database-backup.yml/runs?status=success&per_page=30" --jq '[.workflow_runs[] | select(.event != "pull_request" and .head_branch == "main")][0].id')"
+          test -n "$run_id" && test "$run_id" != "null" || { echo "::error::No successful main-branch database backup run was found"; exit 1; }
+          artifact_name="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '[.artifacts[] | select(.expired == false)][0].name')"
+          test -n "$artifact_name" && test "$artifact_name" != "null" || { echo "::error::The latest successful run has no unexpired backup artifact"; exit 1; }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+          echo "Copying artifact from successful workflow run $run_id"
+
+      - name: Download encrypted artifact from GitHub Actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/offsite"
+          gh run download "${{ steps.source.outputs.run_id }}" --name "${{ steps.source.outputs.artifact_name }}" --dir "$RUNNER_TEMP/offsite"
+          find "$RUNNER_TEMP/offsite" -maxdepth 1 -type f -name '*.tar.gz.age' -print -quit | grep -q .
+          find "$RUNNER_TEMP/offsite" -maxdepth 1 -type f -name '*.tar.gz.age.sha256' -print -quit | grep -q .
+
+      - name: Upload encrypted files to independent S3-compatible storage
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_PREFIX: ${{ vars.BACKUP_S3_PREFIX }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_ENDPOINT_URL: ${{ vars.BACKUP_S3_ENDPOINT_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes awscli
+          prefix="${BACKUP_S3_PREFIX:-phikila/database}"
+          prefix="${prefix#/}"
+          prefix="${prefix%/}"
+          endpoint_args=()
+          if [ -n "${BACKUP_S3_ENDPOINT_URL:-}" ]; then
+            endpoint_args+=(--endpoint-url "$BACKUP_S3_ENDPOINT_URL")
+          fi
+          region="${BACKUP_S3_REGION:-us-east-1}"
+          for file in "$RUNNER_TEMP"/offsite/*.tar.gz.age "$RUNNER_TEMP"/offsite/*.tar.gz.age.sha256; do
+            [ -f "$file" ] || continue
+            aws "${endpoint_args[@]}" --region "$region" s3 cp "$file" "s3://$BACKUP_S3_BUCKET/$prefix/$(basename "$file")" --only-show-errors
+          done
+          aws "${endpoint_args[@]}" --region "$region" s3 cp "$RUNNER_TEMP/offsite/" "s3://$BACKUP_S3_BUCKET/$prefix/" --recursive --exclude "*" --include "*.tar.gz.age" --include "*.tar.gz.age.sha256" --only-show-errors
+          echo "Uploaded encrypted backup files sourced from run $SOURCE_RUN_ID."
+
+      - name: Verify off-site objects exist
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_PREFIX: ${{ vars.BACKUP_S3_PREFIX }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_ENDPOINT_URL: ${{ vars.BACKUP_S3_ENDPOINT_URL }}
+        run: |
+          set -euo pipefail
+          prefix="${BACKUP_S3_PREFIX:-phikila/database}"
+          prefix="${prefix#/}"
+          prefix="${prefix%/}"
+          endpoint_args=()
+          if [ -n "${BACKUP_S3_ENDPOINT_URL:-}" ]; then endpoint_args+=(--endpoint-url "$BACKUP_S3_ENDPOINT_URL"); fi
+          region="${BACKUP_S3_REGION:-us-east-1}"
+          aws "${endpoint_args[@]}" --region "$region" s3 ls "s3://$BACKUP_S3_BUCKET/$prefix/" --recursive
+          aws "${endpoint_args[@]}" --region "$region" s3 ls "s3://$BACKUP_S3_BUCKET/$prefix/" --recursive | grep -q '\.tar\.gz\.age$'
+          aws "${endpoint_args[@]}" --region "$region" s3 ls "s3://$BACKUP_S3_BUCKET/$prefix/" --recursive | grep -q '\.tar\.gz\.age\.sha256$'
+
+      - name: Clean up downloaded files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/offsite"

@@ -1,0 +1,171 @@
+name: Weekly encrypted database restore test
+
+on:
+  schedule:
+    - cron: "17 5 * * 0"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: phikila-database-restore-test
+  cancel-in-progress: false
+
+jobs:
+  restore-test:
+    name: Restore to disposable Supabase project and verify critical records
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate restore target and credentials
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RESTORE_TEST_DB_URL: ${{ secrets.RESTORE_TEST_DB_URL }}
+          RESTORE_TEST_ALLOW_RESET: ${{ vars.RESTORE_TEST_ALLOW_RESET }}
+          BACKUP_AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_URL" || { echo "::error::Missing SUPABASE_DB_URL"; exit 1; }
+          test -n "$RESTORE_TEST_DB_URL" || { echo "::error::Missing RESTORE_TEST_DB_URL"; exit 1; }
+          test "$RESTORE_TEST_ALLOW_RESET" = "YES_DISPOSABLE_DATABASE" || { echo "::error::Set RESTORE_TEST_ALLOW_RESET to YES_DISPOSABLE_DATABASE only after confirming the target is disposable"; exit 1; }
+          test -n "$BACKUP_AGE_IDENTITY" || { echo "::error::Missing BACKUP_AGE_IDENTITY secret"; exit 1; }
+          test -n "$BACKUP_S3_BUCKET" || { echo "::error::Missing BACKUP_S3_BUCKET"; exit 1; }
+          test -n "$AWS_ACCESS_KEY_ID" || { echo "::error::Missing BACKUP_S3_ACCESS_KEY_ID"; exit 1; }
+          test -n "$AWS_SECRET_ACCESS_KEY" || { echo "::error::Missing BACKUP_S3_SECRET_ACCESS_KEY"; exit 1; }
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          source = urlparse(os.environ["SUPABASE_DB_URL"])
+          target = urlparse(os.environ["RESTORE_TEST_DB_URL"])
+          if not source.hostname or not target.hostname:
+              raise SystemExit("Both database URLs must contain a hostname")
+          if source.hostname.lower() == target.hostname.lower():
+              raise SystemExit("Restore target host matches production. Use a separate disposable Supabase project.")
+          PY
+
+      - name: Install age and PostgreSQL client
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes age postgresql-client awscli
+
+      - name: Find and download the newest off-site encrypted backup
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_PREFIX: ${{ vars.BACKUP_S3_PREFIX }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_ENDPOINT_URL: ${{ vars.BACKUP_S3_ENDPOINT_URL }}
+        run: |
+          set -euo pipefail
+          prefix="${BACKUP_S3_PREFIX:-phikila/database}"
+          prefix="${prefix#/}"
+          prefix="${prefix%/}"
+          endpoint_args=()
+          if [ -n "${BACKUP_S3_ENDPOINT_URL:-}" ]; then endpoint_args+=(--endpoint-url "$BACKUP_S3_ENDPOINT_URL"); fi
+          region="${BACKUP_S3_REGION:-us-east-1}"
+          key="$(aws "${endpoint_args[@]}" --region "$region" s3 ls "s3://$BACKUP_S3_BUCKET/$prefix/" --recursive | awk '$4 ~ /\.tar\.gz\.age$/ {print $4}' | sort | tail -n 1)"
+          test -n "$key" || { echo "::error::No encrypted backup found in off-site storage"; exit 1; }
+          checksum_key="$key.sha256"
+          mkdir -p "$RUNNER_TEMP/restore-test"
+          aws "${endpoint_args[@]}" --region "$region" s3 cp "s3://$BACKUP_S3_BUCKET/$key" "$RUNNER_TEMP/restore-test/$(basename "$key")" --only-show-errors
+          aws "${endpoint_args[@]}" --region "$region" s3 cp "s3://$BACKUP_S3_BUCKET/$checksum_key" "$RUNNER_TEMP/restore-test/$(basename "$checksum_key")" --only-show-errors
+          echo "Encrypted backup selected: $(basename "$key")"
+
+      - name: Verify checksum and decrypt backup
+        env:
+          BACKUP_AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/restore-test"
+          encrypted="$(find . -maxdepth 1 -type f -name '*.tar.gz.age' -print -quit)"
+          test -n "$encrypted"
+          sha256sum --check "$(basename "$encrypted").sha256"
+          printf '%s\n' "$BACKUP_AGE_IDENTITY" > "$RUNNER_TEMP/age-identity.txt"
+          chmod 600 "$RUNNER_TEMP/age-identity.txt"
+          age --decrypt --identity "$RUNNER_TEMP/age-identity.txt" --output backup.tar.gz "$encrypted"
+          tar -tzf backup.tar.gz | grep -q 'phikila-backup/schema.sql'
+          tar -xzf backup.tar.gz
+          test -s phikila-backup/schema.sql
+          test -s phikila-backup/data.sql
+
+      - name: Reset only the confirmed disposable target schema
+        env:
+          RESTORE_TEST_DB_URL: ${{ secrets.RESTORE_TEST_DB_URL }}
+        run: |
+          set -euo pipefail
+          # The target host is checked against production and explicit reset opt-in is required.
+          psql "$RESTORE_TEST_DB_URL" --no-psqlrc --set ON_ERROR_STOP=1 --command 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
+
+      - name: Restore schema and data into disposable target
+        env:
+          RESTORE_TEST_DB_URL: ${{ secrets.RESTORE_TEST_DB_URL }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/restore-test"
+          psql "$RESTORE_TEST_DB_URL" --no-psqlrc --set ON_ERROR_STOP=1 --file phikila-backup/schema.sql
+          psql "$RESTORE_TEST_DB_URL" --no-psqlrc --set ON_ERROR_STOP=1 --file phikila-backup/data.sql
+
+      - name: Verify critical school and finance records
+        env:
+          RESTORE_TEST_DB_URL: ${{ secrets.RESTORE_TEST_DB_URL }}
+        run: |
+          set -euo pipefail
+          psql "$RESTORE_TEST_DB_URL" --no-psqlrc --set ON_ERROR_STOP=1 --tuples-only --no-align > "$RUNNER_TEMP/restore-metrics.txt" <<'SQL'
+          SELECT 'students_v2_count=' || count(*)::text FROM public.students_v2;
+          SELECT 'student_invoices_count=' || count(*)::text FROM public.student_invoices;
+          SELECT 'student_invoice_amount_total=' || COALESCE(sum(amount), 0)::numeric::text FROM public.student_invoices;
+          SELECT 'student_invoice_balance_total=' || COALESCE(sum(balance), 0)::numeric::text FROM public.student_invoices;
+          SELECT 'payments_count=' || count(*)::text FROM public.payments;
+          SELECT 'payments_amount_total=' || COALESCE(sum(amount), 0)::numeric::text FROM public.payments;
+          SELECT 'finance_receipts_count=' || count(*)::text FROM public.finance_receipts;
+          SELECT 'finance_receipts_amount_total=' || COALESCE(sum(amount), 0)::numeric::text FROM public.finance_receipts;
+          SELECT 'positive_posted_payments_missing_receipts=' || count(*)::text
+            FROM public.payments p
+            LEFT JOIN public.finance_receipts r ON r.payment_id = p.id
+            WHERE p.amount > 0 AND p.status = 'POSTED' AND p.reversed_at IS NULL AND r.payment_id IS NULL;
+          SELECT 'invoice_school_mismatches=' || count(*)::text
+            FROM public.student_invoices i JOIN public.students_v2 s ON s.id = i.student_id
+            WHERE i.school_id <> s.school_id;
+          SELECT 'payment_school_or_invoice_mismatches=' || count(*)::text
+            FROM public.payments p
+            LEFT JOIN public.students_v2 s ON s.id = p.student_id
+            LEFT JOIN public.student_invoices i ON i.id = p.invoice_id
+            WHERE s.id IS NULL OR i.id IS NULL OR p.school_id <> s.school_id OR p.school_id <> i.school_id OR p.student_id <> i.student_id;
+          SELECT 'receipt_payment_mismatches=' || count(*)::text
+            FROM public.finance_receipts r JOIN public.payments p ON p.id = r.payment_id
+            WHERE r.amount <> p.amount OR r.student_id <> p.student_id OR r.school_id <> p.school_id;
+          SELECT 'unbalanced_posted_journals=' || count(*)::text
+            FROM (
+              SELECT j.id
+              FROM public.finance_journals j
+              JOIN public.finance_journal_entries e ON e.journal_id = j.id
+              WHERE lower(j.status) = 'posted'
+              GROUP BY j.id
+              HAVING COALESCE(sum(e.debit), 0) <> COALESCE(sum(e.credit), 0)
+            ) q;
+          SQL
+          cat "$RUNNER_TEMP/restore-metrics.txt"
+          for metric in positive_posted_payments_missing_receipts invoice_school_mismatches payment_school_or_invoice_mismatches receipt_payment_mismatches unbalanced_posted_journals; do
+            value="$(awk -F= -v key="$metric" '$1 == key {print $2}' "$RUNNER_TEMP/restore-metrics.txt")"
+            test "$value" = "0" || { echo "::error::$metric is $value after restore"; exit 1; }
+          done
+          {
+            echo "## Database restore test passed"
+            echo
+            echo "Restored the newest encrypted off-site backup to the separate disposable target."
+            echo
+            cat "$RUNNER_TEMP/restore-metrics.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove temporary restore files and key material
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/restore-test" "$RUNNER_TEMP/age-identity.txt"
