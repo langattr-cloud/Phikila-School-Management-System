@@ -75,6 +75,11 @@ jobs:
           test -s "$BACKUP_DIR/schema.sql"
           test -s "$BACKUP_DIR/data.sql"
 
+          # Record source counts/totals so restore tests can verify the restored copy.
+          psql "$SUPABASE_DB_URL" --no-psqlrc --tuples-only --no-align --field-separator='=' \
+            --set ON_ERROR_STOP=1 --file scripts/backup/manifest.sql > "$BACKUP_DIR/manifest.txt"
+          test -s "$BACKUP_DIR/manifest.txt"
+
       - name: Encrypt and checksum backup
         if: github.event_name != 'pull_request'
         env:
@@ -107,6 +112,35 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+
+      - name: Copy encrypted backup to independent S3-compatible object storage
+        if: github.event_name != 'pull_request' && vars.BACKUP_S3_BUCKET != ''
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_PREFIX: ${{ vars.BACKUP_S3_PREFIX }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_ENDPOINT_URL: ${{ vars.BACKUP_S3_ENDPOINT_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$AWS_ACCESS_KEY_ID" || { echo "::error::Missing BACKUP_S3_ACCESS_KEY_ID secret"; exit 1; }
+          test -n "$AWS_SECRET_ACCESS_KEY" || { echo "::error::Missing BACKUP_S3_SECRET_ACCESS_KEY secret"; exit 1; }
+          sudo apt-get update
+          sudo apt-get install --yes awscli
+          prefix="${BACKUP_S3_PREFIX:-phikila/database}"
+          prefix="${prefix#/}"
+          prefix="${prefix%/}"
+          endpoint_args=()
+          if [ -n "${BACKUP_S3_ENDPOINT_URL:-}" ]; then
+            endpoint_args+=(--endpoint-url "$BACKUP_S3_ENDPOINT_URL")
+          fi
+          region="${BACKUP_S3_REGION:-us-east-1}"
+          for file in "$RUNNER_TEMP"/phikila-*.tar.gz.age "$RUNNER_TEMP"/phikila-*.tar.gz.age.sha256; do
+            [ -f "$file" ] || continue
+            aws "${endpoint_args[@]}" --region "$region" s3 cp "$file" "s3://$BACKUP_S3_BUCKET/$prefix/$(basename "$file")" --only-show-errors
+          done
+          echo "Encrypted backup and checksum copied to independent object storage."
 
       - name: Remove temporary backup files
         if: always()
