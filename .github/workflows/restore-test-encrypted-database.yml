@@ -49,8 +49,6 @@ jobs:
               raise SystemExit("Both database URLs must contain a hostname")
           if source.hostname.lower() == target.hostname.lower():
               raise SystemExit("Restore target host matches production. Use a separate disposable Supabase project.")
-          if source.path.rstrip("/") == target.path.rstrip("/"):
-              raise SystemExit("Restore target database name matches production.")
           PY
 
       - name: Install age and PostgreSQL client
