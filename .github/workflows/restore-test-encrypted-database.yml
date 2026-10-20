@@ -1,8 +1,7 @@
 name: Weekly encrypted database restore test
 
 on:
-  schedule:
-    - cron: "17 5 * * 0"
+  # Manual only until a separate disposable test database and off-site backup are available.
   workflow_dispatch:
 
 permissions:
