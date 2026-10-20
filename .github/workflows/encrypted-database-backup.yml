@@ -105,7 +105,7 @@ jobs:
             ${{ runner.temp }}/phikila-*.tar.gz.age
             ${{ runner.temp }}/phikila-*.tar.gz.age.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
           compression-level: 0
 
       - name: Remove temporary backup files
