@@ -1,9 +1,7 @@
 name: Retain encrypted database backups off-site
 
 on:
-  schedule:
-    # Run after the daily database export workflow.
-    - cron: "17 4 * * *"
+  # Manual only until a genuinely free external storage bucket is configured.
   workflow_dispatch:
 
 permissions:
