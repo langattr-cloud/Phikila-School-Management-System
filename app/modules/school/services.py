@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.modules.school.repository import SchoolRepository
 from app.modules.school import schemas, models
-from app.modules.scheduling.tenancy import TtSchool
+from app.modules.platform.tenancy import TtSchool
 
 
 class SchoolService:
