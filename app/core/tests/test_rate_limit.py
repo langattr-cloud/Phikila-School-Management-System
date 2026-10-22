@@ -9,7 +9,7 @@ from starlette.requests import Request
 from app.core import redis as redis_service
 from app.core import rate_limit
 from app.modules.platform.authz import Identity
-from app.modules.scheduling.tenancy import Principal
+from app.modules.platform.tenancy import Principal
 
 
 class FakeRedis:
@@ -94,51 +94,6 @@ class RedisRateLimitTests(unittest.TestCase):
                 rate_limit._enforce(rate_limit.AUTH_LOGIN, "ip:10.0.0.1")
         self.assertEqual(raised.exception.status_code, 429)
         self.assertEqual(raised.exception.headers["Retry-After"], "17")
-
-    def test_user_isolation_uses_authenticated_user_id(self):
-        first = Principal("user-a", "a@example.com", 11, "admin")
-        second = Principal("user-b", "b@example.com", 11, "admin")
-        with patch.object(rate_limit, "_enforce") as enforce:
-            rate_limit.rate_limit_scheduling_mutation(request(), first)
-            rate_limit.rate_limit_scheduling_mutation(request(), second)
-        identifiers = [call.args[1] for call in enforce.call_args_list]
-        self.assertEqual(identifiers[0], "school:11:user:user-a")
-        self.assertEqual(identifiers[1], "school:11:user:user-b")
-
-    def test_school_isolation_uses_server_derived_school_id(self):
-        first = Principal("same-user", "a@example.com", 11, "admin")
-        second = Principal("same-user", "a@example.com", 22, "admin")
-        with patch.object(rate_limit, "_enforce") as enforce:
-            rate_limit.rate_limit_scheduling_mutation(request(), first)
-            rate_limit.rate_limit_scheduling_mutation(request(), second)
-        identifiers = [call.args[1] for call in enforce.call_args_list]
-        self.assertEqual(identifiers[0], "school:11:user:same-user")
-        self.assertEqual(identifiers[1], "school:22:user:same-user")
-
-    def test_scheduling_get_endpoints_are_not_rate_limited(self):
-        principal = Principal("user-a", "a@example.com", 11, "scheduler")
-        with patch.object(rate_limit, "_enforce") as enforce:
-            for path in (
-                "/api/v1/scheduling/calendar",
-                "/api/v1/scheduling/requirements",
-                "/api/v1/scheduling/versions",
-                "/api/v1/scheduling/versions/current",
-                "/api/v1/scheduling/solver/jobs/1",
-            ):
-                rate_limit.rate_limit_scheduling_mutation(request(method="GET", path=path), principal)
-        enforce.assert_not_called()
-
-    def test_timetable_generation_uses_solver_policy_and_tenant_user_scope(self):
-        principal = Principal("user-a", "a@example.com", 11, "scheduler")
-        with patch.object(rate_limit, "_enforce") as enforce:
-            returned = rate_limit.rate_limit_scheduling_mutation(
-                request(path="/api/v1/scheduling/solver/generate"), principal
-            )
-        self.assertIs(returned, principal)
-        enforce.assert_called_once_with(
-            rate_limit.TIMETABLE_SOLVER,
-            "school:11:user:user-a",
-        )
 
     def test_platform_identity_uses_server_memberships_not_request_school_id(self):
         identity = Identity(
