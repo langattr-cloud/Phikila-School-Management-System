@@ -155,7 +155,7 @@ export function AscFloatingTimetable({
                           style={{
                             left: `calc(${spanStart} * (100% / ${orderedPeriods.length}) + 2px)`,
                             width: `calc(${width} * (100% / ${orderedPeriods.length}) - 4px)`,
-                            backgroundColor: subjectTone(lesson.subject),
+                            backgroundColor: lesson.colour || subjectTone(lesson.subject),
                           }}
                           title={`${lesson.subject}${lesson.secondary ? ` · ${lesson.secondary}` : ''}`}
                         >
