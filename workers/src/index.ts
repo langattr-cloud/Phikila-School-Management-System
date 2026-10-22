@@ -9,7 +9,6 @@ import { studentsRoutes } from './routes/students'
 import { teachersRoutes } from './routes/teachers'
 import { examinationsRoutes } from './routes/examinations'
 import { financeRoutes } from './routes/finance'
-import { schedulingRoutes } from './routes/scheduling'
 import { admissionsRoutes } from './routes/admissions'
 import { healthRoutes } from './routes/health'
 import { inventoryRoutes } from './routes/inventory'
@@ -30,7 +29,6 @@ app.route('/api/v1/students', studentsRoutes)
 app.route('/api/v1/teachers', teachersRoutes)
 app.route('/api/v1/examinations', examinationsRoutes)
 app.route('/api/v1/finance', financeRoutes)
-app.route('/api/v1/scheduling', schedulingRoutes)
 app.route('/api/v1/admissions', admissionsRoutes)
 app.route('/api/v1/health', healthRoutes)
 app.route('/api/v1/inventory', inventoryRoutes)
