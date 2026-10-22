@@ -13,7 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal, require_role
 from app.modules.academics.models import AcademicYear, Level, SchoolClass, Term
 from . import models_v2 as m
 
@@ -245,7 +245,7 @@ async def import_students_excel(
                 status="active",
                 enrollment_date=item["admission_date"],
             ))
-            from app.modules.scheduling.models import TtAuditEntry
+            from app.modules.platform.models import TtAuditEntry
             db.add(TtAuditEntry(
                 school_id=principal.school_id,
                 actor=principal.email or principal.user_id,
