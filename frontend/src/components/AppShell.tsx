@@ -6,7 +6,7 @@ import { apiFetchBlob } from '../lib/api'
 import { useToast } from './Toast'
 import { PrintFooter } from './PrintFooter'
 import { Logo, LogoMark } from './Logo'
-import { DashboardIcon, GridIcon, InboxIcon, LayersIcon, LogOutIcon, MenuIcon, MoonIcon, SchoolIcon, SparkIcon, StackedLayersIcon, SunIcon, UserIcon } from './icons'
+import { CloseIcon, DashboardIcon, GridIcon, InboxIcon, LayersIcon, LogOutIcon, MenuIcon, MoonIcon, SchoolIcon, SparkIcon, StackedLayersIcon, SunIcon, UserIcon } from './icons'
 
 type NavItem = { to: string; label: string; icon?: ReactNode }
 type NavGroup = { label: string; items: NavItem[] }
