@@ -21,8 +21,8 @@ from app.modules.finance import schemas as s
 from app.modules.finance.payment_decoder import decode_payment_message
 from app.modules.finance.payment_matching import find_student_by_admission_number
 from app.modules.finance.payment_posting import post_fee_payment
-from app.modules.scheduling.models import TtAuditEntry
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.platform.models import TtAuditEntry
+from app.modules.platform.tenancy import Principal, require_role
 
 router = APIRouter()
 
