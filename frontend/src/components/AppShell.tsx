@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, normalisePath, useNavigate, useRouter } from '../lib/router'
 import { displayName, useAuth } from '../lib/auth'
 import { usePlatformSession } from '../lib/session'
@@ -92,37 +92,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    let timer: number | undefined
-    const poll = async () => {
-      try {
-        const active = await scheduling.activeJob()
-        if (cancelled) return
-        if (active) {
-          if (drawerJobRef.current !== active.id) drawerJobRef.current = active.id
-          setDrawerJob(active)
-          setCompletedJob(null)
-          const final = await scheduling.job(active.id)
-          if (cancelled) return
-          if (['completed', 'failed', 'cancelled'].includes(final.status)) {
-            setDrawerJob(null)
-            setCompletedJob(final)
-            if (final.status === 'completed') notify('Timetable ready. You can now open the generated timetable.', 'success')
-            else if (final.status === 'failed') notify(final.message || 'Timetable generation failed.', 'error')
-          }
-        }
-      } catch {}
-      finally {
-        if (!cancelled) timer = window.setTimeout(poll, 1200)
-      }
-    }
-    void poll()
-    return () => {
-      cancelled = true
-      if (timer) window.clearTimeout(timer)
-    }
-  }, [notify])
 
   useEffect(() => {
     if (!drawerOpen) return
