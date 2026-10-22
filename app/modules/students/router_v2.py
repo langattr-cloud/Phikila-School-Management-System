@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, and_
 from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal, require_role
 from . import models_v2 as m
 from . import schemas_v2 as s
 router=APIRouter()
@@ -15,7 +15,7 @@ def _get_student_or_404(db,school_id,student_id):
     if not student: raise HTTPException(status.HTTP_404_NOT_FOUND,"Student not found.")
     return student
 def _audit(db,principal,action,entity,entity_id,summary,before=None,after=None):
-    from app.modules.scheduling.models import TtAuditEntry
+    from app.modules.platform.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=principal.school_id,actor=principal.email or principal.user_id,action=action,entity=entity,entity_id=entity_id,summary=summary,before=before,after=after))
 def _validate_academic_context(db,school_id,academic_year_id,term_id,level_id,class_id,grade_id,stream_id):
     from app.modules.academics.models import AcademicYear,Level,SchoolClass,Term,Grade,Stream
