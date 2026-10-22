@@ -1,13 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, normalisePath, useNavigate, useRouter } from '../lib/router'
 import { displayName, useAuth } from '../lib/auth'
 import { usePlatformSession } from '../lib/session'
-import { apiFetchBlob } from '../lib/api'
 import { useToast } from './Toast'
 import { Logo, LogoMark } from './Logo'
-import { PrintFooter } from './PrintFooter'
-import { CalendarIcon, CheckIcon, CloseIcon, DashboardIcon, GridIcon, InboxIcon, LayersIcon, LogOutIcon, MenuIcon, MoonIcon, SchoolIcon, SparkIcon, StackedLayersIcon, SunIcon, UserIcon } from './icons'
-import { scheduling, type Job } from '../lib/scheduling'
+import { DashboardIcon, GridIcon, InboxIcon, LayersIcon, LogOutIcon, MenuIcon, MoonIcon, SchoolIcon, SparkIcon, StackedLayersIcon, SunIcon, UserIcon } from './icons'
 
 type NavItem = { to: string; label: string; icon?: ReactNode }
 type NavGroup = { label: string; items: NavItem[] }
@@ -27,20 +24,18 @@ const PLATFORM_NAV: NavGroup = {
 }
 
 const NAV: NavGroup[] = [
-  { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }, { to: '/timetable', label: 'Timetable', icon: <CalendarIcon /> }, { to: '/my-timetable', label: 'My timetable', icon: <UserIcon /> }] },
-  { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <CalendarIcon /> }, { to: '/setup/academic-setup', label: 'Level, Grade & Stream', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }, { to: '/setup/subjects', label: 'Subjects / learning areas', icon: <LayersIcon /> }] },
-  { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers', icon: <UserIcon /> }] },
-  { label: 'Operations', items: [{ to: '/setup/rooms', label: 'Rooms', icon: <GridIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
+  { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }] },
+  { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Level, Grade & Stream', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }] },
+  { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }] },
+  { label: 'Operations', items: [{ to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
   { label: 'Examination', items: [{ to: '/examinations', label: 'Examination', icon: <StackedLayersIcon /> }] },
-  { label: 'Scheduling', items: [{ to: '/scheduling/requirements', label: 'Teaching Allocations', icon: <LayersIcon /> }, { to: '/scheduling/constraints', label: 'Constraints', icon: <CheckIcon /> }, { to: '/scheduling/generate', label: 'Generate timetable', icon: <SparkIcon /> }, { to: '/scheduling/copilot', label: 'Copilot', icon: <SparkIcon /> }] },
-  { label: 'Tools & insights', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }, { to: '/analytics', label: 'Analytics', icon: <LayersIcon /> }, { to: '/versions', label: 'Versions', icon: <SchoolIcon /> }] },
+  { label: 'Tools & insights', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }] },
 ]
 
 const BOTTOM_NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: <DashboardIcon /> },
   { to: '/students', label: 'Students', icon: <UserIcon /> },
   { to: '/setup/academic-years', label: 'Academics', icon: <LayersIcon /> },
-  { to: '/my-timetable', label: 'Mine', icon: <UserIcon /> },
 ]
 
 function isActive(pathname: string, to: string) {
@@ -59,14 +54,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const moduleForPath = (to: string): string | null => {
     if (to.startsWith('/platform/')) return null
     if (to.startsWith('/students')) return 'students'
-    if (to.startsWith('/setup/teachers')) return 'staff'
     if (to.startsWith('/examinations')) return 'examinations'
     if (to.startsWith('/finance')) return 'finance'
-    if (to.startsWith('/scheduling/copilot')) return 'ai_tools'
-    if (to.startsWith('/timetable') || to.startsWith('/my-timetable') || to.startsWith('/scheduling') || to.startsWith('/versions') || to.startsWith('/analytics')) return 'timetable'
     if (to.startsWith('/ocr')) return 'ai_tools'
     if (['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(to)) return 'students'
-    if (to.startsWith('/setup/rooms')) return 'timetable'
     return null
   }
   const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
@@ -78,9 +69,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [signingOut, setSigningOut] = useState(false)
   const [offline, setOffline] = useState(typeof navigator !== 'undefined' ? navigator.onLine === false : false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => typeof window !== 'undefined' && window.localStorage.getItem('phikila.theme') === 'dark' ? 'dark' : 'light')
-  const [drawerJob, setDrawerJob] = useState<Job | null>(null)
-  const [completedJob, setCompletedJob] = useState<Job | null>(null)
-  const drawerJobRef = useRef<number | null>(null)
   const drawerRef = useRef<HTMLElement | null>(null)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
 
@@ -251,8 +239,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <span className="topbar__title"><LogoMark size={26} /><span>Phikila</span></span>
           {pathname === '/students' && <><button type="button" className="button button--secondary button--sm" onClick={exportStudents}>Export Students</button><Link className="button button--secondary button--sm" to="/students/import">Import Students</Link></>}
-          {drawerJob && <Link className="button button--secondary button--sm" to="/scheduling/generate" title={`${drawerJob.stage || 'Generating'} · ${drawerJob.progress}%`}>Generating… {drawerJob.progress}%</Link>}
-          {completedJob?.status === 'completed' && <Link className="button button--primary button--sm" to="/timetable" aria-label="Timetable ready, open timetable">Timetable ready →</Link>}
           {offline && <span className="topbar__offline" role="status">Offline</span>}
           <button type="button" className="icon-button topbar__theme" onClick={() => setTheme(x => x === 'light' ? 'dark' : 'light')} aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
             {theme === 'light' ? <MoonIcon width={18} height={18} /> : <SunIcon width={18} height={18} />}
