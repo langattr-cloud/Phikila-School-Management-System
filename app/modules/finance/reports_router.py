@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal, require_role
 from . import models as m
 from . import operations_models as o
 
