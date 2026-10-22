@@ -473,7 +473,7 @@ def overview(
     """Real counts only — every figure is a database aggregate."""
     schools = db.query(TtSchool).count()
     memberships = db.query(func.count(func.distinct(TtMembership.user_id))).scalar() or 0
-    teachers = db.query(Teacher).count()
+    teachers = db.query(TtMembership).filter(TtMembership.is_active.is_(True), TtMembership.role == 'teacher').count()
     classes = db.query(SchoolClass).count()
     pending = (
         db.query(TtAccessRequest)
@@ -525,7 +525,7 @@ def _school_summary(db: Session, school: TtSchool) -> dict[str, Any]:
         "academic_year": school.academic_year,
         "status": getattr(school, "status", None) or "active",
         "users": users,
-        "teachers": db.query(Teacher).count(),
+        "teachers": db.query(TtMembership).filter(TtMembership.school_id == school.id, TtMembership.is_active.is_(True), TtMembership.role == "teacher").count(),
         "classes": db.query(SchoolClass).filter(SchoolClass.school_id == school.id).count(),
         "created_at": school.created_at,
     }
