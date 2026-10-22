@@ -1,4 +1,4 @@
-"""Document OCR API — scan exam papers, student documents, timetables, and general files.
+"""Document OCR API — scan exam papers, student documents, and general files.
 
 Uploaded images are processed through a pluggable OCR backend (PaddleOCR or
 Tesseract), then domain-specific parsers extract structured data.
@@ -27,7 +27,7 @@ from . import schemas as s
 from .backends import get_backend, OCRResult
 from .parsers import (
     auto_parse, parse_exam_sheet, parse_student_document,
-    parse_timetable, parse_general, generate_pdf_bytes,
+    parse_general, generate_pdf_bytes,
 )
 
 router = APIRouter()
@@ -43,7 +43,6 @@ ALLOWED_TYPES = {
 PARSER_MAP = {
     "exam_sheet": parse_exam_sheet,
     "student_document": parse_student_document,
-    "timetable": parse_timetable,
     "general": parse_general,
 }
 
