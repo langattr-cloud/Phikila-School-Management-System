@@ -211,75 +211,6 @@ def parse_student_document(lines: list[str]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Timetable parser
-# ---------------------------------------------------------------------------
-
-def parse_timetable(lines: list[str]) -> dict[str, Any]:
-    """Extract timetable entries from a scanned schedule.
-
-    Looks for patterns like:
-      - "Monday  8:00-9:00  Mathematics  Mr. Smith  Room 101"
-      - Grid layouts with days as columns
-    """
-    DAYS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
-    time_re = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})")
-
-    entries: list[dict[str, Any]] = []
-    current_day: str | None = None
-
-    for line in lines:
-        lower = line.lower().strip()
-        if not line.strip():
-            continue
-
-        # Check if this line starts with a day name
-        for day in DAYS:
-            if lower.startswith(day):
-                current_day = day.capitalize()
-                # The rest of the line might have an entry
-                remainder = re.sub(rf"^{day}\s*[:\-.]*\s*", "", line.strip(), flags=re.I)
-                if remainder:
-                    # Try to parse time + subject from remainder
-                    tm = time_re.search(remainder)
-                    if tm:
-                        before = remainder[:tm.start()].strip()
-                        after = remainder[tm.end():].strip()
-                        parts = [p.strip() for p in re.split(r"[|\t]+", after) if p.strip()] or [after]
-                        entries.append({
-                            "day": current_day,
-                            "start_time": tm.group(1).replace(".", ":"),
-                            "end_time": tm.group(2).replace(".", ":"),
-                            "subject": before or None,
-                            "teacher": parts[0] if len(parts) > 0 else None,
-                            "room": parts[1] if len(parts) > 1 else None,
-                        })
-                break
-
-        # If no day header, check for time entries
-        if current_day:
-            tm = time_re.search(line)
-            if tm:
-                before = line[:tm.start()].strip()
-                after = line[tm.end():].strip()
-                parts = [p.strip() for p in re.split(r"[|\t]+", after) if p.strip()] or [after]
-                entries.append({
-                    "day": current_day,
-                    "start_time": tm.group(1).replace(".", ":"),
-                    "end_time": tm.group(2).replace(".", ":"),
-                    "subject": before or None,
-                    "teacher": parts[0] if len(parts) > 0 else None,
-                    "room": parts[1] if len(parts) > 1 else None,
-                })
-
-    return {
-        "type": "timetable",
-        "entries": entries,
-        "days_detected": list({e["day"] for e in entries}),
-        "total_periods": len(entries),
-    }
-
-
-# ---------------------------------------------------------------------------
 # General document parser
 # ---------------------------------------------------------------------------
 
@@ -374,27 +305,6 @@ def generate_pdf_bytes(scan_data: dict[str, Any], filename: str = "scan") -> byt
             ]))
             elements.append(t)
 
-    elif doc_type == "timetable":
-        entries = scan_data.get("entries", [])
-        if entries:
-            header = ["Day", "Time", "Subject", "Teacher", "Room"]
-            table_data = [header]
-            for e in entries:
-                table_data.append([
-                    e.get("day", ""),
-                    f"{e.get('start_time', '')}–{e.get('end_time', '')}",
-                    e.get("subject", "—"),
-                    e.get("teacher", "—"),
-                    e.get("room", "—"),
-                ])
-            t = Table(table_data)
-            t.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F2A47")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ]))
-            elements.append(t)
     else:
         fields = scan_data.get("fields", scan_data.get("key_value_pairs", {}))
         for k, v in fields.items():
@@ -413,12 +323,6 @@ def auto_parse(lines: list[str]) -> dict[str, Any]:
                      "assessment", "total", "average", "position", "rank"]
     if sum(1 for kw in exam_keywords if kw in text_lower) >= 3:
         return parse_exam_sheet(lines)
-
-    # Check for timetable keywords
-    timetable_keywords = ["monday", "tuesday", "wednesday", "thursday", "friday",
-                          "timetable", "schedule", "period", "lesson"]
-    if sum(1 for kw in timetable_keywords if kw in text_lower) >= 2:
-        return parse_timetable(lines)
 
     # Check for student document keywords
     student_keywords = ["student", "admission", "certificate", "transcript",
