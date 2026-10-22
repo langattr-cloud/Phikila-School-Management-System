@@ -5,6 +5,7 @@ Run with: python -m unittest discover -s tests -p 'test_*.py'
 import unittest
 
 from app.modules.scheduling.solver import (
+    AvoidRule,
     ClassSpec,
     RequirementSpec,
     SolverInput,
@@ -13,7 +14,7 @@ from app.modules.scheduling.solver import (
 )
 
 
-def solver_input(*, class_unavailable=None, teacher_unavailable=None, lessons=2):
+def solver_input(*, class_unavailable=None, teacher_unavailable=None, avoid_rules=None, lessons=2):
     return SolverInput(
         days=[0],
         periods=[0, 1],
@@ -37,6 +38,7 @@ def solver_input(*, class_unavailable=None, teacher_unavailable=None, lessons=2)
             )
         },
         subjects={30: type("Subject", (), {"id": 30, "name": "Mathematics"})()},
+        avoid_rules=list(avoid_rules or ()),
         requirements=[
             RequirementSpec(
                 id=40,
@@ -57,6 +59,12 @@ class TimetablePreflightAvailabilityTests(unittest.TestCase):
 
     def test_teacher_unavailability_outside_selected_scope_does_not_reduce_capacity(self):
         data = solver_input(teacher_unavailable={(4, 8)})
+        self.assertEqual(preflight(data), [])
+
+    def test_subject_time_off_outside_selected_scope_does_not_reduce_capacity(self):
+        data = solver_input(avoid_rules=[
+            AvoidRule(scope="subject", target_id=30, slots={(4, 8)}, is_hard=True)
+        ])
         self.assertEqual(preflight(data), [])
 
     def test_class_unavailability_inside_scope_reduces_capacity(self):
