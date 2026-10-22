@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.modules.school import schemas, services
-from app.modules.scheduling.tenancy import TtSchool
+from app.modules.platform.tenancy import TtSchool
 
 
 class RegistryQuery:
