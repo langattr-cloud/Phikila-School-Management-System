@@ -25,7 +25,6 @@ const StudentImportPage = lazy(() => import('./pages/StudentImportPage').then(m 
 const ExaminationDashboardPage = lazy(() => import('./pages/ExaminationDashboardPage').then(m => ({ default: m.default })))
 const ExaminationsPage = lazy(() => import('./pages/Examinations').then(m => ({ default: m.default })))
 const ExaminationSetupPage = lazy(() => import('./pages/ExaminationSetupPage').then(m => ({ default: m.default })))
-const ExaminationLevelsPage = lazy(() => import('./pages/ExaminationLevelsPage').then(m => ({ default: m.ExaminationLevelsPage })))
 const MarkAccessPage = lazy(() => import('./pages/MarkAccessPage').then(m => ({ default: m.default })))
 const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ default: m.default })))
 const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.default })))
@@ -99,7 +98,6 @@ function routeFor(pathname: string): ReactNode {
     case '/examinations': return <ExaminationDashboardPage />
     case '/examinations/setup': return <ExaminationSetupPage />
     case '/examinations/legacy-setup': return <ExaminationsPage />
-    case '/examinations/levels': return <ExaminationLevelsPage />
     case '/examinations/marks-access': return <MarkAccessPage />
     case '/examinations/report-card': return <ReportCardPage />
     case '/examinations/class-results': return <ClassResultsPage />
