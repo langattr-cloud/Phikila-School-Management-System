@@ -51,7 +51,6 @@ def upgrade() -> None:
         "tt_classes",
         "tt_periods",
         "tt_days",
-        "tt_audit",
     ):
         op.execute(f'DROP TABLE IF EXISTS "{table}" CASCADE')
 
