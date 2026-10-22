@@ -11,7 +11,6 @@ import { SignUpPage } from './pages/SignUpPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
-const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.SetupPage })))
 const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
 const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
@@ -33,7 +32,6 @@ const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m =>
 const FinancePage = lazy(() => import('./pages/Finance').then(m => ({ default: m.default })))
 const FinancePaymentInboxPage = lazy(() => import('./pages/FinancePaymentInbox').then(m => ({ default: m.default })))
 const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.OcrScanPage })))
-const VersionsPage = lazy(() => import('./pages/VersionsPage').then(m => ({ default: m.VersionsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const LlmProvidersPage = lazy(() => import('./pages/LlmProvidersPage').then(m => ({ default: m.LlmProvidersPage })))
 const PlatformDashboardPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformDashboardPage })))
@@ -87,7 +85,6 @@ function AccessGate({ children }: { children: ReactNode }) {
 function routeFor(pathname: string): ReactNode {
   switch (pathname) {
     case '/': return <StudentsOverviewPage />
-    case '/setup/rooms': return <SetupPage kind="rooms" />
     case '/setup/school': return <SchoolPage />
     case '/setup/academic-years': return <AcademicsPage />
     case '/setup/academic-year-transition': return <AcademicYearTransitionPage />
