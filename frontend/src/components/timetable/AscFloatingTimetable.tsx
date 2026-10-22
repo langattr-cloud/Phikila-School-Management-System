@@ -124,7 +124,7 @@ export function AscFloatingTimetable({
                   {orderedPeriods.map(period => (
                     <div
                       key={period.id}
-                      className={`asc-floating-timetable__cell ${period.is_teaching ? '' : 'asc-floating-timetable__cell--break'}`}
+                      className={`asc-floating-timetable__cell ${period.is_teaching ? 'asc-floating-timetable__cell--lesson' : 'asc-floating-timetable__cell--break'}`}
                     >
                       {!period.is_teaching && (
                         <span>{period.short_form || period.name || 'BREAK'}</span>
@@ -153,8 +153,8 @@ export function AscFloatingTimetable({
                           key={lesson.id}
                           className={`asc-floating-lesson ${duration > 1 ? 'asc-floating-lesson--multi' : ''} ${invalidSpan ? 'asc-floating-lesson--invalid' : ''}`}
                           style={{
-                            left: `calc(${spanStart} * (100% / ${orderedPeriods.length}) + 2px)`,
-                            width: `calc(${width} * (100% / ${orderedPeriods.length}) - 4px)`,
+                            left: `${(spanStart / orderedPeriods.length) * 100}%`,
+                            width: `${(width / orderedPeriods.length) * 100}%`,
                             backgroundColor: lesson.colour || subjectTone(lesson.subject),
                           }}
                           title={`${lesson.subject}${lesson.secondary ? ` · ${lesson.secondary}` : ''}`}
