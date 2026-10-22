@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
-from app.core.rate_limit import rate_limit_ocr, rate_limit_platform_mutation, rate_limit_scheduling_mutation
+from app.core.rate_limit import rate_limit_ocr, rate_limit_platform_mutation
 from app.modules.academics.router import router as academics_router
 from app.modules.authentication.router import router as auth_router
 from app.modules.authentication.supabase import get_supabase_claims
@@ -27,14 +27,6 @@ from app.modules.platform.router import router as platform_router
 from app.modules.platform.modules_router import router as school_modules_router
 from app.modules.platform.module_access import require_school_module
 from app.modules.platform.access_approval import router as access_approval_router
-from app.modules.scheduling.calendar_router import router as calendar_router
-from app.modules.scheduling.events_router import router as timetable_events_router
-from app.modules.scheduling.profile_router import router as timetable_profile_router
-from app.modules.scheduling.timetable_types_router import router as timetable_types_router
-from app.modules.scheduling.dashboard_router import router as scheduling_dashboard_router
-from app.modules.scheduling.project_router import router as timetable_projects_router
-from app.modules.scheduling.router import router as scheduling_router
-from app.modules.scheduling.timetable_read_router import router as timetable_read_router
 from app.modules.school.router import router as school_router
 from app.modules.students.import_router import router as students_import_router
 from app.modules.students.router_v2 import router as students_router
@@ -84,8 +76,7 @@ def create_app() -> FastAPI:
         Base.metadata.create_all(bind=engine, tables=[Supplier.__table__, SupplierInvoice.__table__, SupplierPayment.__table__])
     @app.get("/health", tags=["Health"])
     def health_check():
-        from app.modules.scheduling.solver import ORTOOLS_AVAILABLE
-        return {"status": "ok", "environment": settings.environment, "solver_available": ORTOOLS_AVAILABLE}
+        return {"status": "ok", "environment": settings.environment}
     @app.get("/ready", tags=["Health"])
     def readiness_check():
         try:
@@ -105,26 +96,11 @@ def create_app() -> FastAPI:
         finance_reports_router, finance_completion_router,
     ):
         _guard_module_routes(finance_module_router, "finance")
-    for scheduling_module_router in (
-        calendar_router, timetable_projects_router,
-        timetable_profile_router, timetable_types_router, scheduling_router,
-        timetable_read_router, timetable_events_router,
-    ):
-        _guard_module_routes(scheduling_module_router, "timetable", teacher_paths=True)
     _guard_module_routes(ocr_router, "ai_tools")
     _guard_module_routes(academics_router, "students")
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
     app.include_router(users_router, prefix="/api/v1/users", tags=["Users"], dependencies=protected)
     app.include_router(school_router, prefix="/api/v1/school", tags=["School Profile"], dependencies=protected)
-    scheduling_router.routes[:] = [route for route in scheduling_router.routes if not (getattr(route, "path", None) == "/calendar" and "PUT" in getattr(route, "methods", set()))]
-    app.include_router(calendar_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
-    app.include_router(scheduling_dashboard_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=protected)
-    app.include_router(timetable_projects_router, prefix="/api/v1/scheduling", tags=["Timetable Projects"], dependencies=protected)
-    app.include_router(timetable_profile_router, prefix="/api/v1/scheduling", tags=["Timetable Profiles"], dependencies=[Depends(rate_limit_scheduling_mutation)])
-    app.include_router(timetable_types_router, prefix="/api/v1/scheduling", tags=["Timetable Types"], dependencies=[Depends(rate_limit_scheduling_mutation)])
-    app.include_router(scheduling_router, prefix="/api/v1/scheduling", tags=["Scheduling"], dependencies=[Depends(rate_limit_scheduling_mutation)])
-    app.include_router(timetable_read_router, prefix="/api/v1/scheduling", tags=["Scheduling Read"], dependencies=protected)
-    app.include_router(timetable_events_router, prefix="/api/v1/scheduling", tags=["Scheduling Events"], dependencies=[Depends(rate_limit_scheduling_mutation)])
     app.include_router(students_import_router, prefix="/api/v1", tags=["Students"])
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
     app.include_router(exams_router, prefix="/api/v1", tags=["Examinations"])
