@@ -11,10 +11,6 @@ import { SignUpPage } from './pages/SignUpPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
-const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
-const PeriodsPage = lazy(() => import('./pages/PeriodsPage').then(m => ({ default: m.PeriodsPage })))
-const TeachersPage = lazy(() => import('./pages/Teachers').then(m => ({ default: m.default })))
-const SubjectsPage = lazy(() => import('./pages/Subjects').then(m => ({ default: m.default })))
 const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.SetupPage })))
 const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
 const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
@@ -90,10 +86,7 @@ function AccessGate({ children }: { children: ReactNode }) {
 
 function routeFor(pathname: string): ReactNode {
   switch (pathname) {
-    case '/': return <DashboardPage />
-    case '/setup/periods': return <PeriodsPage />
-    case '/setup/teachers': return <TeachersPage />
-    case '/setup/subjects': return <SubjectsPage />
+    case '/': return <StudentsOverviewPage />
     case '/setup/rooms': return <SetupPage kind="rooms" />
     case '/setup/school': return <SchoolPage />
     case '/setup/academic-years': return <AcademicsPage />
@@ -116,7 +109,6 @@ function routeFor(pathname: string): ReactNode {
     case '/finance': return <FinancePage />
     case '/finance/payment-inbox': return <FinancePaymentInboxPage />
     case '/ocr': return <OcrScanPage />
-    case '/versions': return <VersionsPage />
     case '/profile': return <ProfilePage />
     case '/settings/ai-providers': return <LlmProvidersPage />
     case '/platform': return <PlatformDashboardPage />
