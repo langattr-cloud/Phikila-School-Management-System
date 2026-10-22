@@ -44,7 +44,7 @@ class SolverOutput:
     def solved(self)->bool:return self.status in {"optimal","feasible"}
 class InfeasibleError(RuntimeError): pass
 def preflight(data:SolverInput)->list[str]:
-    problems=[];capacity=len(data.days)*len(data.teaching_periods)
+    problems=[];slots={(day,period) for day in data.days for period in data.teaching_periods};capacity=len(slots)
     if capacity==0:problems.append("The timetable has no teaching periods. Add periods first.");return problems
     if not data.requirements:
         problems.append("No lesson requirements are configured. Add at least one class, subject and weekly lesson requirement before generating a timetable.")
@@ -55,7 +55,7 @@ def preflight(data:SolverInput)->list[str]:
     pc={}
     for r in data.requirements:pc[r.class_id]=pc.get(r.class_id,0)+r.periods_per_week
     for cid,total in pc.items():
-        s=data.classes.get(cid);blocked=(set(s.unavailable) if s else set())|hc.get(cid,set());free=capacity-len(blocked)
+        s=data.classes.get(cid);blocked=(set(s.unavailable) if s else set())|hc.get(cid,set());free=len(slots-blocked)
         if total>free:problems.append(f"{s.name if s else f'Class {cid}'} needs {total} lessons a week but only has {free} available slots.")
     pt={}
     for r in data.requirements:
@@ -63,7 +63,9 @@ def preflight(data:SolverInput)->list[str]:
     for tid,total in pt.items():
         s=data.teachers.get(tid)
         if s:
-            limit=min(capacity-len(set(s.unavailable)|ht.get(tid,set())),s.max_per_day*len(data.days))
+            blocked=set(s.unavailable)|ht.get(tid,set())
+            available=len(slots-blocked)
+            limit=min(available,s.max_per_day*len(data.days))
             if total>limit:problems.append(f"{s.name} is assigned {total} lessons a week but can only teach {limit} given availability and daily limits.")
     for r in data.requirements:
         doubles=max(0,r.double_periods)
