@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.authentication.supabase import get_supabase_claims
-from app.modules.scheduling.tenancy import ROLE_ORDER, TtMembership
+from app.modules.platform.tenancy import ROLE_ORDER, TtMembership
 
 from .models import TtPlatformAdmin, TtPlatformAudit
 
