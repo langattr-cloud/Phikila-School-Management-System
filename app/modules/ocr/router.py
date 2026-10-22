@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role, resolve_principal
+from app.modules.platform.tenancy import Principal, require_role, resolve_principal
 
 from . import models as m
 from . import schemas as s
@@ -233,11 +233,11 @@ def list_backends(
 
 
 # ---------------------------------------------------------------------------
-# Helper: reuse scheduling tenancy
+# Helper: reuse platform tenancy
 # ---------------------------------------------------------------------------
 
 # Import at module level to avoid circular imports
-from app.modules.scheduling.tenancy import resolve_principal as _resolve_principal  # noqa: E402
+from app.modules.platform.tenancy import resolve_principal as _resolve_principal  # noqa: E402
 
 
 def resolve_principal_from_scan(
