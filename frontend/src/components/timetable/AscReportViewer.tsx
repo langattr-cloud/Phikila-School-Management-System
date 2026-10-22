@@ -27,6 +27,7 @@ export type AscReportLesson = {
   teacher_id?: number | null
   room_id?: number | null
   subject_id?: number | null
+  colour?: string | null
 }
 
 export type AscReportDefinition = {
@@ -62,6 +63,7 @@ export function AscReportViewer({
   reportDefinitions, onScopeChange, onPrevious, onNext, onSelectIndex, onPrint, onVersionChange, reportVersions = [], activeVersionId, onClose,
 }: Props) {
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null)
+  const [maximized, setMaximized] = useState(false)
   useEffect(() => { void api.school().then(setSchoolProfile).catch(() => setSchoolProfile(null)) }, [])
   const [filterOpen, setFilterOpen] = useState(false)
   const [entitySearch, setEntitySearch] = useState('')
@@ -291,7 +293,7 @@ export function AscReportViewer({
       role="dialog"
       aria-modal="true"
       aria-label="aSc-style print preview"
-      style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', flexDirection: 'column', background: '#aeb4bf', overflow: 'hidden' }}
+      style={{ position: 'fixed', inset: maximized ? 0 : '3vh 3vw', zIndex: 3000, display: 'flex', flexDirection: 'column', background: '#aeb4bf', overflow: 'hidden', border: maximized ? 0 : '1px solid #737985', borderRadius: maximized ? 0 : 8, boxShadow: maximized ? 'none' : '0 18px 60px rgba(0,0,0,.35)', transition: 'inset 140ms ease' }}
     >
       <style>{`
         @media print {
@@ -393,7 +395,8 @@ export function AscReportViewer({
           <button type="button" onClick={() => setBellTimes(value => !value)} style={buttonStyle}>{bellTimes ? 'Bell times' : 'No times'}</button>
           <button type="button" onClick={() => setSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={settingsOpen}>Settings</button>
           <button type="button" onClick={() => setPrintSettingsOpen(value => !value)} style={buttonStyle} aria-expanded={printSettingsOpen}>Print settings</button>
-          <button type="button" onClick={onPrint} style={buttonStyle}>Print</button>
+          <button type="button" onClick={onPrint} style={buttonStyle}>Print / PDF</button>
+          <button type="button" onClick={() => setMaximized(value => !value)} title={maximized ? "Restore floating window" : "Maximize preview"} aria-label={maximized ? "Restore floating window" : "Maximize preview"} style={buttonStyle}>{maximized ? "Restore" : "Maximize"}</button>
           <button type="button" onClick={onClose} title="Close preview" aria-label="Close preview" style={{ ...buttonStyle, fontSize: 17, lineHeight: 1 }}>×</button>
         </div>
       </header>
