@@ -27,8 +27,6 @@ class RateLimitPolicy:
 
 
 AUTH_LOGIN = RateLimitPolicy("auth-login", 10, 60)
-TIMETABLE_SOLVER = RateLimitPolicy("timetable-solver", 5, 60)
-SCHEDULING_MUTATION = RateLimitPolicy("scheduling-mutation", 60, 60)
 PLATFORM_MUTATION = RateLimitPolicy("platform-mutation", 30, 60)
 OCR_PROCESSING = RateLimitPolicy("ocr-processing", 20, 60)
 API_MUTATION = RateLimitPolicy("api-mutation", 120, 60)
@@ -113,24 +111,6 @@ def rate_limit_auth(
     """Limit credential attempts by server-observed IP plus login identifier."""
     username = form_data.username.strip().lower()
     _enforce(AUTH_LOGIN, f"ip:{_client_ip(request)}:login:{username}")
-
-
-def rate_limit_scheduling_mutation(
-    request: Request,
-    principal: Principal = Depends(resolve_principal),
-) -> Principal:
-    """Limit scheduling writes by the server-derived tenant and user."""
-    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
-        policy = (
-            TIMETABLE_SOLVER
-            if request.url.path.endswith("/solver/generate")
-            else SCHEDULING_MUTATION
-        )
-        _enforce(
-            policy,
-            f"school:{principal.school_id}:user:{principal.user_id}",
-        )
-    return principal
 
 
 def rate_limit_platform_mutation(
