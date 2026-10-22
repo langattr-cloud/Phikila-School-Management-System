@@ -14,7 +14,7 @@ from upstash_ratelimit import FixedWindow, Ratelimit
 
 from app.core.redis import RedisConfigurationError, get_redis
 from app.modules.platform.authz import Identity, resolve_identity
-from app.modules.scheduling.tenancy import Principal, resolve_principal
+from app.modules.platform.tenancy import Principal, resolve_principal
 
 logger = logging.getLogger(__name__)
 
