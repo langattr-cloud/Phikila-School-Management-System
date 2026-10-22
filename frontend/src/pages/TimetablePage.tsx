@@ -111,6 +111,8 @@ export function TimetablePage() {
     day_index:lesson.day_index,
     period_index:lesson.period_index,
     subject:meta.subjects.get(lesson.subject_id)?.name??'Lesson',
+    duration:lesson.duration,
+    colour:meta.subjects.get(lesson.subject_id)?.colour??null,
     secondary:activeReportFilter.scope==='class'
       ? (lesson.teacher_id ? meta.teachers.get(lesson.teacher_id)?.name ?? '' : '')
       : activeReportFilter.scope==='teacher'
