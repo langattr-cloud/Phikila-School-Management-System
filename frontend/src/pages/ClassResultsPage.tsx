@@ -4,7 +4,7 @@ import { Alert } from '../components/Alert'
 import { Badge, EmptyState, LoadingBlock } from '../components/States'
 import { api, type AcademicYear, type Level, type SchoolClassSetup, type StudentListItem } from '../lib/api'
 import { examinations, type ExamEntry, type ExamSubject, type Examination } from '../lib/examinations'
-import { scheduling, type Subject } from '../lib/scheduling'
+type Subject = { id: number; name: string }
 import { friendlyApiError, apiFetch } from '../lib/api'
 
 type Row={student:StudentListItem;score:number;percentage:number;grade:string|null;rank:number}
@@ -13,7 +13,7 @@ const genderOf=(s:StudentListItem)=>(s.gender||'').trim().toUpperCase()
 
 export default function ClassResultsPage(){
  const [exams,setExams]=useState<Examination[]>([]);const [years,setYears]=useState<AcademicYear[]>([]);const [levels,setLevels]=useState<Level[]>([]);const [classes,setClasses]=useState<SchoolClassSetup[]>([]);const [subjects,setSubjects]=useState<Subject[]>([]);const [students,setStudents]=useState<StudentListItem[]>([]);const [assignments,setAssignments]=useState<ExamSubject[]>([]);const [entries,setEntries]=useState<ExamEntry[]>([]);const [examId,setExamId]=useState('');const [yearId,setYearId]=useState('');const [levelId,setLevelId]=useState('');const [classId,setClassId]=useState('');const [subjectId,setSubjectId]=useState('');const [gender,setGender]=useState('ALL');const [loading,setLoading]=useState(true);const [busy,setBusy]=useState(false);const [error,setError]=useState<string|null>(null)
- useEffect(()=>{void Promise.all([examinations.list(),api.academicYears(),api.levels(),api.schoolClasses(),scheduling.subjects()]).then(([e,y,l,c,s])=>{setExams(e);setYears(y);setLevels(l);setClasses(c);setSubjects(s);const cy=y.find(x=>x.is_current)??y[0];if(cy)setYearId(String(cy.id));if(e[0])setExamId(String(e[0].id))}).catch(err=>setError(friendlyApiError(err,'load grade results'))).finally(()=>setLoading(false))},[])
+ useEffect(()=>{void Promise.all([examinations.list(),api.academicYears(),api.levels(),api.schoolClasses(),Promise.resolve([] as Subject[])]).then(([e,y,l,c,s])=>{setExams(e);setYears(y);setLevels(l);setClasses(c);setSubjects(s);const cy=y.find(x=>x.is_current)??y[0];if(cy)setYearId(String(cy.id));if(e[0])setExamId(String(e[0].id))}).catch(err=>setError(friendlyApiError(err,'load grade results'))).finally(()=>setLoading(false))},[])
  const visibleClasses=useMemo(()=>classes.filter(c=>(!yearId||c.academic_year_id===Number(yearId))&&(!levelId||c.level_id===Number(levelId))),[classes,yearId,levelId]);const classAssignments=useMemo(()=>assignments.filter(a=>(!yearId||a.academic_year_id===Number(yearId))&&(!levelId||a.level_id===Number(levelId))&&(!classId||a.school_class_id===Number(classId))),[assignments,yearId,levelId,classId])
  useEffect(()=>{if(!examId)return;void examinations.listSubjects(Number(examId)).then(setAssignments).catch(err=>setError(friendlyApiError(err,'load exam subjects')))},[examId])
  useEffect(()=>{if(!classId||!yearId){setStudents([]);return}void apiFetch<{items:StudentListItem[]}>(`/api/v1/students?academic_year_id=${yearId}&class_id=${classId}&page=1&page_size=100`).then(x=>setStudents(x.items??[])).catch(err=>setError(friendlyApiError(err,'load grade learners')))},[classId,yearId])
