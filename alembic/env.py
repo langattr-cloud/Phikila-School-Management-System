@@ -19,6 +19,7 @@ import app.modules.platform.tenancy
 import app.modules.platform.models
 import app.modules.platform.entitlements
 import app.modules.outlook.router
+import app.modules.timetabling.models
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
