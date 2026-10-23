@@ -66,7 +66,7 @@ def _validate_class_context(db: Session, school_id: int, class_id: int, academic
 
 
 def _values(payload):
-    return payload.model_dump(mode="json", exclude_unset=True)
+    return payload.model_dump(exclude_unset=True, exclude_none=True)
 
 
 @router.get("/contract")
