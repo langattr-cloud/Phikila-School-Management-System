@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.platform.tenancy import Principal, require_role
+from app.modules.platform.module_access import require_school_module
 from app.modules.academics.models import AcademicYear, SchoolClass
 from app.modules.timetabling.models import (
     TimetableProject, TimetablePeriod, TimetableLessonRequirement, TimetableConstraint,
@@ -20,7 +21,7 @@ from app.modules.timetabling.schemas import (
     ConstraintCreate, ConstraintUpdate, ConstraintRead,
 )
 
-router = APIRouter(prefix="/api/timetabling", tags=["timetabling"])
+router = APIRouter(prefix="/api/timetabling", tags=["timetabling"], dependencies=[Depends(require_school_module("timetabling"))])
 READ_ROLES = ("viewer", "teacher", "scheduler", "admin", "super_admin")
 WRITE_ROLES = ("scheduler", "admin", "super_admin")
 
