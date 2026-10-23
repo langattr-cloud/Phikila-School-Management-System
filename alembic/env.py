@@ -11,6 +11,8 @@ import app.modules.academics.models
 import app.modules.class_register.models
 import app.modules.users.models
 import app.modules.ocr.models
+import app.modules.teachers.models
+import app.modules.subjects.models
 import app.modules.students.models_v2
 import app.modules.examinations.models_v2
 import app.modules.finance.models
@@ -19,6 +21,7 @@ import app.modules.platform.tenancy
 import app.modules.platform.models
 import app.modules.platform.entitlements
 import app.modules.outlook.router
+import app.modules.timetabling.models
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))

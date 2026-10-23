@@ -9,7 +9,7 @@ class EntitlementTests(unittest.TestCase):
     def test_catalog_has_expected_school_modules(self):
         self.assertEqual(set(MODULES), {
             "students", "staff", "attendance", "examinations", "finance",
-            "library", "transport", "parent_portal", "ai_tools",
+            "library", "transport", "parent_portal", "ai_tools", "timetabling",
         })
 
     def test_requested_starter_set_includes_dashboard_modules_only(self):
@@ -22,8 +22,14 @@ class EntitlementTests(unittest.TestCase):
         self.assertTrue(module_enabled(_DB(SimpleNamespace(enabled=True)), 7, "students"))
         self.assertFalse(module_enabled(_DB(SimpleNamespace(enabled=False)), 7, "students"))
 
+    def test_timetabling_is_opt_in_and_persisted_flag_is_authoritative(self):
+        self.assertTrue(module_enabled(_DB(SimpleNamespace(enabled=True)), 7, "timetabling"))
+        self.assertFalse(module_enabled(_DB(SimpleNamespace(enabled=False)), 7, "timetabling"))
+        self.assertFalse(module_enabled(_DB(), 7, "timetabling"))
+
     def test_unconfigured_school_uses_requested_starter_defaults(self):
         self.assertTrue(module_enabled(_DB(), 7, "students"))
+        self.assertFalse(module_enabled(_DB(), 7, "timetabling"))
         self.assertFalse(module_enabled(_DB(), 7, "timetable"))
         self.assertFalse(module_enabled(_DB(), 7, "finance"))
 
