@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.modules.platform.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal, resolve_principal
 from app.modules.platform.module_access import require_school_module
 from app.modules.academics.models import AcademicYear, SchoolClass
 from app.modules.timetabling.models import (
@@ -24,6 +24,15 @@ from app.modules.timetabling.schemas import (
 router = APIRouter(prefix="/api/timetabling", tags=["timetabling"], dependencies=[Depends(require_school_module("timetabling"))])
 READ_ROLES = ("viewer", "teacher", "scheduler", "admin", "super_admin")
 WRITE_ROLES = ("scheduler", "admin", "super_admin")
+
+
+def require_timetabling_role(*roles: str):
+    """Enforce exact allowed roles; global require_role is a minimum-rank check."""
+    def dependency(principal: Principal = Depends(resolve_principal)) -> Principal:
+        if principal.role not in roles:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have permission to access this timetable resource.")
+        return principal
+    return dependency
 
 
 def _project(db: Session, school_id: int, project_id: int) -> TimetableProject:
@@ -71,7 +80,7 @@ def _values(payload):
 
 
 @router.get("/contract")
-def get_timetabling_contract(principal: Principal = Depends(require_role(*READ_ROLES))):
+def get_timetabling_contract(principal: Principal = Depends(require_timetabling_role(*READ_ROLES))):
     return {
         "module": "timetabling", "phase": 2,
         "persistence_ready": True, "generation_ready": False,
@@ -82,7 +91,7 @@ def get_timetabling_contract(principal: Principal = Depends(require_role(*READ_R
 
 @router.post("/projects", response_model=TimetableProjectRead, status_code=status.HTTP_201_CREATED)
 def create_project(payload: TimetableProjectCreate, db: Session = Depends(get_db),
-                   principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                   principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     _validate_project_context(db, principal.school_id, payload.academic_year_id)
     row = TimetableProject(school_id=principal.school_id, **_values(payload))
     db.add(row); db.commit(); db.refresh(row)
@@ -91,7 +100,7 @@ def create_project(payload: TimetableProjectCreate, db: Session = Depends(get_db
 
 @router.get("/projects", response_model=list[TimetableProjectRead])
 def list_projects(db: Session = Depends(get_db),
-                  principal: Principal = Depends(require_role(*READ_ROLES))):
+                  principal: Principal = Depends(require_timetabling_role(*READ_ROLES))):
     return db.query(TimetableProject).filter(
         TimetableProject.school_id == principal.school_id
     ).order_by(TimetableProject.id.desc()).all()
@@ -99,13 +108,13 @@ def list_projects(db: Session = Depends(get_db),
 
 @router.get("/projects/{project_id}", response_model=TimetableProjectRead)
 def get_project(project_id: int, db: Session = Depends(get_db),
-                principal: Principal = Depends(require_role(*READ_ROLES))):
+                principal: Principal = Depends(require_timetabling_role(*READ_ROLES))):
     return _project(db, principal.school_id, project_id)
 
 
 @router.patch("/projects/{project_id}", response_model=TimetableProjectRead)
 def update_project(project_id: int, payload: TimetableProjectUpdate, db: Session = Depends(get_db),
-                   principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                   principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     row = _project(db, principal.school_id, project_id)
     values = _values(payload)
     year_id = values.get("academic_year_id", row.academic_year_id)
@@ -120,14 +129,14 @@ def update_project(project_id: int, payload: TimetableProjectUpdate, db: Session
 
 @router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(project_id: int, db: Session = Depends(get_db),
-                   principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                   principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     row = _project(db, principal.school_id, project_id)
     db.delete(row); db.commit()
 
 
 @router.post("/projects/{project_id}/periods", response_model=PeriodRead, status_code=201)
 def create_period(project_id: int, payload: PeriodCreate, db: Session = Depends(get_db),
-                  principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                  principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     _project(db, principal.school_id, project_id)
     row = TimetablePeriod(project_id=project_id, **_values(payload))
     db.add(row); db.commit(); db.refresh(row)
@@ -136,7 +145,7 @@ def create_period(project_id: int, payload: PeriodCreate, db: Session = Depends(
 
 @router.get("/projects/{project_id}/periods", response_model=list[PeriodRead])
 def list_periods(project_id: int, db: Session = Depends(get_db),
-                 principal: Principal = Depends(require_role(*READ_ROLES))):
+                 principal: Principal = Depends(require_timetabling_role(*READ_ROLES))):
     _project(db, principal.school_id, project_id)
     return db.query(TimetablePeriod).filter(TimetablePeriod.project_id == project_id).order_by(
         TimetablePeriod.day_of_week, TimetablePeriod.period_number).all()
@@ -144,7 +153,7 @@ def list_periods(project_id: int, db: Session = Depends(get_db),
 
 @router.patch("/projects/{project_id}/periods/{item_id}", response_model=PeriodRead)
 def update_period(project_id: int, item_id: int, payload: PeriodUpdate, db: Session = Depends(get_db),
-                  principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                  principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     row = _child(db, TimetablePeriod, principal.school_id, project_id, item_id)
     for key, value in _values(payload).items(): setattr(row, key, value)
     if row.ends_at <= row.starts_at:
@@ -155,14 +164,14 @@ def update_period(project_id: int, item_id: int, payload: PeriodUpdate, db: Sess
 
 @router.delete("/projects/{project_id}/periods/{item_id}", status_code=204)
 def delete_period(project_id: int, item_id: int, db: Session = Depends(get_db),
-                  principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                  principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     row = _child(db, TimetablePeriod, principal.school_id, project_id, item_id)
     db.delete(row); db.commit()
 
 
 @router.post("/projects/{project_id}/requirements", response_model=LessonRequirementRead, status_code=201)
 def create_requirement(project_id: int, payload: LessonRequirementCreate, db: Session = Depends(get_db),
-                       principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                       principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     project = _project(db, principal.school_id, project_id)
     _validate_class_context(db, principal.school_id, payload.class_id, project.academic_year_id)
     row = TimetableLessonRequirement(project_id=project_id, **_values(payload))
@@ -172,7 +181,7 @@ def create_requirement(project_id: int, payload: LessonRequirementCreate, db: Se
 
 @router.get("/projects/{project_id}/requirements", response_model=list[LessonRequirementRead])
 def list_requirements(project_id: int, db: Session = Depends(get_db),
-                      principal: Principal = Depends(require_role(*READ_ROLES))):
+                      principal: Principal = Depends(require_timetabling_role(*READ_ROLES))):
     _project(db, principal.school_id, project_id)
     return db.query(TimetableLessonRequirement).filter(
         TimetableLessonRequirement.project_id == project_id
@@ -181,7 +190,7 @@ def list_requirements(project_id: int, db: Session = Depends(get_db),
 
 @router.patch("/projects/{project_id}/requirements/{item_id}", response_model=LessonRequirementRead)
 def update_requirement(project_id: int, item_id: int, payload: LessonRequirementUpdate,
-                       db: Session = Depends(get_db), principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                       db: Session = Depends(get_db), principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     project = _project(db, principal.school_id, project_id)
     row = _child(db, TimetableLessonRequirement, principal.school_id, project_id, item_id)
     values = _values(payload)
@@ -202,14 +211,14 @@ def update_requirement(project_id: int, item_id: int, payload: LessonRequirement
 
 @router.delete("/projects/{project_id}/requirements/{item_id}", status_code=204)
 def delete_requirement(project_id: int, item_id: int, db: Session = Depends(get_db),
-                       principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                       principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     row = _child(db, TimetableLessonRequirement, principal.school_id, project_id, item_id)
     db.delete(row); db.commit()
 
 
 @router.post("/projects/{project_id}/constraints", response_model=ConstraintRead, status_code=201)
 def create_constraint(project_id: int, payload: ConstraintCreate, db: Session = Depends(get_db),
-                      principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                      principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     _project(db, principal.school_id, project_id)
     row = TimetableConstraint(project_id=project_id, **_values(payload))
     db.add(row); db.commit(); db.refresh(row)
@@ -218,7 +227,7 @@ def create_constraint(project_id: int, payload: ConstraintCreate, db: Session = 
 
 @router.get("/projects/{project_id}/constraints", response_model=list[ConstraintRead])
 def list_constraints(project_id: int, db: Session = Depends(get_db),
-                     principal: Principal = Depends(require_role(*READ_ROLES))):
+                     principal: Principal = Depends(require_timetabling_role(*READ_ROLES))):
     _project(db, principal.school_id, project_id)
     return db.query(TimetableConstraint).filter(
         TimetableConstraint.project_id == project_id
@@ -227,7 +236,7 @@ def list_constraints(project_id: int, db: Session = Depends(get_db),
 
 @router.patch("/projects/{project_id}/constraints/{item_id}", response_model=ConstraintRead)
 def update_constraint(project_id: int, item_id: int, payload: ConstraintUpdate, db: Session = Depends(get_db),
-                      principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                      principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     row = _child(db, TimetableConstraint, principal.school_id, project_id, item_id)
     values = _values(payload)
     hardness = values.get("hardness", row.hardness)
@@ -241,6 +250,6 @@ def update_constraint(project_id: int, item_id: int, payload: ConstraintUpdate, 
 
 @router.delete("/projects/{project_id}/constraints/{item_id}", status_code=204)
 def delete_constraint(project_id: int, item_id: int, db: Session = Depends(get_db),
-                      principal: Principal = Depends(require_role(*WRITE_ROLES))):
+                      principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     row = _child(db, TimetableConstraint, principal.school_id, project_id, item_id)
     db.delete(row); db.commit()
