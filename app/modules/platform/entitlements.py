@@ -22,7 +22,7 @@ MODULES = {
 
 # Core modules needed for a usable school account, including the dashboard's
 # scheduling summary. Optional paid/specialist modules remain opt-in.
-DEFAULT_ENABLED_MODULES = {"students", "staff", "attendance", "examinations", "timetabling"}
+DEFAULT_ENABLED_MODULES = {"students", "staff", "attendance", "examinations"}
 
 
 class TtSchoolModuleEntitlement(Base):
