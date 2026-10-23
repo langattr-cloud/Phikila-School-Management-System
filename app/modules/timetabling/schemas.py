@@ -1,4 +1,4 @@
-"""API contracts for the new timetable module (no legacy-table dependencies)."""
+"""Validated API contracts for persistent timetable resources."""
 from datetime import date, time
 from enum import Enum
 from typing import Literal
@@ -33,8 +33,28 @@ class TimetableProjectCreate(BaseModel):
         return self
 
 
-class PeriodCreate(BaseModel):
-    day_of_week: int = Field(ge=0, le=6, description="Monday=0, Sunday=6")
+class TimetableProjectUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    academic_year_id: int | None = Field(default=None, gt=0)
+    starts_on: date | None = None
+    ends_on: date | None = None
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+class TimetableProjectRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    school_id: int
+    name: str
+    academic_year_id: int
+    starts_on: date
+    ends_on: date
+    timezone: str
+    state: ScheduleState
+
+
+class PeriodFields(BaseModel):
+    day_of_week: int = Field(ge=0, le=6)
     period_number: int = Field(ge=1, le=32)
     starts_at: time
     ends_at: time
@@ -49,7 +69,27 @@ class PeriodCreate(BaseModel):
         return self
 
 
-class LessonRequirementCreate(BaseModel):
+class PeriodCreate(PeriodFields):
+    pass
+
+
+class PeriodUpdate(BaseModel):
+    day_of_week: int | None = Field(default=None, ge=0, le=6)
+    period_number: int | None = Field(default=None, ge=1, le=32)
+    starts_at: time | None = None
+    ends_at: time | None = None
+    week_pattern: WeekPattern | None = None
+    is_break: bool | None = None
+    label: str | None = Field(default=None, max_length=80)
+
+
+class PeriodRead(PeriodFields):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    project_id: int
+
+
+class RequirementFields(BaseModel):
     class_id: int = Field(gt=0)
     subject_id: int = Field(gt=0)
     teacher_ids: list[int] = Field(min_length=1, max_length=8)
@@ -62,7 +102,7 @@ class LessonRequirementCreate(BaseModel):
     week_pattern: WeekPattern = WeekPattern.EVERY_WEEK
 
     @model_validator(mode="after")
-    def fixed_slot_is_complete(self):
+    def validate_fixed_slot_and_teachers(self):
         if (self.fixed_day is None) != (self.fixed_period is None):
             raise ValueError("fixed_day and fixed_period must be provided together")
         if len(set(self.teacher_ids)) != len(self.teacher_ids):
@@ -70,7 +110,30 @@ class LessonRequirementCreate(BaseModel):
         return self
 
 
-class ConstraintCreate(BaseModel):
+class LessonRequirementCreate(RequirementFields):
+    pass
+
+
+class LessonRequirementUpdate(BaseModel):
+    class_id: int | None = Field(default=None, gt=0)
+    subject_id: int | None = Field(default=None, gt=0)
+    teacher_ids: list[int] | None = Field(default=None, min_length=1, max_length=8)
+    lessons_per_week: int | None = Field(default=None, ge=1, le=40)
+    duration_periods: int | None = Field(default=None, ge=1, le=8)
+    room_type: str | None = Field(default=None, max_length=80)
+    fixed_day: int | None = Field(default=None, ge=0, le=6)
+    fixed_period: int | None = Field(default=None, ge=1, le=32)
+    locked: bool | None = None
+    week_pattern: WeekPattern | None = None
+
+
+class LessonRequirementRead(RequirementFields):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    project_id: int
+
+
+class ConstraintFields(BaseModel):
     code: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
     hardness: Literal["hard", "soft"]
     weight: int = Field(default=1, ge=1, le=1000)
@@ -84,13 +147,19 @@ class ConstraintCreate(BaseModel):
         return self
 
 
-class TimetableProjectRead(BaseModel):
+class ConstraintCreate(ConstraintFields):
+    pass
+
+
+class ConstraintUpdate(BaseModel):
+    code: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{1,63}$")
+    hardness: Literal["hard", "soft"] | None = None
+    weight: int | None = Field(default=None, ge=1, le=1000)
+    enabled: bool | None = None
+    parameters: dict[str, str | int | float | bool | None] | None = None
+
+
+class ConstraintRead(ConstraintFields):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    school_id: int
-    name: str
-    academic_year_id: int
-    starts_on: date
-    ends_on: date
-    timezone: str
-    state: ScheduleState
+    project_id: int
