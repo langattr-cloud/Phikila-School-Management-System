@@ -185,6 +185,15 @@ def update_requirement(project_id: int, item_id: int, payload: LessonRequirement
     row = _child(db, TimetableLessonRequirement, principal.school_id, project_id, item_id)
     values = _values(payload)
     _validate_class_context(db, principal.school_id, values.get("class_id", row.class_id), project.academic_year_id)
+    merged = {
+        "fixed_day": values.get("fixed_day", row.fixed_day),
+        "fixed_period": values.get("fixed_period", row.fixed_period),
+        "teacher_ids": values.get("teacher_ids", row.teacher_ids),
+    }
+    if (merged["fixed_day"] is None) != (merged["fixed_period"] is None):
+        raise HTTPException(422, "fixed_day and fixed_period must be provided together.")
+    if len(set(merged["teacher_ids"])) != len(merged["teacher_ids"]):
+        raise HTTPException(422, "teacher_ids must not contain duplicates.")
     for key, value in values.items(): setattr(row, key, value)
     db.commit(); db.refresh(row)
     return row
@@ -219,7 +228,12 @@ def list_constraints(project_id: int, db: Session = Depends(get_db),
 def update_constraint(project_id: int, item_id: int, payload: ConstraintUpdate, db: Session = Depends(get_db),
                       principal: Principal = Depends(require_role(*WRITE_ROLES))):
     row = _child(db, TimetableConstraint, principal.school_id, project_id, item_id)
-    for key, value in _values(payload).items(): setattr(row, key, value)
+    values = _values(payload)
+    hardness = values.get("hardness", row.hardness)
+    weight = values.get("weight", row.weight)
+    if hardness == "hard" and weight != 1:
+        raise HTTPException(422, "Hard constraints use weight=1; weights apply to soft constraints.")
+    for key, value in values.items(): setattr(row, key, value)
     db.commit(); db.refresh(row)
     return row
 
