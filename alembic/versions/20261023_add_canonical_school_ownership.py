@@ -21,7 +21,7 @@ def upgrade() -> None:
     op.create_index("ix_teachers_school_id", "teachers", ["school_id"])
     op.add_column(
         "subjects",
-        sa.Column("school_id", sa.BigInteger(), sa.ForeignKey("school_info.id"), nullable=True),
+        sa.Column("school_id", sa.Integer(), sa.ForeignKey("school_info.id"), nullable=True),
     )
     op.create_index("ix_subjects_school_id", "subjects", ["school_id"])
 
