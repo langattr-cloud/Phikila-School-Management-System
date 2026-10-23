@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal, require_role
 from app.modules.students.models_v2 import Student, StudentEnrollment
 from app.modules.teachers.models import Teacher
 from app.modules.academics.models import AcademicYear, Level, SchoolClass, Term

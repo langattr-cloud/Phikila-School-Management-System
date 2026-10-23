@@ -11,15 +11,6 @@ import { SignUpPage } from './pages/SignUpPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
-const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
-const TimetablePage = lazy(() => import('./pages/EnhancedTimetablePage').then(m => ({ default: m.EnhancedTimetablePage })))
-const TimetableProjectsPage = lazy(() => import('./pages/TimetableProjectsPage').then(m => ({ default: m.TimetableProjectsPage })))
-const ProjectTimetablePage = lazy(() => import('./pages/ProjectTimetablePage').then(m => ({ default: m.ProjectTimetablePage })))
-const MyTimetablePage = lazy(() => import('./pages/MyTimetablePage').then(m => ({ default: m.MyTimetablePage })))
-const PeriodsPage = lazy(() => import('./pages/PeriodsPage').then(m => ({ default: m.PeriodsPage })))
-const TeachersPage = lazy(() => import('./pages/Teachers').then(m => ({ default: m.default })))
-const SubjectsPage = lazy(() => import('./pages/Subjects').then(m => ({ default: m.default })))
-const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.SetupPage })))
 const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
 const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
@@ -28,26 +19,18 @@ const StreamsPage = lazy(() => import('./pages/StreamsPage').then(m => ({ defaul
 const AcademicYearTransitionPage = lazy(() => import('./pages/AcademicYearTransitionPage').then(m => ({ default: m.default })))
 const AcademicSetupWizardPage = lazy(() => import('./pages/AcademicSetupWizardPage').then(m => ({ default: m.AcademicSetupWizardPage })))
 const SchoolStructurePage = lazy(() => import('./pages/SchoolStructurePage').then(m => ({ default: m.SchoolStructurePage })))
-const RequirementsPage = lazy(() => import('./pages/RequirementsPage').then(m => ({ default: m.RequirementsPage })))
-const ConstraintsPage = lazy(() => import('./pages/ConstraintsPage').then(m => ({ default: m.ConstraintsPage })))
-const TimeOffPage = lazy(() => import('./pages/TimeOffPage').then(m => ({ default: m.TimeOffPage })))
-const GeneratePage = lazy(() => import('./pages/GeneratePage').then(m => ({ default: m.GeneratePage })))
-const CopilotPage = lazy(() => import('./pages/CopilotPage').then(m => ({ default: m.CopilotPage })))
 const StudentsOverviewPage = lazy(() => import('./pages/StudentsOverviewPage').then(m => ({ default: m.default })))
 const StudentsPage = lazy(() => import('./pages/Students').then(m => ({ default: m.default })))
 const StudentImportPage = lazy(() => import('./pages/StudentImportPage').then(m => ({ default: m.default })))
 const ExaminationDashboardPage = lazy(() => import('./pages/ExaminationDashboardPage').then(m => ({ default: m.default })))
 const ExaminationsPage = lazy(() => import('./pages/Examinations').then(m => ({ default: m.default })))
 const ExaminationSetupPage = lazy(() => import('./pages/ExaminationSetupPage').then(m => ({ default: m.default })))
-const ExaminationLevelsPage = lazy(() => import('./pages/ExaminationLevelsPage').then(m => ({ default: m.ExaminationLevelsPage })))
 const MarkAccessPage = lazy(() => import('./pages/MarkAccessPage').then(m => ({ default: m.default })))
 const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ default: m.default })))
 const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.default })))
 const FinancePage = lazy(() => import('./pages/Finance').then(m => ({ default: m.default })))
 const FinancePaymentInboxPage = lazy(() => import('./pages/FinancePaymentInbox').then(m => ({ default: m.default })))
 const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.OcrScanPage })))
-const SchedulingAnalyticsPage = lazy(() => import('./pages/SchedulingAnalyticsPage').then(m => ({ default: m.SchedulingAnalyticsPage })))
-const VersionsPage = lazy(() => import('./pages/VersionsPage').then(m => ({ default: m.VersionsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const LlmProvidersPage = lazy(() => import('./pages/LlmProvidersPage').then(m => ({ default: m.LlmProvidersPage })))
 const PlatformDashboardPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformDashboardPage })))
@@ -98,74 +81,9 @@ function AccessGate({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
-function FullscreenLayout({ children }: { children: ReactNode }) {
-  const navigate = useNavigate()
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = previousOverflow }
-  }, [])
-
-  return <div className="timetable-fullscreen-layout">
-    <button type="button" className="timetable-fullscreen-back" onClick={() => navigate('/platform/dashboard')} aria-label="Back to Dashboard">
-      ← Back to Dashboard
-    </button>
-    <div className="timetable-fullscreen-content">{children}</div>
-    <style>{`
-      .timetable-fullscreen-layout {
-        position:fixed;
-        inset:0;
-        z-index:50;
-        width:100vw;
-        height:100vh;
-        min-height:100vh;
-        overflow:auto;
-        background:#f8fafc;
-      }
-      .timetable-fullscreen-content {
-        min-height:100%;
-        width:100%;
-        padding:12px 24px 24px;
-        box-sizing:border-box;
-      }
-      .timetable-fullscreen-content > .timetable-enhanced-page { min-height:calc(100vh - 36px); }
-      .timetable-fullscreen-back {
-        position:absolute;
-        top:8px;
-        left:24px;
-        z-index:80;
-        border:0;
-        background:transparent;
-        color:#111827;
-        font-size:13px;
-        font-weight:600;
-        line-height:32px;
-        padding:0;
-        cursor:pointer;
-      }
-      .timetable-fullscreen-back:hover { color:#2563eb; }
-      .timetable-fullscreen-content .timetable-main-toolbar { padding-left:150px; }
-      @media (max-width:700px) {
-        .timetable-fullscreen-content { padding:44px 12px 16px; }
-        .timetable-fullscreen-content .timetable-main-toolbar { padding-left:0; }
-        .timetable-fullscreen-back { left:12px; top:4px; }
-      }
-    `}</style>
-  </div>
-}
-
 function routeFor(pathname: string): ReactNode {
   switch (pathname) {
-    case '/': return <DashboardPage />
-    case '/timetable': return <TimetablePage />
-    case '/timetable/whole-school': return <TimetablePage />
-    case '/timetable-projects': return <TimetableProjectsPage />
-    case '/timetable-project': return <ProjectTimetablePage />
-    case '/my-timetable': return <MyTimetablePage />
-    case '/setup/periods': return <PeriodsPage />
-    case '/setup/teachers': return <TeachersPage />
-    case '/setup/subjects': return <SubjectsPage />
-    case '/setup/rooms': return <SetupPage kind="rooms" />
+    case '/': return <StudentsOverviewPage />
     case '/setup/school': return <SchoolPage />
     case '/setup/academic-years': return <AcademicsPage />
     case '/setup/academic-year-transition': return <AcademicYearTransitionPage />
@@ -174,26 +92,18 @@ function routeFor(pathname: string): ReactNode {
     case '/setup/streams': return <StreamsPage />
     case '/setup/academic-setup': return <AcademicSetupWizardPage />
     case '/setup/school-structure': return <SchoolStructurePage />
-    case '/scheduling/requirements': return <RequirementsPage />
-    case '/scheduling/constraints': return <ConstraintsPage />
-    case '/scheduling/time-off': return <TimeOffPage />
-    case '/scheduling/generate': return <GeneratePage />
-    case '/scheduling/copilot': return <CopilotPage />
     case '/students': return <StudentsOverviewPage />
     case '/students/list': return <StudentsPage />
     case '/students/import': return <StudentImportPage />
     case '/examinations': return <ExaminationDashboardPage />
     case '/examinations/setup': return <ExaminationSetupPage />
     case '/examinations/legacy-setup': return <ExaminationsPage />
-    case '/examinations/levels': return <ExaminationLevelsPage />
     case '/examinations/marks-access': return <MarkAccessPage />
     case '/examinations/report-card': return <ReportCardPage />
     case '/examinations/class-results': return <ClassResultsPage />
     case '/finance': return <FinancePage />
     case '/finance/payment-inbox': return <FinancePaymentInboxPage />
     case '/ocr': return <OcrScanPage />
-    case '/analytics': return <SchedulingAnalyticsPage />
-    case '/versions': return <VersionsPage />
     case '/profile': return <ProfilePage />
     case '/settings/ai-providers': return <LlmProvidersPage />
     case '/platform': return <PlatformDashboardPage />
@@ -216,24 +126,16 @@ function NormalLayout({ pathname }: { pathname: string }) {
 }
 
 function ProtectedRoutes({ pathname }: { pathname: string }) {
-  const isWholeSchool = normalisePath(pathname) === '/timetable/whole-school'
   const { session: platformSession } = usePlatformSession()
   const path = normalisePath(pathname)
-  const requiredModule = path.startsWith('/scheduling/copilot') ? 'ai_tools' : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
+  const requiredModule = path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
     : path.startsWith('/setup/teachers') ? 'staff'
     : path.startsWith('/examinations') ? 'examinations'
     : path.startsWith('/finance') ? 'finance'
-    : path.startsWith('/timetable') || path.startsWith('/my-timetable') || path.startsWith('/scheduling') || path.startsWith('/versions') || path.startsWith('/analytics') || path.startsWith('/setup/rooms') ? 'timetable'
     : path.startsWith('/ocr') ? 'ai_tools' : null
   const moduleDenied = Boolean(requiredModule && platformSession && !platformSession.enabled_modules.includes(requiredModule))
   return <RequireAuth><AccessGate>
-    {moduleDenied ? <section className="card section"><h1>Module not enabled</h1><p>This module is not enabled for your school. Contact your platform administrator to request access.</p></section> : isWholeSchool
-      ? <FullscreenLayout>
-          <Suspense fallback={<FullPageLoader label="Loading timetable…" />}>
-            {routeFor(pathname)}
-          </Suspense>
-        </FullscreenLayout>
-      : <NormalLayout pathname={pathname} />}
+    {moduleDenied ? <section className="card section"><h1>Module not enabled</h1><p>This module is not enabled for your school. Contact your platform administrator to request access.</p></section> : <NormalLayout pathname={pathname} />}
   </AccessGate></RequireAuth>
 }
 

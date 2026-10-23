@@ -10,10 +10,10 @@ from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, Numeric, Str
 from sqlalchemy.orm import Session
 
 from app.core.database import Base, get_db
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal, require_role
 from app.modules.finance.operations_models import FinanceSupplier as Supplier
 def _audit(db, principal, action, entity, eid, summary):
-    from app.modules.scheduling.models import TtAuditEntry
+    from app.modules.platform.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=principal.school_id, actor=principal.email or principal.user_id, action=action, entity=entity, entity_id=eid, summary=summary))
 
 router = APIRouter()

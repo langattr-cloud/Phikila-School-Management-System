@@ -7,7 +7,7 @@ from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal, require_role
 from . import operations_models as o
 
 router = APIRouter()
@@ -27,7 +27,7 @@ def day(value):
     except ValueError: raise HTTPException(400, 'Invalid date; use YYYY-MM-DD')
 
 def audit(db, principal, action, entity, entity_id, summary):
-    from app.modules.scheduling.models import TtAuditEntry
+    from app.modules.platform.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=principal.school_id, actor=principal.email or principal.user_id,
                         action=action, entity=entity, entity_id=entity_id, summary=summary))
 

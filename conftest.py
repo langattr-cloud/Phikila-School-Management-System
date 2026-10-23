@@ -18,8 +18,8 @@ import app.modules.academics.models  # noqa: F401
 import app.modules.examinations.models  # noqa: F401
 import app.modules.examinations.models_v2  # noqa: F401
 import app.modules.finance.models  # noqa: F401
-import app.modules.scheduling.models  # noqa: F401  (tt_audit, timetable, …)
-import app.modules.scheduling.tenancy  # noqa: F401  (tt_schools, tt_memberships)
+import app.modules.platform.models  # noqa: F401 (shared platform and audit models)
+import app.modules.platform.tenancy  # noqa: F401 (school membership models)
 import app.modules.students.models_v2  # noqa: F401
 import app.modules.teachers.models  # noqa: F401
 

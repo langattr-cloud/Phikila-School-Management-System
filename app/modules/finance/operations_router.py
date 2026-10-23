@@ -5,11 +5,11 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal, require_role
 from . import operations_models as m
 router = APIRouter()
 def _audit(db,p,a,e,i,s):
-    from app.modules.scheduling.models import TtAuditEntry
+    from app.modules.platform.models import TtAuditEntry
     db.add(TtAuditEntry(school_id=p.school_id,actor=p.email or p.user_id,action=a,entity=e,entity_id=i,summary=s))
 def _money(v): return Decimal(str(v or 0))
 @router.get('/finance/bank-accounts')

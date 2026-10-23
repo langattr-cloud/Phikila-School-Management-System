@@ -1,4 +1,4 @@
-"""Document OCR API — scan exam papers, student documents, timetables, and general files.
+"""Document OCR API — scan exam papers, student documents, and general files.
 
 Uploaded images are processed through a pluggable OCR backend (PaddleOCR or
 Tesseract), then domain-specific parsers extract structured data.
@@ -20,14 +20,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, require_role, resolve_principal
+from app.modules.platform.tenancy import Principal, require_role, resolve_principal
 
 from . import models as m
 from . import schemas as s
 from .backends import get_backend, OCRResult
 from .parsers import (
     auto_parse, parse_exam_sheet, parse_student_document,
-    parse_timetable, parse_general, generate_pdf_bytes,
+    parse_general, generate_pdf_bytes,
 )
 
 router = APIRouter()
@@ -43,7 +43,6 @@ ALLOWED_TYPES = {
 PARSER_MAP = {
     "exam_sheet": parse_exam_sheet,
     "student_document": parse_student_document,
-    "timetable": parse_timetable,
     "general": parse_general,
 }
 
@@ -233,11 +232,11 @@ def list_backends(
 
 
 # ---------------------------------------------------------------------------
-# Helper: reuse scheduling tenancy
+# Helper: reuse platform tenancy
 # ---------------------------------------------------------------------------
 
 # Import at module level to avoid circular imports
-from app.modules.scheduling.tenancy import resolve_principal as _resolve_principal  # noqa: E402
+from app.modules.platform.tenancy import resolve_principal as _resolve_principal  # noqa: E402
 
 
 def resolve_principal_from_scan(

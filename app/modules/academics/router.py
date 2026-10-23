@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import Principal, ROLE_ORDER
+from app.modules.platform.tenancy import Principal, ROLE_ORDER
 from app.modules.platform.authz import Identity, resolve_identity
 from app.modules.academics import schemas, services
 from app.modules.academics.models import SchoolClass

@@ -38,7 +38,7 @@ from app.modules.platform.models import (  # noqa: E402
     TtPlatformAdmin,
     TtPlatformAudit,
 )
-from app.modules.scheduling.tenancy import TtMembership  # noqa: E402
+from app.modules.platform.tenancy import TtMembership  # noqa: E402
 
 
 def find_user_id(db, email: str) -> str | None:

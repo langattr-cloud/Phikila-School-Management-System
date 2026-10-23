@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.email.service import email_service
-from app.modules.scheduling.tenancy import TtMembership, TtSchool
+from app.modules.platform.tenancy import TtMembership, TtSchool
 
 from .authz import Identity, audit, require_super_admin
 from .models import TtAccessRequest

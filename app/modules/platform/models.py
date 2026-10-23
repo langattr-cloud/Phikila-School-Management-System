@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, UniqueConstraint, JSON
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.core.database import Base
@@ -60,4 +60,19 @@ class TtPlatformAudit(Base):
     actor_id = Column(String(64), index=True)
     school_id = Column(Integer, index=True)
     summary = Column(Text)
+    at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class TtAuditEntry(Base):
+    """Shared school-scoped audit trail used by non-timetable modules."""
+    __tablename__ = "tt_audit"
+    id = Column(Integer, primary_key=True)
+    school_id = Column(Integer, nullable=False, index=True)
+    actor = Column(String(160))
+    action = Column(String(80), nullable=False)
+    entity = Column(String(80))
+    entity_id = Column(Integer)
+    summary = Column(Text)
+    before = Column(JSON)
+    after = Column(JSON)
     at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

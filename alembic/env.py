@@ -6,7 +6,6 @@ from app.config import settings
 
 # Import all application models so Alembic autogenerate can detect them.
 import app.models
-import app.modules.timetable.models
 import app.modules.school.models
 import app.modules.academics.models
 import app.modules.class_register.models
@@ -16,7 +15,8 @@ import app.modules.students.models_v2
 import app.modules.examinations.models_v2
 import app.modules.finance.models
 import app.modules.finance.supplier_payments
-import app.modules.scheduling.tenancy
+import app.modules.platform.tenancy
+import app.modules.platform.models
 import app.modules.platform.entitlements
 import app.modules.outlook.router
 

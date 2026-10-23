@@ -18,9 +18,8 @@ upstash-redis>=1,<2
 upstash-ratelimit>=1,<2
 uvicorn[standard]>=0.30,<1
 
-# OCR backend. Keep the Vercel API bundle lean; timetable optimisation runs
-# in the dedicated solver worker.
+# OCR backend. Keep the API bundle lean.
 pytesseract>=0.3.10,<1
 
 # OR-Tools is intentionally excluded from the Vercel function bundle.
-# The solver worker installs requirements.txt + requirements-solver.txt.
+# All API dependencies are installed from this file.

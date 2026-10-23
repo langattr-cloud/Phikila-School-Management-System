@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import TtSchool
+from app.modules.platform.tenancy import TtSchool
 from .authz import Identity, audit, require_super_admin
 from .entitlements import DEFAULT_ENABLED_MODULES, MODULES, TtSchoolModuleEntitlement
 

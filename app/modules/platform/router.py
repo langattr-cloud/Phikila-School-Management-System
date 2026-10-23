@@ -21,8 +21,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.config import settings
 from app.modules.email.service import email_service
-from app.modules.scheduling.models import TtClass, TtTeacher
-from app.modules.scheduling.tenancy import ROLE_ORDER, TtMembership, TtSchool
+from app.modules.academics.models import SchoolClass
+from app.modules.teachers.models import Teacher
+from app.modules.platform.tenancy import ROLE_ORDER, TtMembership, TtSchool
 
 from .authz import (
     Identity,
@@ -472,8 +473,8 @@ def overview(
     """Real counts only — every figure is a database aggregate."""
     schools = db.query(TtSchool).count()
     memberships = db.query(func.count(func.distinct(TtMembership.user_id))).scalar() or 0
-    teachers = db.query(TtTeacher).count()
-    classes = db.query(TtClass).count()
+    teachers = db.query(TtMembership).filter(TtMembership.is_active.is_(True), TtMembership.role == 'teacher').count()
+    classes = db.query(SchoolClass).count()
     pending = (
         db.query(TtAccessRequest)
         .filter(TtAccessRequest.status == "pending")
@@ -524,8 +525,8 @@ def _school_summary(db: Session, school: TtSchool) -> dict[str, Any]:
         "academic_year": school.academic_year,
         "status": getattr(school, "status", None) or "active",
         "users": users,
-        "teachers": db.query(TtTeacher).filter(TtTeacher.school_id == school.id).count(),
-        "classes": db.query(TtClass).filter(TtClass.school_id == school.id).count(),
+        "teachers": db.query(TtMembership).filter(TtMembership.school_id == school.id, TtMembership.is_active.is_(True), TtMembership.role == "teacher").count(),
+        "classes": db.query(SchoolClass).filter(SchoolClass.school_id == school.id).count(),
         "created_at": school.created_at,
     }
 

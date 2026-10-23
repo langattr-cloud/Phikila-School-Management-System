@@ -12,7 +12,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.modules.scheduling.tenancy import resolve_principal
+from app.modules.platform.tenancy import resolve_principal
 from .entitlements import DEFAULT_ENABLED_MODULES, MODULES, TtSchoolModuleEntitlement
 
 
