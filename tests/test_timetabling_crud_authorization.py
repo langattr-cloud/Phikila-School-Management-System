@@ -14,6 +14,9 @@ from app.core.database import Base, get_db
 from app.main import create_app
 from app.modules.authentication.supabase import get_supabase_claims
 from app.modules.platform.tenancy import Principal, require_role
+from app.modules.school.models import SchoolInfo
+from app.modules.teachers.models import Teacher
+from app.modules.subjects.models import Subject
 from app.modules.timetabling.models import (
     TimetableProject, TimetablePeriod, TimetableLessonRequirement, TimetableConstraint,
 )
@@ -27,7 +30,7 @@ def db_session():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine, tables=[TimetableProject.__table__, TimetablePeriod.__table__, TimetableLessonRequirement.__table__, TimetableConstraint.__table__])
+    Base.metadata.create_all(engine, tables=[SchoolInfo.__table__, Teacher.__table__, Subject.__table__, TimetableProject.__table__, TimetablePeriod.__table__, TimetableLessonRequirement.__table__, TimetableConstraint.__table__])
     session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
     try:
         yield session
@@ -122,28 +125,66 @@ def test_timetabling_role_allowlist_accepts_scheduler():
     assert dependency(principal=scheduler) is scheduler
 
 
-def test_teacher_subject_ownership_rejects_unassigned_or_cross_school_subject():
+def test_teacher_subject_ownership_rejects_cross_school_subject_using_database_rows(db_session):
     from app.modules.timetabling.router import _validate_teacher_subject_ownership
-    from app.modules.subjects.models import Subject
 
-    db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = None
+    db_session.add_all([
+        SchoolInfo(id=10, name="School A", code="A"),
+        SchoolInfo(id=20, name="School B", code="B"),
+    ])
+    db_session.flush()
+    db_session.add(Subject(id=200, name="Physics", code="PHY", school_id=20))
+    db_session.commit()
+
     with pytest.raises(HTTPException) as exc:
-        _validate_teacher_subject_ownership(db, school_id=10, subject_id=20, teacher_ids=[30])
+        _validate_teacher_subject_ownership(db_session, school_id=10, subject_id=200, teacher_ids=[])
     assert exc.value.status_code == 422
     assert "Subject does not belong to this school" in exc.value.detail
 
 
-def test_teacher_subject_ownership_rejects_teacher_missing_from_school_scope():
+def test_teacher_subject_ownership_rejects_unassigned_legacy_subject_using_database_rows(db_session):
     from app.modules.timetabling.router import _validate_teacher_subject_ownership
 
-    db = MagicMock()
-    subject = SimpleNamespace(id=20, school_id=10)
-    query = MagicMock()
-    query.filter.return_value.first.return_value = subject
-    query.filter.return_value.all.return_value = []
-    db.query.return_value = query
+    db_session.add(SchoolInfo(id=10, name="School A", code="A"))
+    db_session.flush()
+    db_session.add(Subject(id=201, name="Unassigned subject", code="UNASSIGNED", school_id=None))
+    db_session.commit()
+
     with pytest.raises(HTTPException) as exc:
-        _validate_teacher_subject_ownership(db, school_id=10, subject_id=20, teacher_ids=[30])
+        _validate_teacher_subject_ownership(db_session, school_id=10, subject_id=201, teacher_ids=[])
+    assert exc.value.status_code == 422
+
+
+def test_teacher_subject_ownership_rejects_cross_school_teacher_using_database_rows(db_session):
+    from app.modules.timetabling.router import _validate_teacher_subject_ownership
+
+    db_session.add_all([
+        SchoolInfo(id=10, name="School A", code="A"),
+        SchoolInfo(id=20, name="School B", code="B"),
+    ])
+    db_session.flush()
+    db_session.add_all([
+        Subject(id=202, name="Chemistry", code="CHEM", school_id=10),
+        Teacher(id=302, school_id=20),
+    ])
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        _validate_teacher_subject_ownership(db_session, school_id=10, subject_id=202, teacher_ids=[302])
     assert exc.value.status_code == 422
     assert "Every teacher must belong to this school" in exc.value.detail
+
+
+def test_teacher_subject_ownership_accepts_records_assigned_to_same_school(db_session):
+    from app.modules.timetabling.router import _validate_teacher_subject_ownership
+
+    db_session.add(SchoolInfo(id=10, name="School A", code="A"))
+    db_session.flush()
+    db_session.add_all([
+        Subject(id=203, name="Biology", code="BIO", school_id=10),
+        Teacher(id=303, school_id=10),
+    ])
+    db_session.commit()
+
+    # No exception means both the subject and every teacher matched school scope.
+    _validate_teacher_subject_ownership(db_session, school_id=10, subject_id=203, teacher_ids=[303])
