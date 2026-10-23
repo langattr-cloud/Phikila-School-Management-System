@@ -1,5 +1,5 @@
 from app.core.database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, BigInteger, String, ForeignKey
 from sqlalchemy.orm import relationship
 
 class Subject(Base):
@@ -7,5 +7,7 @@ class Subject(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
+    # Nullable for legacy rows; timetable writes require a verified school assignment.
+    school_id = Column(BigInteger, ForeignKey("school_info.id"), nullable=True, index=True)
     name = Column(String, index=True)
     code = Column(String, unique=True, index=True, nullable=True)
