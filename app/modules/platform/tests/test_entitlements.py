@@ -22,6 +22,11 @@ class EntitlementTests(unittest.TestCase):
         self.assertTrue(module_enabled(_DB(SimpleNamespace(enabled=True)), 7, "students"))
         self.assertFalse(module_enabled(_DB(SimpleNamespace(enabled=False)), 7, "students"))
 
+    def test_timetabling_is_opt_in_and_persisted_flag_is_authoritative(self):
+        self.assertTrue(module_enabled(_DB(SimpleNamespace(enabled=True)), 7, "timetabling"))
+        self.assertFalse(module_enabled(_DB(SimpleNamespace(enabled=False)), 7, "timetabling"))
+        self.assertFalse(module_enabled(_DB(), 7, "timetabling"))
+
     def test_unconfigured_school_uses_requested_starter_defaults(self):
         self.assertTrue(module_enabled(_DB(), 7, "students"))
         self.assertFalse(module_enabled(_DB(), 7, "timetabling"))
