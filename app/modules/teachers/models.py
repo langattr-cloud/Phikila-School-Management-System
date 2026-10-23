@@ -1,5 +1,5 @@
 from app.core.database import Base
-from sqlalchemy import Column, Integer, BigInteger, ForeignKey
+from sqlalchemy import Column, Integer, ForeignKey
 
 class Teacher(Base):
     __tablename__ = "teachers"
@@ -7,7 +7,7 @@ class Teacher(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     # Nullable for legacy rows; timetable writes require a verified school assignment.
-    school_id = Column(BigInteger, ForeignKey("school_info.id"), nullable=True, index=True)
+    school_id = Column(Integer, ForeignKey("school_info.id"), nullable=True, index=True)
 
 class Qualification(Base):
     __tablename__ = "qualifications"
