@@ -79,6 +79,20 @@ def _values(payload):
     return payload.model_dump(exclude_unset=True, exclude_none=True)
 
 
+def _require_canonical_teacher_subject_ownership():
+    """Fail closed until teacher/subject rows have verifiable school ownership.
+
+    The current canonical teachers/subjects schema has no school_id (nor a
+    school-scoped join that can prove ownership). Accepting these IDs would
+    allow a project to reference another school's records, so writes stay
+    disabled until a verified ownership model is implemented.
+    """
+    raise HTTPException(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "Lesson requirement writes are temporarily disabled because teacher and subject school ownership cannot yet be verified.",
+    )
+
+
 @router.get("/contract")
 def get_timetabling_contract(principal: Principal = Depends(require_timetabling_role(*READ_ROLES))):
     return {
@@ -174,6 +188,7 @@ def create_requirement(project_id: int, payload: LessonRequirementCreate, db: Se
                        principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     project = _project(db, principal.school_id, project_id)
     _validate_class_context(db, principal.school_id, payload.class_id, project.academic_year_id)
+    _require_canonical_teacher_subject_ownership()
     row = TimetableLessonRequirement(project_id=project_id, **_values(payload))
     db.add(row); db.commit(); db.refresh(row)
     return row
@@ -195,6 +210,7 @@ def update_requirement(project_id: int, item_id: int, payload: LessonRequirement
     row = _child(db, TimetableLessonRequirement, principal.school_id, project_id, item_id)
     values = _values(payload)
     _validate_class_context(db, principal.school_id, values.get("class_id", row.class_id), project.academic_year_id)
+    _require_canonical_teacher_subject_ownership()
     merged = {
         "fixed_day": values.get("fixed_day", row.fixed_day),
         "fixed_period": values.get("fixed_period", row.fixed_period),
