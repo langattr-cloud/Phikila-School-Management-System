@@ -11,6 +11,8 @@ from app.core.database import get_db
 from app.modules.platform.tenancy import Principal, resolve_principal
 from app.modules.platform.module_access import require_school_module
 from app.modules.academics.models import AcademicYear, SchoolClass
+from app.modules.teachers.models import Teacher
+from app.modules.subjects.models import Subject
 from app.modules.timetabling.models import (
     TimetableProject, TimetablePeriod, TimetableLessonRequirement, TimetableConstraint,
 )
@@ -79,18 +81,30 @@ def _values(payload):
     return payload.model_dump(exclude_unset=True, exclude_none=True)
 
 
-def _require_canonical_teacher_subject_ownership():
-    """Fail closed until teacher/subject rows have verifiable school ownership.
+def _validate_teacher_subject_ownership(db: Session, school_id: int, subject_id: int, teacher_ids: list[int]):
+    """Require explicit canonical school ownership for every referenced record.
 
-    The current canonical teachers/subjects schema has no school_id (nor a
-    school-scoped join that can prove ownership). Accepting these IDs would
-    allow a project to reference another school's records, so writes stay
-    disabled until a verified ownership model is implemented.
+    Legacy rows remain nullable during rollout. A row with no school assignment
+    is treated as unverified and cannot be used in a timetable.
     """
-    raise HTTPException(
-        status.HTTP_503_SERVICE_UNAVAILABLE,
-        "Lesson requirement writes are temporarily disabled because teacher and subject school ownership cannot yet be verified.",
-    )
+    subject = db.query(Subject).filter(
+        Subject.id == subject_id,
+        Subject.school_id == school_id,
+    ).first()
+    if subject is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Subject does not belong to this school or has no verified school assignment.",
+        )
+    teachers = db.query(Teacher).filter(
+        Teacher.id.in_(teacher_ids),
+        Teacher.school_id == school_id,
+    ).all()
+    if {teacher.id for teacher in teachers} != set(teacher_ids):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Every teacher must belong to this school and have a verified school assignment.",
+        )
 
 
 @router.get("/contract")
@@ -188,7 +202,7 @@ def create_requirement(project_id: int, payload: LessonRequirementCreate, db: Se
                        principal: Principal = Depends(require_timetabling_role(*WRITE_ROLES))):
     project = _project(db, principal.school_id, project_id)
     _validate_class_context(db, principal.school_id, payload.class_id, project.academic_year_id)
-    _require_canonical_teacher_subject_ownership()
+    _validate_teacher_subject_ownership(db, principal.school_id, payload.subject_id, payload.teacher_ids)
     row = TimetableLessonRequirement(project_id=project_id, **_values(payload))
     db.add(row); db.commit(); db.refresh(row)
     return row
@@ -210,7 +224,7 @@ def update_requirement(project_id: int, item_id: int, payload: LessonRequirement
     row = _child(db, TimetableLessonRequirement, principal.school_id, project_id, item_id)
     values = _values(payload)
     _validate_class_context(db, principal.school_id, values.get("class_id", row.class_id), project.academic_year_id)
-    _require_canonical_teacher_subject_ownership()
+    _validate_teacher_subject_ownership(db, principal.school_id, values.get("subject_id", row.subject_id), values.get("teacher_ids", row.teacher_ids))
     merged = {
         "fixed_day": values.get("fixed_day", row.fixed_day),
         "fixed_period": values.get("fixed_period", row.fixed_period),
