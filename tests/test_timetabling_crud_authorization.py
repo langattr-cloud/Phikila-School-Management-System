@@ -14,6 +14,7 @@ from app.core.database import Base, get_db
 from app.main import create_app
 from app.modules.authentication.supabase import get_supabase_claims
 from app.modules.platform.tenancy import Principal, require_role
+from app.modules.academics.models import AcademicYear, SchoolClass
 from app.modules.school.models import SchoolInfo
 from app.modules.teachers.models import Teacher
 from app.modules.subjects.models import Subject
@@ -30,7 +31,7 @@ def db_session():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine, tables=[SchoolInfo.__table__, Teacher.__table__, Subject.__table__, TimetableProject.__table__, TimetablePeriod.__table__, TimetableLessonRequirement.__table__, TimetableConstraint.__table__])
+    Base.metadata.create_all(engine, tables=[SchoolInfo.__table__, AcademicYear.__table__, SchoolClass.__table__, Teacher.__table__, Subject.__table__, TimetableProject.__table__, TimetablePeriod.__table__, TimetableLessonRequirement.__table__, TimetableConstraint.__table__])
     session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
     try:
         yield session
@@ -188,3 +189,71 @@ def test_teacher_subject_ownership_accepts_records_assigned_to_same_school(db_se
 
     # No exception means both the subject and every teacher matched school scope.
     _validate_teacher_subject_ownership(db_session, school_id=10, subject_id=203, teacher_ids=[303])
+
+
+def _seed_requirement_api_context(db_session):
+    from app.modules.timetabling.models import TimetableProject
+    db_session.add_all([
+        SchoolInfo(id=10, name="School A", code="A"),
+        SchoolInfo(id=20, name="School B", code="B"),
+    ])
+    db_session.flush()
+    db_session.add(AcademicYear(
+        id=100, school_id=10, name="2026", start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 31), status="ACTIVE",
+    ))
+    db_session.flush()
+    db_session.add(SchoolClass(
+        id=110, school_id=10, name="Class A", code="CA", academic_year_id=100,
+    ))
+    db_session.add(TimetableProject(
+        id=120, school_id=10, academic_year_id=100, name="Project A",
+        starts_on=date(2026, 1, 1), ends_on=date(2026, 12, 31), timezone="UTC", state="draft",
+    ))
+    db_session.commit()
+    return Principal(user_id="user-a", email="a@example.com", school_id=10, role="admin")
+
+
+def test_create_requirement_endpoint_rejects_cross_school_subject(db_session):
+    from app.modules.timetabling.router import create_requirement
+    from app.modules.timetabling.schemas import LessonRequirementCreate
+
+    principal = _seed_requirement_api_context(db_session)
+    db_session.add(Subject(id=220, name="Physics", code="PHY-B", school_id=20))
+    db_session.add(Teacher(id=221, school_id=10))
+    db_session.commit()
+    payload = LessonRequirementCreate(
+        class_id=110, subject_id=220, teacher_ids=[221], lessons_per_week=3,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        create_requirement(120, payload, db_session, principal)
+    assert exc.value.status_code == 422
+    assert db_session.query(TimetableLessonRequirement).count() == 0
+
+
+def test_update_requirement_endpoint_rejects_cross_school_teacher(db_session):
+    from app.modules.timetabling.router import update_requirement
+    from app.modules.timetabling.schemas import LessonRequirementUpdate
+
+    principal = _seed_requirement_api_context(db_session)
+    db_session.add_all([
+        Subject(id=230, name="Chemistry", code="CHEM-A", school_id=10),
+        Teacher(id=231, school_id=10),
+        Teacher(id=232, school_id=20),
+    ])
+    db_session.flush()
+    row = TimetableLessonRequirement(
+        id=240, project_id=120, class_id=110, subject_id=230,
+        teacher_ids=[231], lessons_per_week=2, duration_periods=1,
+        locked=False, week_pattern="every_week",
+    )
+    db_session.add(row)
+    db_session.commit()
+    payload = LessonRequirementUpdate(teacher_ids=[232])
+
+    with pytest.raises(HTTPException) as exc:
+        update_requirement(120, 240, payload, db_session, principal)
+    assert exc.value.status_code == 422
+    db_session.refresh(row)
+    assert row.teacher_ids == [231]
