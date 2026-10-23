@@ -14,7 +14,6 @@ from app.core.database import Base, get_db
 from app.main import create_app
 from app.modules.authentication.supabase import get_supabase_claims
 from app.modules.platform.tenancy import Principal, require_role
-from app.modules.academics.models import AcademicYear, SchoolClass
 from app.modules.timetabling.models import (
     TimetableProject, TimetablePeriod, TimetableLessonRequirement, TimetableConstraint,
 )
@@ -28,7 +27,7 @@ def db_session():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine, tables=[TimetableProject.__table__, TimetablePeriod.__table__, TimetableLessonRequirement.__table__, TimetableConstraint.__table__])
     session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
     try:
         yield session
@@ -65,19 +64,18 @@ def test_child_lookup_is_scoped_to_parent_project(db_session):
 
 
 def test_academic_year_must_belong_to_callers_school(db_session):
-    db_session.add(AcademicYear(id=8, school_id=2, name="2026", start_date=date(2026,1,1),
-                                end_date=date(2026,12,31), is_current=True, status="ACTIVE"))
-    db_session.commit()
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
     with pytest.raises(HTTPException) as exc:
-        _validate_project_context(db_session, school_id=1, academic_year_id=8)
+        _validate_project_context(db, school_id=1, academic_year_id=8)
     assert exc.value.status_code == 422
 
 
 def test_class_must_belong_to_callers_school_and_year(db_session):
-    db_session.add(SchoolClass(id=5, school_id=2, academic_year_id=8, name="Class A"))
-    db_session.commit()
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
     with pytest.raises(HTTPException) as exc:
-        _validate_class_context(db_session, school_id=1, class_id=5, academic_year_id=8)
+        _validate_class_context(db, school_id=1, class_id=5, academic_year_id=8)
     assert exc.value.status_code == 422
 
 
