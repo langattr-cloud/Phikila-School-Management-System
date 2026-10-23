@@ -16,7 +16,7 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "teachers",
-        sa.Column("school_id", sa.BigInteger(), sa.ForeignKey("school_info.id"), nullable=True),
+        sa.Column("school_id", sa.Integer(), sa.ForeignKey("school_info.id"), nullable=True),
     )
     op.create_index("ix_teachers_school_id", "teachers", ["school_id"])
     op.add_column(
