@@ -120,3 +120,12 @@ def test_timetabling_role_allowlist_accepts_scheduler():
     dependency = require_timetabling_role("scheduler", "admin", "super_admin")
     scheduler = Principal(user_id="scheduler", email=None, school_id=1, role="scheduler")
     assert dependency(principal=scheduler) is scheduler
+
+
+def test_requirement_writes_fail_closed_without_canonical_ownership():
+    from app.modules.timetabling.router import _require_canonical_teacher_subject_ownership
+
+    with pytest.raises(HTTPException) as exc:
+        _require_canonical_teacher_subject_ownership()
+    assert exc.value.status_code == 503
+    assert "school ownership cannot yet be verified" in exc.value.detail
