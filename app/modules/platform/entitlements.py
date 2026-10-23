@@ -12,6 +12,7 @@ MODULES = {
     "staff": {"label": "Staff Management", "description": "Teacher and staff records"},
     "attendance": {"label": "Attendance", "description": "Student and staff attendance"},
     "examinations": {"label": "Examinations & Results", "description": "Assessments, marks and report cards"},
+    "timetabling": {"label": "Timetabling", "description": "School timetable setup and scheduling"},
     "finance": {"label": "Fees & Finance", "description": "Invoices, payments and balances"},
     "library": {"label": "Library", "description": "Books and borrowing records"},
     "transport": {"label": "Transport", "description": "Vehicles, routes and assignments"},
@@ -21,7 +22,7 @@ MODULES = {
 
 # Core modules needed for a usable school account, including the dashboard's
 # scheduling summary. Optional paid/specialist modules remain opt-in.
-DEFAULT_ENABLED_MODULES = {"students", "staff", "attendance", "examinations"}
+DEFAULT_ENABLED_MODULES = {"students", "staff", "attendance", "examinations", "timetabling"}
 
 
 class TtSchoolModuleEntitlement(Base):
