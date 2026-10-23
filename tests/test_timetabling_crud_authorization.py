@@ -103,3 +103,20 @@ def test_project_crud_routes_are_registered_and_auth_dependency_present():
     assert ("/api/timetabling/projects/{project_id}/requirements", ("POST",)) in paths
     assert ("/api/timetabling/projects/{project_id}/constraints", ("POST",)) in paths
     assert all(route.dependencies for route in router.routes)
+
+
+
+def test_timetabling_role_allowlist_denies_student_even_though_role_rank_is_high():
+    from app.modules.timetabling.router import require_timetabling_role
+    dependency = require_timetabling_role("viewer", "teacher", "scheduler", "admin", "super_admin")
+    student = Principal(user_id="student", email=None, school_id=1, role="student")
+    with pytest.raises(HTTPException) as exc:
+        dependency(principal=student)
+    assert exc.value.status_code == 403
+
+
+def test_timetabling_role_allowlist_accepts_scheduler():
+    from app.modules.timetabling.router import require_timetabling_role
+    dependency = require_timetabling_role("scheduler", "admin", "super_admin")
+    scheduler = Principal(user_id="scheduler", email=None, school_id=1, role="scheduler")
+    assert dependency(principal=scheduler) is scheduler
