@@ -122,10 +122,28 @@ def test_timetabling_role_allowlist_accepts_scheduler():
     assert dependency(principal=scheduler) is scheduler
 
 
-def test_requirement_writes_fail_closed_without_canonical_ownership():
-    from app.modules.timetabling.router import _require_canonical_teacher_subject_ownership
+def test_teacher_subject_ownership_rejects_unassigned_or_cross_school_subject():
+    from app.modules.timetabling.router import _validate_teacher_subject_ownership
+    from app.modules.subjects.models import Subject
 
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
     with pytest.raises(HTTPException) as exc:
-        _require_canonical_teacher_subject_ownership()
-    assert exc.value.status_code == 503
-    assert "school ownership cannot yet be verified" in exc.value.detail
+        _validate_teacher_subject_ownership(db, school_id=10, subject_id=20, teacher_ids=[30])
+    assert exc.value.status_code == 422
+    assert "Subject does not belong to this school" in exc.value.detail
+
+
+def test_teacher_subject_ownership_rejects_teacher_missing_from_school_scope():
+    from app.modules.timetabling.router import _validate_teacher_subject_ownership
+
+    db = MagicMock()
+    subject = SimpleNamespace(id=20, school_id=10)
+    query = MagicMock()
+    query.filter.return_value.first.return_value = subject
+    query.filter.return_value.all.return_value = []
+    db.query.return_value = query
+    with pytest.raises(HTTPException) as exc:
+        _validate_teacher_subject_ownership(db, school_id=10, subject_id=20, teacher_ids=[30])
+    assert exc.value.status_code == 422
+    assert "Every teacher must belong to this school" in exc.value.detail
