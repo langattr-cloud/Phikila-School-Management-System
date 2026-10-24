@@ -9,6 +9,7 @@ type Teacher = {
   email?: string | null
   phone?: string | null
   subject?: string | null
+  classId?: string
   unavailable: string[]
   color: string
   count: number
@@ -18,9 +19,9 @@ type Teacher = {
 type SavedTeacherProfile = { id: number; profile: Record<string, any> }
 const toTeacher = (row: SavedTeacherProfile): Teacher => {
   const p = row.profile || {}
-  return { id: row.id, name: [p.firstName, p.lastName].filter(Boolean).join(' '), first_name: p.firstName || '', last_name: p.lastName || '', code: String(p.short || p.code || ''), email: p.email || '', phone: p.phone || '', subject: p.subject || '', unavailable: Array.isArray(p.unavailable) ? p.unavailable : [], color: p.color || '#176b4d', count: Number(p.count) || 0 }
+  return { id: row.id, name: [p.firstName, p.lastName].filter(Boolean).join(' '), first_name: p.firstName || '', last_name: p.lastName || '', code: String(p.short || p.code || ''), email: p.email || '', phone: p.phone || '', subject: p.subject || '', classId: p.classId ? String(p.classId) : '', unavailable: Array.isArray(p.unavailable) ? p.unavailable : [], color: p.color || '#176b4d', count: Number(p.count) || 0 }
 }
-const teacherProfile = (teacher: Partial<Teacher> & { first_name?: string; last_name?: string }) => ({ firstName: teacher.first_name || '', lastName: teacher.last_name || '', short: teacher.code || '', email: teacher.email || '', phone: teacher.phone || '', subject: teacher.subject || '', unavailable: teacher.unavailable || [], color: teacher.color || '#176b4d', count: teacher.count || 0 })
+const teacherProfile = (teacher: Partial<Teacher> & { first_name?: string; last_name?: string }) => ({ firstName: teacher.first_name || '', lastName: teacher.last_name || '', short: teacher.code || '', email: teacher.email || '', phone: teacher.phone || '', subject: teacher.subject || '', classId: teacher.classId || '', unavailable: teacher.unavailable || [], color: teacher.color || '#176b4d', count: teacher.count || 0 })
 type SchoolClass = SchoolClassSetup & {
   display_name?: string | null
   class_teacher_id?: number | null
@@ -126,12 +127,12 @@ export default function TeacherClassManagement() {
   const toggleTeacherTimeOff = (slot: string) => setForm(current => ({ ...current, unavailable: current.unavailable.includes(slot) ? current.unavailable.filter(s => s !== slot) : [...current.unavailable, slot] }))
 
   const assigned = useMemo(() => classes.filter(c => c.class_teacher_id != null).length, [classes])
-  const visibleTeachers = useMemo(() => teachers.filter(t => [teacherName(t), t.code, t.email, t.subject, classes.find(c => String(c.class_teacher_id) === String(t.id))?.name].join(' ').toLowerCase().includes(query.toLowerCase())), [teachers, classes, query])
-  const visibleClasses = useMemo(() => classes.filter(c => [className(c), classCode(c), teachers.find(t => String(t.id) === String(c.class_teacher_id))?.name].join(' ').toLowerCase().includes(query.toLowerCase())), [classes, teachers, query])
+  const visibleTeachers = useMemo(() => teachers.filter(t => [teacherName(t), t.code, t.email, t.subject, classes.find(c => String(c.id) === String(t.classId) || String(c.class_teacher_id) === String(t.id))?.name].join(' ').toLowerCase().includes(query.toLowerCase())), [teachers, classes, query])
+  const visibleClasses = useMemo(() => classes.filter(c => [className(c), classCode(c), teachers.find(t => String(t.classId) === String(c.id) || String(t.id) === String(c.class_teacher_id))?.name].join(' ').toLowerCase().includes(query.toLowerCase())), [classes, teachers, query])
 
   const openTeacher = (teacher?: Teacher) => {
     setEditingId(teacher?.id ?? null)
-    const assignedClass = teacher ? classes.find(c => String(c.class_teacher_id) === String(teacher.id)) : undefined
+    const assignedClass = teacher ? classes.find(c => String(c.id) === String(teacher.classId) || String(c.class_teacher_id) === String(teacher.id)) : undefined
     const fullName = teacherName(teacher || ({} as Teacher)).trim().split(/\s+/)
     setForm(teacher ? {
       firstName: teacher.first_name || fullName[0] || '',
@@ -163,18 +164,11 @@ export default function TeacherClassManagement() {
     setError('')
     try {
       const payload = { name, first_name: firstName, last_name: lastName, code, email: form.email.trim() || null, phone: form.phone.trim() || null, color: form.color }
-      const profile = { ...teacherProfile({ ...payload, first_name: firstName, last_name: lastName, unavailable: form.unavailable, color: form.color }) }
+      const profile = { ...teacherProfile({ ...payload, first_name: firstName, last_name: lastName, unavailable: form.unavailable, color: form.color, classId: form.classId }) }
       const saved = editingId == null
         ? await apiFetch<SavedTeacherProfile>('/api/v1/timetable/teachers', { method: 'POST', body: JSON.stringify({ profile }) })
         : await apiFetch<SavedTeacherProfile>(`/api/v1/timetable/teachers/${editingId}`, { method: 'PUT', body: JSON.stringify({ profile }) })
-      const previousClass = classes.find(c => String(c.class_teacher_id) === String(saved.id))
-      const desiredClassId = form.classId
-      if (previousClass && String(previousClass.id) !== desiredClassId) {
-        await apiFetch(`/api/v1/academics/classes/${previousClass.id}`, { method: 'PATCH', body: JSON.stringify({ class_teacher_id: null }) })
-      }
-      if (desiredClassId && (!previousClass || String(previousClass.id) !== desiredClassId)) {
-        await apiFetch(`/api/v1/academics/classes/${desiredClassId}`, { method: 'PATCH', body: JSON.stringify({ class_teacher_id: Number(saved.id) }) })
-      }
+      
       setModal(false)
       setNotice(editingId == null ? 'Teacher added.' : 'Teacher updated.')
       await loadRecords()
@@ -190,8 +184,6 @@ export default function TeacherClassManagement() {
     setSaving(true)
     setError('')
     try {
-      const assignedClass = classes.find(c => String(c.class_teacher_id) === String(teacher.id))
-      if (assignedClass) await apiFetch(`/api/v1/academics/classes/${assignedClass.id}`, { method: 'PATCH', body: JSON.stringify({ class_teacher_id: null }) })
       await apiFetch(`/api/v1/timetable/teachers/${teacher.id}`, { method: 'DELETE' })
       setNotice('Teacher removed.')
       await loadRecords()
