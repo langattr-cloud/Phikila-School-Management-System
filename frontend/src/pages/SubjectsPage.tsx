@@ -58,7 +58,12 @@ export default function SubjectsPage() {
   const [modal,setModal] = useState(false)
   const [notice,setNotice] = useState('')
   const [form,setForm] = useState({name:'',code:'',category:'Core' as Subject['category'],lessonsPerWeek:'4',teacherId:'',classCodes:[] as string[],active:true})
-  useEffect(()=>{\n    const loadStaffAndClasses=()=>{try{const saved=localStorage.getItem(STAFF_KEY);if(saved){const parsed=JSON.parse(saved);setStaff(Array.isArray(parsed.teachers)?parsed.teachers:[]);setClasses(Array.isArray(parsed.classes)?parsed.classes:defaultClasses)}else{setStaff([]);setClasses(defaultClasses)}}catch{setStaff([]);setClasses(defaultClasses)}}\n    loadStaffAndClasses()\n    window.addEventListener('storage',loadStaffAndClasses)\n    return()=>window.removeEventListener('storage',loadStaffAndClasses)\n  },[])
+  useEffect(()=>{
+    const loadStaffAndClasses=()=>{try{const saved=localStorage.getItem(STAFF_KEY);if(saved){const parsed=JSON.parse(saved);setStaff(Array.isArray(parsed.teachers)?parsed.teachers:[]);setClasses(Array.isArray(parsed.classes)?parsed.classes:defaultClasses)}else{setStaff([]);setClasses(defaultClasses)}}catch{setStaff([]);setClasses(defaultClasses)}}
+    loadStaffAndClasses()
+    window.addEventListener('storage',loadStaffAndClasses)
+    return()=>window.removeEventListener('storage',loadStaffAndClasses)
+  },[])
   useEffect(()=>{try{localStorage.setItem(SUBJECT_KEY,JSON.stringify(subjects))}catch{setNotice('Browser storage is unavailable; changes may not persist after this page closes.')}},[subjects])
   const filtered=useMemo(()=>subjects.filter(s=>(!query||[s.name,s.code,s.category].join(' ').toLowerCase().includes(query.toLowerCase()))&&(category==='All'||s.category===category)),[subjects,query,category])
   const openCreate=()=>{setEditing(null);setForm({name:'',code:'',category:'Core',lessonsPerWeek:'4',teacherId:'',classCodes:[],active:true});setModal(true)}
