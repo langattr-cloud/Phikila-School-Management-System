@@ -28,6 +28,7 @@ from app.modules.platform.modules_router import router as school_modules_router
 from app.modules.platform.module_access import require_school_module
 from app.modules.platform.access_approval import router as access_approval_router
 from app.modules.school.router import router as school_router
+from app.modules.subjects.timetable_profiles import router as timetable_subjects_router, TimetableSubjectProfile
 from app.modules.students.import_router import router as students_import_router
 from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
@@ -73,7 +74,7 @@ def create_app() -> FastAPI:
         # Create only the new additive supplier-payment tables; existing tables are untouched.
         from app.core.database import engine
         from app.core.database import Base
-        Base.metadata.create_all(bind=engine, tables=[Supplier.__table__, SupplierInvoice.__table__, SupplierPayment.__table__])
+        Base.metadata.create_all(bind=engine, tables=[Supplier.__table__, SupplierInvoice.__table__, SupplierPayment.__table__, TimetableSubjectProfile.__table__])
     @app.get("/health", tags=["Health"])
     def health_check():
         return {"status": "ok", "environment": settings.environment}
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
     app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
+    app.include_router(timetable_subjects_router, prefix="/api/v1/timetable", tags=["Timetable Subjects"])
     frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
     if frontend_dist.is_dir(): app.mount("/", SPAStaticFiles(directory=frontend_dist, html=True), name="frontend")
     return app
