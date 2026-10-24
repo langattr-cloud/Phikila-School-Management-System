@@ -7,6 +7,7 @@ type Teacher = {
   name: string
   code: string
   email?: string | null
+  phone?: string | null
   subject?: string | null
   unavailable: string[]
   color: string
@@ -21,7 +22,7 @@ type SchoolClass = SchoolClassSetup & {
   count?: number
 }
 type Tab = 'teachers' | 'classes'
-type TeacherForm = { name: string; code: string; email: string; subject: string; classId: string; color: string }
+type TeacherForm = { firstName: string; lastName: string; code: string; email: string; phone: string; classId: string; color: string }
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 const PERIODS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8']
 const styles = `
@@ -69,7 +70,7 @@ const styles = `
 const teacherName = (teacher: Teacher) => teacher.name || [teacher.first_name, teacher.last_name].filter(Boolean).join(' ')
 const className = (schoolClass: SchoolClass) => schoolClass.display_name || schoolClass.name
 const classCode = (schoolClass: SchoolClass) => schoolClass.code || ''
-const defaultForm: TeacherForm = { name: '', code: '', email: '', subject: '', classId: '', color: '#176b4d' }
+const defaultForm: TeacherForm = { firstName: '', lastName: '', code: '', email: '', phone: '', classId: '', color: '#176b4d' }
 
 export default function TeacherClassManagement() {
   const [tab, setTab] = useState<Tab>('teachers')
@@ -110,11 +111,13 @@ export default function TeacherClassManagement() {
   const openTeacher = (teacher?: Teacher) => {
     setEditingId(teacher?.id ?? null)
     const assignedClass = teacher ? classes.find(c => String(c.class_teacher_id) === String(teacher.id)) : undefined
+    const fullName = teacherName(teacher || ({} as Teacher)).trim().split(/\s+/)
     setForm(teacher ? {
-      name: teacherName(teacher),
+      firstName: teacher.first_name || fullName[0] || '',
+      lastName: teacher.last_name || fullName.slice(1).join(' '),
       code: teacher.code || '',
       email: teacher.email || '',
-      subject: teacher.subject || '',
+      phone: teacher.phone || '',
       classId: assignedClass ? String(assignedClass.id) : '',
       color: teacher.color || '#176b4d',
     } : { ...defaultForm, code: String(Math.max(0, ...teachers.map(t => Number(t.code) || 0)) + 1) })
@@ -125,9 +128,11 @@ export default function TeacherClassManagement() {
 
   const saveTeacher = async (event: FormEvent) => {
     event.preventDefault()
-    const name = form.name.trim()
+    const firstName = form.firstName.trim()
+    const lastName = form.lastName.trim()
+    const name = [firstName, lastName].filter(Boolean).join(' ')
     const code = form.code.trim()
-    if (!name || !code) { setError('Teacher name and short code are required.'); return }
+    if (!firstName || !lastName || !code) { setError('First name, last name and code are required.'); return }
     if (teachers.some(t => t.code.toLowerCase() === code.toLowerCase() && String(t.id) !== String(editingId))) {
       setError('That teacher short code is already in use.')
       return
@@ -135,7 +140,7 @@ export default function TeacherClassManagement() {
     setSaving(true)
     setError('')
     try {
-      const payload = { name, code, email: form.email.trim(), subject: form.subject.trim(), color: form.color }
+      const payload = { name, first_name: firstName, last_name: lastName, code, email: form.email.trim() || null, phone: form.phone.trim() || null, color: form.color }
       const saved = editingId == null
         ? await apiFetch<Teacher>('/api/v1/teachers', { method: 'POST', body: JSON.stringify({ ...payload, unavailable: [] }) })
         : await apiFetch<Teacher>(`/api/v1/teachers/${editingId}`, { method: 'PATCH', body: JSON.stringify(payload) })
@@ -224,6 +229,6 @@ export default function TeacherClassManagement() {
         <div className="staff-note"><div className="staff-legend"><span><i /> Available</span><span className="off"><i /> Unavailable / time off</span><span>Changes save to Supabase immediately.</span></div></div>
       </> : <div className="staff-table-wrap"><table className="staff-table"><thead><tr><th>Class name</th><th>Short</th><th>Student count</th><th>Class teacher</th></tr></thead><tbody>{visibleClasses.map(c => <tr key={c.id}><td><span className="staff-name">{className(c)}</span></td><td><span className="staff-code">{classCode(c) || '—'}</span></td><td>{c.count ?? c.student_count ?? 0}</td><td>{teachers.find(t => String(t.id) === String(c.class_teacher_id))?.name || <span className="staff-muted">Not assigned</span>}</td></tr>)}</tbody></table>{visibleClasses.length === 0 && <div className="staff-empty">No classes match your search.</div>}<div className="staff-note">Classes are read from the canonical school setup. To add or remove classes, use School Structure; assign a class teacher by editing a teacher record.</div></div>}
     </section>
-    {modal && <div className="staff-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !saving) setModal(false) }}><section className="staff-modal" role="dialog" aria-modal="true" aria-labelledby="staff-modal-title"><h2 id="staff-modal-title">{editingId == null ? 'Add' : 'Edit'} teacher</h2><p className="staff-muted">Fields marked with * are required.</p><form onSubmit={saveTeacher}><div className="staff-form"><label className="staff-field full">Full name *<input autoFocus required maxLength={120} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></label><label className="staff-field">Short code *<input required maxLength={30} value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} /></label><label className="staff-field">Email<input type="email" maxLength={254} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></label><label className="staff-field">Subject / department<input maxLength={100} value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} /></label><label className="staff-field">Class teacher assignment<select value={form.classId} onChange={e => setForm(p => ({ ...p, classId: e.target.value }))}><option value="">Not assigned</option>{classes.map(c => <option key={c.id} value={String(c.id)}>{className(c)} ({classCode(c) || c.id})</option>)}</select></label><label className="staff-field">Availability color<input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} /></label></div><div className="staff-modal-actions"><button type="button" className="staff-btn" onClick={() => setModal(false)} disabled={saving}>Cancel</button><button type="submit" className="staff-btn primary" disabled={saving}>{saving ? 'Saving…' : 'Save teacher'}</button></div></form></section></div>}
+    {modal && <div className="staff-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !saving) setModal(false) }}><section className="staff-modal" role="dialog" aria-modal="true" aria-labelledby="staff-modal-title"><h2 id="staff-modal-title">{editingId == null ? 'Add' : 'Edit'} teacher</h2><p className="staff-muted">Fields marked with * are required.</p><form onSubmit={saveTeacher}><div className="staff-form"><label className="staff-field">Last name *<input autoFocus required maxLength={80} autoComplete="family-name" value={form.lastName} onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))} /></label><label className="staff-field">First name *<input required maxLength={80} autoComplete="given-name" value={form.firstName} onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))} /></label><label className="staff-field">Code *<input required maxLength={30} value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} /></label><label className="staff-field">Email<input type="email" maxLength={254} autoComplete="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></label><label className="staff-field">Phone (optional)<input type="tel" maxLength={40} autoComplete="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></label><label className="staff-field">Class teacher<select value={form.classId} onChange={e => setForm(p => ({ ...p, classId: e.target.value }))}><option value="">Not assigned</option>{classes.map(c => <option key={c.id} value={String(c.id)}>{className(c)} ({classCode(c) || c.id})</option>)}</select></label><label className="staff-field">Color<input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} /></label></div><div className="staff-modal-actions"><button type="button" className="staff-btn" onClick={() => setModal(false)} disabled={saving}>Cancel</button><button type="submit" className="staff-btn primary" disabled={saving}>{saving ? 'Saving…' : 'Save teacher'}</button></div></form></section></div>}
   </div>
 }
