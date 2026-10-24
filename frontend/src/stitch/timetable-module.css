@@ -198,3 +198,25 @@
 .phikila-tt-verification-indicator{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:999px;background:#f8fafc;color:#334155;font-size:11px;font-weight:650}
 .phikila-tt-verification-indicator::before{content:"";width:7px;height:7px;border-radius:50%;background:#22c55e}
 .phikila-tt-grid-legend:has(.phikila-tt-verification-indicator){align-items:center;flex-wrap:wrap}
+
+/* Keep every requested ribbon action visible instead of hiding controls in horizontal overflow. */
+.phikila-ribbon-scroll{overflow:visible;min-width:0}
+.phikila-ribbon-row{display:block;min-width:0;padding:8px 10px;background:linear-gradient(#fff,#f0f4f8)}
+.phikila-ribbon-group-all{display:flex;flex-wrap:wrap;align-items:stretch;gap:5px;width:100%}
+.phikila-ribbon-group-all .phikila-ribbon-button{flex:0 1 88px;min-width:72px;max-width:100px;min-height:65px;white-space:normal}
+.phikila-ribbon-group-all .phikila-ribbon-button>span:last-child{overflow-wrap:anywhere}
+.phikila-ribbon-filter{display:flex;align-items:center;justify-content:flex-end;padding:5px 10px;border-top:1px solid #e2e8f0;background:#f8fafc}
+.phikila-ribbon-filter .phikila-whose{display:flex;align-items:center;gap:7px;font-size:11px;color:#475569}
+.phikila-ribbon-filter .phikila-whose select{max-width:180px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;background:white;color:#1e293b}
+.phikila-menu-bar{position:relative;z-index:20}
+.phikila-menu{position:relative}
+.phikila-menu-dropdown{z-index:1000;max-height:min(70vh,520px);overflow-y:auto}
+.phikila-tt-grid-scroll{overflow:auto;max-width:100%}
+.phikila-tt-grid-days-rows{min-width:850px;width:100%;table-layout:fixed}
+.phikila-tt-grid-days-rows .period-cell{position:sticky;left:0;z-index:2}
+.phikila-tt-grid-days-rows thead th:first-child{position:sticky;left:0;z-index:3}
+@media(max-width:700px){
+ .phikila-ribbon-group-all .phikila-ribbon-button{flex:1 1 76px;min-width:68px;max-width:none;min-height:62px}
+ .phikila-ribbon-filter{justify-content:flex-start}
+ .phikila-ribbon-filter .phikila-whose{flex-wrap:wrap}
+}
