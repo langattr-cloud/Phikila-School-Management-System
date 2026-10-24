@@ -12,7 +12,8 @@ revoke all on table public.teacher_management_settings from anon, authenticated;
 create or replace function public.set_teacher_management_settings_updated_at()
 returns trigger
 language plpgsql
-as $$
+set search_path = public
+as $
 begin
   new.updated_at = now();
   return new;
