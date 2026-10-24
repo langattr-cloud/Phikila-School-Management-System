@@ -106,7 +106,7 @@ export default function TimetableModule() {
    apiFetch<SavedTeacherProfile[]>('/api/v1/timetable/teachers'),
    apiFetch<SavedSubjectProfile[]>('/api/v1/timetable/subjects'),
    apiFetch<Array<{id:number;name:string;code:string}>>('/api/v1/academics/classes'),
-   apiFetch<{data:Timetable|null}>('/api/v1/timetable/workspace')
+   apiFetch<{data:Record<string, any>|null}>('/api/v1/timetable/workspace')
  ]).then(([teacherRows,subjectRows,classRows,workspace])=>{if(!active)return;setTeacherProfiles(Array.isArray(teacherRows)?teacherRows:[]);setSubjectProfiles(Array.isArray(subjectRows)?subjectRows:[]);setClassRecords(Array.isArray(classRows)?classRows:[]);if(workspace.data){setWorkspaceData(workspace.data);if(workspace.data.timetable&&Array.isArray(workspace.data.timetable.periods)&&Array.isArray(workspace.data.timetable.lessons))setData({...initial,...workspace.data.timetable})}}).catch(error=>{if(active)setStatus(error instanceof ApiError&&error.status===401?'Sign in to load shared timetable data.':'Could not load shared timetable data from the server.')}).finally(()=>{if(active){setTeacherLoading(false);setSubjectLoading(false);setWorkspaceLoading(false)}});return()=>{active=false}},[])
  const classes = useMemo(()=>[...new Set([...classRecords.map(c=>c.name),...data.lessons.map(l=>l.className)].filter(Boolean))],[classRecords,data.lessons])
  const subjects = useMemo(()=>[...new Set([...subjectProfiles.map(s=>s.profile.title),...data.lessons.map(l=>l.subject)].filter((v):v is string=>typeof v==='string'&&v.length>0))],[subjectProfiles,data.lessons])
