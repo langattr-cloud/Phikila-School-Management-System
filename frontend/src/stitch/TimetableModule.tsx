@@ -9,7 +9,7 @@ type SubjectDetail = { short: string; color: string; number: string; customField
 type SubjectForm = { title: string; short: string; color: string; number: string; customFields: string; classrooms: string[] }
 type Workspace = { schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail> }
 type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
-type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions? / Write us' | 'About' | 'Generate' | 'Help' | 'Students' | 'Relations' | 'Timetables Online'
+type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Students' | 'Relations' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Year/Class Online' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions/Comments' | 'Questions? / Write us' | 'About' | 'Generate' | 'Help' | 'Timetables Online'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const DEFAULT_PERIODS: Period[] = [
@@ -29,20 +29,24 @@ function RibbonButton({ label, glyph, tint, onClick }: { label: string; glyph: s
 function MainMenu({ onAction, whose, onWhoseChange }: { onAction: (action: Action) => void; whose: Whose; onWhoseChange: (value: Whose) => void }) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const menus: Record<string, Action[]> = {
-    Main: ['New', 'Open', 'Save', 'Save As', 'Print', 'Print preview', 'Exit'],
-    File: ['Import', 'Export', 'Settings'],
-    Specification: ['Subjects', 'Classes', 'Classrooms', 'Teachers', 'Lessons'],
+    Main: ['New', 'Open', 'Save', 'Print', 'Print preview', 'Exit'],
+    File: ['New', 'Open', 'Save', 'Save As', 'Import', 'Export', 'Print', 'Print preview', 'Settings', 'Exit'],
+    Specification: ['Subjects', 'Classes', 'Classrooms', 'Teachers', 'Students', 'Relations', 'Lessons'],
     View: ['Timetable', 'Summary', 'Zoom'],
     Timetable: ['Generate new', 'Generate in cloud', 'Test', 'Verification'],
-    Options: ['School', 'Bell times', 'Constraints'],
-    Help: ['Contents', 'Questions? / Write us', 'About'],
+    Options: ['School', 'Bell times', 'Year/Class Online', 'Constraints'],
+    Help: ['Contents', 'Questions/Comments', 'About'],
   }
   const items: { label: Action; glyph: string; tint?: string }[] = [
     { label: 'New', glyph: '▤' }, { label: 'Open', glyph: '▱' }, { label: 'Save', glyph: '▣' },
-    { label: 'Print', glyph: '▧' }, { label: 'Subjects', glyph: '◈', tint: 'blue' },
-    { label: 'Classes', glyph: '▦', tint: 'gold' }, { label: 'Teachers', glyph: '♙', tint: 'purple' },
-    { label: 'Generate', glyph: '✳', tint: 'pink' }, { label: 'Verification', glyph: '✓', tint: 'teal' },
-    { label: 'Help', glyph: '?', tint: 'blue' },
+    { label: 'Print', glyph: '▧' }, { label: 'Print preview', glyph: '▤', tint: 'blue' },
+    { label: 'Subjects', glyph: '◈', tint: 'blue' }, { label: 'Classes', glyph: '▦', tint: 'gold' },
+    { label: 'Classrooms', glyph: '▣', tint: 'gold' }, { label: 'Teachers', glyph: '♙', tint: 'purple' },
+    { label: 'Students', glyph: '♟', tint: 'purple' }, { label: 'Relations', glyph: '⇄', tint: 'purple' },
+    { label: 'Test', glyph: '✓', tint: 'teal' }, { label: 'Generate new', glyph: '✳', tint: 'pink' },
+    { label: 'Generate in cloud', glyph: '☁', tint: 'pink' }, { label: 'Verification', glyph: '✓', tint: 'teal' },
+    { label: 'School', glyph: '⌂', tint: 'blue' }, { label: 'Year/Class Online', glyph: '◎', tint: 'gold' },
+    { label: 'Questions/Comments', glyph: '?', tint: 'blue' },
   ]
   const ribbonButton = (item: { label: Action; glyph: string; tint?: string }) => <RibbonButton key={item.label} label={item.label} glyph={item.glyph} tint={item.tint} onClick={() => onAction(item.label)} />
   return <div className="phikila-ribbon">
@@ -170,8 +174,9 @@ export default function TimetableModule() {
       case 'Print preview': setPreviewOpen(true); break
       case 'Test': case 'Verification': void runTest(); break
       case 'Generate': { const result = generateSchedule(data); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved') } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save') } break }
-      case 'Help': case 'Contents': case 'Questions? / Write us': case 'About': setStatus('Phikila Timetable Help · Use the menu bar for File, Specification, View, Timetable, Options, and Help actions.'); break
+      case 'Help': case 'Contents': case 'Questions/Comments': case 'Questions? / Write us': case 'About': setStatus('Phikila Timetable Help · Use the menu bar for File, Specification, View, Timetable, Options, and Help actions.'); break
       case 'School': case 'Settings': setSetupTab('basic'); setSettingsOpen(true); break
+      case 'Year/Class Online': case 'Timetables Online': setStatus('Year/Class Online · online publishing will be available after the timetable is generated and approved.'); break
       case 'Bell times': setSetupTab('bell'); setSettingsOpen(true); break
       case 'Exit': setStatus('Use the main application navigation to leave the timetable.'); break
       case 'Generate new': {
