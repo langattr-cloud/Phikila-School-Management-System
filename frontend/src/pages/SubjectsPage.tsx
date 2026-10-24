@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { apiFetch, friendlyApiError, type SchoolClassSetup } from '../lib/api'
 
-type Subject = { id: string; name: string; code: string; category: 'Core' | 'Elective' | 'Practical'; lessonsPerWeek: number; teacherId: string; classCodes: string[]; active: boolean }
+type Subject = { id: string; name: string; code: string; category: 'Core' | 'Elective' | 'Practical'; lessonsPerWeek: number; teacherId: string; classCodes: string[]; active: boolean; rawProfile?: Record<string, unknown> }
 type StaffRecord = { id: string; name: string; code: string }
 type SavedProfile = { id: number; profile: Record<string, unknown> }
 type TeacherProfile = { id: number; profile: { firstName?: string; lastName?: string; short?: string; titleBefore?: string; titleAfter?: string } }
 const toSubject = (row: SavedProfile): Subject => {
   const p = row.profile
-  return { id: String(row.id), name: String(p.title ?? ''), code: String(p.short ?? p.code ?? '').toUpperCase(), category: (['Core','Elective','Practical'].includes(String(p.category)) ? p.category : 'Core') as Subject['category'], lessonsPerWeek: Math.max(1, Number(p.count ?? p.lessonsPerWeek ?? 4) || 4), teacherId: String(p.teacherId ?? ''), classCodes: Array.isArray(p.classCodes) ? p.classCodes.map(String) : [], active: p.active !== false }
+  return { id: String(row.id), name: String(p.title ?? ''), code: String(p.short ?? p.code ?? '').toUpperCase(), category: (['Core','Elective','Practical'].includes(String(p.category)) ? p.category : 'Core') as Subject['category'], lessonsPerWeek: Math.max(1, Number(p.count ?? p.lessonsPerWeek ?? 4) || 4), teacherId: String(p.teacherId ?? ''), classCodes: Array.isArray(p.classCodes) ? p.classCodes.map(String) : [], active: p.active !== false, rawProfile: p }
 }
 const css = `
 .subject-page{max-width:1440px;margin:0 auto;padding:24px;color:var(--text,#172033)}
@@ -72,7 +72,7 @@ export default function SubjectsPage() {
   const save=async(e:FormEvent)=>{e.preventDefault();const name=form.name.trim(),code=form.code.trim().toUpperCase(),lessons=Number(form.lessonsPerWeek);if(!name||!code||!Number.isInteger(lessons)||lessons<1||lessons>50){setNotice('Enter a subject name, code and a lesson count from 1 to 50.');return}if(subjects.some(s=>s.code.toLowerCase()===code.toLowerCase()&&s.id!==editing)){setNotice('That subject code is already in use.');return}
     const profile={title:name,short:code,code,category:form.category,count:lessons,lessonsPerWeek:lessons,teacherId:form.teacherId,classCodes:form.classCodes,active:form.active}
     setSaving(true);setNotice('')
-    try { const saved=editing?await apiFetch<SavedProfile>('/api/v1/timetable/subjects/'+editing,{method:'PUT',body:JSON.stringify({profile:{...((await Promise.resolve(subjects.find(s=>s.id===editing))??{})),...profile}})}):await apiFetch<SavedProfile>('/api/v1/timetable/subjects',{method:'POST',body:JSON.stringify({profile})})
+    try { const saved=editing?await apiFetch<SavedProfile>('/api/v1/timetable/subjects/'+editing,{method:'PUT',body:JSON.stringify({profile:{...(subjects.find(s=>s.id===editing)?.rawProfile??{}),...profile}})}):await apiFetch<SavedProfile>('/api/v1/timetable/subjects',{method:'POST',body:JSON.stringify({profile})})
       setSubjects(current=>editing?current.map(s=>s.id===editing?toSubject(saved):s):[toSubject(saved),...current]);setModal(false);setNotice(editing?'Subject updated and saved to the shared database.':'Subject created in the shared database.')
     } catch(error){setNotice(friendlyApiError(error,editing?'update subject':'create subject'))} finally{setSaving(false)}
   }
