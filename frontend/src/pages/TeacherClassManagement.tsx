@@ -81,7 +81,6 @@ const teacherName = (teacher: Teacher) => teacher.name || [teacher.first_name, t
 const className = (schoolClass: SchoolClass) => schoolClass.display_name || schoolClass.name
 const classCode = (schoolClass: SchoolClass) => schoolClass.code || ''
 const defaultForm: TeacherForm = { firstName: '', lastName: '', code: '', email: '', phone: '', classId: '', color: '#176b4d', unavailable: [] }
-const CLASS_SETTINGS_KEY = 'phikila-class-management-settings'
 const defaultClassForm: ClassForm = { name: '', code: '', color: '#176b4d', unavailable: [] }
 
 export default function TeacherClassManagement() {
@@ -105,12 +104,14 @@ export default function TeacherClassManagement() {
     setLoading(true)
     setError('')
     try {
-      const [teacherRows, classRows] = await Promise.all([
+      const [teacherRows, classRows, workspace] = await Promise.all([
         apiFetch<SavedTeacherProfile[]>('/api/v1/timetable/teachers'),
         apiFetch<SchoolClass[]>('/api/v1/academics/classes'),
+        apiFetch<{data: Record<string, any> | null}>('/api/v1/timetable/workspace'),
       ])
       setTeachers(teacherRows.map(toTeacher))
       setClasses(classRows)
+      setClassSettings(workspace.data?.classSettings && typeof workspace.data.classSettings === 'object' ? workspace.data.classSettings : {})
     } catch (e) {
       setError(friendlyApiError(e, 'load teachers and classes'))
     } finally {
@@ -119,10 +120,13 @@ export default function TeacherClassManagement() {
   }, [])
 
   useEffect(() => { void loadRecords() }, [loadRecords])
-  useEffect(() => { try { const saved = localStorage.getItem(CLASS_SETTINGS_KEY); if (saved) setClassSettings(JSON.parse(saved)) } catch { /* Ignore malformed local preferences. */ } }, [])
-  const persistClassSettings = (next: typeof classSettings) => { setClassSettings(next); try { localStorage.setItem(CLASS_SETTINGS_KEY, JSON.stringify(next)) } catch { setError('Class color and time-off settings could not be saved in this browser.') } }
+  const persistClassSettings = async (next: typeof classSettings) => {
+    const current = await apiFetch<{data: Record<string, any> | null}>('/api/v1/timetable/workspace')
+    await apiFetch('/api/v1/timetable/workspace', { method: 'PUT', body: JSON.stringify({ data: { ...(current.data || {}), classSettings: next } }) })
+    setClassSettings(next)
+  }
   const openClass = (schoolClass: SchoolClass) => { const settings = classSettings[String(schoolClass.id)]; setEditingClassId(Number(schoolClass.id)); setClassForm({ name: className(schoolClass), code: classCode(schoolClass), color: settings?.color || schoolClass.color || '#176b4d', unavailable: settings?.unavailable || schoolClass.unavailable || [] }); setClassModal(true); setError(''); setNotice('') }
-  const saveClass = async (event: FormEvent) => { event.preventDefault(); if (editingClassId == null || !classForm.name.trim() || !classForm.code.trim()) { setError('Class name and code are required.'); return }; setSaving(true); setError(''); try { await apiFetch('/api/v1/academics/classes/' + editingClassId, { method: 'PATCH', body: JSON.stringify({ name: classForm.name.trim(), code: classForm.code.trim() }) }); persistClassSettings({ ...classSettings, [String(editingClassId)]: { color: classForm.color, unavailable: classForm.unavailable } }); setClassModal(false); setNotice('Class updated. Color and time-off preferences are saved in this browser.'); await loadRecords() } catch (e) { setError(friendlyApiError(e, 'save class')) } finally { setSaving(false) } }
+  const saveClass = async (event: FormEvent) => { event.preventDefault(); if (editingClassId == null || !classForm.name.trim() || !classForm.code.trim()) { setError('Class name and code are required.'); return }; setSaving(true); setError(''); try { await apiFetch('/api/v1/academics/classes/' + editingClassId, { method: 'PATCH', body: JSON.stringify({ name: classForm.name.trim(), code: classForm.code.trim() }) }); await persistClassSettings({ ...classSettings, [String(editingClassId)]: { color: classForm.color, unavailable: classForm.unavailable } }); setClassModal(false); setNotice('Class details, color and time-off preferences saved to the shared database.'); await loadRecords() } catch (e) { setError(friendlyApiError(e, 'save class')) } finally { setSaving(false) } }
   const toggleClassTimeOff = (slot: string) => setClassForm(current => ({ ...current, unavailable: current.unavailable.includes(slot) ? current.unavailable.filter(s => s !== slot) : [...current.unavailable, slot] }))
   const toggleTeacherTimeOff = (slot: string) => setForm(current => ({ ...current, unavailable: current.unavailable.includes(slot) ? current.unavailable.filter(s => s !== slot) : [...current.unavailable, slot] }))
 
