@@ -83,6 +83,7 @@ function SubjectDialog({profiles,editing,onClose,onEdit,onDelete,onTimeOff,onSav
 export default function TimetableModule() {
  const [data,setData] = useState<Timetable>(initial)
  const [classRecords,setClassRecords] = useState<Array<{id:number;name:string;code:string}>>([])
+ const [workspaceData,setWorkspaceData] = useState<Record<string,any>>({})
  const [workspaceLoading,setWorkspaceLoading] = useState(true)
  const [view,setView] = useState<'Whole school'|'Teachers'|'Subjects'|'Lesson grid'>('Whole school')
  const [filter,setFilter] = useState('All')
@@ -106,7 +107,7 @@ export default function TimetableModule() {
    apiFetch<SavedSubjectProfile[]>('/api/v1/timetable/subjects'),
    apiFetch<Array<{id:number;name:string;code:string}>>('/api/v1/academics/classes'),
    apiFetch<{data:Timetable|null}>('/api/v1/timetable/workspace')
- ]).then(([teacherRows,subjectRows,classRows,workspace])=>{if(!active)return;setTeacherProfiles(Array.isArray(teacherRows)?teacherRows:[]);setSubjectProfiles(Array.isArray(subjectRows)?subjectRows:[]);setClassRecords(Array.isArray(classRows)?classRows:[]);if(workspace.data&&Array.isArray(workspace.data.periods)&&Array.isArray(workspace.data.lessons))setData({...initial,...workspace.data})}).catch(error=>{if(active)setStatus(error instanceof ApiError&&error.status===401?'Sign in to load shared timetable data.':'Could not load shared timetable data from the server.')}).finally(()=>{if(active){setTeacherLoading(false);setSubjectLoading(false);setWorkspaceLoading(false)}});return()=>{active=false}},[])
+ ]).then(([teacherRows,subjectRows,classRows,workspace])=>{if(!active)return;setTeacherProfiles(Array.isArray(teacherRows)?teacherRows:[]);setSubjectProfiles(Array.isArray(subjectRows)?subjectRows:[]);setClassRecords(Array.isArray(classRows)?classRows:[]);if(workspace.data){setWorkspaceData(workspace.data);if(workspace.data.timetable&&Array.isArray(workspace.data.timetable.periods)&&Array.isArray(workspace.data.timetable.lessons))setData({...initial,...workspace.data.timetable})}}).catch(error=>{if(active)setStatus(error instanceof ApiError&&error.status===401?'Sign in to load shared timetable data.':'Could not load shared timetable data from the server.')}).finally(()=>{if(active){setTeacherLoading(false);setSubjectLoading(false);setWorkspaceLoading(false)}});return()=>{active=false}},[])
  const classes = useMemo(()=>[...new Set([...classRecords.map(c=>c.name),...data.lessons.map(l=>l.className)].filter(Boolean))],[classRecords,data.lessons])
  const subjects = useMemo(()=>[...new Set([...subjectProfiles.map(s=>s.profile.title),...data.lessons.map(l=>l.subject)].filter((v):v is string=>typeof v==='string'&&v.length>0))],[subjectProfiles,data.lessons])
  const teachers = useMemo(()=>[...new Set([...teacherProfiles.map(t=>[t.profile.titleBefore,t.profile.firstName,t.profile.lastName,t.profile.titleAfter].filter(Boolean).join(' ')),...data.lessons.map(l=>l.teacher)].filter(Boolean))],[teacherProfiles,data.lessons])
@@ -124,7 +125,7 @@ export default function TimetableModule() {
    return [...new Set(found)]
  },[data])
  const field=(key:keyof Timetable,value:any)=>setData(p=>({...p,[key]:value}))
- const save=async()=>{try{await apiFetch('/api/v1/timetable/workspace',{method:'PUT',body:JSON.stringify({data})});setStatus('Timetable saved to the shared database')}catch(error){setStatus(error instanceof ApiError?error.message:'Timetable save failed: server unavailable')}}
+ const save=async()=>{try{await apiFetch('/api/v1/timetable/workspace',{method:'PUT',body:JSON.stringify({data:{...workspaceData,timetable:data}})});setStatus('Timetable saved to the shared database')}catch(error){setStatus(error instanceof ApiError?error.message:'Timetable save failed: server unavailable')}}
  const fresh=()=>{if(window.confirm('Start a new timetable? Save or export current work first.')){setData({...initial,schoolName:data.schoolName,academicYear:data.academicYear,lessons:[]});setFilter('All');setStatus('New timetable — unsaved; save to publish changes')}}
  const openFile=(file?:File)=>{if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const x=JSON.parse(String(reader.result));if(!Array.isArray(x.days)||!Array.isArray(x.periods)||!Array.isArray(x.lessons))throw Error();setData({...initial,...x});setStatus(`Opened ${file.name}`)}catch{window.alert('Invalid Phikila timetable JSON file')}};reader.readAsText(file)}
  const exportFile=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='phikila-timetable.json';a.click();URL.revokeObjectURL(url);setStatus('Timetable exported as JSON')}
