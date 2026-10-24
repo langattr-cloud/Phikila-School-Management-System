@@ -35,7 +35,7 @@ function AscHeader({ onAction }: { onAction: (action: string) => void }) {
 type SavedTeacherProfile = { id: number; profile: TeacherForm; created_at?: string | null; updated_at?: string | null }
 type TeacherForm = { lastName:string; firstName:string; short:string; isMale:boolean; contract:string; email:string; phone:string; titleBefore:string; titleAfter:string; number:string; classTeacher:string; classroomIds:string[]; color:string }
 const blankTeacher: TeacherForm = {lastName:"",firstName:"",short:"",isMale:false,contract:"",email:"",phone:"",titleBefore:"",titleAfter:"",number:"",classTeacher:"",classroomIds:[],color:"#1a45a0"}
-function TeacherDialog({initialTeacher,profiles,onEdit,onClose,onSave}:{initialTeacher?:TeacherForm;profiles:SavedTeacherProfile[];onEdit:(profile:SavedTeacherProfile)=>void;onDelete:(profile:SavedTeacherProfile)=>void;onClose:()=>void;onSave:(teacher:TeacherForm)=>void}) {
+function TeacherDialog({initialTeacher,profiles,onEdit,onDelete,onClose,onSave}:{initialTeacher?:TeacherForm;profiles:SavedTeacherProfile[];onEdit:(profile:SavedTeacherProfile)=>void;onDelete:(profile:SavedTeacherProfile)=>void;onClose:()=>void;onSave:(teacher:TeacherForm)=>void}) {
  const [form,setForm]=useState<TeacherForm>(()=>initialTeacher?{...blankTeacher,...initialTeacher}:blankTeacher)
  const [copied,setCopied]=useState(false)
  const update=(key:keyof TeacherForm,value:TeacherForm[keyof TeacherForm])=>setForm(current=>({...current,[key]:value}))
