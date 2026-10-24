@@ -15,6 +15,12 @@ type Teacher = {
   first_name?: string
   last_name?: string
 }
+type SavedTeacherProfile = { id: number; profile: Record<string, any> }
+const toTeacher = (row: SavedTeacherProfile): Teacher => {
+  const p = row.profile || {}
+  return { id: row.id, name: [p.firstName, p.lastName].filter(Boolean).join(' '), first_name: p.firstName || '', last_name: p.lastName || '', code: String(p.short || p.code || ''), email: p.email || '', phone: p.phone || '', subject: p.subject || '', unavailable: Array.isArray(p.unavailable) ? p.unavailable : [], color: p.color || '#176b4d', count: Number(p.count) || 0 }
+}
+const teacherProfile = (teacher: Partial<Teacher> & { first_name?: string; last_name?: string }) => ({ firstName: teacher.first_name || '', lastName: teacher.last_name || '', short: teacher.code || '', email: teacher.email || '', phone: teacher.phone || '', subject: teacher.subject || '', unavailable: teacher.unavailable || [], color: teacher.color || '#176b4d', count: teacher.count || 0 })
 type SchoolClass = SchoolClassSetup & {
   display_name?: string | null
   class_teacher_id?: number | null
@@ -99,10 +105,10 @@ export default function TeacherClassManagement() {
     setError('')
     try {
       const [teacherRows, classRows] = await Promise.all([
-        apiFetch<Teacher[]>('/api/v1/teachers'),
+        apiFetch<SavedTeacherProfile[]>('/api/v1/timetable/teachers'),
         apiFetch<SchoolClass[]>('/api/v1/academics/classes'),
       ])
-      setTeachers(teacherRows.map(t => ({ ...t, name: teacherName(t), unavailable: Array.isArray(t.unavailable) ? t.unavailable : [], color: t.color || '#176b4d', count: Number(t.count) || 0 })))
+      setTeachers(teacherRows.map(toTeacher))
       setClasses(classRows)
     } catch (e) {
       setError(friendlyApiError(e, 'load teachers and classes'))
@@ -157,10 +163,10 @@ export default function TeacherClassManagement() {
     setError('')
     try {
       const payload = { name, first_name: firstName, last_name: lastName, code, email: form.email.trim() || null, phone: form.phone.trim() || null, color: form.color }
+      const profile = { ...teacherProfile({ ...payload, first_name: firstName, last_name: lastName, unavailable: form.unavailable, color: form.color }) }
       const saved = editingId == null
-        ? await apiFetch<Teacher>('/api/v1/teachers', { method: 'POST', body: JSON.stringify({ ...payload, unavailable: [] }) })
-        : await apiFetch<Teacher>(`/api/v1/teachers/${editingId}`, { method: 'PATCH', body: JSON.stringify(payload) })
-      await apiFetch(`/api/v1/teachers/${saved.id}/management-settings`, { method: 'PUT', body: JSON.stringify({ unavailable: form.unavailable, color: form.color, count: saved.count || 0 }) })
+        ? await apiFetch<SavedTeacherProfile>('/api/v1/timetable/teachers', { method: 'POST', body: JSON.stringify({ profile }) })
+        : await apiFetch<SavedTeacherProfile>(`/api/v1/timetable/teachers/${editingId}`, { method: 'PUT', body: JSON.stringify({ profile }) })
       const previousClass = classes.find(c => String(c.class_teacher_id) === String(saved.id))
       const desiredClassId = form.classId
       if (previousClass && String(previousClass.id) !== desiredClassId) {
@@ -186,7 +192,7 @@ export default function TeacherClassManagement() {
     try {
       const assignedClass = classes.find(c => String(c.class_teacher_id) === String(teacher.id))
       if (assignedClass) await apiFetch(`/api/v1/academics/classes/${assignedClass.id}`, { method: 'PATCH', body: JSON.stringify({ class_teacher_id: null }) })
-      await apiFetch(`/api/v1/teachers/${teacher.id}`, { method: 'DELETE' })
+      await apiFetch(`/api/v1/timetable/teachers/${teacher.id}`, { method: 'DELETE' })
       setNotice('Teacher removed.')
       await loadRecords()
     } catch (e) {
@@ -200,7 +206,7 @@ export default function TeacherClassManagement() {
     const unavailable = teacher.unavailable.includes(slot) ? teacher.unavailable.filter(s => s !== slot) : [...teacher.unavailable, slot]
     setTeachers(current => current.map(t => String(t.id) === String(teacher.id) ? { ...t, unavailable } : t))
     try {
-      await apiFetch(`/api/v1/teachers/${teacher.id}/management-settings`, { method: 'PUT', body: JSON.stringify({ unavailable, color: teacher.color, count: teacher.count }) })
+      await apiFetch(`/api/v1/timetable/teachers/${teacher.id}`, { method: 'PUT', body: JSON.stringify({ profile: teacherProfile({ ...teacher, unavailable }) }) })
       setNotice(`Availability saved for ${teacherName(teacher)}.`)
     } catch (e) {
       setError(friendlyApiError(e, 'save teacher availability'))
