@@ -29,7 +29,7 @@ const NAV: NavGroup[] = [
   { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }] },
   { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Level, Grade & Stream', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }] },
   { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }] },
-  { label: 'Operations', items: [{ to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
+  { label: 'Operations', items: [{ to: '/timetable-manager', label: 'Timetable', icon: <LayersIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
   { label: 'Examination', items: [{ to: '/examinations', label: 'Examination', icon: <StackedLayersIcon /> }] },
   { label: 'Tools & insights', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }] },
 ]
