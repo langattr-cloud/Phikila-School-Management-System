@@ -12,6 +12,8 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
 import TimetableModule from './stitch/TimetableModule'
+const TeacherClassManagementPage = lazy(() => import('./pages/TeacherClassManagement'))
+const SubjectsPage = lazy(() => import('./pages/SubjectsPage'))
 const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
 const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
@@ -86,6 +88,8 @@ function routeFor(pathname: string): ReactNode {
   switch (pathname) {
     case '/': return <StudentsOverviewPage />
     case '/timetable-manager': return <TimetableModule />
+    case '/setup/teachers': return <TeacherClassManagementPage />
+    case '/setup/subjects': return <SubjectsPage />
     case '/setup/school': return <SchoolPage />
     case '/setup/academic-years': return <AcademicsPage />
     case '/setup/academic-year-transition': return <AcademicYearTransitionPage />
@@ -130,8 +134,8 @@ function NormalLayout({ pathname }: { pathname: string }) {
 function ProtectedRoutes({ pathname }: { pathname: string }) {
   const { session: platformSession } = usePlatformSession()
   const path = normalisePath(pathname)
-  const requiredModule = path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
-    : path.startsWith('/setup/teachers') ? 'staff'
+  const requiredModule = path === '/setup/teachers' || path === '/setup/subjects' ? 'staff'
+    : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure'].includes(path) ? 'students'
     : path.startsWith('/examinations') ? 'examinations'
     : path.startsWith('/finance') ? 'finance'
     : path.startsWith('/ocr') ? 'ai_tools' : null
