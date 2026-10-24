@@ -110,3 +110,26 @@
 .app-shell--timetable-fullscreen .app-shell__content{width:100%;max-width:none;height:100%;min-height:100vh;margin:0;padding:12px 16px 24px;overflow:auto;border:0;border-radius:0;box-shadow:none}
 .app-shell--timetable-fullscreen .phikila-tt{width:100%;max-width:none}
 @media(max-width:640px){.app-shell--timetable-fullscreen .app-shell__content{padding:8px}}
+
+.phikila-tt-break-editor-row{background:#effaf0;border:1px solid #b8e5bf;border-radius:5px;padding:6px}
+.phikila-tt-period-kind{font-size:11px;font-weight:750;color:#52657b}
+.phikila-tt-break-editor-row .phikila-tt-period-kind{color:#18723b}
+.phikila-tt-period-actions{display:flex;gap:5px;flex-wrap:wrap}
+.phikila-tt-break-backdrop{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:16px;background:#10203388}
+.phikila-tt-break-dialog{width:min(640px,100%);max-height:90vh;overflow:auto;border:1px solid #8a929c;background:#e5e7eb;color:#1f2937;box-shadow:0 20px 60px #0b1d3240}
+.phikila-tt-break-dialog-header,.phikila-tt-break-dialog-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:#f3f4f6;border-bottom:1px solid #c5cbd3}
+.phikila-tt-break-dialog-header h2{font-size:15px;font-weight:750}
+.phikila-tt-break-dialog-header button{border:0;background:transparent;font-size:23px;cursor:pointer}
+.phikila-tt-break-dialog-body{display:grid;gap:12px;padding:16px}
+.phikila-tt-break-dialog-body>label{display:grid;grid-template-columns:160px minmax(0,1fr);align-items:center;gap:10px;font-size:12px;font-weight:650}
+.phikila-tt-break-dialog-body input:not([type=checkbox]),.phikila-tt-break-dialog-body select{width:100%;min-width:0;border:1px solid #a3aab4;border-radius:3px;padding:7px;background:#fff7e8;font:inherit;color:#1f2937}
+.phikila-tt-break-dialog-body fieldset{min-width:0;border:1px solid #b7bdc5;padding:10px;background:#eceff2}
+.phikila-tt-break-dialog-body legend{padding:0 5px;font-size:12px;font-weight:750}
+.phikila-tt-break-dialog-body fieldset>label:not(.phikila-tt-break-check){display:grid;grid-template-columns:160px minmax(0,1fr);align-items:center;gap:10px;font-size:12px}
+.phikila-tt-break-time{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.phikila-tt-break-time input{max-width:150px}
+.phikila-tt-break-time span{font-size:12px;color:#526174}
+.phikila-tt-break-check{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px!important;font-size:12px;font-weight:500!important}
+.phikila-tt-break-check input{width:15px;height:15px;flex:0 0 auto}
+.phikila-tt-break-dialog-footer{justify-content:flex-end;border-top:1px solid #c5cbd3;border-bottom:0}
+@media(max-width:560px){.phikila-tt-break-dialog-body>label,.phikila-tt-break-dialog-body fieldset>label:not(.phikila-tt-break-check){grid-template-columns:1fr}.phikila-tt-period-row{grid-template-columns:1fr 1fr}.phikila-tt-period-actions{grid-column:1/-1}}
