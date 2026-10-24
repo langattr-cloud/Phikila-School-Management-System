@@ -7,8 +7,7 @@ type Period = { name: string; start: string; end: string; type?: 'lesson' | 'bre
 type Specification = { subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[] }
 type SubjectDetail = { short: string; color: string; number: string; customFields: string; classrooms: string[] }
 type SubjectForm = { title: string; short: string; color: string; number: string; customFields: string; classrooms: string[] }
-type Workspace = { schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification }
-type Workspace = { schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification }
+type Workspace = { schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail> }
 type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
 type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions? / Write us' | 'About' | 'Students' | 'Relations' | 'Timetables Online'
 
@@ -194,7 +193,8 @@ export default function TimetableModule() {
       case 'Summary': setStatus('Summary · ' + data.lessons.length + ' lessons across ' + data.days.length + ' days'); break
       case 'Zoom': setStatus('Use browser zoom to adjust the timetable scale.'); break
       case 'Constraints': setSection('Constraints'); break
-      case 'Subjects': case 'Classes': case 'Classrooms': case 'Teachers': case 'Students': case 'Relations': case 'Lessons': setSection(action); break
+      case 'Subjects': setSection(null); setSetupTab('subjects'); setSettingsOpen(true); break
+      case 'Classes': case 'Classrooms': case 'Teachers': case 'Students': case 'Relations': case 'Lessons': setSection(action); break
       case 'Timetables Online': setStatus('Online publishing will be added after generation and approval.'); break
       case 'Contents': case 'Questions? / Write us': case 'About': setStatus('Phikila Timetable Module · ' + action); break
     }
