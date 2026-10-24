@@ -134,8 +134,8 @@ function NormalLayout({ pathname }: { pathname: string }) {
 function ProtectedRoutes({ pathname }: { pathname: string }) {
   const { session: platformSession } = usePlatformSession()
   const path = normalisePath(pathname)
-  const requiredModule = path === '/setup/teachers' ? 'staff'
-    : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
+  const requiredModule = path === '/setup/teachers' || path === '/setup/subjects' ? 'staff'
+    : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure'].includes(path) ? 'students'
     : path.startsWith('/examinations') ? 'examinations'
     : path.startsWith('/finance') ? 'finance'
     : path.startsWith('/ocr') ? 'ai_tools' : null
