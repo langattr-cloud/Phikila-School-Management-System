@@ -237,7 +237,7 @@ export default function TimetableModule() {
 
 function normaliseWorkspace(value: Partial<Workspace>): Workspace {
   const days = Array.isArray(value.days) && value.days.length ? value.days.filter(day => typeof day === 'string' && day.trim()) : [...DAYS]
-  const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ name: period.name, start: period.start || '', end: period.end || '' })) : DEFAULT_PERIODS.map(period => ({ ...period }))
+  const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ name: period.name, start: period.start || '', end: period.end || '', type: period.type === 'break' || /break|lunch|recess|games/i.test(period.name) ? 'break' as const : 'lesson' as const })) : DEFAULT_PERIODS.map(period => ({ ...period }))
   const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && days.includes(lesson.day) && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked) })) : []
   const rawSpec = value.specification as Partial<Specification> | undefined
   const specification: Specification = {
