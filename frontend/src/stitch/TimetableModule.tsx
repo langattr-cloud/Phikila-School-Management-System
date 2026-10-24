@@ -57,11 +57,9 @@ function MainMenu({ onAction, whose, onWhoseChange }: { onAction: (action: Actio
       </div>)}
     </nav>
     <div className="phikila-ribbon-scroll"><div className="phikila-ribbon-row">
-      <div className="phikila-ribbon-group">{items.slice(0, 5).map(ribbonButton)}</div><div className="phikila-ribbon-separator" />
-      <div className="phikila-whose"><label htmlFor="phikila-whose">Whose:</label><select id="phikila-whose" value={whose} onChange={event => onWhoseChange(event.target.value as Whose)}><option>All</option><option>Classes</option><option>Teachers</option><option>Classrooms</option></select><span>Filter the weekly view</span></div>
-      <div className="phikila-ribbon-separator" /><div className="phikila-ribbon-group">{items.slice(5, 11).map(ribbonButton)}</div>
-      <div className="phikila-ribbon-separator" /><div className="phikila-ribbon-group">{items.slice(11).map(ribbonButton)}</div>
+      <div className="phikila-ribbon-group phikila-ribbon-group-all">{items.map(ribbonButton)}</div>
     </div></div>
+    <div className="phikila-ribbon-filter"><div className="phikila-whose"><label htmlFor="phikila-whose">Show:</label><select id="phikila-whose" value={whose} onChange={event => onWhoseChange(event.target.value as Whose)}><option>All</option><option>Classes</option><option>Teachers</option><option>Classrooms</option></select><span>Filter the weekly timetable</span></div></div>
   </div>
 }
 
@@ -198,7 +196,6 @@ export default function TimetableModule() {
       case 'Constraints': setSection('Constraints'); break
       case 'Subjects': setSection(null); setSetupTab('subjects'); setSettingsOpen(true); break
       case 'Classes': case 'Classrooms': case 'Teachers': case 'Students': case 'Relations': case 'Lessons': setSection(action); break
-      case 'Timetables Online': setStatus('Online publishing will be added after generation and approval.'); break
     }
   }
   return <main className="phikila-tt">
