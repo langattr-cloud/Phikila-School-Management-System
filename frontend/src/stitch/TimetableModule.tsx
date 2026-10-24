@@ -1,0 +1,286 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { apiFetch, friendlyApiError } from '../lib/api'
+import './timetable-module.css'
+
+type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
+type Period = { name: string; start: string; end: string }
+type Specification = { subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[] }
+type Workspace = { schoolName: string; academicYear: string; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification }
+type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
+type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions? / Write us' | 'About' | 'Students' | 'Relations' | 'Timetables Online'
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+const DEFAULT_PERIODS: Period[] = [
+  { name: 'Period 1', start: '08:00', end: '08:40' }, { name: 'Period 2', start: '08:40', end: '09:20' },
+  { name: 'Break', start: '09:20', end: '09:40' }, { name: 'Period 3', start: '09:40', end: '10:20' },
+  { name: 'Period 4', start: '10:20', end: '11:00' }, { name: 'Lunch', start: '11:00', end: '11:40' },
+  { name: 'Period 5', start: '11:40', end: '12:20' }, { name: 'Period 6', start: '12:20', end: '13:00' },
+]
+const EMPTY: Workspace = { schoolName: 'Phikila School', academicYear: '2026/2027', days: DAYS, periods: DEFAULT_PERIODS, lessons: [], specification: { subjects: ['Mathematics', 'English', 'Kiswahili', 'Science', 'Social Studies', 'ICT'], classes: ['Form 1A', 'Form 1B', 'Form 2A', 'Form 2B'], teachers: ['M. Njoroge', 'A. Wanjiku', 'P. Otieno'], classrooms: ['Room 1', 'Room 2', 'Science Lab'] } }
+const makeId = () => (globalThis.crypto && globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : 'lesson-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8))
+const unique = (items: string[]) => Array.from(new Set(items.map(item => item.trim()).filter(Boolean)))
+
+function RibbonButton({ label, glyph, tint, onClick }: { label: string; glyph: string; tint?: string; onClick: () => void }) {
+  return <button type="button" className="phikila-ribbon-button" onClick={onClick}><span className={'phikila-ribbon-icon tint-' + (tint || 'neutral')} aria-hidden="true">{glyph}</span><span>{label}</span></button>
+}
+
+function MainMenu({ onAction, whose, onWhoseChange }: { onAction: (action: Action) => void; whose: Whose; onWhoseChange: (value: Whose) => void }) {
+  const [activeMenu, setActiveMenu] = useState<string | null>(null)
+  const menus: Record<string, Action[]> = {
+    Main: ['New', 'Open', 'Save', 'Save As', 'Print', 'Print preview', 'Exit'],
+    File: ['Import', 'Export', 'Settings'],
+    Specification: ['Subjects', 'Classes', 'Classrooms', 'Teachers', 'Lessons'],
+    View: ['Timetable', 'Summary', 'Zoom'],
+    Timetable: ['Generate new', 'Generate in cloud', 'Test', 'Verification'],
+    Options: ['School', 'Bell times', 'Constraints'],
+    Help: ['Contents', 'Questions? / Write us', 'About'],
+  }
+  const items: { label: Action; glyph: string; tint?: string }[] = [
+    { label: 'New', glyph: '▤' }, { label: 'Open', glyph: '▱' }, { label: 'Save', glyph: '▣' },
+    { label: 'Print', glyph: '▧' }, { label: 'Print preview', glyph: '⌕' },
+    { label: 'Subjects', glyph: '◈', tint: 'blue' }, { label: 'Classes', glyph: '▦', tint: 'gold' },
+    { label: 'Classrooms', glyph: '⌂', tint: 'violet' }, { label: 'Teachers', glyph: '♙', tint: 'purple' },
+    { label: 'Students', glyph: '♧', tint: 'green' }, { label: 'Relations', glyph: '⇄', tint: 'orange' },
+    { label: 'Test', glyph: '✓', tint: 'teal' }, { label: 'Generate new', glyph: '✳', tint: 'pink' },
+    { label: 'Generate in cloud', glyph: '☁', tint: 'pink' }, { label: 'Verification', glyph: '⚒', tint: 'yellow' },
+    { label: 'School', glyph: '⌂', tint: 'blue' }, { label: 'Timetables Online', glyph: '☁', tint: 'blue' },
+    { label: 'Questions? / Write us', glyph: '?', tint: 'blue' },
+  ]
+  const ribbonButton = (item: { label: Action; glyph: string; tint?: string }) => <RibbonButton key={item.label} label={item.label} glyph={item.glyph} tint={item.tint} onClick={() => onAction(item.label)} />
+  return <div className="phikila-ribbon">
+    <nav className="phikila-menu-bar" aria-label="Timetable menus">
+      {Object.entries(menus).map(([name, actions]) => <div className="phikila-menu" key={name}>
+        <button className={'phikila-menu-trigger ' + (activeMenu === name ? 'is-open' : '')} aria-expanded={activeMenu === name} onMouseEnter={() => { if (activeMenu) setActiveMenu(name) }} onClick={() => setActiveMenu(activeMenu === name ? null : name)}>{name}</button>
+        {activeMenu === name && <div className="phikila-menu-dropdown" role="menu">{actions.map(action => <button key={action} role="menuitem" className="phikila-menu-item" onClick={() => { setActiveMenu(null); onAction(action) }}>{action}</button>)}</div>}
+      </div>)}
+    </nav>
+    <div className="phikila-ribbon-scroll"><div className="phikila-ribbon-row">
+      <div className="phikila-ribbon-group">{items.slice(0, 5).map(ribbonButton)}</div><div className="phikila-ribbon-separator" />
+      <div className="phikila-whose"><label htmlFor="phikila-whose">Whose:</label><select id="phikila-whose" value={whose} onChange={event => onWhoseChange(event.target.value as Whose)}><option>All</option><option>Classes</option><option>Teachers</option><option>Classrooms</option></select><span>Filter the weekly view</span></div>
+      <div className="phikila-ribbon-separator" /><div className="phikila-ribbon-group">{items.slice(5, 11).map(ribbonButton)}</div>
+      <div className="phikila-ribbon-separator" /><div className="phikila-ribbon-group">{items.slice(11).map(ribbonButton)}</div>
+    </div></div>
+  </div>
+}
+
+export default function TimetableModule() {
+  const [data, setData] = useState<Workspace>(EMPTY)
+  const [whose, setWhose] = useState<Whose>('All')
+  const [filter, setFilter] = useState('')
+  const [status, setStatus] = useState('Loading saved workspace…')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [editor, setEditor] = useState<{ day: string; period: number; lesson?: Lesson } | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [section, setSection] = useState<string | null>(null)
+  const [specValue, setSpecValue] = useState('')
+  const [form, setForm] = useState({ className: '', subject: '', teacher: '', room: '', locked: false })
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const classes = useMemo(() => unique(data.specification.classes.concat(data.lessons.map(item => item.className))), [data.specification.classes, data.lessons])
+  const subjects = useMemo(() => unique(data.specification.subjects.concat(data.lessons.map(item => item.subject))), [data.specification.subjects, data.lessons])
+  const teachers = useMemo(() => unique(data.specification.teachers.concat(data.lessons.map(item => item.teacher))), [data.specification.teachers, data.lessons])
+  const rooms = useMemo(() => unique(data.specification.classrooms.concat(data.lessons.map(item => item.room).filter(Boolean))), [data.specification.classrooms, data.lessons])
+  const filterOptions = whose === 'Classes' ? classes : whose === 'Teachers' ? teachers : whose === 'Classrooms' ? rooms : []
+  const visibleLessons = useMemo(() => data.lessons.filter(item => {
+    if (!filter) return true
+    if (whose === 'Classes') return item.className === filter
+    if (whose === 'Teachers') return item.teacher === filter
+    if (whose === 'Classrooms') return item.room === filter
+    return true
+  }), [data.lessons, whose, filter])
+  const conflicts = useMemo(() => findConflicts(data), [data])
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    try {
+      const result = await apiFetch<{ data: Workspace | null; updated_at: string | null }>('/api/v1/timetable/workspace')
+      if (result.data) setData(normaliseWorkspace(result.data))
+      setStatus(result.data ? 'Loaded shared workspace' : 'New workspace · save to sync across devices')
+    } catch (caught) {
+      setError(friendlyApiError(caught, 'load timetable workspace'))
+      setStatus('Could not load workspace')
+    } finally { setLoading(false) }
+  }, [])
+  useEffect(() => { void load() }, [load])
+
+  const save = async () => {
+    setError('')
+    try {
+      const result = await apiFetch<{ data: Workspace; updated_at: string | null }>('/api/v1/timetable/workspace', { method: 'PUT', body: JSON.stringify({ data }) })
+      if (result.data) setData(normaliseWorkspace(result.data))
+      setStatus('Saved to the school database · ' + new Date().toLocaleTimeString())
+    } catch (caught) { setError(friendlyApiError(caught, 'save timetable workspace')) }
+  }
+  const runTest = async () => {
+    setError('')
+    try {
+      const result = await apiFetch<{ valid: boolean; lessons_checked: number; conflicts: { message: string }[] }>('/api/v1/timetable/test', { method: 'POST', body: JSON.stringify({ data }) })
+      setStatus(result.valid ? 'Test passed · ' + result.lessons_checked + ' lessons checked' : 'Test found ' + result.conflicts.length + ' conflict(s)')
+      if (result.conflicts.length) setError(result.conflicts.map(item => item.message).join(' · '))
+    } catch (caught) { setError(friendlyApiError(caught, 'test timetable')) }
+  }
+  const openEditor = (day: string, period: number, lesson?: Lesson) => {
+    setEditor({ day, period, lesson })
+    setForm(lesson ? { className: lesson.className, subject: lesson.subject, teacher: lesson.teacher, room: lesson.room, locked: lesson.locked } : { className: classes[0] || 'Form 1A', subject: subjects[0] || 'Mathematics', teacher: teachers[0] || 'Teacher', room: '', locked: false })
+  }
+  const submitLesson = (event: FormEvent) => {
+    event.preventDefault()
+    if (!editor) return
+    const lesson: Lesson = { id: editor.lesson ? editor.lesson.id : makeId(), day: editor.day, period: editor.period, ...form }
+    setData(current => ({ ...current, lessons: editor.lesson ? current.lessons.map(item => item.id === lesson.id ? lesson : item) : current.lessons.concat(lesson) }))
+    setEditor(null); setStatus('Lesson edited · remember to Save')
+  }
+  const deleteLesson = () => {
+    if (!editor || !editor.lesson) return
+    if (editor.lesson.locked && !window.confirm('This lesson is locked. Remove it anyway?')) return
+    setData(current => ({ ...current, lessons: current.lessons.filter(item => item.id !== editor.lesson?.id) }))
+    setEditor(null); setStatus('Lesson removed · remember to Save')
+  }
+  const newWorkspace = () => {
+    if (!window.confirm('Start a new empty timetable? Unsaved changes will be lost.')) return
+    setData({ ...EMPTY, days: [...DAYS], periods: DEFAULT_PERIODS.map(period => ({ ...period })), lessons: [] })
+    setFilter(''); setStatus('New empty workspace · unsaved')
+  }
+  const openJson = (file?: File) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try { setData(normaliseWorkspace(JSON.parse(String(reader.result)) as Partial<Workspace>)); setStatus('Opened ' + file.name + ' · remember to Save'); setError('') }
+      catch { setError('This file is not a valid Phikila timetable JSON export.') }
+    }
+    reader.readAsText(file)
+  }
+  const exportJson = () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'phikila-timetable.json'; anchor.click(); URL.revokeObjectURL(url)
+    setStatus('Timetable exported as JSON')
+  }
+  const onAction = (action: Action) => {
+    switch (action) {
+      case 'New': newWorkspace(); break
+      case 'Open': case 'Import': fileRef.current?.click(); break
+      case 'Save': void save(); break
+      case 'Save As': case 'Export': exportJson(); break
+      case 'Print': window.print(); break
+      case 'Print preview': setPreviewOpen(true); break
+      case 'Test': case 'Verification': void runTest(); break
+      case 'School': case 'Bell times': case 'Settings': setSettingsOpen(true); break
+      case 'Exit': setStatus('Use the main application navigation to leave the timetable.'); break
+      case 'Generate new': {
+        const result = generateSchedule(data)
+        if (result.error) {
+          setError(result.error)
+          setStatus('Generation stopped · existing timetable preserved')
+        } else {
+          setData(current => ({ ...current, lessons: result.lessons }))
+          setError('')
+          setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save')
+        }
+        break
+      }
+      case 'Generate in cloud': setError('Cloud generation is not connected yet. Use Generate new for the local draft generator.'); break
+      case 'Timetable': setSection(null); break
+      case 'Summary': setStatus('Summary · ' + data.lessons.length + ' lessons across ' + data.days.length + ' days'); break
+      case 'Zoom': setStatus('Use browser zoom to adjust the timetable scale.'); break
+      case 'Constraints': setSection('Constraints'); break
+      case 'Subjects': case 'Classes': case 'Classrooms': case 'Teachers': case 'Students': case 'Relations': case 'Lessons': setSection(action); break
+      case 'Timetables Online': setStatus('Online publishing will be added after generation and approval.'); break
+      case 'Contents': case 'Questions? / Write us': case 'About': setStatus('Phikila Timetable Module · ' + action); break
+    }
+  }
+  return <main className="phikila-tt">
+    <header className="phikila-tt-heading"><div><p className="phikila-tt-eyebrow">PHIKILA · TIMETABLE MODULE</p><h1>{data.schoolName || 'School timetable'}</h1><p className="phikila-tt-subtitle">Academic year {data.academicYear} · Weekly timetable editor</p></div><div className="phikila-tt-heading-actions"><span className={'phikila-tt-status-dot ' + (loading ? 'is-loading' : '')} /><span>{loading ? 'Loading' : 'Workspace'}</span><button className="phikila-tt-button" onClick={() => void load()} disabled={loading}>Reload</button></div></header>
+    <MainMenu onAction={onAction} whose={whose} onWhoseChange={value => { setWhose(value); setFilter('') }} />
+    <div className="phikila-tt-subbar"><strong>{whose === 'All' ? 'Whole school' : whose === 'Classes' ? 'Class timetable' : whose === 'Teachers' ? 'Teacher timetable' : 'Classroom timetable'}</strong>{filterOptions.length > 0 && <select aria-label={'Filter by ' + whose.toLowerCase()} value={filter} onChange={event => setFilter(event.target.value)}><option value="">All {whose.toLowerCase()}</option>{filterOptions.map(option => <option key={option}>{option}</option>)}</select>}<span className="phikila-tt-subbar-spacer" /><span>{data.lessons.length} lessons</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => openEditor(data.days[0], 0)}>+ Add lesson</button></div>
+    {error && <div className="phikila-tt-alert" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
+    {section && <section className="phikila-tt-info-panel"><div className="phikila-tt-specification"><div className="phikila-tt-panel-heading"><div><h2>{section}</h2><p>Manage the saved {section.toLowerCase()} catalogue. Changes are included when you save the workspace.</p></div><button className="phikila-tt-button" onClick={() => { setSection(null); setSpecValue('') }}>Close</button></div>{(['Subjects', 'Classes', 'Teachers', 'Classrooms'].includes(section)) ? <><form className="phikila-tt-spec-add" onSubmit={event => { event.preventDefault(); const key = section === 'Subjects' ? 'subjects' : section === 'Classes' ? 'classes' : section === 'Teachers' ? 'teachers' : 'classrooms'; const value = specValue.trim(); if (!value) return; setData(current => ({ ...current, specification: { ...current.specification, [key]: unique([...current.specification[key], value]) } })); setSpecValue('') }}><input aria-label={'New ' + section.slice(0, -1)} placeholder={'Add ' + section.toLowerCase().replace(/s$/, '')} value={specValue} onChange={event => setSpecValue(event.target.value)} /><button className="phikila-tt-button phikila-tt-button-primary" type="submit">Add</button></form><ul className="phikila-tt-spec-list">{(section === 'Subjects' ? data.specification.subjects : section === 'Classes' ? data.specification.classes : section === 'Teachers' ? data.specification.teachers : data.specification.classrooms).map(item => <li key={item}><span>{item}</span><button type="button" className="phikila-tt-button phikila-tt-danger" onClick={() => { const key = section === 'Subjects' ? 'subjects' : section === 'Classes' ? 'classes' : section === 'Teachers' ? 'teachers' : 'classrooms'; setData(current => ({ ...current, specification: { ...current.specification, [key]: current.specification[key].filter(value => value !== item) } })) }}>Remove</button></li>)}</ul></> : <p>Student records and lesson relations need dedicated data models; they are not edited in this workspace yet.</p>}</div></section>}
+    {settingsOpen && <section className="phikila-tt-settings"><div className="phikila-tt-panel-heading"><div><h2>School and bell times</h2><p>Changes remain a draft until saved.</p></div><button className="phikila-tt-button" onClick={() => setSettingsOpen(false)}>Close</button></div><div className="phikila-tt-settings-grid"><label>School name<input value={data.schoolName} onChange={event => setData(current => ({ ...current, schoolName: event.target.value }))} /></label><label>Academic year<input value={data.academicYear} onChange={event => setData(current => ({ ...current, academicYear: event.target.value }))} /></label></div><div className="phikila-tt-period-list">{data.periods.map((period, index) => <div key={index}><input aria-label={'Period ' + (index + 1) + ' name'} value={period.name} onChange={event => setData(current => ({ ...current, periods: current.periods.map((item, i) => i === index ? { ...item, name: event.target.value } : item) }))} /><input aria-label={'Period ' + (index + 1) + ' start'} type="time" value={period.start} onChange={event => setData(current => ({ ...current, periods: current.periods.map((item, i) => i === index ? { ...item, start: event.target.value } : item) }))} /><input aria-label={'Period ' + (index + 1) + ' end'} type="time" value={period.end} onChange={event => setData(current => ({ ...current, periods: current.periods.map((item, i) => i === index ? { ...item, end: event.target.value } : item) }))} /></div>)}</div><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save school settings</button></section>}
+    <section className="phikila-tt-grid-panel"><div className="phikila-tt-panel-heading"><div><h2>Weekly timetable</h2><p>Select a lesson to edit it, or choose an empty cell to add one.</p></div><div className="phikila-tt-grid-legend"><span><i className="legend-lesson" /> Lesson</span><span><i className="legend-locked" /> Locked</span></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th className="period-col">Period / time</th>{data.days.map(day => <th key={day}>{day}</th>)}</tr></thead><tbody>{data.periods.map((period, periodIndex) => <tr key={period.name + periodIndex}><th className="period-cell">{period.name}<small>{period.start}–{period.end}</small></th>{data.days.map(day => { const lessons = visibleLessons.filter(lesson => lesson.day === day && lesson.period === periodIndex); return <td key={day} className="phikila-tt-cell">{lessons.map(lesson => <button key={lesson.id} className={'phikila-tt-lesson ' + (lesson.locked ? 'is-locked' : '')} onClick={() => openEditor(day, periodIndex, lesson)}><span className="phikila-tt-lesson-class">{lesson.className}{lesson.locked ? ' · Locked' : ''}</span><strong>{lesson.subject}</strong><span>{lesson.teacher}</span>{lesson.room && <small>{lesson.room}</small>}</button>)}<button className="phikila-tt-add-cell" onClick={() => openEditor(day, periodIndex)}>+ Add lesson</button></td> })}</tr>)}</tbody></table></div></section>
+    <footer className="phikila-tt-footer"><span>{status}</span><span>{conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local same-slot conflicts detected'}</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save workspace</button></footer>
+    {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period]?.name}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
+    {previewOpen && <div className="phikila-tt-modal-backdrop"><section className="phikila-tt-preview" role="dialog" aria-modal="true" aria-labelledby="tt-preview-title"><div className="phikila-tt-panel-heading"><div><h2 id="tt-preview-title">Print preview · {data.schoolName}</h2><p>Academic year {data.academicYear}</p></div><div><button className="phikila-tt-button" onClick={() => setPreviewOpen(false)}>Close</button> <button className="phikila-tt-button phikila-tt-button-primary" onClick={() => window.print()}>Print</button></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th>Period</th>{data.days.map(day => <th key={day}>{day}</th>)}</tr></thead><tbody>{data.periods.map((period, index) => <tr key={period.name + index}><th>{period.name}<small>{period.start}–{period.end}</small></th>{data.days.map(day => <td key={day}>{data.lessons.filter(lesson => lesson.day === day && lesson.period === index).map(lesson => <div className="phikila-tt-print-lesson" key={lesson.id}><strong>{lesson.className} · {lesson.subject}</strong><br />{lesson.teacher}{lesson.room ? ' · ' + lesson.room : ''}</div>)}</td>)}</tr>)}</tbody></table></div></section></div>}
+    <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={event => { openJson(event.target.files?.[0]); event.currentTarget.value = '' }} />
+  </main>
+}
+
+function normaliseWorkspace(value: Partial<Workspace>): Workspace {
+  const days = Array.isArray(value.days) && value.days.length ? value.days.filter(day => typeof day === 'string' && day.trim()) : [...DAYS]
+  const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ name: period.name, start: period.start || '', end: period.end || '' })) : DEFAULT_PERIODS.map(period => ({ ...period }))
+  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && days.includes(lesson.day) && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked) })) : []
+  const rawSpec = value.specification as Partial<Specification> | undefined
+  const specification: Specification = {
+    subjects: Array.isArray(rawSpec?.subjects) ? unique(rawSpec.subjects.filter(item => typeof item === 'string')) : [...EMPTY.specification.subjects],
+    classes: Array.isArray(rawSpec?.classes) ? unique(rawSpec.classes.filter(item => typeof item === 'string')) : [...EMPTY.specification.classes],
+    teachers: Array.isArray(rawSpec?.teachers) ? unique(rawSpec.teachers.filter(item => typeof item === 'string')) : [...EMPTY.specification.teachers],
+    classrooms: Array.isArray(rawSpec?.classrooms) ? unique(rawSpec.classrooms.filter(item => typeof item === 'string')) : [...EMPTY.specification.classrooms],
+  }
+  return { schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), days, periods, lessons, specification }
+}
+function findConflicts(data: Workspace): string[] {
+  const issues: string[] = []
+  data.lessons.forEach((first, index) => data.lessons.slice(index + 1).forEach(second => {
+    if (first.day !== second.day || first.period !== second.period) return
+    if (first.className === second.className) issues.push(first.day + ' · ' + data.periods[first.period]?.name + ': ' + first.className + ' has overlapping lessons')
+    if (first.teacher === second.teacher) issues.push(first.day + ' · ' + data.periods[first.period]?.name + ': ' + first.teacher + ' is double-booked')
+    if (first.room && first.room === second.room) issues.push(first.day + ' · ' + data.periods[first.period]?.name + ': ' + first.room + ' is double-booked')
+  }))
+  return Array.from(new Set(issues))
+}
+
+type GenerationResult = { lessons: Lesson[]; error?: string }
+
+/** Greedy, constraint-aware draft placement. Locked lessons are never moved. */
+function generateSchedule(data: Workspace): GenerationResult {
+  const locked = data.lessons.filter(lesson => lesson.locked)
+  const movable = data.lessons.filter(lesson => !lesson.locked)
+  const lockedConflicts = findConflicts({ ...data, lessons: locked })
+  if (lockedConflicts.length) {
+    return { lessons: data.lessons, error: 'Locked lessons conflict with each other. Resolve these first: ' + lockedConflicts.slice(0, 3).join(' · ') }
+  }
+
+  const usablePeriods = data.periods.map((period, index) => ({ period, index }))
+    .filter(({ period }) => !/break|lunch|recess/i.test(period.name))
+    .map(({ index }) => index)
+  const slots = data.days.flatMap(day => usablePeriods.map(period => ({ day, period })))
+  if (!slots.length && movable.length) {
+    return { lessons: data.lessons, error: 'No teaching periods are available. Rename break/lunch rows or add a teaching period.' }
+  }
+
+  const placed: Lesson[] = [...locked]
+  const resourceCount = (lesson: Lesson) => movable.filter(other =>
+    other.id !== lesson.id && (other.className === lesson.className || other.teacher === lesson.teacher || (!!lesson.room && other.room === lesson.room))
+  ).length
+  const ordered = [...movable].sort((a, b) => resourceCount(b) - resourceCount(a))
+  const conflictsAt = (lesson: Lesson, day: string, period: number) => placed.some(other =>
+    other.day === day && other.period === period &&
+    (other.className === lesson.className || other.teacher === lesson.teacher || (!!lesson.room && other.room === lesson.room))
+  )
+  const score = (lesson: Lesson, day: string, period: number) => {
+    const sameClassDay = placed.filter(item => item.className === lesson.className && item.day === day).length
+    const sameTeacherDay = placed.filter(item => item.teacher === lesson.teacher && item.day === day).length
+    const slotLoad = placed.filter(item => item.day === day && item.period === period).length
+    return sameClassDay * 100 + sameTeacherDay * 20 + slotLoad
+  }
+
+  const unscheduled: Lesson[] = []
+  for (const lesson of ordered) {
+    const candidates = slots
+      .filter(slot => !conflictsAt(lesson, slot.day, slot.period))
+      .sort((a, b) => score(lesson, a.day, a.period) - score(lesson, b.day, b.period))
+    const slot = candidates[0]
+    if (!slot) {
+      unscheduled.push(lesson)
+      continue
+    }
+    placed.push({ ...lesson, day: slot.day, period: slot.period })
+  }
+  if (unscheduled.length) {
+    return {
+      lessons: data.lessons,
+      error: 'Could not place ' + unscheduled.length + ' lesson(s) without class, teacher, or room clashes. Existing timetable was left unchanged; add teaching periods or review resource assignments.',
+    }
+  }
+  return { lessons: placed }
+}

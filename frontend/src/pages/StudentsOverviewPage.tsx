@@ -42,6 +42,13 @@ export default function StudentsOverviewPage() {
   const totalLearners = Object.values(learnerCounts).reduce((sum, count) => sum + count, 0)
   return <div>
     <PageHeader title="Students" description="Browse learners by level, grade, and stream." actions={<Link className="button button--primary button--sm" to="/students/list">View all learners</Link>} />
+    <section className="card section" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'var(--space-4)',flexWrap:'wrap',marginBottom:'var(--space-4)',borderLeft:'4px solid var(--color-primary)'}} aria-labelledby="dashboard-timetable-title">
+      <div>
+        <h2 id="dashboard-timetable-title" style={{margin:'0 0 0.25rem',fontSize:'1.1rem'}}>School timetable</h2>
+        <p style={{margin:0,color:'var(--color-ink-muted)',fontSize:'0.9rem'}}>Create and edit weekly lessons, manage classes and teachers, check timetable conflicts, and save the timetable workspace.</p>
+      </div>
+      <Link className="button button--primary" to="/timetable">Open timetable</Link>
+    </section>
     {error && <Alert tone="error">{error}</Alert>}
     {loading ? <LoadingBlock label="Loading student overview" rows={6} /> : rows.length === 0 ? <EmptyState title="No grades found" description="Set up levels, grades, and streams before viewing the student overview." /> : <>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(12rem,1fr))', gap:'var(--space-3)', marginBottom:'var(--space-5)' }}>

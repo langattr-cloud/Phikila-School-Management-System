@@ -1,0 +1,80 @@
+.phikila-tt{--tt-ink:#172b42;--tt-muted:#617184;--tt-line:#d6dee8;min-width:0;color:var(--tt-ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+.phikila-tt-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:0 0 16px}
+.phikila-tt-eyebrow{font-size:10px;font-weight:800;letter-spacing:.16em;color:#2859a4}
+.phikila-tt-heading h1{font-size:clamp(22px,3vw,30px);letter-spacing:-.04em;margin:3px 0}
+.phikila-tt-subtitle{font-size:12px;color:var(--tt-muted)}
+.phikila-tt-heading-actions{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--tt-muted)}
+.phikila-tt-status-dot{width:8px;height:8px;border-radius:50%;background:#13835f}.phikila-tt-status-dot.is-loading{background:#d9a328}
+.phikila-ribbon{border:1px solid #cbd4df;border-radius:5px;background:#f5f7fa;box-shadow:0 2px 5px #142d460b;margin-bottom:12px}
+.phikila-menu-bar{display:flex;align-items:center;gap:2px;min-height:33px;padding:2px 7px;background:#fff;border-bottom:1px solid #d6dee8;overflow:visible;position:relative;z-index:5}
+.phikila-menu{position:relative;flex:0 0 auto}
+.phikila-menu-trigger{padding:5px 12px;border:1px solid transparent;border-radius:3px;background:transparent;font-size:12px;color:#26394e;white-space:nowrap}
+.phikila-menu-trigger:hover,.phikila-menu-trigger.is-open{background:#e6edf5;border-color:#c8d5e4}
+.phikila-menu:first-child .phikila-menu-trigger{font-weight:750}
+.phikila-menu-dropdown{position:absolute;top:calc(100% + 1px);left:0;min-width:190px;padding:4px;background:#fff;border:1px solid #c5cfdb;box-shadow:0 8px 20px #10203326;border-radius:4px;z-index:30;display:grid}
+.phikila-menu-item{border:0;text-align:left;background:white;padding:8px 10px;font-size:12px;border-radius:3px;color:#26394e}
+.phikila-menu-item:hover{background:#edf3fa}
+.phikila-ribbon-scroll{overflow-x:auto;overscroll-behavior-x:contain}
+.phikila-ribbon-row{display:flex;align-items:stretch;gap:10px;padding:8px 10px;min-width:max-content;background:linear-gradient(#fff,#f0f4f8)}
+.phikila-ribbon-group{display:flex;align-items:stretch;gap:3px}
+.phikila-ribbon-separator{width:1px;align-self:stretch;background:#d4dce6;margin:0 2px}
+.phikila-ribbon-button{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;min-width:56px;max-width:92px;padding:2px 5px;border:1px solid transparent;border-radius:4px;background:transparent;color:#33475d;font-size:10px;line-height:1.2;text-align:center;white-space:normal}
+.phikila-ribbon-button:hover{background:#e9eff6;border-color:#cbd7e5}
+.phikila-ribbon-icon{display:flex;align-items:center;justify-content:center;width:31px;height:30px;border:1px solid #d6dee7;border-radius:4px;background:#fff;font-size:20px;line-height:1;color:#244b7d}
+.phikila-ribbon-icon.tint-blue{background:#e3effd;color:#2458a6}.phikila-ribbon-icon.tint-gold{background:#fff4d8;color:#91651a}.phikila-ribbon-icon.tint-violet{background:#e9e8ff;color:#5552a2}.phikila-ribbon-icon.tint-purple{background:#eee5fb;color:#6c3b9a}.phikila-ribbon-icon.tint-green{background:#e2f5e8;color:#247044}.phikila-ribbon-icon.tint-orange{background:#fff0df;color:#995b18}.phikila-ribbon-icon.tint-teal{background:#dff7f3;color:#137b6a}.phikila-ribbon-icon.tint-pink{background:#fbe6f0;color:#9c3e70}.phikila-ribbon-icon.tint-yellow{background:#fff7ce;color:#89651a}
+.phikila-whose{display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:104px;padding:0 4px}
+.phikila-whose label{font-size:10px;font-weight:700;color:#4c5d70}
+.phikila-whose select{width:100%;border:1px solid #aebdce;border-radius:3px;padding:5px 6px;background:white;font-size:11px}
+.phikila-whose span{font-size:9px;color:#718096}
+.phikila-tt-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #cbd5e1;border-radius:5px;background:white;color:#2c4056;padding:7px 10px;font-size:11px;font-weight:650;white-space:nowrap}
+.phikila-tt-button:hover{background:#f0f5fa}.phikila-tt-button:disabled{opacity:.55;cursor:not-allowed}
+.phikila-tt-button-primary{background:#194e91;border-color:#194e91;color:white}.phikila-tt-button-primary:hover{background:#123d75}
+.phikila-tt-danger{color:#a32929;border-color:#e8caca}
+.phikila-tt-subbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border:1px solid var(--tt-line);border-radius:6px;background:#fff;font-size:12px}
+.phikila-tt-subbar select{max-width:230px;border:1px solid #cbd5e1;border-radius:4px;background:white;padding:6px 8px;font-size:11px}
+.phikila-tt-subbar-spacer{flex:1}
+.phikila-tt-alert{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;margin-bottom:12px;padding:10px 12px;border:1px solid #e5bdbd;border-radius:5px;background:#fff0f0;color:#8d2727;font-size:12px}
+.phikila-tt-alert button{border:0;background:transparent;color:inherit;font-size:18px}
+.phikila-tt-info-panel,.phikila-tt-settings,.phikila-tt-grid-panel{border:1px solid var(--tt-line);border-radius:6px;background:white;box-shadow:0 2px 5px #152f4808;margin-bottom:12px;padding:14px}
+.phikila-tt-info-panel{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.phikila-tt-info-panel h2,.phikila-tt-panel-heading h2{font-size:15px;font-weight:750}
+.phikila-tt-info-panel p,.phikila-tt-panel-heading p{font-size:11px;color:var(--tt-muted);margin-top:3px}
+.phikila-tt-panel-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.phikila-tt-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:12px;margin:14px 0}
+.phikila-tt-settings label,.phikila-tt-modal form>label{display:grid;gap:5px;font-size:11px;font-weight:700;color:#4b5e72}
+.phikila-tt-settings input,.phikila-tt-period-list input,.phikila-tt-modal input:not([type=checkbox]){width:100%;min-width:0;border:1px solid #cbd5e1;border-radius:4px;background:white;padding:8px;font-size:12px;color:#1f334a}
+.phikila-tt-period-list{display:grid;gap:6px;margin-bottom:12px}
+.phikila-tt-period-list>div{display:grid;grid-template-columns:minmax(150px,1fr) 130px 130px;gap:7px}
+.phikila-tt-grid-legend{display:flex;gap:12px;align-items:center;color:#6b7a8d;font-size:10px}
+.phikila-tt-grid-legend span{display:flex;align-items:center;gap:5px}.phikila-tt-grid-legend i{width:10px;height:10px;border-radius:2px;background:#e8f1ff;border:1px solid #b7d0f1}.phikila-tt-grid-legend i.legend-locked{background:#fff1d3;border-color:#e7c37b}
+.phikila-tt-grid-scroll{overflow:auto;margin-top:12px}
+.phikila-tt-grid{width:100%;min-width:880px;border-collapse:separate;border-spacing:0;font-size:11px}
+.phikila-tt-grid th,.phikila-tt-grid td{min-width:135px;padding:8px;border-right:1px solid #e1e7ef;border-bottom:1px solid #e1e7ef;text-align:left;vertical-align:top}
+.phikila-tt-grid thead th{position:sticky;top:0;z-index:1;background:#eaf0f7;font-size:11px;font-weight:750;color:#29415c}
+.phikila-tt-grid th:first-child,.phikila-tt-grid .period-col{min-width:120px}
+.phikila-tt-grid .period-cell{background:#f7f9fc;font-weight:750;color:#354a60}
+.phikila-tt-grid small{display:block;font-size:10px;font-weight:500;color:#7a899a;margin-top:4px}
+.phikila-tt-cell{height:96px;background:#fff}
+.phikila-tt-lesson{display:grid;width:100%;gap:3px;text-align:left;margin-bottom:5px;padding:7px;border:1px solid #bfd4f0;border-left:3px solid #2b62a9;border-radius:4px;background:#eef5ff;color:#263f5d}
+.phikila-tt-lesson:hover{background:#e1edff;border-color:#91b4e4}
+.phikila-tt-lesson.is-locked{border-color:#e4c783;border-left-color:#b87b18;background:#fff7e4}
+.phikila-tt-lesson-class{font-size:9px;color:#5e7188}.phikila-tt-lesson strong{font-size:11px;font-weight:750}.phikila-tt-lesson span:not(.phikila-tt-lesson-class){font-size:10px}.phikila-tt-lesson small{font-size:9px;color:#64748b}
+.phikila-tt-add-cell{display:block;width:100%;padding:6px;border:1px dashed #d5dee9;border-radius:4px;background:#fafcff;color:#8a99aa;font-size:10px;text-align:center}
+.phikila-tt-add-cell:hover{border-color:#8eadd5;background:#f0f6ff;color:#315e94}
+.phikila-tt-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--tt-line);border-radius:6px;background:#f7f9fc;color:#617184;font-size:10px}.phikila-tt-footer span:first-child{flex:1;min-width:200px}
+.phikila-tt-modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#10203388}
+.phikila-tt-modal,.phikila-tt-preview{width:min(560px,100%);max-height:90vh;overflow:auto;padding:20px;border:1px solid #d5deea;border-radius:8px;background:white;box-shadow:0 20px 60px #0b1d3240}
+.phikila-tt-modal form{display:grid;gap:12px;margin-top:16px}
+.phikila-tt-checkbox{display:flex!important;align-items:center;gap:8px!important}.phikila-tt-checkbox input{width:16px;height:16px}
+.phikila-tt-modal-actions{display:flex;align-items:center;gap:8px;margin-top:6px}.phikila-tt-modal-actions span{flex:1}
+.phikila-tt-preview{width:min(1200px,100%)}
+.phikila-tt-print-lesson{padding:5px;border-bottom:1px solid #e2e8f0;font-size:10px}
+@media(max-width:760px){.phikila-tt-settings-grid{grid-template-columns:1fr}.phikila-tt-period-list>div{grid-template-columns:1fr 95px 95px}.phikila-tt-footer span:first-child{min-width:0}.phikila-tt-heading-actions{width:100%}.phikila-tt-subbar{align-items:flex-start}}
+@media print{@page{size:landscape;margin:10mm}body{background:white!important}.phikila-tt-heading-actions,.phikila-ribbon,.phikila-tt-subbar,.phikila-tt-footer,.phikila-tt-settings,.phikila-tt-alert,.phikila-tt-add-cell,.phikila-tt-modal-backdrop,.phikila-tt-info-panel{display:none!important}.phikila-tt-grid-panel{padding:0;border:0;box-shadow:none}.phikila-tt-grid{min-width:0;font-size:8px}.phikila-tt-grid th,.phikila-tt-grid td{min-width:0;padding:4px}.phikila-tt-lesson{background:white;border-color:#bbb;color:black;break-inside:avoid}.phikila-tt-lesson-class{color:#333}}
+
+.phikila-tt-specification{width:100%;min-width:0}
+.phikila-tt-spec-add{display:flex;gap:8px;max-width:560px;margin:14px 0}
+.phikila-tt-spec-add input{flex:1;min-width:0;border:1px solid #cbd5e1;border-radius:5px;padding:8px 10px;font:inherit}
+.phikila-tt-spec-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.phikila-tt-spec-list li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #e1e7ef;border-radius:5px;background:#fff;font-size:12px}
+.phikila-tt-spec-list li span{overflow-wrap:anywhere}
