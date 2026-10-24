@@ -4,6 +4,7 @@ import { apiFetch, friendlyApiError, type SchoolClassSetup } from '../lib/api'
 
 type Subject = { id: string; name: string; code: string; category: 'Core' | 'Elective' | 'Practical'; lessonsPerWeek: number; teacherId: string; classCodes: string[]; active: boolean; rawProfile?: Record<string, unknown> }
 type StaffRecord = { id: string; name: string; code: string }
+type ClassRecord = { id: string; name: string; code: string; count: number }
 type SavedProfile = { id: number; profile: Record<string, unknown> }
 type TeacherProfile = { id: number; profile: { firstName?: string; lastName?: string; short?: string; titleBefore?: string; titleAfter?: string } }
 const toSubject = (row: SavedProfile): Subject => {
