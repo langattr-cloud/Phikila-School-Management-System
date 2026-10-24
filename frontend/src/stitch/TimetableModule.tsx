@@ -272,7 +272,7 @@ type BreakForm = { name: string; short: string; position: number; start: string;
 function makeBreakForm(): BreakForm { return {name:'',short:'',position:1,start:'10:20',end:'10:50',textForPrintouts:'',printSummary:true,printTeacher:true,printClass:true,printClassroom:true,printInBells:'All classes',doubleCannotSpan:true} }
 function periodToBreakForm(period: Period): BreakForm { return {name:period.name,short:period.short || period.name,position:period.position ?? 1,start:period.start,end:period.end,textForPrintouts:period.textForPrintouts || '',printSummary:period.printSummary ?? true,printTeacher:period.printTeacher ?? true,printClass:period.printClass ?? true,printClassroom:period.printClassroom ?? true,printInBells:period.printInBells || 'All classes',doubleCannotSpan:period.doubleCannotSpan ?? true} }
 function BreakEditorDialog({value,lessonCount,onChange,onClose,onSave}:{value:BreakForm;lessonCount:number;onChange:(value:BreakForm)=>void;onClose:()=>void;onSave:()=>void}) {
-  const update = <K extends keyof BreakForm>(key:K,next:BreakForm[K]) => onChange({...value,[key]:next});
+  const update = <K extends keyof BreakForm,>(key:K,next:BreakForm[K]) => onChange({...value,[key]:next});
   const minutes = (time:string) => { const parts=time.split(':').map(Number); return parts[0]*60+parts[1]; };
   return <div className="phikila-tt-break-backdrop" role="presentation"><section className="phikila-tt-break-dialog" role="dialog" aria-modal="true" aria-labelledby="phikila-break-title">
     <header className="phikila-tt-break-dialog-header"><h2 id="phikila-break-title">Period · Break settings</h2><button type="button" aria-label="Close" onClick={onClose}>×</button></header>
