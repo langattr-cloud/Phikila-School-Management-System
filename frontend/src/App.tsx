@@ -11,7 +11,6 @@ import { SignUpPage } from './pages/SignUpPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
-import TimetableModule from './stitch/TimetableModule'
 const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
 const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
@@ -85,7 +84,6 @@ function AccessGate({ children }: { children: ReactNode }) {
 function routeFor(pathname: string): ReactNode {
   switch (pathname) {
     case '/': return <StudentsOverviewPage />
-    case '/timetable-manager': return <TimetableModule />
     case '/setup/school': return <SchoolPage />
     case '/setup/academic-years': return <AcademicsPage />
     case '/setup/academic-year-transition': return <AcademicYearTransitionPage />
