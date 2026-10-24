@@ -194,3 +194,7 @@
 .phikila-tt-break-label{display:block;text-align:center;padding:8px 2px;color:#24713a;font-size:11px;font-weight:750}
 .phikila-tt-grid-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px}
 @media(max-width:600px){.phikila-menu-trigger{padding:8px 9px}.phikila-ribbon-row{padding:5px}.phikila-ribbon-button{min-width:54px}.phikila-tt-grid-days-rows .period-cell{width:90px;min-width:90px}}
+
+.phikila-tt-verification-indicator{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:999px;background:#f8fafc;color:#334155;font-size:11px;font-weight:650}
+.phikila-tt-verification-indicator::before{content:"";width:7px;height:7px;border-radius:50%;background:#22c55e}
+.phikila-tt-grid-legend:has(.phikila-tt-verification-indicator){align-items:center;flex-wrap:wrap}
