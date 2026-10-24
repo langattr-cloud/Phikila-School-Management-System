@@ -3,18 +3,14 @@ import { useMemo, useRef, useState } from 'react'
 type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
 type Timetable = { schoolName: string; academicYear: string; days: string[]; periods: { name: string; start: string; end: string }[]; weekend: boolean; lessons: Lesson[] }
 const KEY = 'phikila.timetable.v1'
-const initial: Timetable = { schoolName: 'Phikila School', academicYear: '2026/2027', days: ['Monday','Tuesday','Wednesday','Thursday','Friday'], periods: [{name:'Period 1',start:'08:00',end:'08:40'},{name:'Period 2',start:'08:40',end:'09:20'},{name:'Break',start:'09:20',end:'09:40'},{name:'Period 3',start:'09:40',end:'10:20'},{name:'Period 4',start:'10:20',end:'11:00'},{name:'Lunch',start:'11:00',end:'11:40'},{name:'Period 5',start:'11:40',end:'12:20'},{name:'Period 6',start:'12:20',end:'13:00'}], weekend:false, lessons:[
-{id:'1',day:'Monday',period:0,className:'Form 1A',subject:'Mathematics',teacher:'M. Njoroge',room:'Room 1',locked:false},
-{id:'2',day:'Monday',period:1,className:'Form 1A',subject:'English',teacher:'A. Wanjiku',room:'Room 2',locked:false},
-{id:'3',day:'Tuesday',period:0,className:'Form 1A',subject:'Science',teacher:'P. Otieno',room:'Lab 1',locked:true},
-{id:'4',day:'Wednesday',period:0,className:'Form 2A',subject:'Mathematics',teacher:'M. Njoroge',room:'Room 3',locked:false}] }
+const initial: Timetable = { schoolName: 'Phikila School', academicYear: '2026/2027', days: ['Monday','Tuesday','Wednesday','Thursday','Friday'], periods: [{name:'Period 1',start:'08:00',end:'08:40'},{name:'Period 2',start:'08:40',end:'09:20'},{name:'Break',start:'09:20',end:'09:40'},{name:'Period 3',start:'09:40',end:'10:20'},{name:'Period 4',start:'10:20',end:'11:00'},{name:'Lunch',start:'11:00',end:'11:40'},{name:'Period 5',start:'11:40',end:'12:20'},{name:'Period 6',start:'12:20',end:'13:00'}], weekend:false, lessons:[] }
 const classDefaults = ['Form 1A','Form 1B','Form 2A','Form 2B','Form 3A']
 const subjectDefaults = ['Mathematics','English','Kiswahili','Science','Social Studies','ICT','CRE','PE']
 const teacherDefaults = ['M. Njoroge','A. Wanjiku','P. Otieno','J. Kamau','S. Achieng']
 const id = () => `${Date.now()}-${Math.random().toString(36).slice(2,8)}`
 
 export default function TimetableModule() {
- const [data,setData] = useState<Timetable>(()=>{try {const s=localStorage.getItem(KEY);return s?{...initial,...JSON.parse(s)}:initial}catch{return initial}})
+ const [data,setData] = useState<Timetable>(()=>{try {const s=localStorage.getItem(KEY);if(!s)return initial;const saved={...initial,...JSON.parse(s)} as Timetable;const sampleIds=new Set(['1','2','3','4']);const isOnlyDemoLessons=saved.lessons.length>0&&saved.lessons.every(l=>sampleIds.has(l.id))&&saved.lessons.every(l=>l.className==='Form 1A'||l.className==='Form 2A')&&saved.lessons.every(l=>['Mathematics','English','Science'].includes(l.subject));return isOnlyDemoLessons?{...saved,lessons:[]}:saved}catch{return initial}})
  const [view,setView] = useState<'Whole school'|'Teachers'|'Subjects'|'Lesson grid'>('Whole school')
  const [filter,setFilter] = useState('All')
  const [status,setStatus] = useState('Draft changes not yet saved')
