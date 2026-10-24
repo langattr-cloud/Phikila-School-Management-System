@@ -136,7 +136,6 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
   const path = normalisePath(pathname)
   const requiredModule = path === '/setup/teachers' ? 'staff'
     : path.startsWith('/students') || ['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(path) ? 'students'
-    : path.startsWith('/setup/teachers') ? 'staff'
     : path.startsWith('/examinations') ? 'examinations'
     : path.startsWith('/finance') ? 'finance'
     : path.startsWith('/ocr') ? 'ai_tools' : null
