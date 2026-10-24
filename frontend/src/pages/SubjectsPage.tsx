@@ -6,6 +6,9 @@ type StaffRecord = { id: string; name: string; code: string; subject?: string; c
 type ClassRecord = { id: string; name: string; code: string; count: number }
 const SUBJECT_KEY = 'phikila.subjects.v1'
 const STAFF_KEY = 'phikila.staff-classes.v1'
+const defaultClasses: ClassRecord[] = [
+  ['g4','Grade 4','G4',35],['5e','Grade 5E','5E',35],['5w','Grade 5W','5W',35],['6e','Grade 6E','6E',35],['6w','Grade 6W','6W',35],['6n','Grade 6N','6N',35],['7r','Grade 7R','7R',40],['7b','Grade 7B','7B',40],['7y','Grade 7Y','7Y',40],['8r','Grade 8R','8R',40],['8b','Grade 8B','8B',40],['8y','Grade 8Y','8Y',40],['8g','Grade 8G','8G',40],['9r','Grade 9R','9R',40],['9b','Grade 9B','9B',40],['9y','Grade 9Y','9Y',40],['9g','Grade 9G','9G',40],
+].map(([id,name,code,count])=>({id:String(id),name:String(name),code:String(code),count:Number(count)}))
 const initialSubjects: Subject[] = [
   { id: 'sub-eng', name: 'English', code: 'ENG', category: 'Core', lessonsPerWeek: 5, teacherId: '', classCodes: ['G4','5E','5W','6E','6W','6N','7R','7B','7Y','8R','8B','8Y','8G','9R','9B','9Y','9G'], active: true },
   { id: 'sub-kis', name: 'Kiswahili', code: 'KIS', category: 'Core', lessonsPerWeek: 5, teacherId: '', classCodes: ['G4','5E','5W','6E','6W','6N','7R','7B','7Y','8R','8B','8Y','8G','9R','9B','9Y','9G'], active: true },
@@ -55,7 +58,7 @@ export default function SubjectsPage() {
   const [modal,setModal] = useState(false)
   const [notice,setNotice] = useState('')
   const [form,setForm] = useState({name:'',code:'',category:'Core' as Subject['category'],lessonsPerWeek:'4',teacherId:'',classCodes:[] as string[],active:true})
-  useEffect(()=>{try{const saved=localStorage.getItem(STAFF_KEY);if(saved){const parsed=JSON.parse(saved);setStaff(Array.isArray(parsed.teachers)?parsed.teachers:[]);setClasses(Array.isArray(parsed.classes)?parsed.classes:[])}}catch{/* Show an unassigned state if staff records are unavailable. */}},[])
+  useEffect(()=>{try{const saved=localStorage.getItem(STAFF_KEY);if(saved){const parsed=JSON.parse(saved);setStaff(Array.isArray(parsed.teachers)?parsed.teachers:[]);setClasses(Array.isArray(parsed.classes)?parsed.classes:defaultClasses)}else{setClasses(defaultClasses)}}catch{/* Show an unassigned state if staff records are unavailable. */}},[])
   useEffect(()=>{try{localStorage.setItem(SUBJECT_KEY,JSON.stringify(subjects))}catch{setNotice('Browser storage is unavailable; changes may not persist after this page closes.')}},[subjects])
   const filtered=useMemo(()=>subjects.filter(s=>(!query||[s.name,s.code,s.category].join(' ').toLowerCase().includes(query.toLowerCase()))&&(category==='All'||s.category===category)),[subjects,query,category])
   const openCreate=()=>{setEditing(null);setForm({name:'',code:'',category:'Core',lessonsPerWeek:'4',teacherId:'',classCodes:[],active:true});setModal(true)}
