@@ -28,6 +28,9 @@ academicsRoutes.patch('/classes/:classId', async (c) => {
   }
   const teacherId = body.class_teacher_id === null ? null : Number(body.class_teacher_id)
   const client = db()
+  const { data: existingClass, error: classError } = await client.from('school_classes').select('id').eq('id', classId).maybeSingle()
+  if (classError) return jsonError(c, classError.message, 400)
+  if (!existingClass) return c.json({ detail: 'Class not found.' }, 404)
   if (teacherId !== null) {
     const { data: teacher, error: teacherError } = await client.from('teachers').select('id').eq('id', teacherId).maybeSingle()
     if (teacherError) return jsonError(c, teacherError.message, 400)
