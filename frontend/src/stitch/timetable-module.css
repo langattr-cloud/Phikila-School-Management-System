@@ -167,3 +167,30 @@
 .phikila-tt-subject-dialog details summary{cursor:pointer;text-decoration:underline}
 .phikila-tt-subject-dialog>footer{display:flex;justify-content:flex-end;gap:10px;padding:10px;border-top:1px solid #999;background:#e9e9e9}
 @media(max-width:650px){.phikila-tt-subjects-layout{flex-direction:column}.phikila-tt-subject-actions{width:auto;flex-basis:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-left:0;border-top:1px solid #cbd5e1}.phikila-tt-subject-actions-spacer{display:none}.phikila-tt-subjects-heading{align-items:flex-start;flex-direction:column}.phikila-tt-subject-dialog-body>label{grid-template-columns:1fr}}
+
+/* Requested compact timetable interface */
+.phikila-tt-ribbon{border:1px solid #cbd5e1;background:#f8fafc}
+.phikila-menu-bar{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;background:#eef2f7;border-bottom:1px solid #cbd5e1;padding:0 6px}
+.phikila-menu{position:relative}
+.phikila-menu-trigger{padding:9px 13px;border:0;border-right:1px solid #dbe2ea;background:transparent;color:#263548;font-size:12px;cursor:pointer}
+.phikila-menu-trigger:hover,.phikila-menu-trigger.is-open{background:#dbeafe;color:#123d7a}
+.phikila-menu-dropdown{position:absolute;top:100%;left:0;z-index:1100;min-width:190px;padding:5px;background:#fff;border:1px solid #cbd5e1;box-shadow:0 8px 24px #0f172a26}
+.phikila-menu-item{display:block;width:100%;padding:8px 10px;text-align:left;background:#fff;border:0;color:#1e293b;font-size:12px;cursor:pointer}
+.phikila-menu-item:hover,.phikila-menu-item:focus{background:#dbeafe;outline:none}
+.phikila-ribbon-scroll{overflow-x:auto}
+.phikila-ribbon-row{display:flex;align-items:stretch;gap:6px;padding:8px}
+.phikila-ribbon-group{display:flex;align-items:stretch;gap:3px;flex-wrap:nowrap}
+.phikila-ribbon-button{min-width:60px;max-width:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:5px 7px;background:transparent;border:1px solid transparent;border-radius:4px;color:#263548;font-size:10px;cursor:pointer}
+.phikila-ribbon-button:hover{background:#e2e8f0;border-color:#cbd5e1}
+.phikila-ribbon-icon{font-size:19px;line-height:1.1}
+.phikila-tt-grid-days-rows{min-width:850px;table-layout:fixed}
+.phikila-tt-grid-days-rows thead th{vertical-align:bottom;min-width:92px}
+.phikila-tt-grid-days-rows thead th:first-child,.phikila-tt-grid-days-rows .period-cell{min-width:100px;width:112px}
+.phikila-tt-grid-days-rows thead th small{display:block;margin-top:4px;font-size:10px;font-weight:500;color:#64748b}
+.phikila-tt-grid-days-rows .period-cell{position:sticky;left:0;z-index:2;background:#f1f5f9}
+.phikila-tt-grid-days-rows thead th:first-child{position:sticky;left:0;z-index:3}
+.phikila-tt-grid-days-rows .phikila-tt-cell{height:100px;vertical-align:top;padding:4px}
+.phikila-tt-grid-days-rows .phikila-tt-break-heading,.phikila-tt-grid-days-rows .phikila-tt-break-cell{background:#e7f7e9!important;border-color:#b6dfbd!important}
+.phikila-tt-break-label{display:block;text-align:center;padding:8px 2px;color:#24713a;font-size:11px;font-weight:750}
+.phikila-tt-grid-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px}
+@media(max-width:600px){.phikila-menu-trigger{padding:8px 9px}.phikila-ribbon-row{padding:5px}.phikila-ribbon-button{min-width:54px}.phikila-tt-grid-days-rows .period-cell{width:90px;min-width:90px}}
