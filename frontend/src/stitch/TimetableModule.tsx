@@ -131,7 +131,8 @@ export default function TimetableModule() {
  const exportFile=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='phikila-timetable.json';a.click();URL.revokeObjectURL(url);setStatus('Timetable exported as JSON')}
  const updateLesson=(lessonId:string,patch:Partial<Lesson>)=>setData(p=>({...p,lessons:p.lessons.map(l=>l.id===lessonId?{...l,...patch}:l)}))
  const addLesson=(day=data.days[0],period=0)=>{if(!classes.length||!subjects.length||!teachers.length){setStatus('Create classes, subjects and teachers before adding lessons.');return}setData(p=>({...p,lessons:[...p.lessons,{id:id(),day,period,className:classes[0],subject:subjects[0],teacher:teachers[0],room:'',locked:false}]}))}
- const generate=()=>{\n  if(!classes.length||!subjects.length||!teachers.length){setStatus('Create classes, subjects and teachers before generating a timetable.');return}
+ const generate=()=>{
+  if(!classes.length||!subjects.length||!teachers.length){setStatus('Create classes, subjects and teachers before generating a timetable.');return}
   const fixed=data.lessons.filter(l=>l.locked), result=[...fixed]
   const slots=data.days.flatMap(day=>data.periods.map((_,period)=>({day,period}))).filter(s=>(data.periods[s.period].type??(/break|lunch/i.test(data.periods[s.period].name)?'break':'lesson'))==='lesson')
   let cursor=0
