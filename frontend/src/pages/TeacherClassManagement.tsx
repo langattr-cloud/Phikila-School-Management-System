@@ -13,15 +13,18 @@ type Teacher = {
   unavailable: string[]
   color: string
   count: number
+  lessonAllocations: { subjectId: string; subjectName: string; classId: string; className: string; lessonsPerWeek: number }[]
   first_name?: string
   last_name?: string
 }
 type SavedTeacherProfile = { id: number; profile: Record<string, any> }
+type SubjectProfile = { id: number; profile: Record<string, any> }
+type LessonAllocation = { subjectId: string; subjectName: string; classId: string; className: string; lessonsPerWeek: number }
 const toTeacher = (row: SavedTeacherProfile): Teacher => {
   const p = row.profile || {}
-  return { id: row.id, name: [p.firstName, p.lastName].filter(Boolean).join(' '), first_name: p.firstName || '', last_name: p.lastName || '', code: String(p.short || p.code || ''), email: p.email || '', phone: p.phone || '', subject: p.subject || '', classId: p.classId ? String(p.classId) : '', unavailable: Array.isArray(p.unavailable) ? p.unavailable : [], color: p.color || '#176b4d', count: Number(p.count) || 0 }
+  return { id: row.id, name: [p.firstName, p.lastName].filter(Boolean).join(' '), first_name: p.firstName || '', last_name: p.lastName || '', code: String(p.short || p.code || ''), email: p.email || '', phone: p.phone || '', subject: p.subject || '', classId: p.classId ? String(p.classId) : '', unavailable: Array.isArray(p.unavailable) ? p.unavailable : [], color: p.color || '#176b4d', count: Number(p.count) || 0, lessonAllocations: Array.isArray(p.lessonAllocations) ? p.lessonAllocations : [] }
 }
-const teacherProfile = (teacher: Partial<Teacher> & { first_name?: string; last_name?: string }) => ({ firstName: teacher.first_name || '', lastName: teacher.last_name || '', short: teacher.code || '', email: teacher.email || '', phone: teacher.phone || '', subject: teacher.subject || '', classId: teacher.classId || '', unavailable: teacher.unavailable || [], color: teacher.color || '#176b4d', count: teacher.count || 0 })
+const teacherProfile = (teacher: Partial<Teacher> & { first_name?: string; last_name?: string }) => ({ firstName: teacher.first_name || '', lastName: teacher.last_name || '', short: teacher.code || '', email: teacher.email || '', phone: teacher.phone || '', subject: teacher.subject || '', classId: teacher.classId || '', unavailable: teacher.unavailable || [], color: teacher.color || '#176b4d', count: teacher.count || 0, lessonAllocations: teacher.lessonAllocations || [] })
 type SchoolClass = SchoolClassSetup & {
   display_name?: string | null
   class_teacher_id?: number | null
@@ -31,7 +34,7 @@ type SchoolClass = SchoolClassSetup & {
   unavailable?: string[]
 }
 type Tab = 'teachers' | 'classes'
-type TeacherForm = { firstName: string; lastName: string; code: string; email: string; phone: string; classId: string; color: string; unavailable: string[] }
+type TeacherForm = { firstName: string; lastName: string; code: string; email: string; phone: string; classId: string; color: string; unavailable: string[]; lessonAllocations: LessonAllocation[] }
 type ClassForm = { name: string; code: string; color: string; unavailable: string[] }
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 const PERIODS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8']
@@ -80,13 +83,14 @@ const styles = `
 const teacherName = (teacher: Teacher) => teacher.name || [teacher.first_name, teacher.last_name].filter(Boolean).join(' ')
 const className = (schoolClass: SchoolClass) => schoolClass.display_name || schoolClass.name
 const classCode = (schoolClass: SchoolClass) => schoolClass.code || ''
-const defaultForm: TeacherForm = { firstName: '', lastName: '', code: '', email: '', phone: '', classId: '', color: '#176b4d', unavailable: [] }
+const defaultForm: TeacherForm = { firstName: '', lastName: '', code: '', email: '', phone: '', classId: '', color: '#176b4d', unavailable: [], lessonAllocations: [] }
 const defaultClassForm: ClassForm = { name: '', code: '', color: '#176b4d', unavailable: [] }
 
 export default function TeacherClassManagement() {
   const [tab, setTab] = useState<Tab>('teachers')
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [subjects, setSubjects] = useState<{id:string;name:string}[]>([])
   const [query, setQuery] = useState('')
   const [modal, setModal] = useState(false)
   const [editingId, setEditingId] = useState<string | number | null>(null)
@@ -104,12 +108,14 @@ export default function TeacherClassManagement() {
     setLoading(true)
     setError('')
     try {
-      const [teacherRows, classRows, workspace] = await Promise.all([
+      const [teacherRows, classRows, workspace, subjectRows] = await Promise.all([
         apiFetch<SavedTeacherProfile[]>('/api/v1/timetable/teachers'),
         apiFetch<SchoolClass[]>('/api/v1/academics/classes'),
         apiFetch<{data: Record<string, any> | null}>('/api/v1/timetable/workspace'),
+        apiFetch<SubjectProfile[]>('/api/v1/timetable/subjects'),
       ])
       setTeachers(teacherRows.map(toTeacher))
+      setSubjects(subjectRows.map(s=>({id:String(s.id),name:String(s.profile?.title??s.profile?.name??'Unnamed subject')})))
       setClasses(classRows)
       setClassSettings(workspace.data?.classSettings && typeof workspace.data.classSettings === 'object' ? workspace.data.classSettings : {})
     } catch (e) {
@@ -147,6 +153,7 @@ export default function TeacherClassManagement() {
       classId: assignedClass ? String(assignedClass.id) : '',
       color: teacher.color || '#176b4d',
       unavailable: Array.isArray(teacher.unavailable) ? teacher.unavailable : [],
+      lessonAllocations: teacher.lessonAllocations || [],
     } : { ...defaultForm, code: String(Math.max(0, ...teachers.map(t => Number(t.code) || 0)) + 1) })
     setModal(true)
     setNotice('')
@@ -168,7 +175,7 @@ export default function TeacherClassManagement() {
     setError('')
     try {
       const payload = { name, first_name: firstName, last_name: lastName, code, email: form.email.trim() || null, phone: form.phone.trim() || null, color: form.color }
-      const profile = { ...teacherProfile({ ...payload, first_name: firstName, last_name: lastName, unavailable: form.unavailable, color: form.color, classId: form.classId }) }
+      const profile = { ...teacherProfile({ ...payload, first_name: firstName, last_name: lastName, unavailable: form.unavailable, color: form.color, classId: form.classId, lessonAllocations: form.lessonAllocations }) }
       const saved = editingId == null
         ? await apiFetch<SavedTeacherProfile>('/api/v1/timetable/teachers', { method: 'POST', body: JSON.stringify({ profile }) })
         : await apiFetch<SavedTeacherProfile>(`/api/v1/timetable/teachers/${editingId}`, { method: 'PUT', body: JSON.stringify({ profile }) })
@@ -202,13 +209,17 @@ export default function TeacherClassManagement() {
     const unavailable = teacher.unavailable.includes(slot) ? teacher.unavailable.filter(s => s !== slot) : [...teacher.unavailable, slot]
     setTeachers(current => current.map(t => String(t.id) === String(teacher.id) ? { ...t, unavailable } : t))
     try {
-      await apiFetch(`/api/v1/timetable/teachers/${teacher.id}`, { method: 'PUT', body: JSON.stringify({ profile: teacherProfile({ ...teacher, unavailable }) }) })
+      await apiFetch(`/api/v1/timetable/teachers/${teacher.id}`, { method: 'PUT', body: JSON.stringify({ profile: teacherProfile({ ...teacher, unavailable, lessonAllocations: teacher.lessonAllocations }) }) })
       setNotice(`Availability saved for ${teacherName(teacher)}.`)
     } catch (e) {
       setError(friendlyApiError(e, 'save teacher availability'))
       await loadRecords()
     }
   }
+
+  const updateAllocation = (index: number, patch: Partial<LessonAllocation>) => setForm(current => ({ ...current, lessonAllocations: current.lessonAllocations.map((allocation, i) => i === index ? { ...allocation, ...patch } : allocation) }))
+  const addAllocation = () => setForm(current => ({ ...current, lessonAllocations: [...current.lessonAllocations, { subjectId: subjects[0]?.id || '', subjectName: subjects[0]?.name || '', classId: classes[0] ? String(classes[0].id) : '', className: classes[0] ? className(classes[0]) : '', lessonsPerWeek: 4 }] }))
+  const removeAllocation = (index: number) => setForm(current => ({ ...current, lessonAllocations: current.lessonAllocations.filter((_, i) => i !== index) }))
 
   const exportCsv = () => {
     const rows = tab === 'teachers'
@@ -248,7 +259,7 @@ export default function TeacherClassManagement() {
         <div className="staff-note"><div className="staff-legend"><span><i /> Available</span><span className="off"><i /> Unavailable / time off</span><span>Changes save to Supabase immediately.</span></div></div>
       </> : <div className="staff-table-wrap"><table className="staff-table"><thead><tr><th>Class name</th><th>Code</th><th>Color</th><th>Time off · click periods to toggle</th><th>Student count</th><th>Class teacher</th><th>Actions</th></tr></thead><tbody>{visibleClasses.map(c => <tr key={c.id}><td><span className="staff-name">{className(c)}</span></td><td><span className="staff-code">{classCode(c) || '—'}</span></td><td><span style={{display:'inline-block',width:18,height:18,borderRadius:4,background:classSettings[String(c.id)]?.color || '#176b4d',verticalAlign:'middle'}} title={'Class color ' + (classSettings[String(c.id)]?.color || '#176b4d')} /></td><td><div className="staff-week" aria-label={'Time off for ' + className(c)}>{DAYS.map(day => <div className="staff-day" key={day}><span className="staff-day-label">{day}</span>{PERIODS.map(period => { const slot = day + '-' + period; const off = (classSettings[String(c.id)]?.unavailable || []).includes(slot); return <button key={slot} type="button" className={'staff-slot ' + (off ? 'off' : '')} title={day + ' ' + period + ': ' + (off ? 'Time off' : 'Available')} aria-label={className(c) + ', ' + day + ' ' + period + ', ' + (off ? 'time off' : 'available')} disabled /> })}</div>)}</div><span className="staff-sub">{(classSettings[String(c.id)]?.unavailable || []).length} time-off periods</span></td><td>{c.count ?? c.student_count ?? 0}</td><td>{teachers.find(t => String(t.id) === String(c.class_teacher_id))?.name || <span className="staff-muted">Not assigned</span>}</td><td><button className="staff-iconbtn" onClick={() => openClass(c)} disabled={saving} aria-label={'Edit ' + className(c)}>Edit</button></td></tr>)}</tbody></table>{visibleClasses.length === 0 && <div className="staff-empty">No classes match your search.</div>}<div className="staff-note">Classes are read from the canonical school setup. To add or remove classes, use School Structure; assign a class teacher by editing a teacher record.</div></div>}
     </section>
-    {modal && <div className="staff-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !saving) setModal(false) }}><section className="staff-modal" role="dialog" aria-modal="true" aria-labelledby="staff-modal-title"><h2 id="staff-modal-title">{editingId == null ? 'Add' : 'Edit'} teacher</h2><p className="staff-muted">Fields marked with * are required.</p><form onSubmit={saveTeacher}><div className="staff-form"><label className="staff-field">Last name *<input autoFocus required maxLength={80} autoComplete="family-name" value={form.lastName} onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))} /></label><label className="staff-field">First name *<input required maxLength={80} autoComplete="given-name" value={form.firstName} onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))} /></label><label className="staff-field">Code *<input required maxLength={30} value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} /></label><label className="staff-field">Email<input type="email" maxLength={254} autoComplete="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></label><label className="staff-field">Phone (optional)<input type="tel" maxLength={40} autoComplete="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></label><label className="staff-field">Class teacher<select value={form.classId} onChange={e => setForm(p => ({ ...p, classId: e.target.value }))}><option value="">Not assigned</option>{classes.map(c => <option key={c.id} value={String(c.id)}>{className(c)} ({classCode(c) || c.id})</option>)}</select></label><label className="staff-field">Color<input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} /></label><div className="staff-field full"><span>Time off · select unavailable periods</span><div className="staff-week">{DAYS.map(day => <div className="staff-day" key={day}><span className="staff-day-label">{day}</span>{PERIODS.map(period => { const slot = day + '-' + period; const off = form.unavailable.includes(slot); return <button key={slot} type="button" className={'staff-slot ' + (off ? 'off' : '')} title={day + ' ' + period + ': ' + (off ? 'Time off' : 'Available')} aria-label={day + ' ' + period + ', toggle time off'} onClick={() => toggleTeacherTimeOff(slot)} /> })}</div>)}</div><span className="staff-sub">Green = available. Red = time off.</span></div></div><div className="staff-modal-actions"><button type="button" className="staff-btn" onClick={() => setModal(false)} disabled={saving}>Cancel</button><button type="submit" className="staff-btn primary" disabled={saving}>{saving ? 'Saving…' : 'Save teacher'}</button></div></form></section></div>}
+    {modal && <div className="staff-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !saving) setModal(false) }}><section className="staff-modal" role="dialog" aria-modal="true" aria-labelledby="staff-modal-title"><h2 id="staff-modal-title">{editingId == null ? 'Add' : 'Edit'} teacher</h2><p className="staff-muted">Fields marked with * are required.</p><form onSubmit={saveTeacher}><div className="staff-form"><label className="staff-field">Last name *<input autoFocus required maxLength={80} autoComplete="family-name" value={form.lastName} onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))} /></label><label className="staff-field">First name *<input required maxLength={80} autoComplete="given-name" value={form.firstName} onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))} /></label><label className="staff-field">Code *<input required maxLength={30} value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} /></label><label className="staff-field">Email<input type="email" maxLength={254} autoComplete="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></label><label className="staff-field">Phone (optional)<input type="tel" maxLength={40} autoComplete="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></label><label className="staff-field">Class teacher<select value={form.classId} onChange={e => setForm(p => ({ ...p, classId: e.target.value }))}><option value="">Not assigned</option>{classes.map(c => <option key={c.id} value={String(c.id)}>{className(c)} ({classCode(c) || c.id})</option>)}</select></label><label className="staff-field">Color<input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} /></label><div className="staff-field full"><span>Time off · select unavailable periods</span><div className="staff-week">{DAYS.map(day => <div className="staff-day" key={day}><span className="staff-day-label">{day}</span>{PERIODS.map(period => { const slot = day + '-' + period; const off = form.unavailable.includes(slot); return <button key={slot} type="button" className={'staff-slot ' + (off ? 'off' : '')} title={day + ' ' + period + ': ' + (off ? 'Time off' : 'Available')} aria-label={day + ' ' + period + ', toggle time off'} onClick={() => toggleTeacherTimeOff(slot)} /> })}</div>)}</div><span className="staff-sub">Green = available. Red = time off.</span></div><div className="staff-field full"><span>Subject lesson allocations</span><span className="staff-sub">Assign a subject to a grade/class and set this teacher’s weekly lesson count for that allocation.</span>{form.lessonAllocations.map((allocation,index)=><div key={index} style={{display:'grid',gridTemplateColumns:'1fr 1fr 100px auto',gap:8,alignItems:'end',marginTop:8}}><label className="staff-field">Subject<select value={allocation.subjectId} onChange={e=>{const subject=subjects.find(s=>s.id===e.target.value);updateAllocation(index,{subjectId:e.target.value,subjectName:subject?.name||''})}} required><option value="">Choose subject</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="staff-field">Grade / class<select value={allocation.classId} onChange={e=>{const cls=classes.find(x=>String(x.id)===e.target.value);updateAllocation(index,{classId:e.target.value,className:cls?className(cls):''})}} required><option value="">Choose class</option>{classes.map(cls=><option key={cls.id} value={String(cls.id)}>{className(cls)}</option>)}</select></label><label className="staff-field">Lessons / week<input type="number" min="1" max="50" required value={allocation.lessonsPerWeek} onChange={e=>updateAllocation(index,{lessonsPerWeek:Math.max(1,Math.min(50,Number(e.target.value)||1))})}/></label><button type="button" className="staff-iconbtn" onClick={()=>removeAllocation(index)} aria-label="Remove lesson allocation">Remove</button></div>)}<button type="button" className="staff-btn" onClick={addAllocation} disabled={!subjects.length||!classes.length}>＋ Add lesson allocation</button>{(!subjects.length||!classes.length)&&<span className="staff-sub">Add subjects and classes before configuring allocations.</span>}</div></div><div className="staff-modal-actions"><button type="button" className="staff-btn" onClick={() => setModal(false)} disabled={saving}>Cancel</button><button type="submit" className="staff-btn primary" disabled={saving}>{saving ? 'Saving…' : 'Save teacher'}</button></div></form></section></div>}
     {classModal && <div className="staff-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !saving) setClassModal(false) }}><section className="staff-modal" role="dialog" aria-modal="true" aria-labelledby="class-modal-title"><h2 id="class-modal-title">Edit class</h2><p className="staff-muted">Class name and code are saved to the school database. Color and time off are saved in this browser.</p><form onSubmit={saveClass}><div className="staff-form"><label className="staff-field">Class name *<input autoFocus required maxLength={100} value={classForm.name} onChange={e => setClassForm(p => ({ ...p, name: e.target.value }))} /></label><label className="staff-field">Code *<input required maxLength={30} value={classForm.code} onChange={e => setClassForm(p => ({ ...p, code: e.target.value }))} /></label><label className="staff-field">Color<input type="color" value={classForm.color} onChange={e => setClassForm(p => ({ ...p, color: e.target.value }))} /></label><div className="staff-field full"><span>Time off · select periods</span><div className="staff-week">{DAYS.map(day => <div className="staff-day" key={day}><span className="staff-day-label">{day}</span>{PERIODS.map(period => { const slot = day + '-' + period; const off = classForm.unavailable.includes(slot); return <button key={slot} type="button" className={'staff-slot ' + (off ? 'off' : '')} title={day + ' ' + period + ': ' + (off ? 'Time off' : 'Available')} aria-label={day + ' ' + period + ', toggle time off'} onClick={() => toggleClassTimeOff(slot)} /> })}</div>)}</div><span className="staff-sub">Green = available. Red = time off.</span></div></div><div className="staff-modal-actions"><button type="button" className="staff-btn" onClick={() => setClassModal(false)} disabled={saving}>Cancel</button><button type="submit" className="staff-btn primary" disabled={saving}>{saving ? 'Saving…' : 'Save class'}</button></div></form></section></div>}
   </div>
 }
