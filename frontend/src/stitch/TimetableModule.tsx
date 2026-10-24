@@ -23,7 +23,7 @@ const makeId = () => (globalThis.crypto && globalThis.crypto.randomUUID ? global
 const unique = (items: string[]) => Array.from(new Set(items.map(item => item.trim()).filter(Boolean)))
 
 function RibbonButton({ label, glyph, tint, onClick }: { label: string; glyph: string; tint?: string; onClick: () => void }) {
-  return <button type="button" className="phikila-ribbon-button" onClick={onClick}><span className={'phikila-ribbon-icon tint-' + (tint || 'neutral')} aria-hidden="true">{glyph}</span><span>{label}</span></button>
+  return <button type="button" className="phikila-ribbon-button" title={label} aria-label={label} onClick={onClick}><span className={'phikila-ribbon-icon tint-' + (tint || 'neutral')} aria-hidden="true">{glyph}</span><span>{label}</span></button>
 }
 
 function MainMenu({ onAction, whose, onWhoseChange }: { onAction: (action: Action) => void; whose: Whose; onWhoseChange: (value: Whose) => void }) {
@@ -57,7 +57,7 @@ function MainMenu({ onAction, whose, onWhoseChange }: { onAction: (action: Actio
       </div>)}
     </nav>
     <div className="phikila-ribbon-scroll"><div className="phikila-ribbon-row">
-      <div className="phikila-ribbon-group phikila-ribbon-group-all">{items.map(ribbonButton)}</div>
+      <div className="phikila-ribbon-group phikila-ribbon-group-all" role="toolbar" aria-label="Timetable actions">{items.map(ribbonButton)}</div>
     </div></div>
     <div className="phikila-ribbon-filter"><div className="phikila-whose"><label htmlFor="phikila-whose">Show:</label><select id="phikila-whose" value={whose} onChange={event => onWhoseChange(event.target.value as Whose)}><option>All</option><option>Classes</option><option>Teachers</option><option>Classrooms</option></select><span>Filter the weekly timetable</span></div></div>
   </div>
