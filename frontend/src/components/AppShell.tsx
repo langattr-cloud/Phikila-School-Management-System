@@ -56,11 +56,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const moduleForPath = (to: string): string | null => {
     if (to.startsWith('/platform/')) return null
     if (to.startsWith('/students')) return 'students'
-    if (to.startsWith('/setup/teachers')) return 'staff'
+    if (to.startsWith('/setup/teachers') || to === '/setup/subjects') return 'staff'
     if (to.startsWith('/examinations')) return 'examinations'
     if (to.startsWith('/finance')) return 'finance'
     if (to.startsWith('/ocr')) return 'ai_tools'
-    if (['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(to)) return 'students'
+    if (['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure'].includes(to)) return 'students'
     return null
   }
   const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
