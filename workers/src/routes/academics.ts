@@ -5,6 +5,47 @@ import { jsonError } from '../lib/http'
 
 export const academicsRoutes = new Hono()
 
+// Canonical school classes used by teacher assignment and academic setup.
+academicsRoutes.get('/classes', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const { data, error: queryError } = await db().from('school_classes')
+    .select('id,school_id,name,display_name,code,class_code,student_count,capacity,class_teacher_id,level_id,academic_year_id,status')
+    .order('id')
+  if (queryError) return jsonError(c, queryError.message, 400)
+  return c.json((data ?? []).map((row: Record<string, any>) => ({
+    ...row, name: row.display_name || row.name, code: row.code || row.class_code || '', count: Number(row.student_count) || 0,
+  })))
+})
+
+academicsRoutes.patch('/classes/:classId', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const classId = Number(c.req.param('classId'))
+  const body = await c.req.json().catch(() => ({}))
+  if (!Number.isInteger(classId) || !(body.class_teacher_id === null || Number.isInteger(Number(body.class_teacher_id)))) {
+    return jsonError(c, 'A valid class and teacher assignment are required.', 422)
+  }
+  const teacherId = body.class_teacher_id === null ? null : Number(body.class_teacher_id)
+  const client = db()
+  const { data: existingClass, error: classError } = await client.from('school_classes').select('id').eq('id', classId).maybeSingle()
+  if (classError) return jsonError(c, classError.message, 400)
+  if (!existingClass) return c.json({ detail: 'Class not found.' }, 404)
+  if (teacherId !== null) {
+    const { data: teacher, error: teacherError } = await client.from('teachers').select('id').eq('id', teacherId).maybeSingle()
+    if (teacherError) return jsonError(c, teacherError.message, 400)
+    if (!teacher) return jsonError(c, 'Teacher not found.', 404)
+    const { error: clearError } = await client.from('school_classes').update({ class_teacher_id: null }).eq('class_teacher_id', teacherId)
+    if (clearError) return jsonError(c, clearError.message, 400)
+  }
+  const { data, error: updateError } = await client.from('school_classes')
+    .update({ class_teacher_id: teacherId, updated_at: new Date().toISOString() })
+    .eq('id', classId).select('id,school_id,name,display_name,code,class_code,student_count,capacity,class_teacher_id,level_id,academic_year_id,status').maybeSingle()
+  if (updateError) return jsonError(c, updateError.message, 400)
+  if (!data) return c.json({ detail: 'Class not found.' }, 404)
+  return c.json({ ...data, name: data.display_name || data.name, code: data.code || data.class_code || '', count: Number(data.student_count) || 0 })
+})
+
 // ── Academic years ────────────────────────────────────────────────────────
 academicsRoutes.get('/years', async (c) => {
   const { error } = requireAuth(c as never)

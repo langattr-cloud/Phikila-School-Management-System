@@ -1,0 +1,63 @@
+name: Frontend dependency security audit
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - '.github/workflows/frontend-security-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    name: Audit frontend dependencies
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Generate npm audit report
+        id: audit
+        continue-on-error: true
+        run: npm audit --json > npm-audit.json
+      - name: Summarize vulnerability counts
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          if (!fs.existsSync('npm-audit.json')) {
+            console.log('npm audit did not produce a report.');
+            process.exit(0);
+          }
+          const report = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8'));
+          const v = report.metadata?.vulnerabilities ?? {};
+          console.log('Dependency audit summary:');
+          for (const severity of ['critical', 'high', 'moderate', 'low', 'info']) {
+            console.log(`${severity}: ${v[severity] ?? 0}`);
+          }
+          if ((v.critical ?? 0) > 0 || (v.high ?? 0) > 0) {
+            console.error('High or critical dependency vulnerabilities require remediation.');
+            process.exitCode = 1;
+          }
+          NODE
+      - name: Upload full audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-npm-audit-report
+          path: frontend/npm-audit.json
+          if-no-files-found: warn
+          retention-days: 14
