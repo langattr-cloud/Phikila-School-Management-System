@@ -196,7 +196,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   )
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${pathname === '/timetable' || pathname === '/timetable-manager' ? 'app-shell--timetable-fullscreen' : ''}`.trim()}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="sidebar sidebar--desktop">
         <div className="sidebar__brand"><Logo size={34} tone="dark" /></div>
