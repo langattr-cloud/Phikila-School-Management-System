@@ -13,6 +13,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
 import TimetableModule from './stitch/TimetableModule'
 const TeacherClassManagementPage = lazy(() => import('./pages/TeacherClassManagement'))
+const SubjectsPage = lazy(() => import('./pages/SubjectsPage'))
 const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
 const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
@@ -88,6 +89,7 @@ function routeFor(pathname: string): ReactNode {
     case '/': return <StudentsOverviewPage />
     case '/timetable-manager': return <TimetableModule />
     case '/setup/teachers': return <TeacherClassManagementPage />
+    case '/setup/subjects': return <SubjectsPage />
     case '/setup/school': return <SchoolPage />
     case '/setup/academic-years': return <AcademicsPage />
     case '/setup/academic-year-transition': return <AcademicYearTransitionPage />
