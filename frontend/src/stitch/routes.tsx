@@ -1,6 +1,7 @@
 import { useNavigate } from '../lib/router'
 import { usePlatformSession } from '../lib/session'
 import StitchPage from './StitchPage'
+import TimetableModule from './TimetableModule'
 import { getScreen, listScreens, ROLE_HOME } from './screens'
 
 /** All Stitch screens are reachable under /<slug>. */
@@ -13,6 +14,7 @@ export function isStitchPath(pathname: string): boolean {
 /** Renders a Stitch screen and forwards internal navigation to the router. */
 export function StitchRoute({ slug }: { slug: string }) {
   const navigate = useNavigate()
+  if (slug === 'timetable-manager') return <TimetableModule />
   return <StitchPage slug={slug} onNavigate={(target) => navigate(`/${target}`)} />
 }
 

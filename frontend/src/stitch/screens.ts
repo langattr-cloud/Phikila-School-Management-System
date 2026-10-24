@@ -52,6 +52,7 @@ const screens: StitchScreen[] = [
   { slug: 'timetable-whole-school', title: 'Whole School Timetable', file: 'whole_school_timetable.html', deviceType: 'DESKTOP' },
   { slug: 'timetable-ai-fab', title: 'Timetable Workspace with AI FAB & Collapsible Rails', file: 'timetable_workspace_with_ai_fab_collapsible_rails.html', deviceType: 'DESKTOP' },
   { slug: 'timetable-advanced', title: 'Phikila Timetable Workspace', file: 'advanced_timetable_workspace_asc_style.html', deviceType: 'DESKTOP' },
+  { slug: 'timetable-manager', title: 'Timetable Manager (Interactive)', file: 'timetable_manager.html', deviceType: 'DESKTOP', role: 'academics' },
   { slug: 'timetable-animated', title: 'Animated Parallelogram Timetable Workspace', file: 'animated_parallelogram_timetable_workspace.html', deviceType: 'DESKTOP' },
   { slug: 'timetable-mobile', title: 'Timetable Workspace (Mobile)', file: 'timetable_workspace_mobile.html', deviceType: 'MOBILE' },
   { slug: 'timetable-mobile-branding', title: 'Timetable Workspace (Mobile)', file: 'timetable_workspace_mobile_with_phikila_branding.html', deviceType: 'MOBILE' },
@@ -87,7 +88,7 @@ export function listScreens(): StitchScreen[] { return screens }
 
 export const NAV_TO_SLUG: Record<string, string> = {
   Dashboard: 'admin-dashboard', Academics: 'academics-dashboard', Students: 'student-directory',
-  Timetable: 'timetable-whole-school', Finance: 'finance-dashboard', Settings: 'settings', Support: 'principal-settings',
+  Timetable: 'timetable-manager', Finance: 'finance-dashboard', Settings: 'settings', Support: 'principal-settings',
   Personnel: 'teacher-dashboard', Institutions: 'super-admin-multi-school', Users: 'super-admin-platform',
   'Finance Hub': 'finance-bursar', 'AI Intelligence': 'platform-config-ai', 'Academic Management': 'academics-dashboard',
   'All Schools': 'super-admin-multi-school', Schools: 'super-admin-multi-school', 'Platform Analytics': 'super-admin-platform',
