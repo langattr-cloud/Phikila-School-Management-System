@@ -21,7 +21,7 @@ export default function TimetableModule() {
  const [newSubjectName,setNewSubjectName] = useState('')
  const [newSubjectCode,setNewSubjectCode] = useState('')
  const [subjectBusy,setSubjectBusy] = useState(false)
- const [view,setView = useState<'Whole school'|'Teachers'|'Subjects'|'Lesson grid'>('Whole school')
+ const [view,setView] = useState<'Whole school'|'Teachers'|'Subjects'|'Lesson grid'>('Whole school')
  const [filter,setFilter] = useState('All')
  const [status,setStatus] = useState('Draft changes not yet saved')
  const [settings,setSettings] = useState(false)
