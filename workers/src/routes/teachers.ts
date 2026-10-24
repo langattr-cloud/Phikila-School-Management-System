@@ -9,6 +9,7 @@ const shape = (teacher: Record<string, any>, settings: Record<string, any> = {})
   ...teacher,
   name: teacher.name || [teacher.first_name, teacher.last_name].filter(Boolean).join(' '),
   code: teacher.code || teacher.staff_number || '',
+  subject: teacher.subject || teacher.subject_specialization || teacher.department || '',
   unavailable: Array.isArray(settings.unavailable) ? settings.unavailable : [],
   color: typeof settings.color === 'string' ? settings.color : '#176b4d',
   count: Number.isFinite(settings.count) ? settings.count : 0,
