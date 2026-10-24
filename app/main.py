@@ -32,6 +32,7 @@ from app.modules.students.import_router import router as students_import_router
 from app.modules.students.router_v2 import router as students_router
 from app.modules.users.router import router as users_router
 from app.modules.teachers.timetable_profiles import router as timetable_teacher_profiles_router, TimetableTeacherProfile
+from app.modules.teachers.timetable_subject_profiles import router as timetable_subject_profiles_router, TimetableSubjectProfile
 
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope: dict):
@@ -74,7 +75,7 @@ def create_app() -> FastAPI:
         # Create only the new additive supplier-payment tables; existing tables are untouched.
         from app.core.database import engine
         from app.core.database import Base
-        Base.metadata.create_all(bind=engine, tables=[Supplier.__table__, SupplierInvoice.__table__, SupplierPayment.__table__, TimetableTeacherProfile.__table__])
+        Base.metadata.create_all(bind=engine, tables=[Supplier.__table__, SupplierInvoice.__table__, SupplierPayment.__table__, TimetableTeacherProfile.__table__, TimetableSubjectProfile.__table__])
     @app.get("/health", tags=["Health"])
     def health_check():
         return {"status": "ok", "environment": settings.environment}
@@ -102,6 +103,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
     app.include_router(users_router, prefix="/api/v1/users", tags=["Users"], dependencies=protected)
     app.include_router(timetable_teacher_profiles_router, prefix="/api/v1/timetable/teachers", dependencies=protected)
+    app.include_router(timetable_subject_profiles_router, prefix="/api/v1/timetable/subjects", dependencies=protected)
     app.include_router(school_router, prefix="/api/v1/school", tags=["School Profile"], dependencies=protected)
     app.include_router(students_import_router, prefix="/api/v1", tags=["Students"])
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])
