@@ -244,7 +244,8 @@ export default function TimetableModule() {
         const breakPeriod: Period = { ...(existing || {}), name: form.name.trim(), short: form.short.trim() || form.name.trim(), start: form.start, end: form.end, len: duration, type: 'break', position: form.position, textForPrintouts: form.textForPrintouts, printSummary: form.printSummary, printTeacher: form.printTeacher, printClass: form.printClass, printClassroom: form.printClassroom, printInBells: form.printInBells, doubleCannotSpan: form.doubleCannotSpan };
         if (breakDialog.index !== null) return {...current, periods: current.periods.map((p,i) => i === breakDialog.index ? breakPeriod : p)};
         const lessons = current.periods.filter(p => p.type !== 'break');
-        const breaks = [...current.periods.filter(p => p.type === 'break'), breakPeriod];
+        const existingBreaks = current.periods.filter(p => p.type === 'break').map(p => p.position !== undefined ? p : ({...p, position: current.periods.slice(0, current.periods.indexOf(p)).filter(item => item.type !== 'break').length}));
+        const breaks = [...existingBreaks, breakPeriod];
         const ordered: Period[] = [];
         for (let pos=0; pos<=lessons.length; pos++) {
           breaks.filter(b => (b.position === undefined ? lessons.length : b.position) === pos).forEach(b => ordered.push(b));
