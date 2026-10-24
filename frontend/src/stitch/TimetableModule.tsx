@@ -166,7 +166,19 @@ export default function TimetableModule() {
       case 'Test': case 'Verification': void runTest(); break
       case 'School': case 'Bell times': case 'Settings': setSettingsOpen(true); break
       case 'Exit': setStatus('Use the main application navigation to leave the timetable.'); break
-      case 'Generate new': case 'Generate in cloud': setError('Generation is not enabled in this first ribbon/editor slice. Existing school data has not been changed.'); break
+      case 'Generate new': {
+        const result = generateSchedule(data)
+        if (result.error) {
+          setError(result.error)
+          setStatus('Generation stopped · existing timetable preserved')
+        } else {
+          setData(current => ({ ...current, lessons: result.lessons }))
+          setError('')
+          setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save')
+        }
+        break
+      }
+      case 'Generate in cloud': setError('Cloud generation is not connected yet. Use Generate new for the local draft generator.'); break
       case 'Timetable': setSection(null); break
       case 'Summary': setStatus('Summary · ' + data.lessons.length + ' lessons across ' + data.days.length + ' days'); break
       case 'Zoom': setStatus('Use browser zoom to adjust the timetable scale.'); break
@@ -206,4 +218,60 @@ function findConflicts(data: Workspace): string[] {
     if (first.room && first.room === second.room) issues.push(first.day + ' · ' + data.periods[first.period]?.name + ': ' + first.room + ' is double-booked')
   }))
   return Array.from(new Set(issues))
+}
+
+type GenerationResult = { lessons: Lesson[]; error?: string }
+
+/** Greedy, constraint-aware draft placement. Locked lessons are never moved. */
+function generateSchedule(data: Workspace): GenerationResult {
+  const locked = data.lessons.filter(lesson => lesson.locked)
+  const movable = data.lessons.filter(lesson => !lesson.locked)
+  const lockedConflicts = findConflicts({ ...data, lessons: locked })
+  if (lockedConflicts.length) {
+    return { lessons: data.lessons, error: 'Locked lessons conflict with each other. Resolve these first: ' + lockedConflicts.slice(0, 3).join(' · ') }
+  }
+
+  const usablePeriods = data.periods.map((period, index) => ({ period, index }))
+    .filter(({ period }) => !/break|lunch|recess/i.test(period.name))
+    .map(({ index }) => index)
+  const slots = data.days.flatMap(day => usablePeriods.map(period => ({ day, period })))
+  if (!slots.length && movable.length) {
+    return { lessons: data.lessons, error: 'No teaching periods are available. Rename break/lunch rows or add a teaching period.' }
+  }
+
+  const placed: Lesson[] = [...locked]
+  const resourceCount = (lesson: Lesson) => movable.filter(other =>
+    other.id !== lesson.id && (other.className === lesson.className || other.teacher === lesson.teacher || (!!lesson.room && other.room === lesson.room))
+  ).length
+  const ordered = [...movable].sort((a, b) => resourceCount(b) - resourceCount(a))
+  const conflictsAt = (lesson: Lesson, day: string, period: number) => placed.some(other =>
+    other.day === day && other.period === period &&
+    (other.className === lesson.className || other.teacher === lesson.teacher || (!!lesson.room && other.room === lesson.room))
+  )
+  const score = (lesson: Lesson, day: string, period: number) => {
+    const sameClassDay = placed.filter(item => item.className === lesson.className && item.day === day).length
+    const sameTeacherDay = placed.filter(item => item.teacher === lesson.teacher && item.day === day).length
+    const slotLoad = placed.filter(item => item.day === day && item.period === period).length
+    return sameClassDay * 100 + sameTeacherDay * 20 + slotLoad
+  }
+
+  const unscheduled: Lesson[] = []
+  for (const lesson of ordered) {
+    const candidates = slots
+      .filter(slot => !conflictsAt(lesson, slot.day, slot.period))
+      .sort((a, b) => score(lesson, a.day, a.period) - score(lesson, b.day, b.period))
+    const slot = candidates[0]
+    if (!slot) {
+      unscheduled.push(lesson)
+      continue
+    }
+    placed.push({ ...lesson, day: slot.day, period: slot.period })
+  }
+  if (unscheduled.length) {
+    return {
+      lessons: data.lessons,
+      error: 'Could not place ' + unscheduled.length + ' lesson(s) without class, teacher, or room clashes. Existing timetable was left unchanged; add teaching periods or review resource assignments.',
+    }
+  }
+  return { lessons: placed }
 }
