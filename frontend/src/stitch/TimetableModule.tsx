@@ -3,7 +3,7 @@ import { apiFetch, friendlyApiError } from '../lib/api'
 import './timetable-module.css'
 
 type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
-type Period = { name: string; start: string; end: string; type?: 'lesson' | 'break' }
+type Period = { name: string; start: string; end: string; type?: 'lesson' | 'break'; short?: string; len?: number; position?: number; textForPrintouts?: string; printSummary?: boolean; printTeacher?: boolean; printClass?: boolean; printClassroom?: boolean; printInBells?: string; doubleCannotSpan?: boolean }
 type Specification = { subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[] }
 type Workspace = { schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification }
 type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
@@ -74,6 +74,7 @@ export default function TimetableModule() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [setupTab, setSetupTab] = useState<'basic' | 'bell' | 'subjects' | 'classes'>('basic')
   const [catalogueValue, setCatalogueValue] = useState('')
+  const [breakDialog, setBreakDialog] = useState<{ index: number | null; form: BreakForm } | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [section, setSection] = useState<string | null>(null)
   const [specValue, setSpecValue] = useState('')
@@ -218,8 +219,14 @@ export default function TimetableModule() {
         <p className="phikila-tt-help">School day count controls the displayed days. Existing lessons on removed days are retained in saved data but hidden until those days are enabled again.</p>
       </div>}
       {setupTab === 'bell' && <div>
-        <div className="phikila-tt-bell-actions"><span>Define lesson periods and breaks. Breaks appear in the timetable but cannot contain lessons.</span><button className="phikila-tt-button" onClick={() => setData(current => ({ ...current, periods: [...current.periods, { name: 'New period', start: '13:00', end: '13:40', type: 'lesson' }] }))}>+ Add period</button><button className="phikila-tt-button" onClick={() => setData(current => ({ ...current, periods: [...current.periods, { name: 'Short break', start: '10:00', end: '10:20', type: 'break' }] }))}>+ Add break</button></div>
-        <div className="phikila-tt-period-list">{data.periods.map((period,index)=><div className="phikila-tt-period-row" key={index}><select aria-label={'Period type '+(index+1)} value={period.type || (/break|lunch|recess|games/i.test(period.name) ? 'break' : 'lesson')} onChange={event => setData(current => ({ ...current, periods: current.periods.map((item,i)=>i===index ? {...item,type:event.target.value as 'lesson'|'break'} : item) }))}><option value="lesson">Lesson</option><option value="break">Break</option></select><input aria-label={'Period '+(index+1)+' name'} value={period.name} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,name:event.target.value}:item)}))}/><input aria-label={'Period '+(index+1)+' start'} type="time" value={period.start} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,start:event.target.value}:item)}))}/><input aria-label={'Period '+(index+1)+' end'} type="time" value={period.end} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,end:event.target.value}:item)}))}/><button className="phikila-tt-button phikila-tt-danger" onClick={()=>setData(current=>({...current,periods:current.periods.filter((_,i)=>i!==index),lessons:current.lessons.filter(lesson=>lesson.period!==index).map(lesson=>({...lesson,period:lesson.period>index?lesson.period-1:lesson.period}))}))}>Delete</button></div>)}</div>
+        <div className="phikila-tt-bell-actions"><span>Manage teaching periods and configure breaks, their position, and print options.</span><button className="phikila-tt-button" onClick={() => setData(current => ({ ...current, periods: [...current.periods, { name: 'New period', short: 'P' + (current.periods.filter(p => p.type !== 'break').length + 1), start: '13:00', end: '13:40', type: 'lesson' }] }))}>+ Add period</button><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>+ Add break between lessons</button></div>
+        <div className="phikila-tt-period-list">{data.periods.map((period,index)=><div className={'phikila-tt-period-row ' + (period.type === 'break' ? 'phikila-tt-break-editor-row' : '')} key={index}>
+          <span className="phikila-tt-period-kind">{period.type === 'break' ? 'Break' : 'Lesson'}</span>
+          <input aria-label={'Period '+(index+1)+' name'} value={period.name} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,name:event.target.value}:item)}))}/>
+          <input aria-label={'Period '+(index+1)+' start'} type="time" value={period.start} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,start:event.target.value}:item)}))}/>
+          <input aria-label={'Period '+(index+1)+' end'} type="time" value={period.end} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,end:event.target.value}:item)}))}/>
+          <div className="phikila-tt-period-actions">{period.type === 'break' && <button className="phikila-tt-button" onClick={()=>setBreakDialog({index,form:periodToBreakForm(period)})}>Edit break</button>}<button className="phikila-tt-button phikila-tt-danger" onClick={()=>setData(current=>({...current,periods:current.periods.filter((_,i)=>i!==index),lessons:current.lessons.filter(lesson=>lesson.period!==index).map(lesson=>({...lesson,period:lesson.period>index?lesson.period-1:lesson.period}))}))}>Delete</button></div>
+        </div>)}</div>
       </div>}
       {(setupTab === 'subjects' || setupTab === 'classes') && <div>
         <form className="phikila-tt-spec-add" onSubmit={event=>{event.preventDefault();const key=setupTab==='subjects'?'subjects':'classes';const value=catalogueValue.trim();if(!value)return;setData(current=>({...current,specification:{...current.specification,[key]:unique([...current.specification[key],value])}}));setCatalogueValue('')}}><input aria-label={'New '+(setupTab==='subjects'?'subject':'class')} placeholder={'Enter '+(setupTab==='subjects'?'subject name':'class name')} value={catalogueValue} onChange={event=>setCatalogueValue(event.target.value)}/><button className="phikila-tt-button phikila-tt-button-primary" type="submit">Add</button></form>
@@ -227,6 +234,32 @@ export default function TimetableModule() {
       </div>}
       <div className="phikila-tt-settings-save"><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save school settings</button></div>
     </section>}
+    {breakDialog && <BreakEditorDialog value={breakDialog.form} lessonCount={data.periods.filter(p => p.type !== 'break').length} onChange={form => setBreakDialog(current => current ? {...current,form} : current)} onClose={() => setBreakDialog(null)} onSave={() => {
+      const form = breakDialog.form;
+      const minutes = (time: string) => { const parts = time.split(':').map(Number); return parts[0]*60+parts[1]; };
+      const duration = minutes(form.end)-minutes(form.start);
+      if (!form.name.trim() || duration <= 0) { setError('Enter a break name and an end time later than the start time.'); return; }
+      setData(current => {
+        const existing = breakDialog.index === null ? null : current.periods[breakDialog.index];
+        const breakPeriod: Period = { ...(existing || {}), name: form.name.trim(), short: form.short.trim() || form.name.trim(), start: form.start, end: form.end, len: duration, type: 'break', position: form.position, textForPrintouts: form.textForPrintouts, printSummary: form.printSummary, printTeacher: form.printTeacher, printClass: form.printClass, printClassroom: form.printClassroom, printInBells: form.printInBells, doubleCannotSpan: form.doubleCannotSpan };
+        if (breakDialog.index !== null) return {...current, periods: current.periods.map((p,i) => i === breakDialog.index ? breakPeriod : p)};
+        const lessons = current.periods.filter(p => p.type !== 'break');
+        const breaks = [...current.periods.filter(p => p.type === 'break'), breakPeriod];
+        const ordered: Period[] = [];
+        for (let pos=0; pos<=lessons.length; pos++) {
+          breaks.filter(b => (b.position === undefined ? lessons.length : b.position) === pos).forEach(b => ordered.push(b));
+          if (pos < lessons.length) ordered.push(lessons[pos]);
+        }
+        const lessonsUpdated = current.lessons.map(lesson => {
+          const old = current.periods[lesson.period];
+          if (!old || old.type === 'break') return lesson;
+          return {...lesson,period:Math.max(0,ordered.indexOf(old))};
+        });
+        return {...current, periods: ordered, lessons: lessonsUpdated};
+      });
+      setBreakDialog(null); setError(''); setStatus('Break configured · remember to Save');
+    }} />}
+
     <section className="phikila-tt-grid-panel"><div className="phikila-tt-panel-heading"><div><h2>Weekly timetable</h2><p>Select a lesson to edit it, or choose an empty cell to add one.</p></div><div className="phikila-tt-grid-legend"><span><i className="legend-lesson" /> Lesson</span><span><i className="legend-locked" /> Locked</span></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th className="period-col">Period / time</th>{data.days.map(day => <th key={day}>{day}</th>)}</tr></thead><tbody>{data.periods.map((period, periodIndex) => <tr key={period.name + periodIndex} className={(period.type === 'break' || /break|lunch|recess|games/i.test(period.name)) ? 'phikila-tt-break-row' : ''}><th className="period-cell">{period.name}<small>{period.start}–{period.end}</small></th>{data.days.map(day => { const lessons = visibleLessons.filter(lesson => lesson.day === day && lesson.period === periodIndex); return <td key={day} className="phikila-tt-cell">{lessons.map(lesson => <button key={lesson.id} className={'phikila-tt-lesson ' + (lesson.locked ? 'is-locked' : '')} onClick={() => openEditor(day, periodIndex, lesson)}><span className="phikila-tt-lesson-class">{lesson.className}{lesson.locked ? ' · Locked' : ''}</span><strong>{lesson.subject}</strong><span>{lesson.teacher}</span>{lesson.room && <small>{lesson.room}</small>}</button>)}{(period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)) && <button className="phikila-tt-add-cell" onClick={() => openEditor(day, periodIndex)}>+ Add lesson</button>}</td> })}</tr>)}</tbody></table></div></section>
     <footer className="phikila-tt-footer"><span>{status}</span><span>{conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local same-slot conflicts detected'}</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save workspace</button></footer>
     {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period]?.name}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
@@ -235,9 +268,33 @@ export default function TimetableModule() {
   </main>
 }
 
+type BreakForm = { name: string; short: string; position: number; start: string; end: string; textForPrintouts: string; printSummary: boolean; printTeacher: boolean; printClass: boolean; printClassroom: boolean; printInBells: string; doubleCannotSpan: boolean }
+function makeBreakForm(): BreakForm { return {name:'',short:'',position:1,start:'10:20',end:'10:50',textForPrintouts:'',printSummary:true,printTeacher:true,printClass:true,printClassroom:true,printInBells:'All classes',doubleCannotSpan:true} }
+function periodToBreakForm(period: Period): BreakForm { return {name:period.name,short:period.short || period.name,position:period.position ?? 1,start:period.start,end:period.end,textForPrintouts:period.textForPrintouts || '',printSummary:period.printSummary ?? true,printTeacher:period.printTeacher ?? true,printClass:period.printClass ?? true,printClassroom:period.printClassroom ?? true,printInBells:period.printInBells || 'All classes',doubleCannotSpan:period.doubleCannotSpan ?? true} }
+function BreakEditorDialog({value,lessonCount,onChange,onClose,onSave}:{value:BreakForm;lessonCount:number;onChange:(value:BreakForm)=>void;onClose:()=>void;onSave:()=>void}) {
+  const update = <K extends keyof BreakForm>(key:K,next:BreakForm[K]) => onChange({...value,[key]:next});
+  const minutes = (time:string) => { const parts=time.split(':').map(Number); return parts[0]*60+parts[1]; };
+  return <div className="phikila-tt-break-backdrop" role="presentation"><section className="phikila-tt-break-dialog" role="dialog" aria-modal="true" aria-labelledby="phikila-break-title">
+    <header className="phikila-tt-break-dialog-header"><h2 id="phikila-break-title">Period · Break settings</h2><button type="button" aria-label="Close" onClick={onClose}>×</button></header>
+    <div className="phikila-tt-break-dialog-body">
+      <label>Name of the break<input autoFocus value={value.name} onChange={e=>update('name',e.target.value)} /></label>
+      <label>Short<input value={value.short} onChange={e=>update('short',e.target.value)} /></label>
+      <label>Break position<select value={value.position} onChange={e=>update('position',Number(e.target.value))}>{Array.from({length:lessonCount+1},(_,i)=><option key={i} value={i}>Before period {i}{i===0?' (start of day)':' (lesson '+i+')'}</option>)}</select></label>
+      <fieldset><legend>Start / End</legend><div className="phikila-tt-break-time"><input aria-label="Break starts" type="time" value={value.start} onChange={e=>update('start',e.target.value)}/><input aria-label="Break ends" type="time" value={value.end} onChange={e=>update('end',e.target.value)}/><span>{minutes(value.end)-minutes(value.start)} min</span></div></fieldset>
+      <fieldset><legend>Break</legend><label>Text for printouts<input value={value.textForPrintouts} onChange={e=>update('textForPrintouts',e.target.value)}/></label></fieldset>
+      <fieldset><legend>Printouts</legend>
+        {([['printSummary','Print in summary timetables'],['printTeacher',"Print in individual teachers' timetables"],['printClass','Print in individual class timetables'],['printClassroom','Print in individual classroom timetables']] as const).map(([key,label])=><label className="phikila-tt-break-check" key={key}><input type="checkbox" checked={value[key]} onChange={e=>update(key,e.target.checked)}/>{label}</label>)}
+        <label>Print in bells<select value={value.printInBells} onChange={e=>update('printInBells',e.target.value)}><option>All classes</option><option>Selected classes</option><option>None</option></select></label>
+      </fieldset>
+      <label className="phikila-tt-break-check"><input type="checkbox" checked={value.doubleCannotSpan} onChange={e=>update('doubleCannotSpan',e.target.checked)}/>Double lessons cannot span this break.</label>
+    </div>
+    <footer className="phikila-tt-break-dialog-footer"><button className="phikila-tt-button phikila-tt-button-primary" onClick={onSave}>OK</button><button className="phikila-tt-button" onClick={onClose}>Cancel</button></footer>
+  </section></div>
+}
+
 function normaliseWorkspace(value: Partial<Workspace>): Workspace {
   const days = Array.isArray(value.days) && value.days.length ? value.days.filter(day => typeof day === 'string' && day.trim()) : [...DAYS]
-  const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ name: period.name, start: period.start || '', end: period.end || '', type: period.type === 'break' || /break|lunch|recess|games/i.test(period.name) ? 'break' as const : 'lesson' as const })) : DEFAULT_PERIODS.map(period => ({ ...period }))
+  const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ ...period, name: period.name, start: period.start || '', end: period.end || '', type: period.type === 'break' || /break|lunch|recess|games/i.test(period.name) ? 'break' as const : 'lesson' as const })) : DEFAULT_PERIODS.map(period => ({ ...period }))
   const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && days.includes(lesson.day) && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked) })) : []
   const rawSpec = value.specification as Partial<Specification> | undefined
   const specification: Specification = {
