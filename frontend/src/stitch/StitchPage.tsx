@@ -78,7 +78,7 @@ export default function StitchPage({ slug, onNavigate }: StitchPageProps) {
         }
       }
     }
-  }, [slug, pathname])
+  }, [slug, pathname, html])
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[data-stitch-route]')
