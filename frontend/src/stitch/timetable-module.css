@@ -78,3 +78,21 @@
 .phikila-tt-spec-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
 .phikila-tt-spec-list li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #e1e7ef;border-radius:5px;background:#fff;font-size:12px}
 .phikila-tt-spec-list li span{overflow-wrap:anywhere}
+
+.phikila-tt-setup-tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--color-border,#d1d5db);margin:14px 0;padding-bottom:8px}
+.phikila-tt-setup-tabs button{border:1px solid var(--color-border,#cbd5e1);border-radius:6px;background:var(--color-surface,#fff);padding:8px 12px;cursor:pointer;font:inherit}
+.phikila-tt-setup-tabs button.is-active{background:var(--color-primary,#1d4ed8);border-color:var(--color-primary,#1d4ed8);color:white}
+.phikila-tt-school-form{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:12px;max-width:900px}
+.phikila-tt-school-form>label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}
+.phikila-tt-school-form input,.phikila-tt-school-form select,.phikila-tt-period-row input,.phikila-tt-period-row select{min-width:0;border:1px solid #cbd5e1;border-radius:5px;padding:8px;background:white;font:inherit}
+.phikila-tt-school-form .phikila-tt-setup-checkbox{flex-direction:row;align-items:center}
+.phikila-tt-help{grid-column:1/-1;color:var(--color-ink-muted,#64748b);font-size:12px;font-weight:400}
+.phikila-tt-bell-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+.phikila-tt-bell-actions span{flex:1 1 300px;font-size:13px;color:var(--color-ink-muted,#64748b)}
+.phikila-tt-period-list{display:flex;flex-direction:column;gap:7px}
+.phikila-tt-period-row{display:grid;grid-template-columns:130px minmax(140px,1fr) 140px 140px auto;gap:8px;align-items:center}
+.phikila-tt-settings-save{display:flex;justify-content:flex-end;margin-top:16px}
+.phikila-tt-break-row .period-cell,.phikila-tt-break-row .phikila-tt-cell{background:#f1f5f9}
+.phikila-tt-break-row .period-cell{color:#64748b}
+.phikila-tt-break-row .phikila-tt-cell:after{content:'BREAK / NON-TEACHING TIME';display:block;color:#64748b;font-size:10px;letter-spacing:.04em;padding:3px 0}
+@media(max-width:700px){.phikila-tt-school-form{grid-template-columns:1fr}.phikila-tt-period-row{grid-template-columns:1fr 1fr}.phikila-tt-period-row input:nth-of-type(1){grid-column:1/-1}}
