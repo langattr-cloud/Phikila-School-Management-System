@@ -88,7 +88,7 @@ export function listScreens(): StitchScreen[] { return screens }
 
 export const NAV_TO_SLUG: Record<string, string> = {
   Dashboard: 'admin-dashboard', Academics: 'academics-dashboard', Students: 'student-directory',
-  Timetable: 'timetable-manager', Finance: 'finance-dashboard', Settings: 'settings', Support: 'principal-settings',
+  Timetable: 'timetable-manager', 'Open Timetable Manager': 'timetable-manager', Finance: 'finance-dashboard', Settings: 'settings', Support: 'principal-settings',
   Personnel: 'teacher-dashboard', Institutions: 'super-admin-multi-school', Users: 'super-admin-platform',
   'Finance Hub': 'finance-bursar', 'AI Intelligence': 'platform-config-ai', 'Academic Management': 'academics-dashboard',
   'All Schools': 'super-admin-multi-school', Schools: 'super-admin-multi-school', 'Platform Analytics': 'super-admin-platform',
