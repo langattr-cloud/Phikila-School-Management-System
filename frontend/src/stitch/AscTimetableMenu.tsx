@@ -1,114 +1,58 @@
-// AscTimetableMenu.tsx
+// TopMenuFullWidth.tsx
 import { useState } from "react";
 
-type AscTimetableMenuProps = { onNavigate?: (name: string) => void };
+type TopMenuFullWidthProps = { onNavigate?: (name: string) => void };
 
-export default function AscTimetableMenu({ onNavigate }: AscTimetableMenuProps) {
-  const [whose, setWhose] = useState("Whole");
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
-
-  const topMenus = {
-    Main: ["New", "Open", "Save", "Print", "Print preview", "Exit"],
-    File: ["Import", "Export"],
-    Specification: ["Subjects", "Classes", "Classrooms", "Teachers", "Lessons"],
-    View: ["Timetable", "Classrooms view", "Teachers view"],
-    Timetable: ["Generate new", "Generate in cloud", "Test", "Verification"],
-    Options: ["School", "Constraints"],
-    Help: ["Questions? Comments? Write us", "About"],
-  };
-
-  const Item = ({ icon, label, action, twoLines }: { icon: string; label: string; action?: string; twoLines?: boolean }) => (
-    <button
-      onClick={() => onNavigate?.(action || label)}
-      style={S.ribbonBtn}
-      title={label}
-    >
-      <div style={S.iconBox}>{icon}</div>
-      <span style={{ fontSize: "11px", lineHeight: "12px", textAlign: "center", whiteSpace: twoLines ? "pre-line" : "nowrap" }}>{label}</span>
-    </button>
-  );
+export default function AscTimetableMenu({ onNavigate }: TopMenuFullWidthProps) {
+  const [whole, setWhole] = useState("Whole");
+  const go = (n: string) => onNavigate?.(n);
 
   return (
     <div style={S.wrapper}>
-      {/* TOP MENU BAR */}
-      <div style={S.topBar}>
-        <div style={S.appIcon}>📘</div>
-        {Object.keys(topMenus).map(name => (
-          <div key={name} style={{ position: "relative" }}>
-            <button
-              onMouseEnter={() => openMenu && setOpenMenu(name)}
-              onClick={() => setOpenMenu(openMenu === name ? null : name)}
-              style={{ ...S.topBtn, background: openMenu === name ? "#d0e3ff" : "transparent" }}
-            >
-              {name}
-            </button>
-            {openMenu === name && (
-              <div style={S.dropdown}>
-                {topMenus[name as keyof typeof topMenus].map(i => (
-                  <div key={i} style={S.dropItem} onClick={() => { onNavigate?.(i); setOpenMenu(null); }}>{i}</div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+      <div style={S.topRow}>
+        <span>🔔</span>
+        <b style={{ color: "#1a56db", fontSize: "12px" }}>Main</b>
+        <span style={S.top}>File</span>
+        <span style={S.top}>Specification</span>
+        <span style={S.top}>View</span>
+        <span style={S.top}>Timetable</span>
+        <span style={S.top}>Options</span>
+        <span style={S.top}>Help</span>
+        <span style={{ marginLeft: "auto", fontSize: "11px" }}>Find:</span>
       </div>
-
-      {/* RIBBON */}
-      <div style={S.ribbon}>
-        <div style={S.ribbonGroup}>
-          <Item icon="📄" label="New" action="New" />
-          <Item icon="📁" label="Open" action="Open" />
-          <Item icon="💾" label="Save" action="Save" />
-          <Item icon="🖨️" label="Print" action="Print" />
-          <Item icon="👁️" label={`Print\npreview`} action="Print preview" twoLines />
-          <div style={{ marginLeft: "8px" }}>
-            <select value={whose} onChange={e => setWhose(e.target.value)} style={S.select}>
-              <option>Whole</option>
-              <option>Class</option>
-              <option>Teacher</option>
-              <option>Classroom</option>
-            </select>
-          </div>
-        </div>
-
-        <div style={S.divider} />
-
-        <div style={S.ribbonGroup}>
-          <Item icon="📘" label="Subjects" />
-          <Item icon="👩‍🏫" label="Classes" />
-          <Item icon="🚪" label="Classrooms" />
-          <Item icon="🎓" label="Teachers" />
-          <Item icon="👥" label={`Students /\nSeminars`} twoLines />
-          <Item icon="🔗" label="Relations" />
-        </div>
-
-        <div style={S.divider} />
-
-        <div style={S.ribbonGroup}>
-          <Item icon="✅" label="Test" />
-          <Item icon="🏛️" label={`Generate\nnew`} action="Generate new" twoLines />
-          <Item icon="☁️🏛️" label={`Generate\nin cloud`} action="Generate in cloud" twoLines />
-          <Item icon="🔨" label="Verification" />
-          <Item icon="🏫" label="School" />
-          <Item icon="☁️" label={`Timetables\nOnline`} twoLines />
-          <Item icon="❓" label={`Questions?\nComments? Write us`} action="Questions? Comments? Write us" twoLines />
-        </div>
+      <div style={S.ribbonFull}>
+        <button onClick={() => go("New")} style={S.cell}><div style={S.ico}>📄</div><span style={S.lb}>New</span></button>
+        <button onClick={() => go("Open")} style={S.cell}><div style={S.ico}>📁</div><span style={S.lb}>Open</span></button>
+        <button onClick={() => go("Save")} style={S.cell}><div style={S.ico}>💾</div><span style={S.lb}>Save</span></button>
+        <button onClick={() => go("Print")} style={S.cell}><div style={S.ico}>🖨️</div><span style={S.lb}>Print</span></button>
+        <button onClick={() => go("Print preview")} style={S.cell}><div style={S.ico}>🔍</div><span style={S.lb}>Print<br/>preview</span></button>
+        <div style={S.cellWhole}><select value={whole} onChange={e => setWhole(e.target.value)} style={S.wholeSel}><option>Whole</option><option>Class</option><option>Teacher</option></select></div>
+        <button onClick={() => go("Subjects")} style={S.cell}><div style={S.ico}>📘</div><span style={S.lb}>Subjects</span></button>
+        <button onClick={() => go("Classes")} style={S.cell}><div style={S.ico}>👥</div><span style={S.lb}>Classes</span></button>
+        <button onClick={() => go("Classrooms")} style={S.cell}><div style={S.ico}>🚪</div><span style={S.lb}>Classrooms</span></button>
+        <button onClick={() => go("Teachers")} style={S.cell}><div style={S.ico}>🎓</div><span style={S.lb}>Teachers</span></button>
+        <button onClick={() => go("Students / Seminars")} style={S.cell}><div style={S.ico}>👨‍🏫</div><span style={S.lb}>Students /<br/>Seminars</span></button>
+        <button onClick={() => go("Relations")} style={S.cell}><div style={S.ico}>🔗</div><span style={S.lb}>Relations</span></button>
+        <button onClick={() => go("Test")} style={S.cell}><div style={S.ico}>✅</div><span style={S.lb}>Test</span></button>
+        <button onClick={() => go("Generate new")} style={S.cell}><div style={S.ico}>🏛️</div><span style={S.lb}>Generate<br/>new</span></button>
+        <button onClick={() => go("Generate in cloud")} style={S.cell}><div style={S.ico}>☁️</div><span style={S.lb}>Generate<br/>in cloud</span></button>
+        <button onClick={() => go("Verification")} style={S.cell}><div style={S.ico}>🔨</div><span style={S.lb}>Verification</span></button>
+        <button onClick={() => go("School")} style={S.cell}><div style={S.ico}>🏫</div><span style={S.lb}>School</span></button>
+        <button onClick={() => go("Timetables Online")} style={S.cell}><div style={S.ico}>☁️</div><span style={S.lb}>TimeTables<br/>Online</span></button>
+        <button onClick={() => go("Questions? Comments? Write us")} style={S.cell}><div style={S.ico}>❓</div><span style={S.lb}>Questions?<br/>Comments?<br/>Write us</span></button>
       </div>
     </div>
   );
 }
 
 const S = {
-  wrapper: { background: "#f0f4f8", borderBottom: "1px solid #a0a0a0", fontFamily: "Segoe UI, Tahoma, sans-serif", userSelect: "none" as const },
-  topBar: { display: "flex", alignItems: "center", gap: "1px", padding: "2px 4px", background: "#fff", borderBottom: "1px solid #d0d0d0", flexWrap: "wrap" as const },
-  appIcon: { width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center" },
-  topBtn: { border: "1px solid transparent", padding: "3px 8px", fontSize: "12px", cursor: "pointer", borderRadius: "3px", background: "transparent" },
-  dropdown: { position: "absolute" as const, top: "100%", left: 0, background: "#fff", border: "1px solid #888", boxShadow: "2px 2px 8px rgba(0,0,0,0.2)", minWidth: "160px", zIndex: 100, padding: "4px 0" },
-  dropItem: { padding: "6px 16px", fontSize: "12px", cursor: "pointer" },
-  ribbon: { display: "flex", alignItems: "flex-start", flexWrap: "wrap" as const, padding: "4px 6px", gap: "4px", overflow: "visible", background: "linear-gradient(to bottom, #ffffff, #e8eef7)", width: "100%", boxSizing: "border-box" as const },
-  ribbonGroup: { display: "flex", flexWrap: "wrap" as const, flex: "1 1 auto", gap: "2px", alignItems: "flex-start", minWidth: 0 },
-  ribbonBtn: { display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "flex-start", gap: "2px", border: "1px solid transparent", background: "transparent", padding: "3px 3px", cursor: "pointer", flex: "1 1 54px", minWidth: "46px", maxWidth: "76px", minHeight: "56px", borderRadius: "4px", boxSizing: "border-box" as const },
-  iconBox: { width: "28px", height: "28px", border: "1px solid #c0c0c0", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", borderRadius: "3px", flexShrink: 0 },
-  select: { width: "88px", height: "22px", fontSize: "11px", border: "1px solid #999", background: "#fff", maxWidth: "100%" },
-  divider: { width: "1px", minWidth: "1px", height: "46px", background: "#c0c0c0", margin: "0 2px", alignSelf: "center" as const },
+  wrapper: { width: "100%", maxWidth: "100%", background: "#eef5ff", borderBottom: "1px solid #999", fontFamily: "Segoe UI, Arial", boxSizing: "border-box" as const, overflow: "hidden" as const },
+  topRow: { display: "flex", gap: "14px", alignItems: "center", padding: "3px 12px", background: "#f8fbff", borderBottom: "1px solid #d0d8e8", fontSize: "12px", whiteSpace: "nowrap" as const },
+  top: { fontSize: "12px", cursor: "pointer" },
+  ribbonFull: { display: "flex", flexDirection: "row" as const, flexWrap: "nowrap" as const, justifyContent: "space-between", alignItems: "stretch", width: "100%", padding: "2px 0px", background: "linear-gradient(#fff, #e8eef7)", boxSizing: "border-box" as const },
+  cell: { flex: "1 1 0", display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "flex-start", minWidth: "0", border: "1px solid transparent", borderRight: "1px solid #dde5f0", background: "transparent", cursor: "pointer", padding: "3px 1px", gap: "2px", boxSizing: "border-box" as const },
+  cellWhole: { flex: "1.2 1 0", display: "flex", alignItems: "center", justifyContent: "center", borderRight: "1px solid #dde5f0", padding: "0 4px", minWidth: "0", boxSizing: "border-box" as const },
+  ico: { width: "30px", height: "28px", maxWidth: "100%", background: "#fff", border: "1px solid #c0cddc", borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 1 },
+  lb: { fontSize: "8.8px", lineHeight: "9.5px", textAlign: "center" as const, whiteSpace: "pre-line" as const, color: "#1f2937", marginTop: "2px", width: "100%", overflow: "hidden" as const, overflowWrap: "anywhere" as const },
+  wholeSel: { width: "100%", maxWidth: "84px", minWidth: "0", height: "24px", fontSize: "11px", border: "1px solid #888", background: "#fff" },
 };
