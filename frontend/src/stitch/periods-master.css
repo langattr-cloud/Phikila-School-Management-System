@@ -1,0 +1,44 @@
+.phikila-periods-overlay{position:fixed;inset:0;z-index:10030;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;padding:12px;font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033}
+.phikila-periods-window{width:min(1180px,98vw);height:min(820px,94vh);display:flex;flex-direction:column;background:#f4f6f8;border:1px solid #aab4c0;box-shadow:0 20px 65px #0004;overflow:hidden}
+.phikila-periods-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;background:#e8ecf1;border-bottom:1px solid #c6ced8;font-size:13px;flex:none}
+.phikila-periods-title button{width:28px;height:26px;border:1px solid #b4bdc8;background:#fff;font-size:20px;line-height:1;cursor:pointer}
+.phikila-periods-body{display:flex;flex-direction:column;gap:12px;padding:12px;min-height:0;flex:1}
+.phikila-periods-main{display:flex;gap:12px;min-height:0;flex:1}
+.phikila-periods-table-wrap{min-width:0;flex:1;border:1px solid #c6ced8;background:#fff;overflow:hidden}
+.phikila-periods-table-scroll{height:100%;overflow:auto}
+.phikila-periods-table{width:100%;border-collapse:collapse;font-size:12px}
+.phikila-periods-table th{position:sticky;top:0;z-index:1;background:#e4e9ef;font-weight:650;text-align:left;white-space:nowrap}
+.phikila-periods-table th,.phikila-periods-table td{padding:8px 9px;border-bottom:1px solid #e0e5eb;white-space:nowrap}
+.phikila-periods-table tbody tr{cursor:pointer}
+.phikila-periods-table tbody tr:nth-child(even){background:#f8fafc}
+.phikila-periods-table tbody tr.is-selected{background:#dbeafe}
+.phikila-periods-table tbody tr.is-break{background:#e4f4df}
+.phikila-periods-table tbody tr.is-break.is-selected{background:#c9e9c2}
+.phikila-periods-actions{display:flex;flex:0 0 176px;flex-direction:column;gap:7px}
+.phikila-periods-actions>button,.phikila-periods-footer button,.phikila-period-edit-body footer button{min-height:32px;padding:6px 10px;border:1px solid #b4bdc8;border-bottom-width:2px;background:#fff;color:#172033;font-size:12px;cursor:pointer}
+.phikila-periods-actions button:disabled,.phikila-periods-footer button:disabled{opacity:.45;cursor:not-allowed}
+.phikila-periods-action-spacer{flex:1}
+.phikila-periods-move{display:grid;grid-template-columns:34px 34px 1fr;gap:5px;align-items:center;padding:8px;border:1px solid #cbd3dd;background:#edf1f5}
+.phikila-periods-move button{height:30px;background:white;border:1px solid #b4bdc8;font-size:17px;cursor:pointer}
+.phikila-periods-move button:disabled{opacity:.4}
+.phikila-periods-move span{font-size:10px;line-height:1.4;color:#536174}
+.phikila-periods-options{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid #d3dae3;background:#edf1f5;font-size:12px}
+.phikila-periods-options label{display:flex;align-items:center;gap:7px}
+.phikila-periods-options p{margin:0 0 0 23px;color:#64748b;font-size:11px}
+.phikila-periods-footer{display:flex;align-items:center;gap:8px;border-top:1px solid #d1d8e1;padding-top:10px}
+.phikila-periods-footer span{flex:1;color:#5b6676;font-size:11px}
+.phikila-periods-footer .is-primary,.phikila-period-edit-body footer .is-primary{background:#1d4ed8;border-color:#1d4ed8;color:white;font-weight:650}
+.phikila-periods-empty{padding:18px;color:#64748b;font-size:12px}
+.phikila-period-edit-overlay{position:fixed;inset:0;z-index:10040;background:rgba(15,23,42,.4);display:flex;align-items:center;justify-content:center;padding:14px}
+.phikila-period-edit-window{width:min(660px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:auto;background:#f5f6f8;border:1px solid #9aa5b3;box-shadow:0 18px 60px #0005}
+.phikila-period-edit-body{display:flex;flex-direction:column;gap:12px;padding:16px}
+.phikila-period-edit-body>label{display:grid;grid-template-columns:160px minmax(0,1fr);gap:10px;align-items:center;font-size:12px}
+.phikila-period-edit-body input:not([type=checkbox]),.phikila-period-edit-body select{min-width:0;height:32px;padding:5px 8px;border:1px solid #aeb8c4;background:white;color:#172033;font-size:12px}
+.phikila-period-edit-body fieldset{border:1px solid #c4ccd6;padding:12px;display:flex;flex-direction:column;gap:9px}
+.phikila-period-edit-body legend{padding:0 6px;font-size:12px;font-weight:650}
+.phikila-period-time-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.phikila-period-time-grid label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#526071}
+.phikila-period-edit-body fieldset>label{display:flex;align-items:center;gap:7px;font-size:12px}
+.phikila-period-edit-body footer{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}
+.phikila-periods-error{margin:0;padding:8px 10px;background:#fff1f2;border:1px solid #fda4af;color:#9f1239;font-size:12px}
+@media(max-width:760px){.phikila-periods-window{height:96vh;width:100%;}.phikila-periods-main{flex-direction:column}.phikila-periods-table-wrap{min-height:250px}.phikila-periods-actions{flex:0 0 auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.phikila-periods-action-spacer{display:none}.phikila-periods-move{grid-column:1/-1}.phikila-periods-options{gap:6px}.phikila-period-edit-body>label{grid-template-columns:1fr;gap:5px}.phikila-period-time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
