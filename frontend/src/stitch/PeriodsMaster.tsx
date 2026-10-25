@@ -179,3 +179,4 @@ export default function PeriodsMaster({
       </section>
     </div>}
   </div>
+}
