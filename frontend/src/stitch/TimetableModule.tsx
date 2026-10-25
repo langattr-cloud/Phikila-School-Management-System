@@ -3,6 +3,7 @@ import { useNavigate } from '../lib/router'
 import { apiFetch, friendlyApiError } from '../lib/api'
 import AscTimetableMenu from './AscTimetableMenu'
 import ClassesWorkspaceModule from './ClassesWorkspaceModule'
+import DaysDialog, { type DayEntry } from './DaysDialog'
 import './timetable-module.css'
 
 type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
@@ -12,7 +13,7 @@ type SubjectDetail = { short: string; color: string; number: string; customField
 type SubjectForm = { title: string; short: string; color: string; number: string; customFields: string; classrooms: string[] }
 type TeacherDetail = { firstName: string; short: string; color: string; classTeacher: string; contract: string; email: string; phone: string; title1: string; title2: string; number: string; male: boolean; timeOffGrid: number[][] }
 type ClassDetail = { color?: string; classTeacher?: string; grade?: string; number?: string; count?: number; printPictures?: boolean; timeOffGrid?: number[][]; short?: string }
-type Workspace = { classDetails?: Record<string, ClassDetail>; schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail>; teacherDetails?: Record<string, TeacherDetail> }
+type Workspace = { dayDetails?: Record<string, { short?: string; desc?: string; combinedDays?: string[] }>; classDetails?: Record<string, ClassDetail>; schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail>; teacherDetails?: Record<string, TeacherDetail> }
 type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
 type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Students' | 'Relations' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Year/Class Online' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions/Comments' | 'Questions? / Write us' | 'Questions? Comments? Write us' | 'About' | 'Periods' | 'View timetable' | 'Year Online' | 'Generate' | 'Help' | 'Timetables Online' | 'Classrooms view' | 'Teachers view'
 
@@ -43,7 +44,6 @@ export default function TimetableModule() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [setupTab, setSetupTab] = useState<'basic' | 'bell' | 'subjects' | 'classes'>('basic')
   const [daysDialogOpen, setDaysDialogOpen] = useState(false)
-  const [dayNamesDraft, setDayNamesDraft] = useState<string[]>([])
   const [catalogueValue, setCatalogueValue] = useState('')
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
   const [subjectDialog, setSubjectDialog] = useState<{mode:'new'|'edit';originalName?:string;form:SubjectForm}|null>(null)
@@ -215,7 +215,7 @@ export default function TimetableModule() {
         <p className="phikila-tt-help">School day count controls the displayed days. Existing lessons on removed days are retained in saved data but hidden until those days are enabled again.</p>
         <div className="phikila-tt-school-quick-actions">
           <button type="button" className="phikila-tt-button" onClick={() => setSetupTab('bell')}>Configure bell times / periods</button>
-          <button type="button" className="phikila-tt-button" onClick={() => { setDayNamesDraft(data.days.slice()); setDaysDialogOpen(true) }}>Rename days</button>
+          <button type="button" className="phikila-tt-button" onClick={() => setDaysDialogOpen(true)}>Rename days</button>
           <button type="button" className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>＋ Add break between lessons</button>
         </div>
       </div>}
@@ -241,7 +241,18 @@ export default function TimetableModule() {
       {setupTab === 'classes' && <div><form className="phikila-tt-spec-add" onSubmit={event=>{event.preventDefault();const value=catalogueValue.trim();if(!value)return;setData(current=>({...current,specification:{...current.specification,classes:unique([...current.specification.classes,value])}}));setCatalogueValue('')}}><input aria-label="New class" placeholder="Enter class name" value={catalogueValue} onChange={event=>setCatalogueValue(event.target.value)}/><button className="phikila-tt-button phikila-tt-button-primary" type="submit">Add</button></form><ul className="phikila-tt-spec-list">{data.specification.classes.map(item=><li key={item}><span>{item}</span><button className="phikila-tt-button phikila-tt-danger" onClick={()=>setData(current=>({...current,specification:{...current.specification,classes:current.specification.classes.filter(value=>value!==item)}}))}>Remove</button></li>)}</ul></div>}
       <div className="phikila-tt-settings-save"><button className="phikila-tt-button" onClick={() => setSettingsOpen(false)}>Close</button><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save school settings</button></div>
     </section>}
-    {daysDialogOpen && <div className="phikila-tt-modal-backdrop" role="dialog" aria-modal="true" aria-label="Rename school days" onMouseDown={event => { if (event.target === event.currentTarget) setDaysDialogOpen(false) }}><section className="phikila-tt-modal" style={{width:'min(520px, calc(100vw - 24px))',maxHeight:'85vh',overflowY:'auto'}}><header className="phikila-tt-school-titlebar"><strong>Rename days</strong><button type="button" aria-label="Close" onClick={() => setDaysDialogOpen(false)}>×</button></header><p className="phikila-tt-help">Edit the day names used by the timetable. Changes are saved to the school database when you press Save.</p><div style={{display:'grid',gap:8,padding:12}}>{dayNamesDraft.map((day,index)=><label key={index} style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 100px',alignItems:'center',gap:8}}>Day {index+1}<input value={day} onChange={event=>setDayNamesDraft(current=>current.map((name,i)=>i===index?event.target.value:name))} /></label>)}</div><footer className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setDaysDialogOpen(false)}>Cancel</button><button type="button" className="is-primary" onClick={() => { const days=dayNamesDraft.map(day=>day.trim()); if(days.some(day=>!day)){setError('Every school day must have a name.');return} if(new Set(days.map(day=>day.toLowerCase())).size!==days.length){setError('School day names must be unique.');return} void persistWorkspace({...data,days,numberOfDays:days.length},'save school days').then(saved=>{if(saved)setDaysDialogOpen(false)}) }}>Save days</button></footer></section></div>}
+    {daysDialogOpen && <DaysDialog
+      initialDays={data.days}
+      initialDetails={data.dayDetails}
+      onClose={() => setDaysDialogOpen(false)}
+      onSave={async (entries: DayEntry[]) => {
+        const days = entries.map(day => day.name.trim())
+        const dayDetails = Object.fromEntries(entries.map(day => [day.name.trim(), { short: day.short, desc: day.desc, combinedDays: day.combinedDays }]))
+        const renamedDays = new Map(entries.filter(day => day.originalName).map(day => [day.originalName as string, day.name.trim()]))
+        const nextData: Workspace = { ...data, days, dayDetails, numberOfDays: days.length, lessons: data.lessons.map(lesson => ({ ...lesson, day: renamedDays.get(lesson.day) || lesson.day })) }
+        if (await persistWorkspace(nextData, 'save school days')) setDaysDialogOpen(false)
+      }}
+    />}
     {breakDialog && <BreakEditorDialog value={breakDialog.form} lessonCount={data.periods.filter(p => p.type !== 'break').length} onChange={form => setBreakDialog(current => current ? {...current,form} : current)} onClose={() => setBreakDialog(null)} onSave={() => {
       const form = breakDialog.form;
       const minutes = (time: string) => { const parts = time.split(':').map(Number); return parts[0]*60+parts[1]; };
@@ -315,7 +326,7 @@ function BreakEditorDialog({value,lessonCount,onChange,onClose,onSave}:{value:Br
 function normaliseWorkspace(value: Partial<Workspace>): Workspace {
   const days = Array.isArray(value.days) && value.days.length ? value.days.filter(day => typeof day === 'string' && day.trim()) : [...DAYS]
   const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ ...period, name: period.name, start: period.start || '', end: period.end || '', type: period.type === 'break' || /break|lunch|recess|games/i.test(period.name) ? 'break' as const : 'lesson' as const })) : DEFAULT_PERIODS.map(period => ({ ...period }))
-  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && days.includes(lesson.day) && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked) })) : []
+  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && typeof lesson.day === 'string' && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked) })) : []
   const rawSpec = value.specification as Partial<Specification> | undefined
   const specification: Specification = {
     subjects: Array.isArray(rawSpec?.subjects) ? unique(rawSpec.subjects.filter(item => typeof item === 'string')) : [...EMPTY.specification.subjects],
@@ -323,7 +334,7 @@ function normaliseWorkspace(value: Partial<Workspace>): Workspace {
     teachers: Array.isArray(rawSpec?.teachers) ? unique(rawSpec.teachers.filter(item => typeof item === 'string')) : [...EMPTY.specification.teachers],
     classrooms: Array.isArray(rawSpec?.classrooms) ? unique(rawSpec.classrooms.filter(item => typeof item === 'string')) : [...EMPTY.specification.classrooms],
   }
-  return { classDetails: value.classDetails && typeof value.classDetails === 'object' ? value.classDetails as Record<string, ClassDetail> : {}, schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), registrationName: String(value.registrationName || ''), subjectDetails: value.subjectDetails && typeof value.subjectDetails === 'object' ? value.subjectDetails : {}, teacherDetails: value.teacherDetails && typeof value.teacherDetails === 'object' ? value.teacherDetails : {}, periodsPerDay: Number(value.periodsPerDay) || Math.max(1, periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length), numberOfDays: Number(value.numberOfDays) || days.length, weekend: String(value.weekend || 'Saturday - Sunday'), workZero: Boolean(value.workZero), days, periods, lessons, specification }
+  return { dayDetails: value.dayDetails && typeof value.dayDetails === 'object' ? value.dayDetails : {}, classDetails: value.classDetails && typeof value.classDetails === 'object' ? value.classDetails as Record<string, ClassDetail> : {}, schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), registrationName: String(value.registrationName || ''), subjectDetails: value.subjectDetails && typeof value.subjectDetails === 'object' ? value.subjectDetails : {}, teacherDetails: value.teacherDetails && typeof value.teacherDetails === 'object' ? value.teacherDetails : {}, periodsPerDay: Number(value.periodsPerDay) || Math.max(1, periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length), numberOfDays: Number(value.numberOfDays) || days.length, weekend: String(value.weekend || 'Saturday - Sunday'), workZero: Boolean(value.workZero), days, periods, lessons, specification }
 }
 function findConflicts(data: Workspace): string[] {
   const issues: string[] = []

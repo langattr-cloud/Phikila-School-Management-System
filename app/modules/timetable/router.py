@@ -57,8 +57,11 @@ def _validate(data: dict[str, Any]) -> None:
     for index, lesson in enumerate(lessons):
         if not isinstance(lesson, dict):
             raise HTTPException(status_code=422, detail="Lesson " + str(index + 1) + " is invalid")
-        if lesson.get("day") not in days:
-            raise HTTPException(status_code=422, detail="Lesson " + str(index + 1) + " has an unknown day")
+        # Lessons may intentionally remain assigned to a temporarily hidden day.
+        # The UI only renders active days, but reducing the visible day count must
+        # not erase saved lesson assignments; require a valid day label instead.
+        if not isinstance(lesson.get("day"), str) or not lesson["day"].strip():
+            raise HTTPException(status_code=422, detail="Lesson " + str(index + 1) + " needs a named day")
         period = lesson.get("period")
         if not isinstance(period, int) or isinstance(period, bool) or not 0 <= period < len(periods):
             raise HTTPException(status_code=422, detail="Lesson " + str(index + 1) + " has an invalid period")

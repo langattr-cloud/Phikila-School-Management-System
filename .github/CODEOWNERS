@@ -2,3 +2,10 @@
 frontend/src/stitch/AscTimetableMenu.tsx @langattr-cloud
 scripts/check-timetable-menu.mjs @langattr-cloud
 .github/workflows/timetable-menu-guard.yml @langattr-cloud
+
+# Rename Days must remain coupled to its backend persistence contract.
+frontend/src/stitch/DaysDialog.tsx @langattr-cloud
+frontend/src/stitch/TimetableModule.tsx @langattr-cloud
+app/modules/timetable/router.py @langattr-cloud
+tests/test_timetable_workspace_api.py @langattr-cloud
+scripts/check-timetable-menu.mjs @langattr-cloud

@@ -112,3 +112,32 @@ def test_invalid_workspace_save_does_not_overwrite_existing_data(workspace_clien
     reloaded = client.get(path)
     assert reloaded.status_code == 200, reloaded.text
     assert reloaded.json()["data"] == payload
+
+
+def test_hidden_day_lessons_survive_day_count_reduction_and_reload(workspace_client):
+    client, _ = workspace_client
+    path = "/api/v1/timetable/workspace"
+    payload = _workspace()
+    payload["days"] = ["Monday", "Tuesday", "Wednesday", "Thursday"]
+    payload["lessons"].append({
+        "id": "test-hidden-friday-lesson",
+        "day": "Friday",
+        "period": 1,
+        "className": "GRADE 4",
+        "subject": "English",
+        "teacher": "Test Teacher",
+        "room": "Room A",
+        "locked": False,
+    })
+
+    saved = client.put(path, json={"data": payload})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["data"]["days"] == payload["days"]
+    assert any(lesson["day"] == "Friday" for lesson in saved.json()["data"]["lessons"])
+
+    reloaded = client.get(path)
+    assert reloaded.status_code == 200, reloaded.text
+    assert any(
+        lesson["id"] == "test-hidden-friday-lesson" and lesson["day"] == "Friday"
+        for lesson in reloaded.json()["data"]["lessons"]
+    )
