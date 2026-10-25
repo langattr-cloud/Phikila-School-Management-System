@@ -4,6 +4,7 @@ import { apiFetch, friendlyApiError } from '../lib/api'
 import AscTimetableMenu from './AscTimetableMenu'
 import ClassesWorkspaceModule from './ClassesWorkspaceModule'
 import DaysDialog, { type DayEntry } from './DaysDialog'
+import PeriodsMaster from './PeriodsMaster'
 import './timetable-module.css'
 
 type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
@@ -44,6 +45,7 @@ export default function TimetableModule() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [setupTab, setSetupTab] = useState<'basic' | 'bell' | 'subjects' | 'classes'>('basic')
   const [daysDialogOpen, setDaysDialogOpen] = useState(false)
+  const [periodsMasterOpen, setPeriodsMasterOpen] = useState(false)
   const [catalogueValue, setCatalogueValue] = useState('')
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
   const [subjectDialog, setSubjectDialog] = useState<{mode:'new'|'edit';originalName?:string;form:SubjectForm}|null>(null)
@@ -213,7 +215,7 @@ export default function TimetableModule() {
         <label>Weekend<select value={data.weekend} onChange={event => setData(current => ({ ...current, weekend: event.target.value }))}><option>Saturday - Sunday</option><option>Friday - Saturday</option></select></label>
         <p className="phikila-tt-help">School day count controls the displayed days. Existing lessons on removed days are retained in saved data but hidden until those days are enabled again.</p>
         <div className="phikila-tt-school-quick-actions">
-          <button type="button" className="phikila-tt-button" onClick={() => setSetupTab('bell')}>Configure bell times / periods</button>
+          <button type="button" className="phikila-tt-button" onClick={() => setPeriodsMasterOpen(true)}>Rename periods / Bell times</button>
           <button type="button" className="phikila-tt-button" onClick={() => setDaysDialogOpen(true)}>Rename days</button>
           <button type="button" className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>＋ Add break between lessons</button>
         </div>
@@ -240,6 +242,19 @@ export default function TimetableModule() {
       {setupTab === 'classes' && <div><form className="phikila-tt-spec-add" onSubmit={event=>{event.preventDefault();const value=catalogueValue.trim();if(!value)return;setData(current=>({...current,specification:{...current.specification,classes:unique([...current.specification.classes,value])}}));setCatalogueValue('')}}><input aria-label="New class" placeholder="Enter class name" value={catalogueValue} onChange={event=>setCatalogueValue(event.target.value)}/><button className="phikila-tt-button phikila-tt-button-primary" type="submit">Add</button></form><ul className="phikila-tt-spec-list">{data.specification.classes.map(item=><li key={item}><span>{item}</span><button className="phikila-tt-button phikila-tt-danger" onClick={()=>setData(current=>({...current,specification:{...current.specification,classes:current.specification.classes.filter(value=>value!==item)}}))}>Remove</button></li>)}</ul></div>}
       <div className="phikila-tt-settings-save"><button className="phikila-tt-button" onClick={() => setSettingsOpen(false)}>Close</button><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save school settings</button></div>
     </section>}
+    {periodsMasterOpen && <PeriodsMaster
+      initialPeriods={data.periods}
+      onClose={() => setPeriodsMasterOpen(false)}
+      onSaveAll={async (periods, oldIndexToNewIndex) => {
+        const lessons = data.lessons.flatMap(lesson => {
+          const nextPeriod = oldIndexToNewIndex[lesson.period]
+          return nextPeriod === undefined ? [] : [{ ...lesson, period: nextPeriod }]
+        })
+        const nextData: Workspace = { ...data, periods, periodsPerDay: periods.filter(period => period.type !== 'break').length, lessons }
+        const saved = await persistWorkspace(nextData, 'save periods and bell times')
+        if (!saved) throw new Error('Periods could not be saved to the school database.')
+      }}
+    />}
     {daysDialogOpen && <DaysDialog
       initialDays={data.days}
       initialDetails={data.dayDetails}
