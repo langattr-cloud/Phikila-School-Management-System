@@ -140,3 +140,19 @@ for (const path of repairWorkflows) {
 }
 
 console.log('Timetable and Classes contracts passed: approved menu, teacher workflows, Classes regression checks, account-scoped backend persistence, and no classroom catalogue panel.');
+
+
+const daysDialog = readFileSync(new URL("../frontend/src/stitch/DaysDialog.tsx", import.meta.url), "utf8");
+for (const [label, marker] of [
+  ["Rename days action opens the dedicated dialog", "setDaysDialogOpen(true)"],
+  ["Rename days writes to the shared backend workspace", "persistWorkspace(nextData, 'save school days')"],
+  ["Day labels are remapped for existing lessons", "renamedDays.get(lesson.day) || lesson.day"],
+  ["Day metadata is persisted with the workspace", "dayDetails"],
+  ["Day dialog tracks original labels for rename mapping", "originalName: name"],
+  ["Hidden-day lesson assignments survive normalisation", "typeof lesson.day === 'string' && Number.isInteger(lesson.period)"],
+]) {
+  assert.ok(timetable.includes(marker) || daysDialog.includes(marker), `Missing Rename Days safeguard: ${label}`);
+}
+assert.ok(!timetableBackend.includes('lesson.get("day") not in days'), "Backend must preserve lessons assigned to temporarily hidden days");
+assert.ok(timetableBackend.includes('needs a named day'), "Backend must reject empty lesson day labels");
+console.log("Rename Days UI, persistence, and hidden-day regression guards passed.");
