@@ -223,3 +223,40 @@
 
 .phikila-tt-school-quick-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #d6dee8}
 .phikila-tt-school-quick-actions .phikila-tt-button{min-height:36px}
+
+
+/* Teacher manager: isolated styles to avoid changing the timetable/menu layout. */
+.phikila-tt-teachers-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.42);font-family:inherit}
+.phikila-tt-teachers-window{display:flex;flex-direction:column;width:min(960px,96vw);max-height:90vh;min-height:320px;background:#eef1f7;border:1px solid #667085;box-shadow:0 18px 60px rgba(0,0,0,.24);color:#172033}
+.phikila-tt-teachers-title{display:flex;align-items:center;justify-content:space-between;min-height:34px;padding:4px 12px;background:#dbe2f0;border-bottom:1px solid #aab3c2;font-size:13px}
+.phikila-tt-teachers-title button{width:26px;height:24px;border:1px solid #aab3c2;background:#fff;cursor:pointer;font-size:18px;line-height:1}
+.phikila-tt-teachers-caption{padding:9px 12px;font-size:12px}
+.phikila-tt-teachers-body{display:flex;min-height:0;flex:1;overflow:hidden}
+.phikila-tt-teachers-table-wrap{flex:1;min-width:0;overflow:auto;background:#fff;border-top:1px solid #b8c0cc}
+.phikila-tt-teachers-table{width:100%;border-collapse:collapse;font-size:12px}
+.phikila-tt-teachers-table th{position:sticky;top:0;background:#d0d5e0;text-align:left;font-weight:600;z-index:1}
+.phikila-tt-teachers-table th,.phikila-tt-teachers-table td{padding:7px 8px;border:1px solid #d7dce5;white-space:nowrap}
+.phikila-tt-teachers-table tbody tr{cursor:pointer}
+.phikila-tt-teachers-table tbody tr:nth-child(even){background:#f6f8fc}
+.phikila-tt-teachers-table tbody tr.is-selected{background:#c7d8ff}
+.phikila-tt-teacher-color{display:inline-block;width:10px;height:10px;margin-right:7px;border:1px solid #8b95a5;vertical-align:middle}
+.phikila-tt-teachers-empty{padding:18px;color:#596579;font-size:13px}
+.phikila-tt-teachers-actions{display:flex;flex-direction:column;gap:7px;width:160px;flex-shrink:0;padding:10px;background:#e8ecf3;border-left:1px solid #b8c0cc}
+.phikila-tt-teachers-actions button,.phikila-tt-teacher-form-actions button{min-height:32px;padding:6px 9px;border:1px solid #aab3c2;background:#fff;text-align:left;font:inherit;font-size:12px;cursor:pointer}
+.phikila-tt-teachers-actions button:disabled{opacity:.45;cursor:not-allowed}
+.phikila-tt-teachers-actions button.is-primary,.phikila-tt-teacher-form-actions button.is-primary{background:#2563eb;color:#fff;border-color:#1d4ed8}
+.phikila-tt-teachers-spacer{flex:1;min-height:12px}
+.phikila-tt-teacher-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:18px;overflow:auto}
+.phikila-tt-teacher-form label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#374151}
+.phikila-tt-teacher-form input:not([type=checkbox]){width:100%;min-width:0;min-height:32px;padding:5px 7px;border:1px solid #9ca3af;background:#fffef5;color:#111827;font:inherit}
+.phikila-tt-teacher-form input[type=color]{height:34px;padding:2px}
+.phikila-tt-teacher-form .phikila-tt-teacher-checkbox{flex-direction:row;align-items:center}
+.phikila-tt-teacher-form-actions{display:flex;justify-content:flex-end;gap:8px;grid-column:1/-1;padding-top:10px;border-top:1px solid #cbd5e1}
+.phikila-tt-teacher-timeoff{padding:16px;overflow:auto}
+.phikila-tt-teacher-timeoff p{font-size:12px;margin:0 0 12px}
+.phikila-tt-teacher-time-grid{display:grid;grid-template-columns:72px repeat(8,minmax(30px,1fr));max-width:680px;border-top:1px solid #cbd5e1;border-left:1px solid #cbd5e1;background:#fff}
+.phikila-tt-teacher-time-grid>*{display:flex;align-items:center;justify-content:center;min-height:38px;border-right:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;font-size:12px}
+.phikila-tt-teacher-time-grid button{background:#fff;cursor:pointer;font-size:18px}
+.phikila-tt-teacher-time-grid button[title=Conditional]{background:#e0e7ff;color:#1d4ed8}
+.phikila-tt-teacher-time-grid button[title=Unavailable]{background:#fee2e2;color:#b91c1c}
+@media(max-width:620px){.phikila-tt-teachers-overlay{padding:6px}.phikila-tt-teachers-window{width:100%;max-height:96vh}.phikila-tt-teachers-body{flex-direction:column}.phikila-tt-teachers-actions{width:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-left:0;border-top:1px solid #b8c0cc}.phikila-tt-teachers-spacer{display:none}.phikila-tt-teacher-form{grid-template-columns:1fr}.phikila-tt-teacher-time-grid{grid-template-columns:44px repeat(8,minmax(24px,1fr))}.phikila-tt-teacher-time-grid>*{min-height:32px}}
