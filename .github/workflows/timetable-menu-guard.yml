@@ -27,6 +27,8 @@ on:
       - 'frontend/src/stitch/AscTimetableMenu.tsx'
       - 'frontend/src/stitch/TimetableModule.tsx'
       - 'frontend/src/stitch/DaysDialog.tsx'
+      - 'frontend/src/stitch/PeriodsMaster.tsx'
+      - 'frontend/src/stitch/periods-master.css'
       - 'frontend/src/stitch/ClassesWorkspaceModule.tsx'
       - 'app/modules/timetable/router.py'
       - 'app/main.py'
