@@ -5,6 +5,9 @@ on:
     paths:
       - 'frontend/src/stitch/AscTimetableMenu.tsx'
       - 'frontend/src/stitch/TimetableModule.tsx'
+      - 'frontend/src/stitch/ClassesWorkspaceModule.tsx'
+      - 'app/modules/timetable/router.py'
+      - 'app/main.py'
       - 'frontend/src/App.tsx'
       - 'frontend/src/components/AppShell.tsx'
       - 'scripts/check-timetable-menu.mjs'
@@ -16,6 +19,9 @@ on:
     paths:
       - 'frontend/src/stitch/AscTimetableMenu.tsx'
       - 'frontend/src/stitch/TimetableModule.tsx'
+      - 'frontend/src/stitch/ClassesWorkspaceModule.tsx'
+      - 'app/modules/timetable/router.py'
+      - 'app/main.py'
       - 'frontend/src/App.tsx'
       - 'frontend/src/components/AppShell.tsx'
       - 'scripts/check-timetable-menu.mjs'
