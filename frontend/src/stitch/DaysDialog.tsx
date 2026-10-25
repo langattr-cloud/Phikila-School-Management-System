@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export type DayEntry = { id: string; name: string; short: string; desc: string; combinedDays: string[] }
+export type DayEntry = { id: string; originalName?: string; name: string; short: string; desc: string; combinedDays: string[] }
 type Props = {
   initialDays: string[]
   initialDetails?: Record<string, { short?: string; desc?: string; combinedDays?: string[] }>
@@ -12,6 +12,7 @@ const SHORTS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
 const NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const makeEntry = (name: string, index: number, details?: Props['initialDetails']) => ({
   id: name + '-' + index,
+  originalName: name,
   name,
   short: details?.[name]?.short || SHORTS[index] || name.slice(0, 2).toUpperCase(),
   desc: details?.[name]?.desc || '',
@@ -80,7 +81,7 @@ export default function DaysDialog({ initialDays, initialDetails, onSave, onClos
   const buttonStyle = { border: '1px solid #999', background: '#f5f5f5', borderRadius: 4, padding: '7px 12px', cursor: 'pointer', color: '#202938' }
   const inputStyle = { width: '100%', minWidth: 0, padding: '7px 9px', border: '1px solid #aab2bf', borderRadius: 4, background: '#fff', color: '#172033', boxSizing: 'border-box' as const }
   const subOverlay = { position: 'fixed' as const, inset: 0, background: 'rgba(10,18,32,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10022, padding: 12 }
-  return <div className="phikila-tt-modal-backdrop" role="dialog" aria-modal="true" aria-label="Rename school days" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
+  return <div className="phikila-tt-modal-backdrop" style={{ zIndex: 10010 }} role="dialog" aria-modal="true" aria-label="Rename school days" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
     <section className="phikila-tt-modal" style={{ width: 'min(820px, calc(100vw - 24px))', maxHeight: '88vh', overflowY: 'auto', color: '#202938' }}>
       <header className="phikila-tt-school-titlebar"><strong>Days — Rename days</strong><button type="button" aria-label="Close" onClick={onClose}>×</button></header>
       <div style={{ padding: 16 }}>
