@@ -301,3 +301,5 @@
 .phikila-tt-new-lesson-footer button{min-width:100px;height:31px;border:1px solid #9ca3af;border-bottom:2px solid #858b95;background:#fafafa;font-size:12px;cursor:pointer}
 .phikila-tt-new-lesson-footer button:last-child{font-weight:700;min-width:150px}
 @media(max-width:560px){.phikila-tt-new-lesson-card{gap:6px;padding:8px}.phikila-tt-new-lesson-icon{width:28px;flex-basis:28px}.phikila-tt-new-lesson-checks{grid-template-columns:1fr}.phikila-tt-new-lesson-row>select:nth-child(2){width:100px}}
+
+.phikila-tt-new-lesson-note{margin:0;color:#5b6473;font-size:11px}
