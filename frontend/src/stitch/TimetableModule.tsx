@@ -221,6 +221,10 @@ export default function TimetableModule() {
         <label>Weekend<select value={data.weekend} onChange={event => setData(current => ({ ...current, weekend: event.target.value }))}><option>Saturday - Sunday</option><option>Friday - Saturday</option></select></label>
         <label className="phikila-tt-setup-checkbox"><input type="checkbox" checked={data.workZero} onChange={event => setData(current => ({ ...current, workZero: event.target.checked }))} /> Enable zero periods</label>
         <p className="phikila-tt-help">School day count controls the displayed days. Existing lessons on removed days are retained in saved data but hidden until those days are enabled again.</p>
+        <div className="phikila-tt-school-quick-actions">
+          <button type="button" className="phikila-tt-button" onClick={() => setSetupTab('bell')}>Configure bell times / periods</button>
+          <button type="button" className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>＋ Add break between lessons</button>
+        </div>
       </div>}
       {setupTab === 'bell' && <div>
         <div className="phikila-tt-bell-actions"><span>Manage teaching periods and configure breaks, their position, and print options.</span><button className="phikila-tt-button" onClick={() => setData(current => ({ ...current, periods: [...current.periods, { name: 'New period', short: 'P' + (current.periods.filter(p => p.type !== 'break').length + 1), start: '13:00', end: '13:40', type: 'lesson' }] }))}>+ Add period</button><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>+ Add break between lessons</button></div>
