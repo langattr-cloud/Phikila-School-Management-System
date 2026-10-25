@@ -33,4 +33,31 @@ if (!source.includes('width: "100%"') ||
   process.exit(1);
 }
 
-console.log('Timetable menu contract passed: required menus/actions present, Students/Seminars absent, full-width ribbon preserved.');
+
+const timetable = readFileSync('frontend/src/stitch/TimetableModule.tsx', 'utf8');
+const appRoutes = readFileSync('frontend/src/App.tsx', 'utf8');
+const appShell = readFileSync('frontend/src/components/AppShell.tsx', 'utf8');
+
+const requiredTeacherContracts = [
+  ['teacher contract dialog', 'function TeacherContractDialog'],
+  ['new lesson dialog', 'function NewLessonDialog'],
+  ['double-click teacher entry', 'onDoubleClick={() => { setSelected(index); onOpenContract(teacher.name) }}'],
+  ['teacher-specific contract lesson filtering', 'data.lessons.filter(lesson => lesson.teacher === contractTeacher)'],
+  ['weekly lesson addition', 'lessons: [...current.lessons, ...additions]'],
+  ['break-period protection', "data.periods[period].type === 'break'"],
+  ['teacher/class route', "case '/setup/teachers': return <TeacherClassManagementPage />"],
+  ['teachers navigation item', "to: '/setup/teachers', label: 'Teachers & classes'"],
+];
+const missingTeacherContracts = requiredTeacherContracts
+  .filter(([, marker]) => ![timetable, appRoutes, appShell].some((content) => content.includes(marker)))
+  .map(([label]) => label);
+const sampleTeacherData = /OWINO MOSES|CREATIVE ARTS.*OWINO MOSES/.test(timetable);
+
+if (missingTeacherContracts.length || sampleTeacherData) {
+  console.error('Teacher/timetable integration contract failed.');
+  if (missingTeacherContracts.length) console.error('Missing safeguards/features:', missingTeacherContracts.join(', '));
+  if (sampleTeacherData) console.error('Sample teacher data must not be hardcoded into the production module.');
+  process.exit(1);
+}
+
+console.log('Timetable menu and teacher lesson contracts passed: menu protection, teacher routing, contract dialog, conflict-aware lesson creation, and no sample teacher data.');
