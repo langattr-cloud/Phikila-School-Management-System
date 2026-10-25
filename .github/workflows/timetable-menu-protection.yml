@@ -4,12 +4,20 @@ on:
   pull_request:
     paths:
       - "frontend/src/stitch/AscTimetableMenu.tsx"
+      - "frontend/src/stitch/ClassesWorkspaceModule.tsx"
+      - "frontend/src/stitch/TimetableModule.tsx"
+      - "app/modules/timetable/router.py"
+      - "app/main.py"
       - "frontend/scripts/check-timetable-menu.mjs"
       - ".github/workflows/timetable-menu-protection.yml"
   push:
     branches: [main]
     paths:
       - "frontend/src/stitch/AscTimetableMenu.tsx"
+      - "frontend/src/stitch/ClassesWorkspaceModule.tsx"
+      - "frontend/src/stitch/TimetableModule.tsx"
+      - "app/modules/timetable/router.py"
+      - "app/main.py"
       - "frontend/scripts/check-timetable-menu.mjs"
       - ".github/workflows/timetable-menu-protection.yml"
 
