@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import './periods-master.css'
 
 export type PeriodEntry = {
@@ -62,7 +62,6 @@ export default function PeriodsMaster({
   const selectedIndex = rows.findIndex(row => row.key === selectedKey)
   const selected = rows[selectedIndex]
   const editRow = rows.find(row => row.key === editingKey) || null
-  const selectedDuration = useMemo(() => selected ? duration(selected.start, selected.end) : 0, [selected])
   const openEdit = (row: Row) => { setEditingKey(row.key); setEditForm(toEditForm(row)); setError('') }
   const updateForm = <K extends keyof EditForm>(key: K, value: EditForm[K]) => setEditForm(current => current ? { ...current, [key]: value } : current)
 
@@ -131,7 +130,7 @@ export default function PeriodsMaster({
           <div className="phikila-periods-table-wrap">
             <div className="phikila-periods-table-scroll"><table className="phikila-periods-table">
               <thead><tr><th></th><th>Name</th><th>Short</th><th>Start</th><th>The End</th><th>Len.</th><th>Print</th><th>Bell</th></tr></thead>
-              <tbody>{rows.map((p, i) => <tr key={p.key} onClick={() => setSelectedKey(p.key)} onDoubleClick={() => openEdit(p)} className={(selectedKey === p.key ? 'is-selected ' : '') + (p.type === 'break' ? 'is-break' : '')}>
+              <tbody>{rows.map(p => <tr key={p.key} onClick={() => setSelectedKey(p.key)} onDoubleClick={() => openEdit(p)} className={(selectedKey === p.key ? 'is-selected ' : '') + (p.type === 'break' ? 'is-break' : '')}>
                 <td>{selectedKey === p.key ? '●' : '○'}</td><td>{p.name}</td><td>{p.short || p.name}</td><td>{p.start}</td><td>{p.end}</td><td>{duration(p.start, p.end)}</td><td>{p.printSummary === false && p.printTeacher === false && p.printClass === false && p.printClassroom === false ? 'No' : 'Yes'}</td><td>{p.printInBells || 'All classes'}</td>
               </tr>)}</tbody>
             </table>{rows.length === 0 && <p className="phikila-periods-empty">No periods yet. Add a period or a break to begin.</p>}</div>
@@ -151,6 +150,7 @@ export default function PeriodsMaster({
           <label><input type="checkbox" checked={diffDays} onChange={event => setDiffDays(event.target.checked)} /> Different bells for this period on some days</label>
           {diffDays && <p>Per-day bell overrides are not yet available in the shared timetable workspace.</p>}
         </div>
+        {error && !editForm && <p className="phikila-periods-error" role="alert">{error}</p>}
         <footer className="phikila-periods-footer"><span>{rows.length} periods · {rows.filter(p => p.type === 'break').length} breaks</span><button type="button" onClick={onClose} disabled={saving}>Cancel</button><button type="button" className="is-primary" onClick={() => void saveAll()} disabled={saving}>{saving ? 'Saving…' : 'Save periods'}</button></footer>
       </div>
     </section>
