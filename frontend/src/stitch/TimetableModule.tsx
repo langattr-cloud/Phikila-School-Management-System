@@ -491,7 +491,7 @@ function SubjectLessonsDialog({ subject, lessons, onClose, onEdit, onNew }: { su
       <header className="phikila-tt-teachers-title"><strong>Lessons for subject · {subject}</strong><button type="button" onClick={onClose} aria-label="Close">×</button></header>
       <div className="phikila-tt-teachers-caption">Saved timetable lessons for this subject. Edit opens the existing timetable lesson editor.</div>
       <div className="phikila-tt-teachers-table-wrap"><table className="phikila-tt-teachers-table"><thead><tr><th>Day</th><th>Period</th><th>Class</th><th>Teacher</th><th>Classroom</th></tr></thead><tbody>
-        {lessons.map(lesson=><tr key={lesson.id} onDoubleClick={()=>onEdit(lesson)}><td>{lesson.day}</td><td>{lesson.period+1}</td><td>{lesson.className}</td><td>{lesson.teacher}</td><td>{lesson.room||'—'}</td></tr>)}
+        {lessons.map(lesson=><tr key={lesson.id} onClick={()=>setSelectedId(lesson.id)} onDoubleClick={()=>onEdit(lesson)} className={selectedId===lesson.id?'is-selected':''} title="Double-click to edit this lesson"><td>{lesson.day}</td><td>{lesson.period+1}</td><td>{lesson.className}</td><td>{lesson.teacher}</td><td>{lesson.room||'—'}</td></tr>)}
       </tbody></table>{lessons.length===0&&<p className="phikila-tt-teachers-empty">No saved lessons use this subject yet.</p>}</div>
       <div className="phikila-tt-teacher-form-actions"><button type="button" onClick={onClose}>Close</button><button type="button" className="is-primary" onClick={onNew}>New lesson</button></div>
     </section>
