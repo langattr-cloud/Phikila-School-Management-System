@@ -29,7 +29,6 @@ export default function AscTimetableMenu({ onNavigate }: TopMenuFullWidthProps) 
         <div style={S.cellWhole}><select value={whole} onChange={e => setWhole(e.target.value)} style={S.wholeSel}><option>Whole</option><option>Class</option><option>Teacher</option></select></div>
         <button onClick={() => go("Subjects")} style={S.cell}><div style={S.ico}>📘</div><span style={S.lb}>Subjects</span></button>
         <button onClick={() => go("Classes")} style={S.cell}><div style={S.ico}>👥</div><span style={S.lb}>Classes</span></button>
-        <button onClick={() => go("Classrooms")} style={S.cell}><div style={S.ico}>🚪</div><span style={S.lb}>Classrooms</span></button>
         <button onClick={() => go("Teachers")} style={S.cell}><div style={S.ico}>🎓</div><span style={S.lb}>Teachers</span></button>
         <button onClick={() => go("Relations")} style={S.cell}><div style={S.ico}>🔗</div><span style={S.lb}>Relations</span></button>
         <button onClick={() => go("Test")} style={S.cell}><div style={S.ico}>✅</div><span style={S.lb}>Test</span></button>
