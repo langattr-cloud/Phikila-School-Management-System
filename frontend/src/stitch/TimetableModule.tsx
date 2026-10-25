@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { apiFetch, friendlyApiError } from '../lib/api'
+import AscTimetableMenu from './AscTimetableMenu'
 import './timetable-module.css'
 
 type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
@@ -24,43 +25,6 @@ const unique = (items: string[]) => Array.from(new Set(items.map(item => item.tr
 
 function RibbonButton({ label, glyph, tint, onClick }: { label: string; glyph: string; tint?: string; onClick: () => void }) {
   return <button type="button" className="phikila-ribbon-button" title={label} aria-label={label} onClick={onClick}><span className={'phikila-ribbon-icon tint-' + (tint || 'neutral')} aria-hidden="true">{glyph}</span><span>{label}</span></button>
-}
-
-function MainMenu({ onAction, whose, onWhoseChange }: { onAction: (action: Action) => void; whose: Whose; onWhoseChange: (value: Whose) => void }) {
-  const [activeMenu, setActiveMenu] = useState<string | null>(null)
-  const menus: Record<string, Action[]> = {
-    Main: ['Subjects', 'Classes', 'Classrooms', 'Teachers', 'Students', 'Relations'],
-    File: ['New', 'Open', 'Save', 'Print', 'Print preview'],
-    Specification: ['Periods', 'Subjects', 'Classes', 'Teachers'],
-    View: ['View timetable'],
-    Timetable: ['Generate new', 'Generate in cloud'],
-    Options: ['School', 'Verification', 'Year Online'],
-    Help: ['Questions? Comments? Write us'],
-  }
-  const items: { label: Action; glyph: string; tint?: string }[] = [
-    { label: 'New', glyph: '▤' }, { label: 'Open', glyph: '▱' }, { label: 'Save', glyph: '▣' },
-    { label: 'Print', glyph: '▧' }, { label: 'Print preview', glyph: '▤', tint: 'blue' },
-    { label: 'Subjects', glyph: '◈', tint: 'blue' }, { label: 'Classes', glyph: '▦', tint: 'gold' },
-    { label: 'Classrooms', glyph: '▣', tint: 'gold' }, { label: 'Teachers', glyph: '♙', tint: 'purple' },
-    { label: 'Students', glyph: '♟', tint: 'purple' }, { label: 'Relations', glyph: '⇄', tint: 'purple' },
-    { label: 'Test', glyph: '✓', tint: 'teal' }, { label: 'Generate new', glyph: '✳', tint: 'pink' },
-    { label: 'Generate in cloud', glyph: '☁', tint: 'pink' }, { label: 'Verification', glyph: '✓', tint: 'teal' },
-    { label: 'School', glyph: '⌂', tint: 'blue' }, { label: 'Year/Class Online', glyph: '◎', tint: 'gold' },
-    { label: 'Questions/Comments', glyph: '?', tint: 'blue' },
-  ]
-  const ribbonButton = (item: { label: Action; glyph: string; tint?: string }) => <RibbonButton key={item.label} label={item.label} glyph={item.glyph} tint={item.tint} onClick={() => onAction(item.label)} />
-  return <div className="phikila-ribbon">
-    <nav className="phikila-menu-bar" aria-label="Timetable menus">
-      {Object.entries(menus).map(([name, actions]) => <div className="phikila-menu" key={name}>
-        <button className={'phikila-menu-trigger ' + (activeMenu === name ? 'is-open' : '')} aria-expanded={activeMenu === name} onMouseEnter={() => { if (activeMenu) setActiveMenu(name) }} onClick={() => setActiveMenu(activeMenu === name ? null : name)}>{name}</button>
-        {activeMenu === name && <div className="phikila-menu-dropdown" role="menu">{actions.map(action => <button key={action} role="menuitem" className="phikila-menu-item" onClick={() => { setActiveMenu(null); onAction(action) }}>{action}</button>)}</div>}
-      </div>)}
-    </nav>
-    <div className="phikila-ribbon-scroll"><div className="phikila-ribbon-row">
-      <div className="phikila-ribbon-group phikila-ribbon-group-all" role="toolbar" aria-label="Timetable actions">{items.map(ribbonButton)}</div>
-    </div></div>
-    <div className="phikila-ribbon-filter"><div className="phikila-whose"><label htmlFor="phikila-whose">Show:</label><select id="phikila-whose" value={whose} onChange={event => onWhoseChange(event.target.value as Whose)}><option>All</option><option>Classes</option><option>Teachers</option><option>Classrooms</option></select><span>Filter the weekly timetable</span></div></div>
-  </div>
 }
 
 export default function TimetableModule() {
@@ -191,6 +155,8 @@ export default function TimetableModule() {
       }
       case 'Generate in cloud': setError('Cloud generation is not connected yet. Use Generate new for the local draft generator.'); break
       case 'Timetable': case 'View timetable': setSection(null); break
+      case 'Classrooms view': setWhose('Classrooms'); setFilter(''); break
+      case 'Teachers view': setWhose('Teachers'); setFilter(''); break
       case 'Summary': setStatus('Summary · ' + data.lessons.length + ' lessons across ' + data.days.length + ' days'); break
       case 'Zoom': setStatus('Use browser zoom to adjust the timetable scale.'); break
       case 'Constraints': setSection('Constraints'); break
@@ -200,7 +166,7 @@ export default function TimetableModule() {
   }
   return <main className="phikila-tt">
     <header className="phikila-tt-heading"><div><p className="phikila-tt-eyebrow">PHIKILA · TIMETABLE MODULE</p><h1>{data.schoolName || 'School timetable'}</h1><p className="phikila-tt-subtitle">Academic year {data.academicYear} · Weekly timetable editor</p></div><div className="phikila-tt-heading-actions"><span className={'phikila-tt-status-dot ' + (loading ? 'is-loading' : '')} /><span>{loading ? 'Loading' : 'Workspace'}</span><button className="phikila-tt-button" onClick={() => void load()} disabled={loading}>Reload</button></div></header>
-    <MainMenu onAction={onAction} whose={whose} onWhoseChange={value => { setWhose(value); setFilter('') }} />
+    <AscTimetableMenu onNavigate={name => onAction(name as Action)} />
     <div className="phikila-tt-subbar"><strong>{whose === 'All' ? 'Whole school' : whose === 'Classes' ? 'Class timetable' : whose === 'Teachers' ? 'Teacher timetable' : 'Classroom timetable'}</strong>{filterOptions.length > 0 && <select aria-label={'Filter by ' + whose.toLowerCase()} value={filter} onChange={event => setFilter(event.target.value)}><option value="">All {whose.toLowerCase()}</option>{filterOptions.map(option => <option key={option}>{option}</option>)}</select>}<span className="phikila-tt-subbar-spacer" /><span>{data.lessons.length} lessons</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => openEditor(data.days[0], 0)}>+ Add lesson</button></div>
     {error && <div className="phikila-tt-alert" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
     {section && <section className="phikila-tt-info-panel"><div className="phikila-tt-specification"><div className="phikila-tt-panel-heading"><div><h2>{section}</h2><p>Manage the saved {section.toLowerCase()} catalogue. Changes are included when you save the workspace.</p></div><button className="phikila-tt-button" onClick={() => { setSection(null); setSpecValue('') }}>Close</button></div>{(['Subjects', 'Classes', 'Teachers', 'Classrooms'].includes(section)) ? <><form className="phikila-tt-spec-add" onSubmit={event => { event.preventDefault(); const key = section === 'Subjects' ? 'subjects' : section === 'Classes' ? 'classes' : section === 'Teachers' ? 'teachers' : 'classrooms'; const value = specValue.trim(); if (!value) return; setData(current => ({ ...current, specification: { ...current.specification, [key]: unique([...current.specification[key], value]) } })); setSpecValue('') }}><input aria-label={'New ' + section.slice(0, -1)} placeholder={'Add ' + section.toLowerCase().replace(/s$/, '')} value={specValue} onChange={event => setSpecValue(event.target.value)} /><button className="phikila-tt-button phikila-tt-button-primary" type="submit">Add</button></form><ul className="phikila-tt-spec-list">{(section === 'Subjects' ? data.specification.subjects : section === 'Classes' ? data.specification.classes : section === 'Teachers' ? data.specification.teachers : data.specification.classrooms).map(item => <li key={item}><span>{item}</span><button type="button" className="phikila-tt-button phikila-tt-danger" onClick={() => { const key = section === 'Subjects' ? 'subjects' : section === 'Classes' ? 'classes' : section === 'Teachers' ? 'teachers' : 'classrooms'; setData(current => ({ ...current, specification: { ...current.specification, [key]: current.specification[key].filter(value => value !== item) } })) }}>Remove</button></li>)}</ul></> : <p>Student records and lesson relations need dedicated data models; they are not edited in this workspace yet.</p>}</div></section>}
