@@ -116,4 +116,22 @@ if (destructiveMigrationMatches.length) {
   process.exit(1);
 }
 
+
+assert.ok(timetable.includes("case 'Subjects': setSection(null); setSetupTab('subjects'); setSettingsOpen(true); break"), "Subjects menu action must open the data-backed Subjects workspace");
+assert.ok(timetable.includes("setupTab === 'subjects' &&"), "Subjects workspace must remain mounted from the existing timetable settings flow");
+assert.ok(!/YEGON JUSTICE|OWINO MOSES|MOSONIK CYNTHIA|KIRUI GLORIA|TANGUS VICTOR|LANGAT LEONARD/.test(timetable), "Sample lesson/teacher data must not be hardcoded into the live timetable workspace");
+
+const repairWorkflows = [
+  ".github/workflows/fix-incomplete-lesson-generation.yml",
+  ".github/workflows/fix-subject-room-build.yml",
+  ".github/workflows/solver-performance-fix.yml",
+  ".github/workflows/fix-teaching-allocation-streams.yml",
+];
+for (const path of repairWorkflows) {
+  const workflow = readFileSync(new URL("../" + path, import.meta.url), "utf8");
+  assert.ok(workflow.includes("workflow_dispatch:"), `Stale auto-repair workflow must be manual-only: ${path}`);
+  assert.ok(!/^  push:/m.test(workflow), `Stale auto-repair workflow must not run on every push: ${path}`);
+  assert.ok(!workflow.includes("git push") && !workflow.includes("git commit"), `Automated repair workflow must not mutate main directly: ${path}`);
+}
+
 console.log('Timetable and Classes contracts passed: approved menu, teacher workflows, Classes regression checks, account-scoped backend persistence, and no classroom catalogue panel.');
