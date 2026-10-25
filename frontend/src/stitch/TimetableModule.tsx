@@ -42,6 +42,8 @@ export default function TimetableModule() {
   const [editor, setEditor] = useState<{ day: string; period: number; lesson?: Lesson } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [setupTab, setSetupTab] = useState<'basic' | 'bell' | 'subjects' | 'classes'>('basic')
+  const [daysDialogOpen, setDaysDialogOpen] = useState(false)
+  const [dayNamesDraft, setDayNamesDraft] = useState<string[]>([])
   const [catalogueValue, setCatalogueValue] = useState('')
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
   const [subjectDialog, setSubjectDialog] = useState<{mode:'new'|'edit';originalName?:string;form:SubjectForm}|null>(null)
@@ -213,6 +215,7 @@ export default function TimetableModule() {
         <p className="phikila-tt-help">School day count controls the displayed days. Existing lessons on removed days are retained in saved data but hidden until those days are enabled again.</p>
         <div className="phikila-tt-school-quick-actions">
           <button type="button" className="phikila-tt-button" onClick={() => setSetupTab('bell')}>Configure bell times / periods</button>
+          <button type="button" className="phikila-tt-button" onClick={() => { setDayNamesDraft(data.days.slice()); setDaysDialogOpen(true) }}>Rename days</button>
           <button type="button" className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>＋ Add break between lessons</button>
         </div>
       </div>}
@@ -238,6 +241,7 @@ export default function TimetableModule() {
       {setupTab === 'classes' && <div><form className="phikila-tt-spec-add" onSubmit={event=>{event.preventDefault();const value=catalogueValue.trim();if(!value)return;setData(current=>({...current,specification:{...current.specification,classes:unique([...current.specification.classes,value])}}));setCatalogueValue('')}}><input aria-label="New class" placeholder="Enter class name" value={catalogueValue} onChange={event=>setCatalogueValue(event.target.value)}/><button className="phikila-tt-button phikila-tt-button-primary" type="submit">Add</button></form><ul className="phikila-tt-spec-list">{data.specification.classes.map(item=><li key={item}><span>{item}</span><button className="phikila-tt-button phikila-tt-danger" onClick={()=>setData(current=>({...current,specification:{...current.specification,classes:current.specification.classes.filter(value=>value!==item)}}))}>Remove</button></li>)}</ul></div>}
       <div className="phikila-tt-settings-save"><button className="phikila-tt-button" onClick={() => setSettingsOpen(false)}>Close</button><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save school settings</button></div>
     </section>}
+    {daysDialogOpen && <div className="phikila-tt-modal-backdrop" role="dialog" aria-modal="true" aria-label="Rename school days" onMouseDown={event => { if (event.target === event.currentTarget) setDaysDialogOpen(false) }}><section className="phikila-tt-modal" style={{width:'min(520px, calc(100vw - 24px))',maxHeight:'85vh',overflowY:'auto'}}><header className="phikila-tt-school-titlebar"><strong>Rename days</strong><button type="button" aria-label="Close" onClick={() => setDaysDialogOpen(false)}>×</button></header><p className="phikila-tt-help">Edit the day names used by the timetable. Changes are saved to the school database when you press Save.</p><div style={{display:'grid',gap:8,padding:12}}>{dayNamesDraft.map((day,index)=><label key={index} style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 100px',alignItems:'center',gap:8}}>Day {index+1}<input value={day} onChange={event=>setDayNamesDraft(current=>current.map((name,i)=>i===index?event.target.value:name))} /></label>)}</div><footer className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setDaysDialogOpen(false)}>Cancel</button><button type="button" className="is-primary" onClick={() => { const days=dayNamesDraft.map(day=>day.trim()); if(days.some(day=>!day)){setError('Every school day must have a name.');return} if(new Set(days.map(day=>day.toLowerCase())).size!==days.length){setError('School day names must be unique.');return} void persistWorkspace({...data,days,numberOfDays:days.length},'save school days').then(saved=>{if(saved)setDaysDialogOpen(false)}) }}>Save days</button></footer></section></div>}
     {breakDialog && <BreakEditorDialog value={breakDialog.form} lessonCount={data.periods.filter(p => p.type !== 'break').length} onChange={form => setBreakDialog(current => current ? {...current,form} : current)} onClose={() => setBreakDialog(null)} onSave={() => {
       const form = breakDialog.form;
       const minutes = (time: string) => { const parts = time.split(':').map(Number); return parts[0]*60+parts[1]; };
