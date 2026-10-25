@@ -5,7 +5,7 @@ const source = readFileSync(path, 'utf8');
 
 const requiredActions = [
   'New', 'Open', 'Save', 'Print', 'Print preview', 'Subjects', 'Classes',
-  'Classrooms', 'Teachers', 'Relations', 'Test', 'Generate new',
+  'Teachers', 'Relations', 'Test', 'Generate new',
   'Generate in cloud', 'Verification', 'School', 'Timetables Online',
   'Questions? Comments? Write us',
 ];
@@ -17,12 +17,14 @@ const missingMenus = requiredMenus.filter((label) => {
 });
 const forbidden = ['Students / Seminars', 'Students-\\nSeminars', 'Students /\\nSeminars']
   .filter((label) => source.includes(label));
+const classroomCatalogueReintroduced = source.includes('go("Classrooms")');
 
-if (missing.length || missingMenus.length || forbidden.length) {
+if (missing.length || missingMenus.length || forbidden.length || classroomCatalogueReintroduced) {
   console.error('Timetable menu contract failed.');
   if (missing.length) console.error('Missing toolbar actions:', missing.join(', '));
   if (missingMenus.length) console.error('Missing top menus:', missingMenus.join(', '));
   if (forbidden.length) console.error('Removed toolbar item reintroduced:', forbidden.join(', '));
+  if (classroomCatalogueReintroduced) console.error('Removed Classrooms catalogue shortcut must not return to the timetable ribbon.');
   process.exit(1);
 }
 
@@ -37,6 +39,43 @@ if (!source.includes('width: "100%"') ||
 const timetable = readFileSync('frontend/src/stitch/TimetableModule.tsx', 'utf8');
 const appRoutes = readFileSync('frontend/src/App.tsx', 'utf8');
 const appShell = readFileSync('frontend/src/components/AppShell.tsx', 'utf8');
+const classesModule = readFileSync('frontend/src/stitch/ClassesWorkspaceModule.tsx', 'utf8');
+const timetableBackend = readFileSync('app/modules/timetable/router.py', 'utf8');
+const application = readFileSync('app/main.py', 'utf8');
+
+const requiredClassesContracts = [
+  ['Classes workspace mounted from timetable', 'ClassesWorkspaceModule'],
+  ['double-click opens lessons', "setDialog('lessons')"],
+  ['class changes flow through workspace save state', 'onSave(nextClasses,nextLessons,nextDetails)'],
+  ['time-off grid persists with class details', 'timeOffGrid'],
+  ['lesson removal requires explicit confirmation', "window.confirm('Remove this '+target.subject+' lesson from '+selected+'?')"],
+  ['class removal protects linked timetable lessons', 'This class has timetable lessons'],
+];
+const missingClassesContracts = requiredClassesContracts
+  .filter(([, marker]) => !classesModule.includes(marker) && !timetable.includes(marker))
+  .map(([label]) => label);
+const requiredBackendContracts = [
+  ['account-scoped timetable storage model', 'tt_timetable_ribbon_workspaces'],
+  ['authenticated workspace reads', 'Depends(get_supabase_claims)'],
+  ['workspace ownership is derived from auth claims', '_owner(claims)'],
+  ['workspace writes commit to the database', 'db.commit()'],
+  ['timetable payload validation before saving', '_validate(payload.data)'],
+  ['workspace table registered at startup', 'TimetableRibbonWorkspace.__table__'],
+];
+const missingBackendContracts = requiredBackendContracts
+  .filter(([, marker]) => !timetableBackend.includes(marker) && !application.includes(marker))
+  .map(([label]) => label);
+if (missingClassesContracts.length || missingBackendContracts.length) {
+  console.error('Classes workspace/backend contract failed.');
+  if (missingClassesContracts.length) console.error('Missing Classes safeguards/features:', missingClassesContracts.join(', '));
+  if (missingBackendContracts.length) console.error('Missing backend safeguards:', missingBackendContracts.join(', '));
+  process.exit(1);
+}
+if (classesModule.includes('Manage the saved classrooms catalogue') || classesModule.includes('Room 1Remove')) {
+  console.error('Removed classroom catalogue panel must not return inside Classes.');
+  process.exit(1);
+}
+
 
 const requiredTeacherContracts = [
   ['teacher contract dialog', 'function TeacherContractDialog'],
@@ -77,4 +116,4 @@ if (destructiveMigrationMatches.length) {
   process.exit(1);
 }
 
-console.log('Timetable menu and teacher lesson contracts passed: menu protection, teacher routing, contract dialog, conflict-aware lesson creation, and no sample teacher data.');
+console.log('Timetable and Classes contracts passed: approved menu, teacher workflows, Classes regression checks, account-scoped backend persistence, and no classroom catalogue panel.');
