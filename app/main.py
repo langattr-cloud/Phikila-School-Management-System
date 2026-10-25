@@ -31,6 +31,8 @@ from app.modules.school.router import router as school_router
 from app.modules.subjects.timetable_profiles import router as timetable_subjects_router, TimetableSubjectProfile
 from app.modules.students.import_router import router as students_import_router
 from app.modules.students.router_v2 import router as students_router
+from app.modules.timetabling.router import router as timetabling_router
+from app.modules.timetabling import models as timetabling_models  # register additive timetable tables
 from app.modules.users.router import router as users_router
 from app.modules.timetable.router import router as timetable_workspace_router, TimetableRibbonWorkspace
 
@@ -100,8 +102,10 @@ def create_app() -> FastAPI:
         _guard_module_routes(finance_module_router, "finance")
     _guard_module_routes(ocr_router, "ai_tools")
     _guard_module_routes(academics_router, "students")
+    _guard_module_routes(timetabling_router, "timetabling")
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
     app.include_router(users_router, prefix="/api/v1/users", tags=["Users"], dependencies=protected)
+    app.include_router(timetabling_router, dependencies=protected)
     app.include_router(school_router, prefix="/api/v1/school", tags=["School Profile"], dependencies=protected)
     app.include_router(students_import_router, prefix="/api/v1", tags=["Students"])
     app.include_router(students_router, prefix="/api/v1", tags=["Students"])

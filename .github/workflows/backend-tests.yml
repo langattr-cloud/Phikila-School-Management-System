@@ -7,6 +7,8 @@ on:
       - 'tests/**'
       - 'conftest.py'
       - 'requirements.txt'
+      - 'alembic/**'
+      - 'alembic.ini'
       - '.github/workflows/backend-tests.yml'
   push:
     branches:
@@ -30,3 +32,34 @@ jobs:
         run: python -m unittest discover -s app -t . -p 'test*.py' -v
       - name: Run repository pytest suite
         run: python -m pytest tests -q
+
+  migration-chain:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: phikila_migration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d phikila_migration_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/phikila_migration_test
+      ENVIRONMENT: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Upgrade full migration chain on disposable PostgreSQL
+        run: alembic upgrade head
+      - name: Downgrade latest revision and re-apply
+        run: alembic downgrade -1 && alembic upgrade head
