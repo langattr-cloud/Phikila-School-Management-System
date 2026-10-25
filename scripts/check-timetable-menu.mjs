@@ -119,6 +119,10 @@ if (destructiveMigrationMatches.length) {
 
 assert.ok(timetable.includes("case 'Subjects': setSection(null); setSetupTab('subjects'); setSettingsOpen(true); break"), "Subjects menu action must open the data-backed Subjects workspace");
 assert.ok(timetable.includes("setupTab === 'subjects' &&"), "Subjects workspace must remain mounted from the existing timetable settings flow");
+assert.ok(timetable.includes("function SubjectLessonsDialog"), "Subjects must expose a lessons dialog");
+assert.ok(timetable.includes("function SubjectTimeOffDialog"), "Subjects must expose a time-off grid dialog");
+assert.ok(timetable.includes("data.lessons.filter(lesson=>lesson.subject===item).length"), "Subject lesson counts must derive from saved timetable lessons");
+assert.ok(timetable.includes("timeOffGrid:grid"), "Subject time-off must be stored in the persisted workspace details");
 assert.ok(!/YEGON JUSTICE|OWINO MOSES|MOSONIK CYNTHIA|KIRUI GLORIA|TANGUS VICTOR|LANGAT LEONARD/.test(timetable), "Sample lesson/teacher data must not be hardcoded into the live timetable workspace");
 
 const repairWorkflows = [
