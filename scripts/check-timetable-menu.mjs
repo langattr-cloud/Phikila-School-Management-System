@@ -60,4 +60,21 @@ if (missingTeacherContracts.length || sampleTeacherData) {
   process.exit(1);
 }
 
+
+const resetMigration = readFileSync('alembic/versions/20261022_remove_legacy_timetable_module.py', 'utf8');
+const destructiveMigrationPatterns = [
+  /DROP\\s+TABLE/i,
+  /DROP\\s+COLUMN/i,
+  /DELETE\\s+FROM/i,
+  /TRUNCATE\\s+/i,
+];
+const destructiveMigrationMatches = destructiveMigrationPatterns
+  .filter((pattern) => pattern.test(resetMigration))
+  .map((pattern) => pattern.toString());
+if (destructiveMigrationMatches.length) {
+  console.error('Data-preservation guard failed: the legacy timetable migration must not drop tables or delete existing data.');
+  console.error('Forbidden operations:', destructiveMigrationMatches.join(', '));
+  process.exit(1);
+}
+
 console.log('Timetable menu and teacher lesson contracts passed: menu protection, teacher routing, contract dialog, conflict-aware lesson creation, and no sample teacher data.');
