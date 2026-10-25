@@ -4,7 +4,6 @@ import { strict as assert } from 'node:assert';
 const path = 'frontend/src/stitch/AscTimetableMenu.tsx';
 const source = readFileSync(path, 'utf8');
 
-const timetable = readFileSync('frontend/src/stitch/TimetableModule.tsx', 'utf8');
 const periodsMaster = readFileSync('frontend/src/stitch/PeriodsMaster.tsx', 'utf8');
 const periodsStyles = readFileSync('frontend/src/stitch/periods-master.css', 'utf8');
 
