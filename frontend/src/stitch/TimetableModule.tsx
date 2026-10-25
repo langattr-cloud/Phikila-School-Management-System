@@ -215,7 +215,7 @@ export default function TimetableModule() {
         <p className="phikila-tt-help">School day count controls the displayed days. Existing lessons on removed days are retained in saved data but hidden until those days are enabled again.</p>
         <div className="phikila-tt-school-quick-actions">
           <button type="button" className="phikila-tt-button" onClick={() => setSetupTab('bell')}>Configure bell times / periods</button>
-          <button type="button" className="phikila-tt-button" onClick={() => setDaysDialogOpen(true)>Rename days</button>
+          <button type="button" className="phikila-tt-button" onClick={() => setDaysDialogOpen(true)}>Rename days</button>
           <button type="button" className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>＋ Add break between lessons</button>
         </div>
       </div>}
