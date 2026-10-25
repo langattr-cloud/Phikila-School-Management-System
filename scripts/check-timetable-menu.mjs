@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { strict as assert } from 'node:assert';
 
 const path = 'frontend/src/stitch/AscTimetableMenu.tsx';
 const source = readFileSync(path, 'utf8');
