@@ -63,7 +63,7 @@ export default function PeriodsMaster({
   const selected = rows[selectedIndex]
   const editRow = rows.find(row => row.key === editingKey) || null
   const openEdit = (row: Row) => { setEditingKey(row.key); setEditForm(toEditForm(row)); setError('') }
-  const updateForm = <K extends keyof EditForm>(key: K, value: EditForm[K]) => setEditForm(current => current ? { ...current, [key]: value } : current)
+  const updateForm = <K extends keyof EditForm,>(key: K, value: EditForm[K]) => setEditForm(current => current ? { ...current, [key]: value } : current)
 
   const saveEdit = () => {
     if (!editForm || !editRow) return
