@@ -178,6 +178,5 @@ export default function PeriodsMaster({
         </div>
       </section>
     </div>}
-      </div>
   </div>
 }
