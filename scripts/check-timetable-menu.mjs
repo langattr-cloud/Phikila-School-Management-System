@@ -4,6 +4,10 @@ import { strict as assert } from 'node:assert';
 const path = 'frontend/src/stitch/AscTimetableMenu.tsx';
 const source = readFileSync(path, 'utf8');
 
+const timetable = readFileSync('frontend/src/stitch/TimetableModule.tsx', 'utf8');
+const periodsMaster = readFileSync('frontend/src/stitch/PeriodsMaster.tsx', 'utf8');
+const periodsStyles = readFileSync('frontend/src/stitch/periods-master.css', 'utf8');
+
 const requiredActions = [
   'New', 'Open', 'Save', 'Print', 'Print preview', 'Subjects', 'Classes',
   'Teachers', 'Relations', 'Test', 'Generate new',
@@ -156,3 +160,23 @@ for (const [label, marker] of [
 assert.ok(!timetableBackend.includes('lesson.get("day") not in days'), "Backend must preserve lessons assigned to temporarily hidden days");
 assert.ok(timetableBackend.includes('needs a named day'), "Backend must reject empty lesson day labels");
 console.log("Rename Days UI, persistence, and hidden-day regression guards passed.");
+
+const periodsMasterContract = [
+  ["School settings opens the combined periods manager", "onClick={() => setPeriodsMasterOpen(true)}>Rename periods / Bell times</button>"],
+  ["Periods manager receives saved workspace periods", "initialPeriods={data.periods}"],
+  ["Period changes persist through the shared workspace API", "persistWorkspace(nextData, 'save periods and bell times')"],
+  ["Lesson period indexes are remapped after reorder and delete", "const nextPeriod = oldIndexToNewIndex[lesson.period]"],
+  ["Period editor supports renaming", "Edit / Rename"],
+  ["Period editor exposes bell times and print options", "Printouts"],
+  ["Period editor can add breaks", "＋ Add break"],
+  ["Period manager is styled by its own stylesheet", "import './periods-master.css'"],
+];
+for (const [label, marker] of periodsMasterContract) {
+  assert.ok(
+    timetable.includes(marker) || periodsMaster.includes(marker) || periodsStyles.includes(marker),
+    `Missing School Periods manager safeguard: ${label}`,
+  );
+}
+assert.ok(timetable.includes("import PeriodsMaster from './PeriodsMaster'"), "School workspace must import the combined Periods manager");
+assert.ok(periodsMaster.includes("oldIndexToNewIndex"), "Periods manager must return the old-to-new period index map");
+console.log("School Periods manager UI, persistence, and lesson-index safeguards passed.");
