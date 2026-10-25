@@ -100,15 +100,15 @@ export default function AscTimetableMenu({ onNavigate }: AscTimetableMenuProps) 
 
 const S = {
   wrapper: { background: "#f0f4f8", borderBottom: "1px solid #a0a0a0", fontFamily: "Segoe UI, Tahoma, sans-serif", userSelect: "none" as const },
-  topBar: { display: "flex", alignItems: "center", gap: "2px", padding: "2px 6px", background: "#fff", borderBottom: "1px solid #d0d0d0" },
+  topBar: { display: "flex", alignItems: "center", gap: "1px", padding: "2px 4px", background: "#fff", borderBottom: "1px solid #d0d0d0", flexWrap: "wrap" as const },
   appIcon: { width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center" },
-  topBtn: { border: "1px solid transparent", padding: "3px 10px", fontSize: "13px", cursor: "pointer", borderRadius: "3px", background: "transparent" },
+  topBtn: { border: "1px solid transparent", padding: "3px 8px", fontSize: "12px", cursor: "pointer", borderRadius: "3px", background: "transparent" },
   dropdown: { position: "absolute" as const, top: "100%", left: 0, background: "#fff", border: "1px solid #888", boxShadow: "2px 2px 8px rgba(0,0,0,0.2)", minWidth: "160px", zIndex: 100, padding: "4px 0" },
   dropItem: { padding: "6px 16px", fontSize: "12px", cursor: "pointer" },
-  ribbon: { display: "flex", alignItems: "flex-start", padding: "6px 10px", gap: "10px", overflowX: "auto" as const, background: "linear-gradient(to bottom, #ffffff, #e8eef7)" },
-  ribbonGroup: { display: "flex", gap: "4px", alignItems: "flex-start" },
-  ribbonBtn: { display: "flex", flexDirection: "column" as const, alignItems: "center", gap: "3px", border: "1px solid transparent", background: "transparent", padding: "4px 6px", cursor: "pointer", minWidth: "62px", borderRadius: "4px" },
-  iconBox: { width: "36px", height: "36px", border: "1px solid #c0c0c0", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", borderRadius: "3px" },
-  select: { width: "120px", height: "24px", fontSize: "12px", border: "1px solid #999", background: "#fff" },
-  divider: { width: "1px", height: "52px", background: "#c0c0c0", margin: "0 6px", alignSelf: "center" as const },
+  ribbon: { display: "flex", alignItems: "flex-start", flexWrap: "wrap" as const, padding: "4px 6px", gap: "4px", overflow: "visible", background: "linear-gradient(to bottom, #ffffff, #e8eef7)", width: "100%", boxSizing: "border-box" as const },
+  ribbonGroup: { display: "flex", flexWrap: "wrap" as const, flex: "1 1 auto", gap: "2px", alignItems: "flex-start", minWidth: 0 },
+  ribbonBtn: { display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "flex-start", gap: "2px", border: "1px solid transparent", background: "transparent", padding: "3px 3px", cursor: "pointer", flex: "1 1 54px", minWidth: "46px", maxWidth: "76px", minHeight: "56px", borderRadius: "4px", boxSizing: "border-box" as const },
+  iconBox: { width: "28px", height: "28px", border: "1px solid #c0c0c0", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", borderRadius: "3px", flexShrink: 0 },
+  select: { width: "88px", height: "22px", fontSize: "11px", border: "1px solid #999", background: "#fff", maxWidth: "100%" },
+  divider: { width: "1px", minWidth: "1px", height: "46px", background: "#c0c0c0", margin: "0 2px", alignSelf: "center" as const },
 };
