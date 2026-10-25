@@ -95,7 +95,7 @@
 .phikila-tt-break-row .period-cell,.phikila-tt-break-row .phikila-tt-cell{background:#f1f5f9}
 .phikila-tt-break-row .period-cell{color:#64748b}
 .phikila-tt-break-row .phikila-tt-cell:after{content:'BREAK / NON-TEACHING TIME';display:block;color:#64748b;font-size:10px;letter-spacing:.04em;padding:3px 0}
-@media(max-width:700px){.phikila-tt-school-form{grid-template-columns:1fr}.phikila-tt-period-row{grid-template-columns:1fr 1fr}.phikila-tt-period-row input:nth-of-type(1){grid-column:1/-1}}
+@media(max-width:850px){.phikila-tt-school-form{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.phikila-tt-school-form{grid-template-columns:1fr}.phikila-tt-period-row{grid-template-columns:1fr 1fr}.phikila-tt-period-row input:nth-of-type(1){grid-column:1/-1}}
 
 
 /* Timetable is a dedicated full-screen workspace: hide dashboard chrome while active. */
