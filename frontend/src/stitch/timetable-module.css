@@ -220,3 +220,6 @@
  .phikila-ribbon-filter{justify-content:flex-start}
  .phikila-ribbon-filter .phikila-whose{flex-wrap:wrap}
 }
+
+.phikila-tt-school-quick-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #d6dee8}
+.phikila-tt-school-quick-actions .phikila-tt-button{min-height:36px}
