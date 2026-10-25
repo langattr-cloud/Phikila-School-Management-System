@@ -303,3 +303,12 @@
 @media(max-width:560px){.phikila-tt-new-lesson-card{gap:6px;padding:8px}.phikila-tt-new-lesson-icon{width:28px;flex-basis:28px}.phikila-tt-new-lesson-checks{grid-template-columns:1fr}.phikila-tt-new-lesson-row>select:nth-child(2){width:100px}}
 
 .phikila-tt-new-lesson-note{margin:0;color:#5b6473;font-size:11px}
+
+/* School settings dialog */
+.phikila-tt-settings.phikila-tt-school-window{position:fixed;z-index:9000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(860px,96vw);max-height:94vh;overflow:auto;box-shadow:0 0 0 100vmax rgba(0,0,0,.38),0 16px 40px #0003;border:1px solid #8a96a5;border-radius:4px;padding:0;background:#fff}
+.phikila-tt-school-titlebar{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;padding:6px 12px;background:#f0f2f5;border-bottom:1px solid #cbd5e1;font-size:12px}
+.phikila-tt-school-titlebar button{width:26px;height:24px;border:1px solid #aab4c0;background:#fff;border-radius:3px;font-size:18px;line-height:1;cursor:pointer}
+.phikila-tt-school-window>.phikila-tt-setup-tabs{margin:0;padding:10px 12px 8px;background:#e9edf2}
+.phikila-tt-school-window>.phikila-tt-school-form,.phikila-tt-school-window>div:not(.phikila-tt-setup-tabs){margin:12px;padding:12px}
+.phikila-tt-school-window .phikila-tt-settings-save{position:sticky;bottom:0;background:#fff;border-top:1px solid #d7dee8;padding:10px 12px}
+@media(max-width:700px){.phikila-tt-settings.phikila-tt-school-window{width:calc(100vw - 16px);max-height:96vh}.phikila-tt-school-window .phikila-tt-school-form{grid-template-columns:1fr}}
