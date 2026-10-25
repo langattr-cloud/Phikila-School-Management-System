@@ -1,0 +1,4 @@
+# Timetable menu is a protected UI contract. Keep its owner involved in changes.
+frontend/src/stitch/AscTimetableMenu.tsx @langattr-cloud
+scripts/check-timetable-menu.mjs @langattr-cloud
+.github/workflows/timetable-menu-guard.yml @langattr-cloud
