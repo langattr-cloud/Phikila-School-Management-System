@@ -9,7 +9,7 @@ type SubjectDetail = { short: string; color: string; number: string; customField
 type SubjectForm = { title: string; short: string; color: string; number: string; customFields: string; classrooms: string[] }
 type Workspace = { schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail> }
 type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
-type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Students' | 'Relations' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Year/Class Online' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions/Comments' | 'Questions? / Write us' | 'About' | 'Generate' | 'Help' | 'Timetables Online'
+type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Students' | 'Relations' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Year/Class Online' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions/Comments' | 'Questions? / Write us' | 'Questions? Comments? Write us' | 'About' | 'Periods' | 'View timetable' | 'Year Online' | 'Generate' | 'Help' | 'Timetables Online'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const DEFAULT_PERIODS: Period[] = [
@@ -29,13 +29,13 @@ function RibbonButton({ label, glyph, tint, onClick }: { label: string; glyph: s
 function MainMenu({ onAction, whose, onWhoseChange }: { onAction: (action: Action) => void; whose: Whose; onWhoseChange: (value: Whose) => void }) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const menus: Record<string, Action[]> = {
-    Main: ['New', 'Open', 'Save', 'Print', 'Print preview', 'Exit'],
-    File: ['New', 'Open', 'Save', 'Save As', 'Import', 'Export', 'Print', 'Print preview', 'Settings', 'Exit'],
-    Specification: ['Subjects', 'Classes', 'Classrooms', 'Teachers', 'Students', 'Relations', 'Lessons'],
-    View: ['Timetable', 'Summary', 'Zoom'],
-    Timetable: ['Generate new', 'Generate in cloud', 'Test', 'Verification'],
-    Options: ['School', 'Bell times', 'Year/Class Online', 'Constraints'],
-    Help: ['Contents', 'Questions/Comments', 'About'],
+    Main: ['Subjects', 'Classes', 'Classrooms', 'Teachers', 'Students', 'Relations'],
+    File: ['New', 'Open', 'Save', 'Print', 'Print preview'],
+    Specification: ['Periods', 'Subjects', 'Classes', 'Teachers'],
+    View: ['View timetable'],
+    Timetable: ['Generate new', 'Generate in cloud'],
+    Options: ['School', 'Verification', 'Year Online'],
+    Help: ['Questions? Comments? Write us'],
   }
   const items: { label: Action; glyph: string; tint?: string }[] = [
     { label: 'New', glyph: '▤' }, { label: 'Open', glyph: '▱' }, { label: 'Save', glyph: '▣' },
@@ -172,10 +172,10 @@ export default function TimetableModule() {
       case 'Print preview': setPreviewOpen(true); break
       case 'Test': case 'Verification': void runTest(); break
       case 'Generate': { const result = generateSchedule(data); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved') } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save') } break }
-      case 'Help': case 'Contents': case 'Questions/Comments': case 'Questions? / Write us': case 'About': setStatus('Phikila Timetable Help · Use the menu bar for File, Specification, View, Timetable, Options, and Help actions.'); break
+      case 'Help': case 'Contents': case 'Questions/Comments': case 'Questions? / Write us': case 'Questions? Comments? Write us': case 'About': setStatus('Phikila Timetable Help · Use the menu bar for File, Specification, View, Timetable, Options, and Help actions.'); break
       case 'School': case 'Settings': setSetupTab('basic'); setSettingsOpen(true); break
-      case 'Year/Class Online': case 'Timetables Online': setStatus('Year/Class Online · online publishing will be available after the timetable is generated and approved.'); break
-      case 'Bell times': setSetupTab('bell'); setSettingsOpen(true); break
+      case 'Year/Class Online': case 'Year Online': case 'Timetables Online': setStatus('Year/Class Online · online publishing will be available after the timetable is generated and approved.'); break
+      case 'Bell times': case 'Periods': setSetupTab('bell'); setSettingsOpen(true); break
       case 'Exit': setStatus('Use the main application navigation to leave the timetable.'); break
       case 'Generate new': {
         const result = generateSchedule(data)
@@ -190,7 +190,7 @@ export default function TimetableModule() {
         break
       }
       case 'Generate in cloud': setError('Cloud generation is not connected yet. Use Generate new for the local draft generator.'); break
-      case 'Timetable': setSection(null); break
+      case 'Timetable': case 'View timetable': setSection(null); break
       case 'Summary': setStatus('Summary · ' + data.lessons.length + ' lessons across ' + data.days.length + ' days'); break
       case 'Zoom': setStatus('Use browser zoom to adjust the timetable scale.'); break
       case 'Constraints': setSection('Constraints'); break
