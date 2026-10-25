@@ -8,6 +8,7 @@ on:
       - 'frontend/src/App.tsx'
       - 'frontend/src/components/AppShell.tsx'
       - 'scripts/check-timetable-menu.mjs'
+      - 'alembic/versions/20261022_remove_legacy_timetable_module.py'
       - '.github/workflows/timetable-menu-guard.yml'
   push:
     branches:
