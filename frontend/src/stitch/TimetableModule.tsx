@@ -248,7 +248,8 @@ export default function TimetableModule() {
       onSave={async (entries: DayEntry[]) => {
         const days = entries.map(day => day.name.trim())
         const dayDetails = Object.fromEntries(entries.map(day => [day.name.trim(), { short: day.short, desc: day.desc, combinedDays: day.combinedDays }]))
-        const nextData: Workspace = { ...data, days, dayDetails, numberOfDays: days.length, lessons: data.lessons.filter(lesson => days.includes(lesson.day)) }
+        const renamedDays = new Map(entries.filter(day => day.originalName).map(day => [day.originalName as string, day.name.trim()]))
+        const nextData: Workspace = { ...data, days, dayDetails, numberOfDays: days.length, lessons: data.lessons.map(lesson => ({ ...lesson, day: renamedDays.get(lesson.day) || lesson.day })) }
         if (await persistWorkspace(nextData, 'save school days')) setDaysDialogOpen(false)
       }}
     />}
@@ -325,7 +326,7 @@ function BreakEditorDialog({value,lessonCount,onChange,onClose,onSave}:{value:Br
 function normaliseWorkspace(value: Partial<Workspace>): Workspace {
   const days = Array.isArray(value.days) && value.days.length ? value.days.filter(day => typeof day === 'string' && day.trim()) : [...DAYS]
   const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ ...period, name: period.name, start: period.start || '', end: period.end || '', type: period.type === 'break' || /break|lunch|recess|games/i.test(period.name) ? 'break' as const : 'lesson' as const })) : DEFAULT_PERIODS.map(period => ({ ...period }))
-  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && days.includes(lesson.day) && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked) })) : []
+  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && typeof lesson.day === 'string' && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked) })) : []
   const rawSpec = value.specification as Partial<Specification> | undefined
   const specification: Specification = {
     subjects: Array.isArray(rawSpec?.subjects) ? unique(rawSpec.subjects.filter(item => typeof item === 'string')) : [...EMPTY.specification.subjects],
