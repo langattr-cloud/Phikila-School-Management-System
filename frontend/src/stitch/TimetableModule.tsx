@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useNavigate } from '../lib/router'
 import { apiFetch, friendlyApiError } from '../lib/api'
 import AscTimetableMenu from './AscTimetableMenu'
 import './timetable-module.css'
@@ -29,6 +30,7 @@ function RibbonButton({ label, glyph, tint, onClick }: { label: string; glyph: s
 }
 
 export default function TimetableModule() {
+  const navigate = useNavigate()
   const [data, setData] = useState<Workspace>(EMPTY)
   const [whose, setWhose] = useState<Whose>('All')
   const [filter, setFilter] = useState('')
