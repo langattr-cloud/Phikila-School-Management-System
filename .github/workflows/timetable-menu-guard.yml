@@ -14,6 +14,9 @@ on:
       - main
     paths:
       - 'frontend/src/stitch/AscTimetableMenu.tsx'
+      - 'frontend/src/stitch/TimetableModule.tsx'
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/components/AppShell.tsx'
       - 'scripts/check-timetable-menu.mjs'
       - '.github/workflows/timetable-menu-guard.yml'
 
