@@ -276,3 +276,28 @@
 .phikila-tt-contract-footer button{min-height:30px;padding:5px 12px;background:#fafafa;border:1px solid #9ca3af;border-bottom:2px solid #888;font-size:12px;cursor:pointer}
 .phikila-tt-contract-footer button:disabled{opacity:.45;cursor:not-allowed}.phikila-tt-contract-footer span{flex:1}
 @media(max-width:620px){.phikila-tt-contract-window{width:100%;height:96vh}.phikila-tt-contract-table th,.phikila-tt-contract-table td{padding:7px}}
+
+
+.phikila-tt-new-lesson-window{width:min(760px,94vw);max-height:92vh;overflow:auto;background:#f0f1f4;border:1px solid #667085;box-shadow:0 18px 60px rgba(0,0,0,.32);color:#172033}
+.phikila-tt-new-lesson-body{padding:9px;display:flex;flex-direction:column;gap:7px}
+.phikila-tt-new-lesson-card{display:flex;gap:12px;align-items:flex-start;padding:11px 12px;background:#e8ebef;border:1px solid #c4cad3}
+.phikila-tt-new-lesson-icon{width:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;min-height:32px;font-size:25px;color:#344563}
+.phikila-tt-new-lesson-content{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:7px}
+.phikila-tt-new-lesson-content>label{font-size:12px;font-weight:650}
+.phikila-tt-new-lesson-content select,.phikila-tt-new-lesson-content input{box-sizing:border-box;min-width:0;height:29px;padding:4px 8px;border:1px solid #9ca3af;border-radius:2px;background:#fff;color:#172033;font-size:12px}
+.phikila-tt-new-lesson-content>select{width:min(100%,460px)}
+.phikila-tt-new-lesson-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%}
+.phikila-tt-new-lesson-row>select:first-child{flex:1;min-width:150px}
+.phikila-tt-new-lesson-row>select:nth-child(2){width:120px}
+.phikila-tt-new-lesson-row>button,.phikila-tt-new-lesson-content>button{height:29px;padding:4px 12px;border:1px solid #a0a7b2;background:#f9fafb;font-size:11px;cursor:pointer}
+.phikila-tt-new-lesson-row>span{font-size:11px;color:#5b6473}
+.phikila-tt-new-lesson-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;width:100%}
+.phikila-tt-new-lesson-checks label{display:flex;align-items:center;gap:6px;font-size:12px}
+.phikila-tt-new-lesson-checks input{width:14px;height:14px}
+.phikila-tt-new-lesson-row input{flex:1;width:120px}
+.phikila-tt-new-lesson-error{margin:0;padding:8px 10px;border:1px solid #e5a4a4;background:#fff0f0;color:#9b1c1c;font-size:12px}
+.phikila-tt-new-lesson-footer{display:flex;align-items:center;gap:8px;padding:11px;border-top:1px solid #c5cad2;background:#f0f1f4}
+.phikila-tt-new-lesson-footer span{flex:1}
+.phikila-tt-new-lesson-footer button{min-width:100px;height:31px;border:1px solid #9ca3af;border-bottom:2px solid #858b95;background:#fafafa;font-size:12px;cursor:pointer}
+.phikila-tt-new-lesson-footer button:last-child{font-weight:700;min-width:150px}
+@media(max-width:560px){.phikila-tt-new-lesson-card{gap:6px;padding:8px}.phikila-tt-new-lesson-icon{width:28px;flex-basis:28px}.phikila-tt-new-lesson-checks{grid-template-columns:1fr}.phikila-tt-new-lesson-row>select:nth-child(2){width:100px}}
