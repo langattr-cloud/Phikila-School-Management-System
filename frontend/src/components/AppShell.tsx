@@ -28,7 +28,7 @@ const PLATFORM_NAV: NavGroup = {
 const NAV: NavGroup[] = [
   { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }] },
   { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Level, Grade & Stream', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }] },
-  { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }] },
+  { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers & classes', icon: <UserIcon /> }] },
   { label: 'Operations', items: [{ to: '/timetable', label: 'Timetable', icon: <GridIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
   { label: 'Examination', items: [{ to: '/examinations', label: 'Examination', icon: <StackedLayersIcon /> }] },
   { label: 'Tools & insights', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }] },
@@ -56,6 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const moduleForPath = (to: string): string | null => {
     if (to.startsWith('/platform/')) return null
     if (to.startsWith('/students')) return 'students'
+    if (to.startsWith('/setup/teachers')) return 'staff'
     if (to.startsWith('/examinations')) return 'examinations'
     if (to.startsWith('/finance')) return 'finance'
     if (to.startsWith('/ocr')) return 'ai_tools'
