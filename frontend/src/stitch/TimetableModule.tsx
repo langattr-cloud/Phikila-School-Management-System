@@ -8,7 +8,8 @@ type Period = { name: string; start: string; end: string; type?: 'lesson' | 'bre
 type Specification = { subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[] }
 type SubjectDetail = { short: string; color: string; number: string; customFields: string; classrooms: string[] }
 type SubjectForm = { title: string; short: string; color: string; number: string; customFields: string; classrooms: string[] }
-type Workspace = { schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail> }
+type TeacherDetail = { firstName: string; short: string; color: string; classTeacher: string; contract: string; email: string; phone: string; title1: string; title2: string; number: string; male: boolean; timeOffGrid: number[][] }
+type Workspace = { schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail>; teacherDetails?: Record<string, TeacherDetail> }
 type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
 type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Students' | 'Relations' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Year/Class Online' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions/Comments' | 'Questions? / Write us' | 'Questions? Comments? Write us' | 'About' | 'Periods' | 'View timetable' | 'Year Online' | 'Generate' | 'Help' | 'Timetables Online' | 'Classrooms view' | 'Teachers view'
 
@@ -43,6 +44,7 @@ export default function TimetableModule() {
   const [breakDialog, setBreakDialog] = useState<{ index: number | null; form: BreakForm } | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [section, setSection] = useState<string | null>(null)
+  const [teachersOpen, setTeachersOpen] = useState(false)
   const [specValue, setSpecValue] = useState('')
   const [form, setForm] = useState({ className: '', subject: '', teacher: '', room: '', locked: false })
   const fileRef = useRef<HTMLInputElement>(null)
@@ -161,12 +163,14 @@ export default function TimetableModule() {
       case 'Zoom': setStatus('Use browser zoom to adjust the timetable scale.'); break
       case 'Constraints': setSection('Constraints'); break
       case 'Subjects': setSection(null); setSetupTab('subjects'); setSettingsOpen(true); break
-      case 'Classes': case 'Classrooms': case 'Teachers': case 'Students': case 'Relations': case 'Lessons': setSection(action); break
+      case 'Teachers': setSection(null); setTeachersOpen(true); break
+      case 'Classes': case 'Classrooms': case 'Students': case 'Relations': case 'Lessons': setSection(action); break
     }
   }
   return <main className="phikila-tt">
     <header className="phikila-tt-heading"><div><p className="phikila-tt-eyebrow">PHIKILA · TIMETABLE MODULE</p><h1>{data.schoolName || 'School timetable'}</h1><p className="phikila-tt-subtitle">Academic year {data.academicYear} · Weekly timetable editor</p></div><div className="phikila-tt-heading-actions"><span className={'phikila-tt-status-dot ' + (loading ? 'is-loading' : '')} /><span>{loading ? 'Loading' : 'Workspace'}</span><button className="phikila-tt-button" onClick={() => void load()} disabled={loading}>Reload</button></div></header>
     <AscTimetableMenu onNavigate={name => { const action = name.replace(/\n/g, ' '); onAction((action === 'Students / Seminars' ? 'Students' : action) as Action) }} />
+    {teachersOpen && <TeachersWorkspaceModule teachers={data.specification.teachers} details={data.teacherDetails || {}} onClose={() => setTeachersOpen(false)} onSaveAll={(nextTeachers, nextDetails) => { setData(current => ({ ...current, specification: { ...current.specification, teachers: nextTeachers }, teacherDetails: nextDetails })); setTeachersOpen(false); setStatus('Teacher changes updated in the workspace · remember to Save'); }} />}
     <div className="phikila-tt-subbar"><strong>{whose === 'All' ? 'Whole school' : whose === 'Classes' ? 'Class timetable' : whose === 'Teachers' ? 'Teacher timetable' : 'Classroom timetable'}</strong>{filterOptions.length > 0 && <select aria-label={'Filter by ' + whose.toLowerCase()} value={filter} onChange={event => setFilter(event.target.value)}><option value="">All {whose.toLowerCase()}</option>{filterOptions.map(option => <option key={option}>{option}</option>)}</select>}<span className="phikila-tt-subbar-spacer" /><span>{data.lessons.length} lessons</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => openEditor(data.days[0], 0)}>+ Add lesson</button></div>
     {error && <div className="phikila-tt-alert" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
     {section && <section className="phikila-tt-info-panel"><div className="phikila-tt-specification"><div className="phikila-tt-panel-heading"><div><h2>{section}</h2><p>Manage the saved {section.toLowerCase()} catalogue. Changes are included when you save the workspace.</p></div><button className="phikila-tt-button" onClick={() => { setSection(null); setSpecValue('') }}>Close</button></div>{(['Subjects', 'Classes', 'Teachers', 'Classrooms'].includes(section)) ? <><form className="phikila-tt-spec-add" onSubmit={event => { event.preventDefault(); const key = section === 'Subjects' ? 'subjects' : section === 'Classes' ? 'classes' : section === 'Teachers' ? 'teachers' : 'classrooms'; const value = specValue.trim(); if (!value) return; setData(current => ({ ...current, specification: { ...current.specification, [key]: unique([...current.specification[key], value]) } })); setSpecValue('') }}><input aria-label={'New ' + section.slice(0, -1)} placeholder={'Add ' + section.toLowerCase().replace(/s$/, '')} value={specValue} onChange={event => setSpecValue(event.target.value)} /><button className="phikila-tt-button phikila-tt-button-primary" type="submit">Add</button></form><ul className="phikila-tt-spec-list">{(section === 'Subjects' ? data.specification.subjects : section === 'Classes' ? data.specification.classes : section === 'Teachers' ? data.specification.teachers : data.specification.classrooms).map(item => <li key={item}><span>{item}</span><button type="button" className="phikila-tt-button phikila-tt-danger" onClick={() => { const key = section === 'Subjects' ? 'subjects' : section === 'Classes' ? 'classes' : section === 'Teachers' ? 'teachers' : 'classrooms'; setData(current => ({ ...current, specification: { ...current.specification, [key]: current.specification[key].filter(value => value !== item) } })) }}>Remove</button></li>)}</ul></> : <p>Student records and lesson relations need dedicated data models; they are not edited in this workspace yet.</p>}</div></section>}
@@ -292,7 +296,7 @@ function normaliseWorkspace(value: Partial<Workspace>): Workspace {
     teachers: Array.isArray(rawSpec?.teachers) ? unique(rawSpec.teachers.filter(item => typeof item === 'string')) : [...EMPTY.specification.teachers],
     classrooms: Array.isArray(rawSpec?.classrooms) ? unique(rawSpec.classrooms.filter(item => typeof item === 'string')) : [...EMPTY.specification.classrooms],
   }
-  return { schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), registrationName: String(value.registrationName || ''), subjectDetails: value.subjectDetails && typeof value.subjectDetails === 'object' ? value.subjectDetails : {}, periodsPerDay: Number(value.periodsPerDay) || Math.max(1, periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length), numberOfDays: Number(value.numberOfDays) || days.length, weekend: String(value.weekend || 'Saturday - Sunday'), workZero: Boolean(value.workZero), days, periods, lessons, specification }
+  return { schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), registrationName: String(value.registrationName || ''), subjectDetails: value.subjectDetails && typeof value.subjectDetails === 'object' ? value.subjectDetails : {}, teacherDetails: value.teacherDetails && typeof value.teacherDetails === 'object' ? value.teacherDetails : {}, periodsPerDay: Number(value.periodsPerDay) || Math.max(1, periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length), numberOfDays: Number(value.numberOfDays) || days.length, weekend: String(value.weekend || 'Saturday - Sunday'), workZero: Boolean(value.workZero), days, periods, lessons, specification }
 }
 function findConflicts(data: Workspace): string[] {
   const issues: string[] = []
@@ -359,4 +363,63 @@ function generateSchedule(data: Workspace): GenerationResult {
     }
   }
   return { lessons: placed }
+}
+
+
+type TeacherDraft = TeacherDetail & { name: string }
+function TeachersWorkspaceModule({ teachers, details, onClose, onSaveAll }: { teachers: string[]; details: Record<string, TeacherDetail>; onClose: () => void; onSaveAll: (teachers: string[], details: Record<string, TeacherDetail>) => void }) {
+  const blankDetail = (): TeacherDetail => ({ firstName: '', short: '', color: '#1e40af', classTeacher: '', contract: '', email: '', phone: '', title1: '', title2: '', number: '', male: false, timeOffGrid: Array.from({ length: 5 }, () => Array.from({ length: 8 }, () => 0)) })
+  const [records, setRecords] = useState<TeacherDraft[]>(() => teachers.map(name => ({ name, ...blankDetail(), ...(details[name] || {}) })))
+  const [selected, setSelected] = useState(0)
+  const [mode, setMode] = useState<'list' | 'edit' | 'timeoff'>('list')
+  const [draft, setDraft] = useState<TeacherDraft | null>(null)
+  const [timeOff, setTimeOff] = useState<number[][]>([])
+  const selectedRecord = records[selected]
+  const startNew = () => { setDraft({ name: '', ...blankDetail() }); setMode('edit') }
+  const startEdit = () => { if (selectedRecord) { setDraft({ ...selectedRecord }); setMode('edit') } }
+  const saveDraft = () => {
+    if (!draft?.name.trim()) { window.alert('Teacher name is required'); return }
+    const next = [...records]
+    if (records.some((teacher, index) => index !== selected && teacher.name.toLowerCase() === draft.name.trim().toLowerCase())) { window.alert('A teacher with that name already exists'); return }
+    const clean = { ...draft, name: draft.name.trim() }
+    if (selectedRecord && mode === 'edit') next[selected] = clean
+    else next.push(clean)
+    setRecords(next); setSelected(selectedRecord && mode === 'edit' ? selected : next.length - 1); setMode('list'); setDraft(null)
+  }
+  const openTimeOff = () => { if (!selectedRecord) return; setTimeOff(selectedRecord.timeOffGrid.map(row => [...row])); setMode('timeoff') }
+  const saveTimeOff = () => { setRecords(current => current.map((teacher, index) => index === selected ? { ...teacher, timeOffGrid: timeOff } : teacher)); setMode('list') }
+  const saveAll = () => {
+    const nextTeachers = records.map(teacher => teacher.name)
+    const nextDetails: Record<string, TeacherDetail> = {}
+    records.forEach(({ name, ...detail }) => { nextDetails[name] = detail })
+    onSaveAll(nextTeachers, nextDetails)
+  }
+  return <div className="phikila-tt-teachers-overlay" role="dialog" aria-modal="true" aria-label="Teachers">
+    <section className="phikila-tt-teachers-window">
+      <header className="phikila-tt-teachers-title"><strong>{mode === 'timeoff' ? 'Time off' : mode === 'edit' ? 'Teacher' : 'Teachers'}</strong><button type="button" onClick={mode === 'list' ? onClose : () => setMode('list')} aria-label="Close">×</button></header>
+      {mode === 'list' && <>
+        <div className="phikila-tt-teachers-caption">Enter teachers</div>
+        <div className="phikila-tt-teachers-body"><div className="phikila-tt-teachers-table-wrap"><table className="phikila-tt-teachers-table"><thead><tr><th>Name</th><th>Short</th><th>Count</th><th>Time off</th><th>Class teacher</th></tr></thead><tbody>
+          {records.map((teacher, index) => <tr key={teacher.name} onClick={() => setSelected(index)} className={selected === index ? 'is-selected' : ''}><td><span className="phikila-tt-teacher-color" style={{ background: teacher.color }} />{teacher.name}{teacher.firstName ? ' ' + teacher.firstName : ''}</td><td>{teacher.short}</td><td>{teacher.timeOffGrid.flat().filter(value => value === 0).length}</td><td><span className="phikila-tt-timeoff-preview">{teacher.timeOffGrid.flat().filter(value => value === 2).length} unavailable</span></td><td>{teacher.classTeacher}</td></tr>)}
+        </tbody></table>{records.length === 0 && <p className="phikila-tt-teachers-empty">No teachers are configured yet. Select New to add one.</p>}</div>
+        <aside className="phikila-tt-teachers-actions"><button type="button" onClick={startNew}>＋ New</button><button type="button" disabled={!selectedRecord} onClick={startEdit}>Edit</button><button type="button" disabled={!selectedRecord} onClick={() => { setRecords(current => current.filter((_, index) => index !== selected)); setSelected(Math.max(0, selected - 1)) }}>− Remove</button><div className="phikila-tt-teachers-spacer" /><button type="button" disabled={!selectedRecord} onClick={openTimeOff}>Time off</button><button type="button" disabled={!selectedRecord} onClick={() => { const name = window.prompt('Class teacher for class', selectedRecord?.classTeacher || ''); if (name !== null && selectedRecord) setRecords(current => current.map((teacher, index) => index === selected ? { ...teacher, classTeacher: name } : teacher)) }}>Class teacher</button><button type="button" className="is-primary" onClick={saveAll}>Save All &amp; Close</button></aside></div>
+      </>}
+      {mode === 'edit' && draft && <div className="phikila-tt-teacher-form">
+        <label>Name<input autoFocus value={draft.name} onChange={event => setDraft(current => current ? { ...current, name: event.target.value } : current)} /></label>
+        <label>First name<input value={draft.firstName} onChange={event => setDraft(current => current ? { ...current, firstName: event.target.value } : current)} /></label>
+        <label>Short<input value={draft.short} onChange={event => setDraft(current => current ? { ...current, short: event.target.value } : current)} /></label>
+        <label>Teacher's contract<input value={draft.contract} onChange={event => setDraft(current => current ? { ...current, contract: event.target.value } : current)} /></label>
+        <label>E-mail<input type="email" value={draft.email} onChange={event => setDraft(current => current ? { ...current, email: event.target.value } : current)} /></label>
+        <label>Phone<input value={draft.phone} onChange={event => setDraft(current => current ? { ...current, phone: event.target.value } : current)} /></label>
+        <label>Title<input value={draft.title1} onChange={event => setDraft(current => current ? { ...current, title1: event.target.value } : current)} /></label>
+        <label>Title 2<input value={draft.title2} onChange={event => setDraft(current => current ? { ...current, title2: event.target.value } : current)} /></label>
+        <label>Number<input value={draft.number} onChange={event => setDraft(current => current ? { ...current, number: event.target.value } : current)} /></label>
+        <label>Class teacher for class<input value={draft.classTeacher} onChange={event => setDraft(current => current ? { ...current, classTeacher: event.target.value } : current)} /></label>
+        <label>Color<input type="color" value={draft.color} onChange={event => setDraft(current => current ? { ...current, color: event.target.value } : current)} /></label>
+        <label className="phikila-tt-teacher-checkbox"><input type="checkbox" checked={draft.male} onChange={event => setDraft(current => current ? { ...current, male: event.target.checked } : current)} /> Male</label>
+        <div className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setMode('list')}>Cancel</button><button type="button" className="is-primary" onClick={saveDraft}>OK</button></div>
+      </div>}
+      {mode === 'timeoff' && <div className="phikila-tt-teacher-timeoff"><p>Click a cell to cycle available, conditional, and unavailable.</p><div className="phikila-tt-teacher-time-grid"><div />{Array.from({ length: 8 }, (_, index) => <strong key={index}>{index + 1}</strong>)}{['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day, row) => <><strong key={day}>{day.slice(0, 3)}</strong>{(timeOff[row] || []).map((value, column) => <button type="button" key={column} title={value === 0 ? 'Available' : value === 1 ? 'Conditional' : 'Unavailable'} onClick={() => setTimeOff(current => current.map((values, r) => r === row ? values.map((cell, c) => c === column ? (cell + 1) % 3 : cell) : values))}>{value === 0 ? '✓' : value === 1 ? '?' : '×'}</button>)}</>)}</div><div className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setMode('list')}>Cancel</button><button type="button" className="is-primary" onClick={saveTimeOff}>OK</button></div></div>}
+    </section>
+  </div>
 }
