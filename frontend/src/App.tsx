@@ -12,6 +12,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NotFoundPage } from './pages/StatusPages'
 import TimetableModule from './stitch/TimetableModule'
+const TeacherClassManagementPage = lazy(() => import('./pages/TeacherClassManagement').then(m => ({ default: m.default })))
 const SchoolPage = lazy(() => import('./pages/SchoolPage').then(m => ({ default: m.SchoolPage })))
 const AcademicsPage = lazy(() => import('./pages/AcademicsPage').then(m => ({ default: m.AcademicsPage })))
 const LevelsPage = lazy(() => import('./pages/LevelsPage').then(m => ({ default: m.LevelsPage })))
@@ -93,6 +94,7 @@ function routeFor(pathname: string): ReactNode {
     case '/setup/streams': return <StreamsPage />
     case '/setup/academic-setup': return <AcademicSetupWizardPage />
     case '/setup/school-structure': return <SchoolStructurePage />
+    case '/setup/teachers': return <TeacherClassManagementPage />
     case '/students': return <StudentsOverviewPage />
     case '/timetable': case '/timetable-manager': return <TimetableModule />
     case '/students/list': return <StudentsPage />
