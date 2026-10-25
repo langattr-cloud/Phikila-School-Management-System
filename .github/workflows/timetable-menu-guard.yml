@@ -1,0 +1,32 @@
+name: Timetable menu protection
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/stitch/AscTimetableMenu.tsx'
+      - 'scripts/check-timetable-menu.mjs'
+      - '.github/workflows/timetable-menu-guard.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/src/stitch/AscTimetableMenu.tsx'
+      - 'scripts/check-timetable-menu.mjs'
+      - '.github/workflows/timetable-menu-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  menu-contract:
+    name: Protect timetable menu contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify required menu and toolbar
+        run: node scripts/check-timetable-menu.mjs
