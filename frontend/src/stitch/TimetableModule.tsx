@@ -211,7 +211,6 @@ export default function TimetableModule() {
         <label>Periods per day<select value={data.periodsPerDay} onChange={event => setData(current => ({ ...current, periodsPerDay: Number(event.target.value) }))}>{Array.from({length:10},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}</option>)}</select></label>
         <label>Number of school days<select value={data.numberOfDays} onChange={event => setData(current => { const days = DAYS.slice(0, Number(event.target.value)); return { ...current, numberOfDays: Number(event.target.value), days } })}>{[5,6,7].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
         <label>Weekend<select value={data.weekend} onChange={event => setData(current => ({ ...current, weekend: event.target.value }))}><option>Saturday - Sunday</option><option>Friday - Saturday</option></select></label>
-        <label className="phikila-tt-setup-checkbox"><input type="checkbox" checked={data.workZero} onChange={event => setData(current => ({ ...current, workZero: event.target.checked }))} /> Enable zero periods</label>
         <p className="phikila-tt-help">School day count controls the displayed days. Existing lessons on removed days are retained in saved data but hidden until those days are enabled again.</p>
         <div className="phikila-tt-school-quick-actions">
           <button type="button" className="phikila-tt-button" onClick={() => setSetupTab('bell')}>Configure bell times / periods</button>
