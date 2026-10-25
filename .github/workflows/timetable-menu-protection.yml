@@ -9,6 +9,11 @@ on:
       - "app/modules/timetable/router.py"
       - "app/main.py"
       - "frontend/scripts/check-timetable-menu.mjs"
+      - "scripts/check-timetable-menu.mjs"
+      - ".github/workflows/fix-incomplete-lesson-generation.yml"
+      - ".github/workflows/fix-subject-room-build.yml"
+      - ".github/workflows/solver-performance-fix.yml"
+      - ".github/workflows/fix-teaching-allocation-streams.yml"
       - ".github/workflows/timetable-menu-protection.yml"
   push:
     branches: [main]
