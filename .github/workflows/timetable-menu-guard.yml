@@ -6,7 +6,6 @@ on:
       - 'frontend/src/stitch/AscTimetableMenu.tsx'
       - 'frontend/src/stitch/TimetableModule.tsx'
       - 'frontend/src/stitch/DaysDialog.tsx'
-      - 'frontend/src/stitch/DaysDialog.tsx'
       - 'frontend/src/stitch/ClassesWorkspaceModule.tsx'
       - 'app/modules/timetable/router.py'
       - 'app/main.py'
@@ -25,6 +24,7 @@ on:
     paths:
       - 'frontend/src/stitch/AscTimetableMenu.tsx'
       - 'frontend/src/stitch/TimetableModule.tsx'
+      - 'frontend/src/stitch/DaysDialog.tsx'
       - 'frontend/src/stitch/ClassesWorkspaceModule.tsx'
       - 'app/modules/timetable/router.py'
       - 'app/main.py'
