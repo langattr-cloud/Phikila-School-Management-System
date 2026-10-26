@@ -745,7 +745,7 @@ function ContractLessonEditDialog({ teacher, row, subjects, classes, teachers, c
     className: row.lesson.className,
     group: 'Entire class',
     lessonsPerWeek: row.count,
-    length: row.length, 
+    length: row.length as ContractEditDraft['length'], 
     homeClassroom: true,
     sharedRoom: false,
     teacherRooms: false,
