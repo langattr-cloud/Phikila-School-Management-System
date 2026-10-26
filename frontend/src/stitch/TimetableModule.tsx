@@ -542,6 +542,7 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
   const [records, setRecords] = useState<TeacherDraft[]>(initialRecords)
   const initialSnapshot = useRef(JSON.stringify(initialRecords))
   const [saving, setSaving] = useState(false)
+  const [saveFeedback, setSaveFeedback] = useState('')
   const [selected, setSelected] = useState(0)
   const [mode, setMode] = useState<'list' | 'edit' | 'timeoff'>('list')
   const [draft, setDraft] = useState<TeacherDraft | null>(null)
@@ -553,17 +554,19 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
   const persistRecords = async (nextRecords: TeacherDraft[], closeOnSuccess = false) => {
     if (saving) return false
     setSaving(true)
+    setSaveFeedback('Saving teacher records to the database…')
     try {
       const nextTeachers = nextRecords.map(teacher => teacher.name.trim())
       const nextDetails: Record<string, TeacherDetail> = {}
       nextRecords.forEach(({ name, savedWorkload: _savedWorkload, ...detail }) => { nextDetails[name.trim()] = detail })
       const confirmed = await onSaveAll(nextTeachers, nextDetails)
-      if (confirmed === false) return false
+      if (confirmed === false) { setSaveFeedback('Save was not confirmed. Your changes are still here; retry Save All.') ; return false }
       initialSnapshot.current = JSON.stringify(nextRecords)
+      setSaveFeedback('Saved and verified in the school database.')
       if (closeOnSuccess) onClose()
       return true
     } catch (caught) {
-      window.alert('Teacher records were not confirmed saved. Your edits remain in this window. Retry Save All. ' + (caught instanceof Error ? caught.message : ''))
+      setSaveFeedback('Save failed. Your edits remain in this window. Retry Save All. ' + (caught instanceof Error ? caught.message : ''))
       return false
     } finally { setSaving(false) }
   }
@@ -594,7 +597,8 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
     <section className="phikila-tt-teachers-window">
       <header className="phikila-tt-teachers-title"><strong>{mode === 'timeoff' ? 'Time off' : mode === 'edit' ? 'Teacher' : 'Teachers'}</strong><button type="button" onClick={mode === 'list' ? closeList : leaveEdit} aria-label="Close" disabled={saving}>×</button></header>
       {mode === 'list' && <>
-        <div className="phikila-tt-teachers-caption">Enter teachers</div>
+        <div className="phikila-tt-teachers-caption">Enter teachers · changes auto-save when you confirm an edit. Use Save All &amp; Close to verify and finish.</div>
+        {saveFeedback && <p role="status" aria-live="polite" style={{margin:'8px 0',padding:'8px 10px',borderRadius:5,background:saveFeedback.startsWith('Save was not confirmed') || saveFeedback.startsWith('Save failed') ? '#fff1f2' : '#eff6ff',color:saveFeedback.startsWith('Save was not confirmed') || saveFeedback.startsWith('Save failed') ? '#9f1239' : '#1e40af',fontSize:12}}>{saveFeedback}</p>}
         <div className="phikila-tt-teachers-body"><div className="phikila-tt-teachers-table-wrap"><table className="phikila-tt-teachers-table"><thead><tr><th>Name</th><th>Short</th><th>Count</th><th>Time off</th><th>Class teacher</th></tr></thead><tbody>
           {records.map((teacher, index) => <tr key={teacher.name} onClick={() => setSelected(index)} onDoubleClick={() => { setSelected(index); onOpenContract(teacher.name) }} title="Double-click to open teacher contract" className={selected === index ? 'is-selected' : ''}><td><span className="phikila-tt-teacher-color" style={{ background: teacher.color }} />{teacher.name}{teacher.firstName ? ' ' + teacher.firstName : ''}</td><td>{teacher.short}</td><td>{(lessons.filter(lesson => lesson.teacher === teacher.name || lesson.teacher.startsWith(teacher.name + ' (')).length || teacher.savedWorkload || 0)}</td><td><span className="phikila-tt-timeoff-preview">{teacher.timeOffGrid.flat().filter(value => value === 2).length} unavailable</span></td><td>{teacher.classTeacher}</td></tr>)}
         </tbody></table>{records.length === 0 && <p className="phikila-tt-teachers-empty">No teachers are configured yet. Select New to add one.</p>}</div>
