@@ -4,6 +4,9 @@ import { apiFetch, friendlyApiError } from '../lib/api'
 import AscTimetableMenu from './AscTimetableMenu'
 import ClassesWorkspaceModule from './ClassesWorkspaceModule'
 import DaysDialog, { type DayEntry } from './DaysDialog'
+import PeriodsMaster from './PeriodsMaster'
+import AdvisorDialog from './AdvisorDialog'
+import GenerateNewAdvisor from './GenerateNewAdvisor'
 import './timetable-module.css'
 
 type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
@@ -44,6 +47,7 @@ export default function TimetableModule() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [setupTab, setSetupTab] = useState<'basic' | 'bell' | 'subjects' | 'classes'>('basic')
   const [daysDialogOpen, setDaysDialogOpen] = useState(false)
+  const [periodsMasterOpen, setPeriodsMasterOpen] = useState(false)
   const [catalogueValue, setCatalogueValue] = useState('')
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
   const [subjectDialog, setSubjectDialog] = useState<{mode:'new'|'edit';originalName?:string;form:SubjectForm}|null>(null)
@@ -52,6 +56,8 @@ export default function TimetableModule() {
   const [subjectTimeOffOpen, setSubjectTimeOffOpen] = useState<string | null>(null)
   const [breakDialog, setBreakDialog] = useState<{ index: number | null; form: BreakForm } | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [advisorOpen, setAdvisorOpen] = useState(false)
+  const [generateNewAdvisorOpen, setGenerateNewAdvisorOpen] = useState(false)
   const [section, setSection] = useState<string | null>(null)
   const [teachersOpen, setTeachersOpen] = useState(false)
   const [classesOpen, setClassesOpen] = useState(false)
@@ -75,14 +81,55 @@ export default function TimetableModule() {
   }), [data.lessons, whose, filter])
   const conflicts = useMemo(() => findConflicts(data), [data])
 
+  const [savedTeacherWorkloads, setSavedTeacherWorkloads] = useState<Record<string, number>>({})
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const result = await apiFetch<{ data: Workspace | null; updated_at: string | null }>('/api/v1/timetable/workspace')
-      if (result.data) setData(normaliseWorkspace(result.data))
-      setStatus(result.data ? 'Loaded shared workspace' : 'New workspace · save to sync across devices')
+      const [workspaceResult, staffResult, profileResult] = await Promise.allSettled([
+        apiFetch<{ data: Workspace | null; updated_at: string | null }>('/api/v1/timetable/workspace'),
+        apiFetch<SavedTeacherSource[]>('/api/v1/teachers/'),
+        apiFetch<SavedTeacherSource[]>('/api/v1/timetable/teachers'),
+      ])
+      const workspace = workspaceResult.status === 'fulfilled' ? workspaceResult.value.data : null
+      const base = normaliseWorkspace(workspace || EMPTY)
+      const staff = staffResult.status === 'fulfilled' && Array.isArray(staffResult.value) ? staffResult.value : []
+      const profiles = profileResult.status === 'fulfilled' && Array.isArray(profileResult.value) ? profileResult.value : []
+      const roster = new Map<string, { detail: Partial<TeacherDetail>; workload?: number }>()
+      const addRoster = (source: SavedTeacherSource, profileMode: boolean) => {
+        const profile = source.profile && typeof source.profile === 'object' ? source.profile : source
+        const firstName = String(profile.firstName || profile.first_name || source.firstName || source.first_name || '').trim()
+        const lastName = String(profile.lastName || profile.last_name || source.lastName || source.last_name || '').trim()
+        const name = String(profile.name || source.name || [firstName, lastName].filter(Boolean).join(' ')).trim()
+        if (!name) return
+        const previous = roster.get(name) || { detail: {} }
+        const workloadValue = Number(profile.count ?? profile.workload ?? source.count ?? 0)
+        roster.set(name, {
+          detail: {
+            ...previous.detail,
+            firstName: firstName || previous.detail.firstName || '',
+            short: String(profile.short || profile.code || source.staff_number || previous.detail.short || ''),
+            color: String(profile.color || previous.detail.color || '#1e40af'),
+            email: String(profile.email || source.email || previous.detail.email || ''),
+            phone: String(profile.phone || source.phone || previous.detail.phone || ''),
+          },
+          workload: Number.isFinite(workloadValue) && workloadValue >= 0 ? Math.max(previous.workload || 0, workloadValue) : previous.workload,
+        })
+      }
+      staff.forEach(source => addRoster(source, false))
+      profiles.forEach(source => addRoster(source, true))
+      const rosterNames = Array.from(roster.keys())
+      const mergedTeachers = unique([...base.specification.teachers, ...rosterNames])
+      const mergedDetails: Record<string, TeacherDetail> = { ...(base.teacherDetails || {}) }
+      const workloads: Record<string, number> = {}
+      roster.forEach((value, name) => {
+        mergedDetails[name] = { ...({ firstName: '', short: '', color: '#1e40af', classTeacher: '', contract: '', email: '', phone: '', title1: '', title2: '', number: '', male: false, timeOffGrid: base.days.map(() => base.periods.map(() => 0)) } as TeacherDetail), ...(value.detail as TeacherDetail), ...(mergedDetails[name] || {}) }
+        if (value.workload != null) workloads[name] = value.workload
+      })
+      setSavedTeacherWorkloads(workloads)
+      setData({ ...base, specification: { ...base.specification, teachers: mergedTeachers }, teacherDetails: mergedDetails })
+      setStatus(workspace ? 'Loaded shared workspace and saved teacher records' : 'Loaded saved teacher records · timetable workspace is new')
     } catch (caught) {
-      setError(friendlyApiError(caught, 'load timetable workspace'))
+      setError(friendlyApiError(caught, 'load timetable workspace and saved teachers'))
       setStatus('Could not load workspace')
     } finally { setLoading(false) }
   }, [])
@@ -160,25 +207,15 @@ export default function TimetableModule() {
       case 'Save As': case 'Export': exportJson(); break
       case 'Print': window.print(); break
       case 'Print preview': setPreviewOpen(true); break
-      case 'Test': case 'Verification': void runTest(); break
+      case 'Test': setAdvisorOpen(true); break
+      case 'Verification': void runTest(); break
       case 'Generate': { const result = generateSchedule(data); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved') } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save') } break }
       case 'Help': case 'Contents': case 'Questions/Comments': case 'Questions? / Write us': case 'Questions? Comments? Write us': case 'About': setStatus('Phikila Timetable Help · Use the menu bar for File, Specification, View, Timetable, Options, and Help actions.'); break
       case 'School': case 'Settings': setSetupTab('basic'); setSettingsOpen(true); break
       case 'Year/Class Online': case 'Year Online': case 'Timetables Online': setStatus('Year/Class Online · online publishing will be available after the timetable is generated and approved.'); break
       case 'Bell times': case 'Periods': setSetupTab('bell'); setSettingsOpen(true); break
       case 'Exit': setStatus('Use the main application navigation to leave the timetable.'); break
-      case 'Generate new': {
-        const result = generateSchedule(data)
-        if (result.error) {
-          setError(result.error)
-          setStatus('Generation stopped · existing timetable preserved')
-        } else {
-          setData(current => ({ ...current, lessons: result.lessons }))
-          setError('')
-          setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save')
-        }
-        break
-      }
+      case 'Generate new': setGenerateNewAdvisorOpen(true); break
       case 'Generate in cloud': setError('Cloud generation is not connected yet. Use Generate new for the local draft generator.'); break
       case 'Timetable': case 'View timetable': setSection(null); break
       case 'Classrooms view': setWhose('Classrooms'); setFilter(''); break
@@ -196,8 +233,8 @@ export default function TimetableModule() {
     <header className="phikila-tt-heading"><div><p className="phikila-tt-eyebrow">PHIKILA · TIMETABLE MODULE</p><h1>{data.schoolName || 'School timetable'}</h1><p className="phikila-tt-subtitle">Academic year {data.academicYear} · Weekly timetable editor</p></div><div className="phikila-tt-heading-actions"><span className={'phikila-tt-status-dot ' + (loading ? 'is-loading' : '')} /><span>{loading ? 'Loading' : 'Workspace'}</span><button className="phikila-tt-button" onClick={() => void load()} disabled={loading}>Reload</button></div></header>
     <AscTimetableMenu onNavigate={name => { const action = name.replace(/\n/g, ' '); onAction((action === 'Students / Seminars' ? 'Students' : action) as Action) }} />
     {classesOpen && <ClassesWorkspaceModule classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} teachers={teachers} subjects={subjects} classrooms={rooms} details={data.classDetails || {}} onClose={() => setClassesOpen(false)} onSave={(nextClasses, nextLessons, nextDetails) => { setData(current => ({ ...current, specification: { ...current.specification, classes: unique(nextClasses) }, lessons: nextLessons, classDetails: nextDetails })); setStatus('Class changes updated in the workspace · remember to Save'); setError('') }} />}
-    {teachersOpen && <TeachersWorkspaceModule teachers={data.specification.teachers} details={data.teacherDetails || {}} onClose={() => setTeachersOpen(false)} onSaveAll={(nextTeachers, nextDetails) => { setData(current => ({ ...current, specification: { ...current.specification, teachers: nextTeachers }, teacherDetails: nextDetails })); setTeachersOpen(false); setStatus('Teacher changes updated in the workspace · remember to Save'); }} onOpenContract={teacher => setContractTeacher(teacher)} days={data.days} periods={data.periods} />}
-    {contractTeacher && <TeacherContractDialog teacher={contractTeacher} short={data.teacherDetails?.[contractTeacher]?.short || ''} lessons={data.lessons.filter(lesson => lesson.teacher === contractTeacher)} periods={data.periods} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onClose={() => setContractTeacher(null)} onNew={() => setNewLessonTeacher(contractTeacher)} onEdit={lesson => { setContractTeacher(null); openEditor(lesson.day, lesson.period, lesson) }} onRemove={lesson => { setData(current => ({ ...current, lessons: current.lessons.filter(item => item.id !== lesson.id) })); setStatus('Teacher lesson removed · remember to Save') }} />}
+    {teachersOpen && <TeachersWorkspaceModule teachers={teachers} lessons={data.lessons} details={data.teacherDetails || {}} savedWorkloads={savedTeacherWorkloads} onClose={() => setTeachersOpen(false)} onSaveAll={(nextTeachers, nextDetails) => { setData(current => ({ ...current, specification: { ...current.specification, teachers: nextTeachers }, teacherDetails: nextDetails })); setTeachersOpen(false); setStatus('Teacher changes updated in the workspace · remember to Save'); }} onOpenContract={teacher => setContractTeacher(teacher)} days={data.days} periods={data.periods} />}
+    {contractTeacher && <TeacherContractDialog teacher={contractTeacher} short={data.teacherDetails?.[contractTeacher]?.short || ''} lessons={data.lessons.filter(lesson => lesson.teacher === contractTeacher || lesson.teacher.startsWith(contractTeacher + ' ('))} periods={data.periods} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onClose={() => setContractTeacher(null)} onNew={() => setNewLessonTeacher(contractTeacher)} onEdit={lesson => { setContractTeacher(null); openEditor(lesson.day, lesson.period, lesson) }} onRemove={lesson => { setData(current => ({ ...current, lessons: current.lessons.filter(item => item.id !== lesson.id) })); setStatus('Teacher lesson removed · remember to Save') }} onCopyTo={(lesson, targetClass) => { const conflict = data.lessons.some(item => item.day === lesson.day && item.period === lesson.period && (item.className === targetClass || item.teacher === lesson.teacher || (lesson.room && item.room === lesson.room))); if (conflict) { setError('Cannot copy this lesson to ' + targetClass + ': the class, teacher, or classroom is already occupied at that time.'); return; } setData(current => ({ ...current, lessons: [...current.lessons, { ...lesson, id: makeId(), className: targetClass, locked: false }] })); setError(''); setStatus('Lesson copied to ' + targetClass + ' · remember to Save'); }} />}
     {newLessonTeacher && <NewLessonDialog defaultTeacher={{ name: newLessonTeacher, short: data.teacherDetails?.[newLessonTeacher]?.short || '' }} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onCancel={() => setNewLessonTeacher(null)} onSave={lessonDraft => { const teacherName = teachers.find(name => lessonDraft.teacher === name || lessonDraft.teacher === name + (data.teacherDetails?.[name]?.short ? ' (' + data.teacherDetails[name].short + ')' : '')) || newLessonTeacher; const requested = Math.max(1, Math.min(10, Number(lessonDraft.count) || 1)); const span = lessonDraft.length === 'Triple' ? 3 : lessonDraft.length === 'Double' ? 2 : 1; const available: {day:string;period:number}[] = []; for (const day of data.days) for (let period = 0; period < data.periods.length; period++) { if (data.periods[period].type === 'break' || /break|lunch|recess/i.test(data.periods[period].name)) continue; if (period + span > data.periods.length) continue; const run = Array.from({length:span}, (_, offset) => period + offset); if (run.some(index => data.periods[index].type === 'break' || /break|lunch|recess/i.test(data.periods[index].name))) continue; const occupied = data.lessons.some(item => item.day === day && run.includes(item.period) && (item.className === lessonDraft.class || item.teacher === teacherName || (lessonDraft.room && item.room === lessonDraft.room))); if (!occupied) available.push({day, period}); } const chosen: {day:string;period:number}[] = []; for (const slot of available) { if (chosen.some(item => item.day === slot.day && Array.from({length:span}, (_, offset) => item.period + offset).some(index => index >= slot.period && index < slot.period + span))) continue; chosen.push(slot); if (chosen.length === requested) break; } if (chosen.length < requested) { setError('Not enough free timetable slots for ' + requested + ' lesson(s) with this teacher, class, and room.'); return; } const additions: Lesson[] = []; for (const slot of chosen) for (let offset = 0; offset < span; offset++) additions.push({ id: makeId(), day: slot.day, period: slot.period + offset, className: lessonDraft.class, subject: lessonDraft.subject, teacher: teacherName, room: lessonDraft.room, locked: false }); setData(current => ({ ...current, lessons: [...current.lessons, ...additions] })); setNewLessonTeacher(null); setStatus('Added ' + requested + ' weekly lesson(s) · remember to Save'); setError(''); }} />}
     {!(settingsOpen && setupTab === 'subjects') && <div className="phikila-tt-subbar"><strong>{whose === 'All' ? 'Whole school' : whose === 'Classes' ? 'Class timetable' : whose === 'Teachers' ? 'Teacher timetable' : 'Classroom timetable'}</strong>{filterOptions.length > 0 && <select aria-label={'Filter by ' + whose.toLowerCase()} value={filter} onChange={event => setFilter(event.target.value)}><option value="">All {whose.toLowerCase()}</option>{filterOptions.map(option => <option key={option}>{option}</option>)}</select>}<span className="phikila-tt-subbar-spacer" /><span>{data.lessons.length} lessons</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => openEditor(data.days[0], 0)}>+ Add lesson</button></div>}
     {error && <div className="phikila-tt-alert" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
@@ -213,7 +250,7 @@ export default function TimetableModule() {
         <label>Weekend<select value={data.weekend} onChange={event => setData(current => ({ ...current, weekend: event.target.value }))}><option>Saturday - Sunday</option><option>Friday - Saturday</option></select></label>
         <p className="phikila-tt-help">School day count controls the displayed days. Existing lessons on removed days are retained in saved data but hidden until those days are enabled again.</p>
         <div className="phikila-tt-school-quick-actions">
-          <button type="button" className="phikila-tt-button" onClick={() => setSetupTab('bell')}>Configure bell times / periods</button>
+          <button type="button" className="phikila-tt-button" onClick={() => setPeriodsMasterOpen(true)}>Rename periods / Bell times</button>
           <button type="button" className="phikila-tt-button" onClick={() => setDaysDialogOpen(true)}>Rename days</button>
           <button type="button" className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>＋ Add break between lessons</button>
         </div>
@@ -231,15 +268,28 @@ export default function TimetableModule() {
       {setupTab === 'subjects' && <div className="phikila-tt-subjects-manager">
         <div className="phikila-tt-subjects-heading"><strong>Enter subjects</strong><span>Choose a subject to edit its details.</span></div>
         <div className="phikila-tt-subjects-layout"><div className="phikila-tt-subject-table-wrap"><table className="phikila-tt-subject-table"><thead><tr><th>Name</th><th>Short</th><th>Count</th><th>Time off</th><th>Distribution</th><th>Homework</th></tr></thead><tbody>{data.specification.subjects.map(item=>{const detail=data.subjectDetails?.[item];return <tr key={item} onClick={()=>setSelectedSubject(item)} onDoubleClick={()=>{setSelectedSubject(item);setSubjectLessonsOpen(item)}} title="Double-click to open this subject's lessons" className={selectedSubject===item?'is-selected':''}><td><span className="phikila-tt-subject-color" style={{background:detail?.color||'#1a3a8a'}}/> {item}</td><td>{detail?.short||item.slice(0,4).toUpperCase()}</td><td>{data.lessons.filter(lesson=>lesson.subject===item).length}</td><td><span className="phikila-tt-timeoff-preview">{(detail?.timeOffGrid||[]).flat().filter(value=>value===2).length} unavailable</span></td><td>{detail?.distrib||'Ideal'}</td><td>{detail?.classrooms?.join(', ')||''}</td></tr>})}</tbody></table></div>
-        <aside className="phikila-tt-subject-actions"><button className="phikila-tt-button phikila-tt-button-primary" onClick={()=>setSubjectDialog({mode:'new',form:{title:'',short:'',color:'#1a3a8a',number:'',customFields:'',classrooms:[]}})}>＋ New</button><button className="phikila-tt-button" disabled={!selectedSubject} onClick={()=>{if(!selectedSubject)return;const detail=data.subjectDetails?.[selectedSubject];setSubjectDialog({mode:'edit',originalName:selectedSubject,form:{title:selectedSubject,short:detail?.short||selectedSubject.slice(0,4).toUpperCase(),color:detail?.color||'#1a3a8a',number:detail?.number||'',customFields:detail?.customFields||'',classrooms:detail?.classrooms||[]}})}}>Edit</button><button className="phikila-tt-button phikila-tt-danger" disabled={!selectedSubject} onClick={()=>{if(!selectedSubject)return;const removed=selectedSubject;const nextData:Workspace={...data,specification:{...data.specification,subjects:data.specification.subjects.filter(value=>value!==removed)},subjectDetails:Object.fromEntries(Object.entries(data.subjectDetails||{}).filter(([key])=>key!==removed))};void persistWorkspace(nextData,'remove subject').then(saved=>{if(saved)setSelectedSubject(null)})}}>Remove</button><div className="phikila-tt-subject-actions-spacer"/><button className="phikila-tt-button" disabled={!selectedSubject} onClick={()=>selectedSubject&&setSubjectLessonsOpen(selectedSubject)}>Lessons</button><button className="phikila-tt-button" disabled={!selectedSubject} onClick={()=>selectedSubject&&setSubjectTimeOffOpen(selectedSubject)}>Time off</button><button className="phikila-tt-button" disabled={!selectedSubject} onClick={()=>setStatus('Subject constraints can be managed through the Constraints menu.')}>Constraints</button></aside></div>
+        <aside className="phikila-tt-subject-actions"><button className="phikila-tt-button phikila-tt-button-primary" onClick={()=>setSubjectDialog({mode:'new',form:{title:'',short:'',color:'#1a3a8a',number:'',customFields:'',classrooms:[]}})}>＋ New</button><button className="phikila-tt-button" disabled={!selectedSubject} onClick={()=>{if(!selectedSubject)return;const detail=data.subjectDetails?.[selectedSubject];setSubjectDialog({mode:'edit',originalName:selectedSubject,form:{title:selectedSubject,short:detail?.short||selectedSubject.slice(0,4).toUpperCase(),color:detail?.color||'#1a3a8a',number:detail?.number||'',customFields:detail?.customFields||'',classrooms:detail?.classrooms||[]}})}}>Edit</button><button className="phikila-tt-button phikila-tt-danger" disabled={!selectedSubject} onClick={()=>{if(!selectedSubject)return;const removed=selectedSubject;const nextData:Workspace={...data,specification:{...data.specification,subjects:data.specification.subjects.filter(value=>value!==removed)},subjectDetails:Object.fromEntries(Object.entries(data.subjectDetails||{}).filter(([key])=>key!==removed))};void persistWorkspace(nextData,'remove subject').then(saved=>{if(saved)setSelectedSubject(null)})}}>Remove</button><div className="phikila-tt-subject-actions-spacer"/><button className="phikila-tt-button" disabled={!selectedSubject} onClick={()=>selectedSubject&&setSubjectLessonsOpen(selectedSubject)}>Lessons</button><button className="phikila-tt-button" disabled={!selectedSubject} onClick={()=>selectedSubject&&setSubjectTimeOffOpen(selectedSubject)}>Time off</button><button className="phikila-tt-button" disabled={!selectedSubject} onClick={()=>{if(!selectedSubject)return;const current=data.subjectDetails?.[selectedSubject]?.distrib||'Ideal';const value=window.prompt('Subject distribution preference (for example: Ideal, Balanced, or Avoid):',current);if(value===null)return;const name=selectedSubject;const details={...(data.subjectDetails||{}),[name]:{short:data.subjectDetails?.[name]?.short||name.slice(0,4).toUpperCase(),color:data.subjectDetails?.[name]?.color||'#1a3a8a',number:data.subjectDetails?.[name]?.number||'',customFields:data.subjectDetails?.[name]?.customFields||'',classrooms:data.subjectDetails?.[name]?.classrooms||[],timeOffGrid:data.subjectDetails?.[name]?.timeOffGrid||[],distrib:value.trim()||'Ideal'}};const nextData:Workspace={...data,subjectDetails:details};void persistWorkspace(nextData,'save subject constraints')}}>Constraints</button></aside></div>
         {subjectDialog && <SubjectEditorDialog value={subjectDialog.form} classrooms={data.specification.classrooms} mode={subjectDialog.mode} onChange={form=>setSubjectDialog(current=>current?{...current,form}:current)} onClose={()=>setSubjectDialog(null)} onSave={async()=>{const form=subjectDialog.form;const name=form.title.trim();if(!name){setError('Enter a subject title.');return}const oldName=subjectDialog.originalName;if(data.specification.subjects.some(value=>value!==oldName&&value.toLowerCase()===name.toLowerCase())){setError('A subject with this title already exists.');return}const subjects=data.specification.subjects.filter(value=>value!==oldName);const details={...(data.subjectDetails||{})};if(oldName)delete details[oldName];details[name]={short:form.short.trim()||name.slice(0,4).toUpperCase(),color:form.color,number:form.number,customFields:form.customFields,classrooms:form.classrooms};const nextData:Workspace={...data,specification:{...data.specification,subjects:subjectDialog.mode==='new'?[...subjects,name]:data.specification.subjects.map(value=>value===oldName?name:value)},subjectDetails:details,lessons:oldName?data.lessons.map(lesson=>lesson.subject===oldName?{...lesson,subject:name}:lesson):data.lessons};setError('');setStatus('Saving subject to the school database…');try{const result=await apiFetch<{data:Workspace;updated_at:string|null}>('/api/v1/timetable/workspace',{method:'PUT',body:JSON.stringify({data:nextData})});setData(normaliseWorkspace(result.data||nextData));setSelectedSubject(name);setSubjectDialog(null);setError('');setStatus('Subject saved to the school database · '+new Date().toLocaleTimeString())}catch(caught){setError(friendlyApiError(caught,'save subject to school database'));setStatus('Subject was not saved. Correct the error and try again.')}}} />}
       </div>}
       {subjectLessonsOpen && <SubjectLessonsDialog subject={subjectLessonsOpen} lessons={data.lessons.filter(lesson=>lesson.subject===subjectLessonsOpen)} onClose={()=>setSubjectLessonsOpen(null)} onEdit={lesson=>setLessonDialog(lesson)} onNew={()=>{const subject=subjectLessonsOpen;if(!subject)return;const availablePeriod=data.periods.findIndex(item=>item.type!=='break'&&!/break|lunch|recess/i.test(item.name));const period=availablePeriod<0?0:availablePeriod;const availableDay=data.days.find(day=>!data.lessons.some(lesson=>lesson.day===day&&lesson.period===period))||data.days[0]||'Monday';const initial:Lesson={id:'',day:availableDay,period,className:classes[0]||'Form 1A',subject,teacher:teachers[0]||'Teacher',room:'',locked:false};setSubjectLessonsOpen(null);setLessonDialog(initial)}} />}
       {lessonDialog && <LessonDialog initial={lessonDialog} teachersList={teachers} subjectsList={subjects} classesList={classes} classroomsList={rooms} onInfo={message=>setStatus(message)} lessonsPerWeek={data.lessons.filter(item=>item.subject===lessonDialog.subject&&item.className===lessonDialog.className).length} onClose={()=>setLessonDialog(null)} onSave={async updated=>{const isNew=!lessonDialog.id;const nextLesson:Lesson={...lessonDialog,id:isNew?makeId():lessonDialog.id,teacher:updated.teacher,subject:updated.subject,className:updated.className,room:updated.room};const nextData:Workspace={...data,lessons:isNew?[...data.lessons,nextLesson]:data.lessons.map(item=>item.id===lessonDialog.id?nextLesson:item),specification:{...data.specification,subjects:unique([...data.specification.subjects,updated.subject]),classes:unique([...data.specification.classes,updated.className]),teachers:unique([...data.specification.teachers,updated.teacher]),classrooms:unique([...data.specification.classrooms,...(updated.room?[updated.room]:[])])}};setError('');setStatus('Saving lesson to the school database…');try{const result=await apiFetch<{data:Workspace;updated_at:string|null}>('/api/v1/timetable/workspace',{method:'PUT',body:JSON.stringify({data:nextData})});const saved=normaliseWorkspace(result.data||nextData);setData(saved);setSelectedSubject(updated.subject);setLessonDialog(null);setStatus('Lesson saved to the school database · '+new Date().toLocaleTimeString())}catch(caught){setError(friendlyApiError(caught,'save lesson to school database'));setStatus('Lesson was not saved. Correct the error and try again.')}}} />}
-      {subjectTimeOffOpen && <SubjectTimeOffDialog subject={subjectTimeOffOpen} days={data.days} periods={data.periods} initialGrid={data.subjectDetails?.[subjectTimeOffOpen]?.timeOffGrid} onClose={()=>setSubjectTimeOffOpen(null)} onSave={grid=>{const subject=subjectTimeOffOpen;setData(current=>({...current,subjectDetails:{...(current.subjectDetails||{}),[subject]:{short:current.subjectDetails?.[subject]?.short||subject.slice(0,4).toUpperCase(),color:current.subjectDetails?.[subject]?.color||'#1a3a8a',number:current.subjectDetails?.[subject]?.number||'',customFields:current.subjectDetails?.[subject]?.customFields||'',classrooms:current.subjectDetails?.[subject]?.classrooms||[],distrib:current.subjectDetails?.[subject]?.distrib||'Ideal',timeOffGrid:grid}}}));setSubjectTimeOffOpen(null);setStatus('Subject time-off updated · remember to Save workspace')}} />}
+      {subjectTimeOffOpen && <SubjectTimeOffDialog subject={subjectTimeOffOpen} days={data.days} periods={data.periods} initialGrid={data.subjectDetails?.[subjectTimeOffOpen]?.timeOffGrid} onClose={()=>setSubjectTimeOffOpen(null)} onSave={grid=>{const subject=subjectTimeOffOpen;if(!subject)return;const detail=data.subjectDetails?.[subject];const nextData:Workspace={...data,subjectDetails:{...(data.subjectDetails||{}),[subject]:{short:detail?.short||subject.slice(0,4).toUpperCase(),color:detail?.color||'#1a3a8a',number:detail?.number||'',customFields:detail?.customFields||'',classrooms:detail?.classrooms||[],distrib:detail?.distrib||'Ideal',timeOffGrid:grid}}};void persistWorkspace(nextData,'save subject time off').then(saved=>{if(saved)setSubjectTimeOffOpen(null)})}} />}
       {setupTab === 'classes' && <div><form className="phikila-tt-spec-add" onSubmit={event=>{event.preventDefault();const value=catalogueValue.trim();if(!value)return;setData(current=>({...current,specification:{...current.specification,classes:unique([...current.specification.classes,value])}}));setCatalogueValue('')}}><input aria-label="New class" placeholder="Enter class name" value={catalogueValue} onChange={event=>setCatalogueValue(event.target.value)}/><button className="phikila-tt-button phikila-tt-button-primary" type="submit">Add</button></form><ul className="phikila-tt-spec-list">{data.specification.classes.map(item=><li key={item}><span>{item}</span><button className="phikila-tt-button phikila-tt-danger" onClick={()=>setData(current=>({...current,specification:{...current.specification,classes:current.specification.classes.filter(value=>value!==item)}}))}>Remove</button></li>)}</ul></div>}
-      <div className="phikila-tt-settings-save"><button className="phikila-tt-button" onClick={() => setSettingsOpen(false)}>Close</button><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save school settings</button></div>
+      <div className="phikila-tt-settings-save"><button className="phikila-tt-button" onClick={() => setSettingsOpen(false)}>Close</button><button type="button" className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>{setupTab === 'subjects' ? 'Save subjects' : setupTab === 'classes' ? 'Save classes' : 'Save school settings'}</button></div>
     </section>}
+    {periodsMasterOpen && <PeriodsMaster
+      initialPeriods={data.periods}
+      onClose={() => setPeriodsMasterOpen(false)}
+      onSaveAll={async (periods, oldIndexToNewIndex) => {
+        const lessons = data.lessons.flatMap(lesson => {
+          const nextPeriod = oldIndexToNewIndex[lesson.period]
+          return nextPeriod === undefined ? [] : [{ ...lesson, period: nextPeriod }]
+        })
+        const nextData: Workspace = { ...data, periods, periodsPerDay: periods.filter(period => period.type !== 'break').length, lessons }
+        const saved = await persistWorkspace(nextData, 'save periods and bell times')
+        if (!saved) throw new Error('Periods could not be saved to the school database.')
+      }}
+    />}
     {daysDialogOpen && <DaysDialog
       initialDays={data.days}
       initialDetails={data.dayDetails}
@@ -283,6 +333,8 @@ export default function TimetableModule() {
     {!(settingsOpen && setupTab === 'subjects') && <footer className="phikila-tt-footer"><span>{status}</span><span>{conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local same-slot conflicts detected'}</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save workspace</button></footer>}
     {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period]?.name}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
     {previewOpen && <div className="phikila-tt-modal-backdrop"><section className="phikila-tt-preview" role="dialog" aria-modal="true" aria-labelledby="tt-preview-title"><div className="phikila-tt-panel-heading"><div><h2 id="tt-preview-title">Print preview · {data.schoolName}</h2><p>Academic year {data.academicYear}</p></div><div><button className="phikila-tt-button" onClick={() => setPreviewOpen(false)}>Close</button> <button className="phikila-tt-button phikila-tt-button-primary" onClick={() => window.print()}>Print</button></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th>Period</th>{data.days.map(day => <th key={day}>{day}</th>)}</tr></thead><tbody>{data.periods.map((period, index) => <tr key={period.name + index}><th>{period.name}<small>{period.start}–{period.end}</small></th>{data.days.map(day => <td key={day}>{data.lessons.filter(lesson => lesson.day === day && lesson.period === index).map(lesson => <div className="phikila-tt-print-lesson" key={lesson.id}><strong>{lesson.className} · {lesson.subject}</strong><br />{lesson.teacher}{lesson.room ? ' · ' + lesson.room : ''}</div>)}</td>)}</tr>)}</tbody></table></div></section></div>}
+    {advisorOpen && <AdvisorDialog classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} onClose={() => setAdvisorOpen(false)} />}
+    {generateNewAdvisorOpen && <GenerateNewAdvisor classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} classDetails={data.classDetails || {}} teacherDetails={data.teacherDetails || {}} subjectDetails={data.subjectDetails || {}} onGenerate={() => { const result = generateSchedule(data); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved'); setGenerateNewAdvisorOpen(false) } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save'); setGenerateNewAdvisorOpen(false) } }} onClose={() => setGenerateNewAdvisorOpen(false)} />}
     <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={event => { openJson(event.target.files?.[0]); event.currentTarget.value = '' }} />
   </main>
 }
@@ -297,7 +349,7 @@ function SubjectEditorDialog({value,classrooms,mode,onChange,onClose,onSave}:{va
  <label>Subject title<input autoFocus value={value.title} onChange={e=>update('title',e.target.value)}/></label><label>Short<input value={value.short} onChange={e=>update('short',e.target.value)}/></label>
  <details><summary>Custom fields</summary><label>Custom field notes<textarea value={value.customFields} onChange={e=>update('customFields',e.target.value)} placeholder="Optional subject notes"/></label></details>
  <fieldset><legend>Color / Picture</legend><div className="phikila-tt-subject-color-picker"><div style={{background:value.color}}/><input aria-label="Subject color" type="color" value={value.color} onChange={e=>update('color',e.target.value)}/><span>{value.color.toUpperCase()}</span></div></fieldset>
- <fieldset><legend>Classrooms</legend><div className="phikila-tt-subject-classrooms">{classrooms.length?classrooms.map(room=><label key={room}><input type="checkbox" checked={value.classrooms.includes(room)} onChange={e=>update('classrooms',e.target.checked?[...value.classrooms,room]:value.classrooms.filter(item=>item!==room))}/>{room}</label>):<p>Add classrooms under School settings first.</p>}</div><button type="button" className="phikila-tt-button" onClick={()=>update('classrooms',[...classrooms])}>Set for all lessons of this subject</button></fieldset>
+ <fieldset><legend>Classrooms</legend><div className="phikila-tt-subject-classrooms">{classrooms.length?classrooms.map(room=><label key={room}><input type="checkbox" checked={value.classrooms.includes(room)} onChange={e=>update('classrooms',e.target.checked?[...value.classrooms,room]:value.classrooms.filter(item=>item!==room))}/>{room}</label>):<p>Add classrooms under School settings first.</p>}</div><button type="button" className="phikila-tt-button" onClick={()=>update('classrooms',[...classrooms])}>Select all classrooms</button></fieldset>
  <label>Number<input value={value.number} onChange={e=>update('number',e.target.value)}/></label></div><footer><button className="phikila-tt-button" onClick={onClose}>Cancel</button><button className="phikila-tt-button phikila-tt-button-primary" onClick={onSave}>OK</button></footer></section></div>
 }
 
@@ -356,6 +408,16 @@ function generateSchedule(data: Workspace): GenerationResult {
   if (lockedConflicts.length) {
     return { lessons: data.lessons, error: 'Locked lessons conflict with each other. Resolve these first: ' + lockedConflicts.slice(0, 3).join(' · ') }
   }
+  const lockedTimeOffConflicts = locked.filter(lesson => {
+    const dayIndex = data.days.indexOf(lesson.day)
+    if (dayIndex < 0) return false
+    return data.classDetails?.[lesson.className]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2
+      || data.teacherDetails?.[lesson.teacher]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2
+      || data.subjectDetails?.[lesson.subject]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2
+  })
+  if (lockedTimeOffConflicts.length) {
+    return { lessons: data.lessons, error: 'Locked lessons fall inside configured class, teacher, or subject time-off. Resolve those constraints first: ' + lockedTimeOffConflicts.slice(0, 3).map(lesson => lesson.className + ' · ' + lesson.subject + ' · ' + lesson.day).join(' · ') }
+  }
 
   const usablePeriods = data.periods.map((period, index) => ({ period, index }))
     .filter(({ period }) => !/break|lunch|recess/i.test(period.name))
@@ -370,6 +432,13 @@ function generateSchedule(data: Workspace): GenerationResult {
     other.id !== lesson.id && (other.className === lesson.className || other.teacher === lesson.teacher || (!!lesson.room && other.room === lesson.room))
   ).length
   const ordered = [...movable].sort((a, b) => resourceCount(b) - resourceCount(a))
+  const isUnavailable = (lesson: Lesson, day: string, period: number) => {
+    const dayIndex = data.days.indexOf(day)
+    if (dayIndex < 0) return true
+    return data.classDetails?.[lesson.className]?.timeOffGrid?.[dayIndex]?.[period] === 2
+      || data.teacherDetails?.[lesson.teacher]?.timeOffGrid?.[dayIndex]?.[period] === 2
+      || data.subjectDetails?.[lesson.subject]?.timeOffGrid?.[dayIndex]?.[period] === 2
+  }
   const conflictsAt = (lesson: Lesson, day: string, period: number) => placed.some(other =>
     other.day === day && other.period === period &&
     (other.className === lesson.className || other.teacher === lesson.teacher || (!!lesson.room && other.room === lesson.room))
@@ -384,7 +453,7 @@ function generateSchedule(data: Workspace): GenerationResult {
   const unscheduled: Lesson[] = []
   for (const lesson of ordered) {
     const candidates = slots
-      .filter(slot => !conflictsAt(lesson, slot.day, slot.period))
+      .filter(slot => !isUnavailable(lesson, slot.day, slot.period) && !conflictsAt(lesson, slot.day, slot.period))
       .sort((a, b) => score(lesson, a.day, a.period) - score(lesson, b.day, b.period))
     const slot = candidates[0]
     if (!slot) {
@@ -437,25 +506,39 @@ function NewLessonDialog({ defaultTeacher, subjects, classes, teachers, classroo
 }
 
 type ContractLesson = Lesson
-function TeacherContractDialog({ teacher, short, lessons, periods, subjects, classes, teachers, classrooms, teacherDetails, onClose, onNew, onEdit, onRemove }: { teacher: string; short: string; lessons: ContractLesson[]; periods: Period[]; subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[]; teacherDetails: Record<string, TeacherDetail>; onClose: () => void; onNew: () => void; onEdit: (lesson: ContractLesson) => void; onRemove: (lesson: ContractLesson) => void }) {
+function TeacherContractDialog({ teacher, short, lessons, periods, subjects, classes, teachers, classrooms, teacherDetails, onClose, onNew, onEdit, onRemove, onCopyTo }: { teacher: string; short: string; lessons: ContractLesson[]; periods: Period[]; subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[]; teacherDetails: Record<string, TeacherDetail>; onClose: () => void; onNew: () => void; onEdit: (lesson: ContractLesson) => void; onRemove: (lesson: ContractLesson) => void; onCopyTo: (lesson: ContractLesson, targetClass: string) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null)
   const selectedLesson = lessons.find(lesson => lesson.id === selectedId)
-  return <div className="phikila-tt-teachers-overlay" role="dialog" aria-modal="true" aria-label={teacher + ' contract'} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
+  const weeklyCount = (lesson: ContractLesson) => lessons.filter(item => item.subject === lesson.subject && item.className === lesson.className).length
+  const lengthLabel = (lesson: ContractLesson) => {
+    const adjacent = lessons.some(item => item.id !== lesson.id && item.subject === lesson.subject && item.className === lesson.className && item.day === lesson.day && Math.abs(item.period - lesson.period) === 1)
+    return adjacent ? 'Double' : 'Single'
+  }
+  const copyTo = () => {
+    if (!selectedLesson) return
+    const target = window.prompt('Copy this lesson to which class?', classes.find(name => name !== selectedLesson.className) || '')
+    if (!target) return
+    if (!classes.includes(target)) { window.alert('Choose a class from the configured class list.'); return }
+    if (target === selectedLesson.className) { window.alert('Choose a different class.'); return }
+    onCopyTo(selectedLesson, target)
+  }
+  return <div className="phikila-tt-teachers-overlay phikila-tt-contract-overlay" role="dialog" aria-modal="true" aria-label={teacher + ' contract'} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
     <section className="phikila-tt-contract-window">
-      <header className="phikila-tt-teachers-title"><strong>◫ Contract</strong><button type="button" onClick={onClose} aria-label="Close contract">×</button></header>
-      <div className="phikila-tt-contract-header"><span className="phikila-tt-contract-cap">T</span><div><strong>{teacher}</strong><span>{short || 'Teacher contract and assigned lessons'}</span></div></div>
-      <div className="phikila-tt-contract-table-wrap"><table className="phikila-tt-contract-table"><thead><tr><th>Subject</th><th>Teacher</th><th>Class</th><th>Day</th><th>Period</th><th>Count</th><th>Classroom</th></tr></thead><tbody>
-        {lessons.map(lesson => <tr key={lesson.id} onClick={() => setSelectedId(lesson.id)} onDoubleClick={() => onEdit(lesson)} className={selectedId === lesson.id ? 'is-selected' : ''}><td><span className="phikila-tt-contract-code">{lesson.subject}</span></td><td>{lesson.teacher}</td><td>{lesson.className}</td><td>{lesson.day}</td><td>{periods[lesson.period]?.name || 'Period ' + (lesson.period + 1)}</td><td>{lessons.filter(item => item.subject === lesson.subject && item.className === lesson.className).length}</td><td>{lesson.room || '—'}</td></tr>)}
+      <header className="phikila-tt-teachers-title"><strong>Contract</strong><button type="button" onClick={onClose} aria-label="Close contract">×</button></header>
+      <div className="phikila-tt-contract-header"><span className="phikila-tt-contract-cap" aria-hidden="true">♟</span><div><strong>{teacher}</strong><span>{teacherDetails[teacher]?.number || short || 'Teacher contract and assigned lessons'}</span></div></div>
+      <div className="phikila-tt-contract-table-wrap"><table className="phikila-tt-contract-table"><thead><tr><th>Subject</th><th>Teacher</th><th>Class</th><th>Day</th><th>Period</th><th>Count</th><th>Length</th><th>Classroom</th></tr></thead><tbody>
+        {lessons.map(lesson => <tr key={lesson.id} onClick={() => setSelectedId(lesson.id)} onDoubleClick={() => onEdit(lesson)} title="Double-click to edit this timetable entry" className={selectedId === lesson.id ? 'is-selected' : ''}><td><span className="phikila-tt-contract-code">{lesson.subject}</span></td><td>{lesson.teacher}</td><td>{lesson.className}</td><td>{lesson.day}</td><td>{periods[lesson.period]?.name || 'Period ' + (lesson.period + 1)}</td><td className="phikila-tt-contract-center">{weeklyCount(lesson)}</td><td>{lengthLabel(lesson)}</td><td>{lesson.room || '—'}</td></tr>)}
       </tbody></table>{lessons.length === 0 && <p className="phikila-tt-teachers-empty">No timetable lessons are assigned to this teacher yet. Choose New lesson to add one.</p>}</div>
-      <footer className="phikila-tt-contract-footer"><button type="button" onClick={onNew}>New lesson</button><button type="button" disabled={!selectedLesson} onClick={() => selectedLesson && onEdit(selectedLesson)}>Edit lesson</button><button type="button" disabled={!selectedLesson} onClick={() => { if (selectedLesson && window.confirm('Remove this lesson from the timetable?')) onRemove(selectedLesson) }}>Remove</button><span /><button type="button" onClick={onClose}>Close</button></footer>
+      <footer className="phikila-tt-contract-footer"><button type="button" onClick={onNew}>New lesson</button><button type="button" disabled={!selectedLesson} onClick={() => selectedLesson && onEdit(selectedLesson)}>Edit lesson</button><button type="button" disabled={!selectedLesson} onClick={() => { if (selectedLesson && window.confirm('Remove this lesson from the timetable?')) onRemove(selectedLesson) }}>Remove</button><button type="button" disabled={!selectedLesson || classes.length < 2} onClick={copyTo}>Copy to</button><button type="button" onClick={onNew}>Add more</button><span /><button type="button" onClick={onClose}>Close</button></footer>
     </section>
   </div>
 }
 
-type TeacherDraft = TeacherDetail & { name: string }
-function TeachersWorkspaceModule({ teachers, details, onClose, onSaveAll, onOpenContract, days, periods }: { teachers: string[]; details: Record<string, TeacherDetail>; onClose: () => void; onSaveAll: (teachers: string[], details: Record<string, TeacherDetail>) => void; onOpenContract: (teacher: string) => void; days: string[]; periods: Period[] }) {
+type TeacherDraft = TeacherDetail & { name: string; savedWorkload?: number }
+type SavedTeacherSource = { id?: string | number; name?: string; first_name?: string; last_name?: string; firstName?: string; lastName?: string; staff_number?: string; subject_specialization?: string; subject?: string; short?: string; code?: string; color?: string; email?: string; phone?: string; count?: number | string; workload?: number | string; profile?: Record<string, unknown> }
+function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = {}, onClose, onSaveAll, onOpenContract, days, periods }: { teachers: string[]; lessons: Lesson[]; details: Record<string, TeacherDetail>; savedWorkloads?: Record<string, number>; onClose: () => void; onSaveAll: (teachers: string[], details: Record<string, TeacherDetail>) => void; onOpenContract: (teacher: string) => void; days: string[]; periods: Period[] }) {
   const blankDetail = (): TeacherDetail => ({ firstName: '', short: '', color: '#1e40af', classTeacher: '', contract: '', email: '', phone: '', title1: '', title2: '', number: '', male: false, timeOffGrid: days.map(() => periods.map(() => 0)) })
-  const [records, setRecords] = useState<TeacherDraft[]>(() => teachers.map(name => ({ name, ...blankDetail(), ...(details[name] || {}) })))
+  const [records, setRecords] = useState<TeacherDraft[]>(() => teachers.map(name => ({ name, ...blankDetail(), ...(details[name] || {}), savedWorkload: savedWorkloads[name] })))
   const [selected, setSelected] = useState(0)
   const [mode, setMode] = useState<'list' | 'edit' | 'timeoff'>('list')
   const [draft, setDraft] = useState<TeacherDraft | null>(null)
@@ -487,7 +570,7 @@ function TeachersWorkspaceModule({ teachers, details, onClose, onSaveAll, onOpen
       {mode === 'list' && <>
         <div className="phikila-tt-teachers-caption">Enter teachers</div>
         <div className="phikila-tt-teachers-body"><div className="phikila-tt-teachers-table-wrap"><table className="phikila-tt-teachers-table"><thead><tr><th>Name</th><th>Short</th><th>Count</th><th>Time off</th><th>Class teacher</th></tr></thead><tbody>
-          {records.map((teacher, index) => <tr key={teacher.name} onClick={() => setSelected(index)} onDoubleClick={() => { setSelected(index); onOpenContract(teacher.name) }} title="Double-click to open teacher contract" className={selected === index ? 'is-selected' : ''}><td><span className="phikila-tt-teacher-color" style={{ background: teacher.color }} />{teacher.name}{teacher.firstName ? ' ' + teacher.firstName : ''}</td><td>{teacher.short}</td><td>{teacher.timeOffGrid.flat().filter(value => value === 0).length}</td><td><span className="phikila-tt-timeoff-preview">{teacher.timeOffGrid.flat().filter(value => value === 2).length} unavailable</span></td><td>{teacher.classTeacher}</td></tr>)}
+          {records.map((teacher, index) => <tr key={teacher.name} onClick={() => setSelected(index)} onDoubleClick={() => { setSelected(index); onOpenContract(teacher.name) }} title="Double-click to open teacher contract" className={selected === index ? 'is-selected' : ''}><td><span className="phikila-tt-teacher-color" style={{ background: teacher.color }} />{teacher.name}{teacher.firstName ? ' ' + teacher.firstName : ''}</td><td>{teacher.short}</td><td>{(lessons.filter(lesson => lesson.teacher === teacher.name || lesson.teacher.startsWith(teacher.name + ' (')).length || teacher.savedWorkload || 0)}</td><td><span className="phikila-tt-timeoff-preview">{teacher.timeOffGrid.flat().filter(value => value === 2).length} unavailable</span></td><td>{teacher.classTeacher}</td></tr>)}
         </tbody></table>{records.length === 0 && <p className="phikila-tt-teachers-empty">No teachers are configured yet. Select New to add one.</p>}</div>
         <aside className="phikila-tt-teachers-actions"><button type="button" onClick={startNew}>＋ New</button><button type="button" disabled={!selectedRecord} onClick={startEdit}>Edit</button><button type="button" disabled={!selectedRecord} onClick={() => { setRecords(current => current.filter((_, index) => index !== selected)); setSelected(Math.max(0, selected - 1)) }}>− Remove</button><div className="phikila-tt-teachers-spacer" /><button type="button" disabled={!selectedRecord} onClick={openTimeOff}>Time off</button><button type="button" disabled={!selectedRecord} onClick={() => { const name = window.prompt('Class teacher for class', selectedRecord?.classTeacher || ''); if (name !== null && selectedRecord) setRecords(current => current.map((teacher, index) => index === selected ? { ...teacher, classTeacher: name } : teacher)) }}>Class teacher</button><button type="button" className="is-primary" onClick={saveAll}>Save All &amp; Close</button></aside></div>
       </>}
