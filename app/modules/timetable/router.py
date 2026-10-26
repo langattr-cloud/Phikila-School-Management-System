@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.core.database import Base, get_db
 from app.modules.authentication.supabase import get_supabase_claims
+from app.modules.subjects.models import Subject
+
 
 
 class TimetableRibbonWorkspace(Base):
@@ -73,6 +75,15 @@ def _validate(data: dict[str, Any]) -> None:
 def _serialize(row: TimetableRibbonWorkspace | None) -> dict[str, Any]:
     return {"data": row.data, "updated_at": row.updated_at.isoformat() if row and row.updated_at else None} if row else {"data": None, "updated_at": None}
 
+
+
+
+@router.get("/timetable/subjects/catalogue")
+def list_subject_catalogue(claims: dict[str, Any] = Depends(get_supabase_claims), db: Session = Depends(get_db)):
+    """Return the canonical subject catalogue for the signed-in timetable user."""
+    _owner(claims)
+    rows = db.query(Subject).filter(Subject.name.is_not(None)).order_by(Subject.name.asc()).all()
+    return [{"id": row.id, "name": row.name, "code": row.code} for row in rows if str(row.name or "").strip()]
 
 @router.get("/timetable/workspace")
 def get_workspace(claims: dict[str, Any] = Depends(get_supabase_claims), db: Session = Depends(get_db)):
