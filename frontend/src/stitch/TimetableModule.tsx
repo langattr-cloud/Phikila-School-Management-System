@@ -5,6 +5,7 @@ import AscTimetableMenu from './AscTimetableMenu'
 import ClassesWorkspaceModule from './ClassesWorkspaceModule'
 import DaysDialog, { type DayEntry } from './DaysDialog'
 import PeriodsMaster from './PeriodsMaster'
+import AdvisorDialog from './AdvisorDialog'
 import './timetable-module.css'
 
 type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
@@ -54,6 +55,7 @@ export default function TimetableModule() {
   const [subjectTimeOffOpen, setSubjectTimeOffOpen] = useState<string | null>(null)
   const [breakDialog, setBreakDialog] = useState<{ index: number | null; form: BreakForm } | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [advisorOpen, setAdvisorOpen] = useState(false)
   const [section, setSection] = useState<string | null>(null)
   const [teachersOpen, setTeachersOpen] = useState(false)
   const [classesOpen, setClassesOpen] = useState(false)
@@ -162,7 +164,8 @@ export default function TimetableModule() {
       case 'Save As': case 'Export': exportJson(); break
       case 'Print': window.print(); break
       case 'Print preview': setPreviewOpen(true); break
-      case 'Test': case 'Verification': void runTest(); break
+      case 'Test': setAdvisorOpen(true); break
+      case 'Verification': void runTest(); break
       case 'Generate': { const result = generateSchedule(data); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved') } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save') } break }
       case 'Help': case 'Contents': case 'Questions/Comments': case 'Questions? / Write us': case 'Questions? Comments? Write us': case 'About': setStatus('Phikila Timetable Help · Use the menu bar for File, Specification, View, Timetable, Options, and Help actions.'); break
       case 'School': case 'Settings': setSetupTab('basic'); setSettingsOpen(true); break
@@ -298,6 +301,7 @@ export default function TimetableModule() {
     {!(settingsOpen && setupTab === 'subjects') && <footer className="phikila-tt-footer"><span>{status}</span><span>{conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local same-slot conflicts detected'}</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save workspace</button></footer>}
     {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period]?.name}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
     {previewOpen && <div className="phikila-tt-modal-backdrop"><section className="phikila-tt-preview" role="dialog" aria-modal="true" aria-labelledby="tt-preview-title"><div className="phikila-tt-panel-heading"><div><h2 id="tt-preview-title">Print preview · {data.schoolName}</h2><p>Academic year {data.academicYear}</p></div><div><button className="phikila-tt-button" onClick={() => setPreviewOpen(false)}>Close</button> <button className="phikila-tt-button phikila-tt-button-primary" onClick={() => window.print()}>Print</button></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th>Period</th>{data.days.map(day => <th key={day}>{day}</th>)}</tr></thead><tbody>{data.periods.map((period, index) => <tr key={period.name + index}><th>{period.name}<small>{period.start}–{period.end}</small></th>{data.days.map(day => <td key={day}>{data.lessons.filter(lesson => lesson.day === day && lesson.period === index).map(lesson => <div className="phikila-tt-print-lesson" key={lesson.id}><strong>{lesson.className} · {lesson.subject}</strong><br />{lesson.teacher}{lesson.room ? ' · ' + lesson.room : ''}</div>)}</td>)}</tr>)}</tbody></table></div></section></div>}
+    {advisorOpen && <AdvisorDialog classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} onClose={() => setAdvisorOpen(false)} />}
     <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={event => { openJson(event.target.files?.[0]); event.currentTarget.value = '' }} />
   </main>
 }
