@@ -212,8 +212,25 @@ export default function TimetableModule() {
 
   const saveContractEdit = async (_teacher: string, row: ContractRow, draft: ContractEditDraft): Promise<boolean> => {
     const oldIds = new Set(row.entries.map(item => item.id))
-    const span = draft.length === 'Triple' ? 3 : draft.length === 'Double' ? 2 : 1
+    const baseSpan = draft.length === 'Triple' ? 3 : draft.length === 'Double' ? 2 : 1
     const requested = Math.max(1, Math.min(10, Number(draft.lessonsPerWeek) || 1))
+    const existingSessionSpans: number[] = []
+    const existingByDay = new Map<string, number[]>()
+    row.entries.forEach(item => existingByDay.set(item.day, [...(existingByDay.get(item.day) || []), item.period]))
+    existingByDay.forEach(periods => {
+      let run = 0
+      let previous: number | null = null
+      for (const period of periods.sort((a, b) => a - b)) {
+        if (previous === null || period !== previous + 1) { if (run) existingSessionSpans.push(run); run = 1 } else run++
+        previous = period
+      }
+      if (run) existingSessionSpans.push(run)
+    })
+    // Mixed assignments retain their existing single/double/triple session lengths.
+    // If the user increases the count, append single sessions unless they choose a fixed length.
+    const spans = draft.length === 'Mixed'
+      ? [...existingSessionSpans.slice(0, requested), ...Array(Math.max(0, requested - existingSessionSpans.length)).fill(1)]
+      : Array(requested).fill(baseSpan)
     const room = draft.room.trim() || draft.otherRooms.trim()
     const isBreak = (period: Period | undefined) => !period || period.type === 'break' || /break|lunch|recess/i.test(period.name)
     const starts: { day: string; period: number }[] = []
@@ -229,10 +246,11 @@ export default function TimetableModule() {
     data.days.forEach(day => data.periods.forEach((_, period) => addCandidate({ day, period })))
     const chosen: { day: string; period: number }[] = []
     const fits = (candidate: { day: string; period: number }) => {
+      const span = spans[chosen.length]
       if (candidate.period + span > data.periods.length) return false
       const slots = Array.from({ length: span }, (_, offset) => candidate.period + offset)
       if (slots.some(index => isBreak(data.periods[index]))) return false
-      if (chosen.some(item => item.day === candidate.day && Array.from({ length: span }, (_, offset) => item.period + offset).some(index => slots.includes(index)))) return false
+      if (chosen.some((item, chosenIndex) => item.day === candidate.day && Array.from({ length: spans[chosenIndex] }, (_, offset) => item.period + offset).some(index => slots.includes(index)))) return false
       const dayIndex = data.days.indexOf(candidate.day)
       if (dayIndex < 0 || slots.some(index =>
         data.classDetails?.[draft.className]?.timeOffGrid?.[dayIndex]?.[index] === 2 ||
@@ -249,7 +267,7 @@ export default function TimetableModule() {
     }
     const oldBySlot = new Map(row.entries.map(item => [item.day + '::' + item.period, item]))
     const additions: Lesson[] = []
-    chosen.forEach(slot => Array.from({ length: span }, (_, offset) => slot.period + offset).forEach(period => {
+    chosen.forEach((slot, sessionIndex) => Array.from({ length: spans[sessionIndex] }, (_, offset) => slot.period + offset).forEach(period => {
       const old = oldBySlot.get(slot.day + '::' + period)
       additions.push({ id: old?.id || makeId(), day: slot.day, period, className: draft.className, subject: draft.subject, teacher: draft.teacher, room, locked: old?.locked || false })
     }))
@@ -659,7 +677,7 @@ function NewLessonDialog({ defaultTeacher, subjects, classes, teachers, classroo
 
 type ContractLesson = Lesson
 type ContractRow = { key: string; lesson: ContractLesson; entries: ContractLesson[]; count: number; length: string }
-type ContractEditDraft = { teacher: string; subject: string; className: string; group: string; lessonsPerWeek: number; length: 'Single' | 'Double' | 'Triple'; room: string; homeClassroom: boolean; sharedRoom: boolean; teacherRooms: boolean; subjectRooms: boolean; otherRooms: string }
+type ContractEditDraft = { teacher: string; subject: string; className: string; group: string; lessonsPerWeek: number; length: 'Single' | 'Double' | 'Triple' | 'Mixed'; room: string; homeClassroom: boolean; sharedRoom: boolean; teacherRooms: boolean; subjectRooms: boolean; otherRooms: string }
 function TeacherContractDialog({ teacher, short, lessons, periods, subjects, classes, teachers, classrooms, teacherDetails, actionError, onClose, onNew, onEdit, onRemove, onCopyTo }: { teacher: string; short: string; lessons: ContractLesson[]; periods: Period[]; subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[]; teacherDetails: Record<string, TeacherDetail>; actionError?: string; onClose: () => void; onNew: () => void; onEdit: (row: ContractRow) => void; onRemove: (lesson: ContractLesson | ContractLesson[]) => void; onCopyTo: (row: ContractRow, targetClass: string) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null)
   const selectedLesson = lessons.find(lesson => lesson.id === selectedId)
@@ -727,7 +745,7 @@ function ContractLessonEditDialog({ teacher, row, subjects, classes, teachers, c
     className: row.lesson.className,
     group: 'Entire class',
     lessonsPerWeek: row.count,
-    length: row.length === 'Double' || row.length === 'Triple' ? row.length : 'Single',
+    length: row.length, 
     homeClassroom: true,
     sharedRoom: false,
     teacherRooms: false,
@@ -753,7 +771,7 @@ function ContractLessonEditDialog({ teacher, row, subjects, classes, teachers, c
         <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>♟</span><div><label style={label}>Teacher</label><select style={{ ...field, background: '#a8c8ff' }} value={form.teacher} onChange={event => patch('teacher', event.target.value)}>{teacherOptions.map(name => <option key={name} value={name}>{name}{teacherDetails[name]?.short ? ' (' + teacherDetails[name].short + ')' : ''}</option>)}</select></div><button type="button" style={btn} onClick={() => { const next = teacherOptions.findIndex(name => name === form.teacher); patch('teacher', teacherOptions[(next + 1) % teacherOptions.length] || form.teacher); setError('') }}>More teachers</button></div>
         <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>▣</span><div><label style={label}>Subject</label><select style={{ ...field, background: '#fffbe6' }} value={form.subject} onChange={event => patch('subject', event.target.value)}>{subjectOptions.map(subject => <option key={subject}>{subject}</option>)}</select></div><span /></div>
         <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>♧</span><div><label style={label}>Class</label><div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 135px', gap: 8 }}><select style={{ ...field, background: '#fffbe6' }} value={form.className} onChange={event => patch('className', event.target.value)}>{classOptions.map(name => <option key={name}>{name}</option>)}</select><select style={field} value={form.group} onChange={event => patch('group', event.target.value)}>{['Entire class', 'Group 1', 'Group 2', 'Half class'].map(group => <option key={group}>{group}</option>)}</select></div></div><div style={{ display: 'grid', gap: 5 }}><button type="button" style={btn} onClick={() => setError('Joint classes are not supported by the current timetable model. Select one class for this assignment.')}>Joint classes</button><button type="button" style={btn} onClick={() => setError('Class divisions are not supported by the current timetable model. Choose a class or group from the selectors.')}>Add division</button></div></div>
-        <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>▦</span><div><label style={label}>Lessons/week</label><div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 130px', gap: 8 }}><select style={{ ...field, background: '#fffbe6' }} value={form.lessonsPerWeek} onChange={event => patch('lessonsPerWeek', Number(event.target.value))}>{Array.from({ length: 10 }, (_, index) => index + 1).map(count => <option key={count} value={count}>{count}</option>)}</select><select style={field} value={form.length} onChange={event => patch('length', event.target.value as ContractEditDraft['length'])}>{(['Single', 'Double', 'Triple'] as const).map(length => <option key={length}>{length}</option>)}</select></div></div><button type="button" style={btn} onClick={() => setError('This assignment applies to the standard school week. Separate week and term patterns are not currently stored.')}>More weeks/terms</button></div>
+        <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>▦</span><div><label style={label}>Lessons/week</label><div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 130px', gap: 8 }}><select style={{ ...field, background: '#fffbe6' }} value={form.lessonsPerWeek} onChange={event => patch('lessonsPerWeek', Number(event.target.value))}>{Array.from({ length: 10 }, (_, index) => index + 1).map(count => <option key={count} value={count}>{count}</option>)}</select><select style={field} value={form.length} onChange={event => patch('length', event.target.value as ContractEditDraft['length'])}>{(['Single', 'Double', 'Triple', 'Mixed'] as const).map(length => <option key={length}>{length}</option>)}</select></div></div><button type="button" style={btn} onClick={() => setError('This assignment applies to the standard school week. Separate week and term patterns are not currently stored.')}>More weeks/terms</button></div>
         <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>⌂</span><div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 18px', marginBottom: 8 }}><label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.homeClassroom} onChange={event => patch('homeClassroom', event.target.checked)} />Home classroom</label><label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.teacherRooms} onChange={event => patch('teacherRooms', event.target.checked)} />Teacher's classrooms</label><label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.sharedRoom} onChange={event => patch('sharedRoom', event.target.checked)} />Shared room</label><label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.subjectRooms} onChange={event => patch('subjectRooms', event.target.checked)} />Subject's classrooms</label></div><label style={label}>Classroom</label><select style={field} value={form.room} onChange={event => patch('room', event.target.value)}><option value="">No classroom selected</option>{roomOptions.map(room => <option key={room}>{room}</option>)}</select><input style={{ ...field, marginTop: 7 }} placeholder="Other available classrooms" value={form.otherRooms} onChange={event => patch('otherRooms', event.target.value)} /></div><button type="button" style={btn} onClick={() => { if (!roomOptions.length) setError('No saved classrooms are available. Add classrooms in School setup first.'); else { patch('room', roomOptions.find(room => room !== form.room) || roomOptions[0]); setError('') } }}>More classrooms</button></div>
       </div>
       <p style={{ fontSize: 11, color: '#475569', margin: '9px 2px 0' }}>Saving updates the whole subject/class assignment and places the requested number of sessions into free timetable slots. Day and period are not displayed on this page.</p>
