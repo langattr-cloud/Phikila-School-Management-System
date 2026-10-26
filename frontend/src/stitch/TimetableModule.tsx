@@ -550,7 +550,7 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
   const [timeOff, setTimeOff] = useState<number[][]>([])
   const selectedRecord = records[selected]
   const startNew = () => { setEditingExisting(false); setDraft({ name: '', ...blankDetail() }); setMode('edit') }
-  const startEdit = () => { if (selectedRecord) { setEditingExisting(true); setDraft({ ...selectedRecord }); setMode('edit') } }
+  const startEdit = () => { if (selectedRecord) { const lastName = selectedRecord.firstName && selectedRecord.name.toLowerCase().startsWith(selectedRecord.firstName.toLowerCase() + ' ') ? selectedRecord.name.slice(selectedRecord.firstName.length).trim() : selectedRecord.name; setEditingExisting(true); setDraft({ ...selectedRecord, name: lastName }); setMode('edit') } }
   const persistRecords = async (nextRecords: TeacherDraft[], closeOnSuccess = false) => {
     if (saving) return false
     setSaving(true)
@@ -571,10 +571,11 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
     } finally { setSaving(false) }
   }
   const saveDraft = () => {
-    if (!draft?.name.trim()) { window.alert('Teacher name is required'); return }
+    if (!draft?.name.trim() && !draft?.firstName.trim()) { window.alert('Enter a first name or last name'); return }
     const next = [...records]
-    if (records.some((teacher, index) => index !== selected && teacher.name.toLowerCase() === draft.name.trim().toLowerCase())) { window.alert('A teacher with that name already exists'); return }
-    const clean = { ...draft, name: draft.name.trim() }
+    const fullName = `${draft.firstName.trim()} ${draft.name.trim()}`.trim()
+    if (records.some((teacher, index) => index !== selected && teacher.name.toLowerCase() === fullName.toLowerCase())) { window.alert('A teacher with that name already exists'); return }
+    const clean = { ...draft, name: fullName }
     if (editingExisting && selectedRecord) next[selected] = clean
     else next.push(clean)
     setRecords(next); setSelected(editingExisting && selectedRecord ? selected : next.length - 1); setMode('list'); setDraft(null)
