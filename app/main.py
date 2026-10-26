@@ -31,6 +31,7 @@ from app.modules.school.router import router as school_router
 from app.modules.subjects.timetable_profiles import router as timetable_subjects_router, TimetableSubjectProfile
 from app.modules.students.import_router import router as students_import_router
 from app.modules.students.router_v2 import router as students_router
+from app.modules.teachers.router import router as teachers_router
 from app.modules.users.router import router as users_router
 from app.modules.timetable.router import router as timetable_workspace_router, TimetableRibbonWorkspace
 
@@ -123,6 +124,8 @@ def create_app() -> FastAPI:
     app.include_router(school_modules_router, prefix="/api/v1/platform", tags=["School Module Access"])
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
     app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
+    _guard_module_routes(teachers_router, "staff", teacher_paths=True)
+    app.include_router(teachers_router, prefix="/api/v1/teachers", tags=["Teachers"], dependencies=protected)
     app.include_router(academics_router, prefix="/api/v1/academics", tags=["Academics"], dependencies=protected)
     app.include_router(timetable_subjects_router, prefix="/api/v1/timetable", tags=["Timetable Subjects"])
     app.include_router(timetable_workspace_router, prefix="/api/v1", tags=["Timetable Workspace"])
