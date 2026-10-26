@@ -26,13 +26,29 @@ export default function GenerateNewAdvisor({ classes, lessons, days, periods, cl
     const usablePeriods = periods.map((period, index) => ({ period, index }))
       .filter(({ period }) => period.type !== 'break' && !/break|lunch|recess/i.test(period.name))
       .map(({ index }) => index)
-    const totalSlots = usablePeriods.length * days.length
     classes.forEach(className => {
       const assigned = lessons.filter(lesson => lesson.className === className)
-      if (assigned.length > totalSlots) result.push({
+      const grid = classDetails[className]?.timeOffGrid
+      const availableSlots = days.reduce((total, _day, dayIndex) => total + usablePeriods.filter(periodIndex => grid?.[dayIndex]?.[periodIndex] !== 2).length, 0)
+      if (assigned.length > availableSlots) result.push({
         id: 'capacity:' + className,
-        title: `Class ${className} has ${assigned.length} lesson entries but only ${totalSlots} teaching positions are available in the configured week.`,
+        title: `Class ${className} has ${assigned.length} lesson entries but only ${availableSlots} available teaching positions after configured time-off.`,
         detail: className, kind: 'critical', lessonIds: assigned.map(lesson => lesson.id),
+      })
+    })
+
+    lessons.filter(lesson => lesson.locked).forEach(lesson => {
+      const dayIndex = days.indexOf(lesson.day)
+      const unavailableFor = [
+        classDetails[lesson.className]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2 ? 'class ' + lesson.className : '',
+        teacherDetails[lesson.teacher]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2 ? 'teacher ' + lesson.teacher : '',
+        subjectDetails[lesson.subject]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2 ? 'subject ' + lesson.subject : '',
+      ].filter(Boolean)
+      if (dayIndex >= 0 && unavailableFor.length) result.push({
+        id: 'timeoff:' + lesson.id,
+        title: `Locked lesson ${lesson.subject} · ${lesson.className} is placed in configured time-off for ${unavailableFor.join(', ')}.`,
+        detail: lesson.day + ' · ' + (periods[lesson.period]?.name || 'Period ' + (lesson.period + 1)),
+        kind: 'critical', lessonIds: [lesson.id],
       })
     })
 
