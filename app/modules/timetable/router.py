@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.core.database import Base, get_db
 from app.modules.authentication.supabase import get_supabase_claims
+from app.modules.subjects.models import Subject
+
 
 
 class TimetableRibbonWorkspace(Base):
@@ -20,6 +22,17 @@ class TimetableRibbonWorkspace(Base):
     data = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class TimetableWorkspaceRevision(Base):
+    """Immutable snapshot of a previously saved workspace, for recovery from accidental overwrites."""
+    __tablename__ = "tt_timetable_ribbon_workspace_revisions"
+
+    id = Column(Integer, primary_key=True)
+    workspace_id = Column(Integer, nullable=False, index=True)
+    owner_id = Column(String(255), nullable=False, index=True)
+    data = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
 
 
 class WorkspaceInput(BaseModel):
@@ -74,6 +87,70 @@ def _serialize(row: TimetableRibbonWorkspace | None) -> dict[str, Any]:
     return {"data": row.data, "updated_at": row.updated_at.isoformat() if row and row.updated_at else None} if row else {"data": None, "updated_at": None}
 
 
+
+
+@router.get("/timetable/subjects/catalogue")
+def list_subject_catalogue(claims: dict[str, Any] = Depends(get_supabase_claims), db: Session = Depends(get_db)):
+    """Return the canonical subject catalogue for the signed-in timetable user."""
+    _owner(claims)
+    rows = db.query(Subject).filter(Subject.name.is_not(None)).order_by(Subject.name.asc()).all()
+    return [{"id": row.id, "name": row.name, "code": row.code} for row in rows if str(row.name or "").strip()]
+
+@router.get("/timetable/workspace/revisions")
+def list_workspace_revisions(claims: dict[str, Any] = Depends(get_supabase_claims), db: Session = Depends(get_db)):
+    """List recoverable prior saves for the signed-in user's timetable workspace."""
+    owner_id = _owner(claims)
+    row = _get_row(db, owner_id)
+    if row is None:
+        return []
+    revisions = (
+        db.query(TimetableWorkspaceRevision)
+        .filter(TimetableWorkspaceRevision.owner_id == owner_id, TimetableWorkspaceRevision.workspace_id == row.id)
+        .order_by(TimetableWorkspaceRevision.created_at.desc(), TimetableWorkspaceRevision.id.desc())
+        .limit(100)
+        .all()
+    )
+    result = []
+    for revision in revisions:
+        data = revision.data if isinstance(revision.data, dict) else {}
+        specification = data.get("specification") if isinstance(data.get("specification"), dict) else {}
+        result.append({
+            "id": revision.id,
+            "created_at": revision.created_at.isoformat() if revision.created_at else None,
+            "lessons": len(data.get("lessons", [])) if isinstance(data.get("lessons"), list) else 0,
+            "subjects": len(specification.get("subjects", [])) if isinstance(specification.get("subjects"), list) else 0,
+            "classes": len(specification.get("classes", [])) if isinstance(specification.get("classes"), list) else 0,
+            "teachers": len(specification.get("teachers", [])) if isinstance(specification.get("teachers"), list) else 0,
+        })
+    return result
+
+
+@router.post("/timetable/workspace/revisions/{revision_id}/restore")
+def restore_workspace_revision(revision_id: int, claims: dict[str, Any] = Depends(get_supabase_claims), db: Session = Depends(get_db)):
+    """Restore one prior saved workspace while preserving the current state as another revision."""
+    owner_id = _owner(claims)
+    row = _get_row(db, owner_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="No saved timetable workspace exists")
+    revision = (
+        db.query(TimetableWorkspaceRevision)
+        .filter(
+            TimetableWorkspaceRevision.id == revision_id,
+            TimetableWorkspaceRevision.owner_id == owner_id,
+            TimetableWorkspaceRevision.workspace_id == row.id,
+        )
+        .first()
+    )
+    if revision is None:
+        raise HTTPException(status_code=404, detail="Saved workspace revision not found")
+    db.add(TimetableWorkspaceRevision(workspace_id=row.id, owner_id=owner_id, data=row.data))
+    row.data = revision.data
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return _serialize(row)
+
+
 @router.get("/timetable/workspace")
 def get_workspace(claims: dict[str, Any] = Depends(get_supabase_claims), db: Session = Depends(get_db)):
     return _serialize(_get_row(db, _owner(claims)))
@@ -88,8 +165,16 @@ def save_workspace(payload: WorkspaceInput, claims: dict[str, Any] = Depends(get
         row = TimetableRibbonWorkspace(owner_id=owner_id, data=payload.data)
         db.add(row)
     else:
-        row.data = payload.data
-        row.updated_at = datetime.now(timezone.utc)
+        # Keep the previous committed state before replacing it. A later mistaken
+        # save or stale client can therefore be recovered without losing history.
+        if row.data != payload.data:
+            db.add(TimetableWorkspaceRevision(
+                workspace_id=row.id,
+                owner_id=owner_id,
+                data=row.data,
+            ))
+            row.data = payload.data
+            row.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(row)
     return _serialize(row)

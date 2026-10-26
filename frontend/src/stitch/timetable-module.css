@@ -313,6 +313,7 @@
 .phikila-tt-school-window .phikila-tt-settings-save{position:sticky;bottom:0;background:#fff;border-top:1px solid #d7dee8;padding:10px 12px}
 @media(max-width:700px){.phikila-tt-settings.phikila-tt-school-window{width:calc(100vw - 16px);max-height:96vh}.phikila-tt-school-window .phikila-tt-school-form{grid-template-columns:1fr}}
 
+.phikila-tt-new-lesson-overlay{z-index:10090}
 .phikila-tt-contract-overlay{z-index:10070;font-family:"Segoe UI",Tahoma,sans-serif}
 .phikila-tt-contract-window{width:min(1100px,98vw);height:min(88vh,820px);background:#e8e8e8;border:1px solid #777;box-shadow:10px 10px 24px rgba(0,0,0,.5)}
 .phikila-tt-contract-window>.phikila-tt-teachers-title{min-height:28px;background:#f0f0f0;padding:0 10px;font-size:12px}
