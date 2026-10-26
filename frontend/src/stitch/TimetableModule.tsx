@@ -31,6 +31,23 @@ const EMPTY: Workspace = { schoolName: 'Phikila School', academicYear: '2026/202
 const makeId = () => (globalThis.crypto && globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : 'lesson-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8))
 const unique = (items: string[]) => Array.from(new Set(items.map(item => item.trim()).filter(Boolean)))
 
+// Sort class labels by their numeric grade/form first, then by stream (A, B, E, W, etc.).
+const compareClassNames = (left: string, right: string) => {
+  const leftNumber = left.match(/\\d+/)?.[0]
+  const rightNumber = right.match(/\\d+/)?.[0]
+  const leftGrade = leftNumber == null ? Number.MAX_SAFE_INTEGER : Number(leftNumber)
+  const rightGrade = rightNumber == null ? Number.MAX_SAFE_INTEGER : Number(rightNumber)
+  if (leftGrade !== rightGrade) return leftGrade - rightGrade
+
+  const stream = (value: string) => value
+    .replace(/^\\s*(grade|form|class|year)\\s*/i, '')
+    .replace(/\\d+/g, '')
+    .trim()
+  const streamOrder = stream(left).localeCompare(stream(right), undefined, { numeric: true, sensitivity: 'base' })
+  if (streamOrder !== 0) return streamOrder
+  return left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
+}
+
 function RibbonButton({ label, glyph, tint, onClick }: { label: string; glyph: string; tint?: string; onClick: () => void }) {
   return <button type="button" className="phikila-ribbon-button" title={label} aria-label={label} onClick={onClick}><span className={'phikila-ribbon-icon tint-' + (tint || 'neutral')} aria-hidden="true">{glyph}</span><span>{label}</span></button>
 }
@@ -67,7 +84,7 @@ export default function TimetableModule() {
   const [form, setForm] = useState({ className: '', subject: '', teacher: '', room: '', locked: false })
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const classes = useMemo(() => unique(data.specification.classes.concat(data.lessons.map(item => item.className))), [data.specification.classes, data.lessons])
+  const classes = useMemo(() => unique(data.specification.classes.concat(data.lessons.map(item => item.className))).sort(compareClassNames), [data.specification.classes, data.lessons])
   const subjects = useMemo(() => unique(data.specification.subjects.concat(data.lessons.map(item => item.subject))), [data.specification.subjects, data.lessons])
   const teachers = useMemo(() => unique(data.specification.teachers.concat(data.lessons.map(item => item.teacher))), [data.specification.teachers, data.lessons])
   const rooms = useMemo(() => unique(data.specification.classrooms.concat(data.lessons.map(item => item.room).filter(Boolean))), [data.specification.classrooms, data.lessons])
@@ -99,13 +116,13 @@ export default function TimetableModule() {
       const subjectCatalogue = subjectCatalogueResult.status === 'fulfilled' && Array.isArray(subjectCatalogueResult.value) ? subjectCatalogueResult.value : []
       const classCatalogue = classCatalogueResult.status === 'fulfilled' && Array.isArray(classCatalogueResult.value) ? classCatalogueResult.value : []
       const canonicalSubjects = subjectCatalogue.map(item => String(item.name || '').trim()).filter(Boolean)
-      const canonicalClasses = classCatalogue.map(item => String(item.display_name || item.name || '').trim()).filter(Boolean)
+      const canonicalClasses = classCatalogue.map(item => String(item.display_name || item.name || '').trim()).filter(Boolean).sort(compareClassNames)
       const nonDefaultSubjects = base.specification.subjects.filter(name => !EMPTY.specification.subjects.some(item => item.toLowerCase() === name.toLowerCase()))
       const nonDefaultClasses = base.specification.classes.filter(name => !EMPTY.specification.classes.some(item => item.toLowerCase() === name.toLowerCase()))
       base.specification = {
         ...base.specification,
         subjects: unique(canonicalSubjects.length ? [...canonicalSubjects, ...nonDefaultSubjects] : base.specification.subjects),
-        classes: unique(canonicalClasses.length ? [...canonicalClasses, ...nonDefaultClasses] : base.specification.classes),
+        classes: unique(canonicalClasses.length ? [...canonicalClasses, ...nonDefaultClasses] : base.specification.classes).sort(compareClassNames),
       }
       const staff = staffResult.status === 'fulfilled' && Array.isArray(staffResult.value) ? staffResult.value : []
       const profiles = profileResult.status === 'fulfilled' && Array.isArray(profileResult.value) ? profileResult.value : []
