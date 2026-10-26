@@ -214,18 +214,6 @@ export default function TimetableModule() {
     const oldIds = new Set(row.entries.map(item => item.id))
     const baseSpan = draft.length === 'Triple' ? 3 : draft.length === 'Double' ? 2 : 1
     const requested = Math.max(1, Math.min(10, Number(draft.lessonsPerWeek) || 1))
-    const existingSessionSpans: number[] = []
-    const existingByDay = new Map<string, number[]>()
-    row.entries.forEach(item => existingByDay.set(item.day, [...(existingByDay.get(item.day) || []), item.period]))
-    existingByDay.forEach(periods => {
-      let run = 0
-      let previous: number | null = null
-      for (const period of periods.sort((a, b) => a - b)) {
-        if (previous === null || period !== previous + 1) { if (run) existingSessionSpans.push(run); run = 1 } else run++
-        previous = period
-      }
-      if (run) existingSessionSpans.push(run)
-    })
     // Strict default: every requested session is Single unless the user explicitly
     // chooses Double or Triple in this edit dialog.
     const spans = Array(requested).fill(baseSpan)
@@ -706,7 +694,6 @@ function TeacherContractDialog({ teacher, short, lessons, periods, subjects, cla
         }
         if (runLength) sessionLengths.push(runLength)
       })
-      const distinctLengths = [...new Set(sessionLengths)]
       const explicitLengths = [...new Set(entries.map(entry => entry.length === 'Double' || entry.length === 'Triple' ? entry.length : 'Single'))]
       const length = explicitLengths.length === 1 ? explicitLengths[0] : 'Mixed'
       return { key, lesson: entries[0], entries, count: sessionLengths.length, length }
