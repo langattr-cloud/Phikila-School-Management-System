@@ -367,6 +367,16 @@ function generateSchedule(data: Workspace): GenerationResult {
   if (lockedConflicts.length) {
     return { lessons: data.lessons, error: 'Locked lessons conflict with each other. Resolve these first: ' + lockedConflicts.slice(0, 3).join(' · ') }
   }
+  const lockedTimeOffConflicts = locked.filter(lesson => {
+    const dayIndex = data.days.indexOf(lesson.day)
+    if (dayIndex < 0) return false
+    return data.classDetails?.[lesson.className]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2
+      || data.teacherDetails?.[lesson.teacher]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2
+      || data.subjectDetails?.[lesson.subject]?.timeOffGrid?.[dayIndex]?.[lesson.period] === 2
+  })
+  if (lockedTimeOffConflicts.length) {
+    return { lessons: data.lessons, error: 'Locked lessons fall inside configured class, teacher, or subject time-off. Resolve those constraints first: ' + lockedTimeOffConflicts.slice(0, 3).map(lesson => lesson.className + ' · ' + lesson.subject + ' · ' + lesson.day).join(' · ') }
+  }
 
   const usablePeriods = data.periods.map((period, index) => ({ period, index }))
     .filter(({ period }) => !/break|lunch|recess/i.test(period.name))
@@ -381,6 +391,13 @@ function generateSchedule(data: Workspace): GenerationResult {
     other.id !== lesson.id && (other.className === lesson.className || other.teacher === lesson.teacher || (!!lesson.room && other.room === lesson.room))
   ).length
   const ordered = [...movable].sort((a, b) => resourceCount(b) - resourceCount(a))
+  const isUnavailable = (lesson: Lesson, day: string, period: number) => {
+    const dayIndex = data.days.indexOf(day)
+    if (dayIndex < 0) return true
+    return data.classDetails?.[lesson.className]?.timeOffGrid?.[dayIndex]?.[period] === 2
+      || data.teacherDetails?.[lesson.teacher]?.timeOffGrid?.[dayIndex]?.[period] === 2
+      || data.subjectDetails?.[lesson.subject]?.timeOffGrid?.[dayIndex]?.[period] === 2
+  }
   const conflictsAt = (lesson: Lesson, day: string, period: number) => placed.some(other =>
     other.day === day && other.period === period &&
     (other.className === lesson.className || other.teacher === lesson.teacher || (!!lesson.room && other.room === lesson.room))
@@ -395,7 +412,7 @@ function generateSchedule(data: Workspace): GenerationResult {
   const unscheduled: Lesson[] = []
   for (const lesson of ordered) {
     const candidates = slots
-      .filter(slot => !conflictsAt(lesson, slot.day, slot.period))
+      .filter(slot => !isUnavailable(lesson, slot.day, slot.period) && !conflictsAt(lesson, slot.day, slot.period))
       .sort((a, b) => score(lesson, a.day, a.period) - score(lesson, b.day, b.period))
     const slot = candidates[0]
     if (!slot) {
