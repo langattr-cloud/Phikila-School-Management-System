@@ -24,6 +24,17 @@ class TimetableRibbonWorkspace(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
 
+class TimetableWorkspaceRevision(Base):
+    """Immutable snapshot of a previously saved workspace, for recovery from accidental overwrites."""
+    __tablename__ = "tt_timetable_ribbon_workspace_revisions"
+
+    id = Column(Integer, primary_key=True)
+    workspace_id = Column(Integer, nullable=False, index=True)
+    owner_id = Column(String(255), nullable=False, index=True)
+    data = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+
+
 class WorkspaceInput(BaseModel):
     data: dict[str, Any] = Field(...)
 
@@ -99,8 +110,16 @@ def save_workspace(payload: WorkspaceInput, claims: dict[str, Any] = Depends(get
         row = TimetableRibbonWorkspace(owner_id=owner_id, data=payload.data)
         db.add(row)
     else:
-        row.data = payload.data
-        row.updated_at = datetime.now(timezone.utc)
+        # Keep the previous committed state before replacing it. A later mistaken
+        # save or stale client can therefore be recovered without losing history.
+        if row.data != payload.data:
+            db.add(TimetableWorkspaceRevision(
+                workspace_id=row.id,
+                owner_id=owner_id,
+                data=row.data,
+            ))
+            row.data = payload.data
+            row.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(row)
     return _serialize(row)
