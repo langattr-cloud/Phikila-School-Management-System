@@ -1,10 +1,83 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 
-type GenerateNewAdvisorProps = { onClose: () => void }
+type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
+type Period = { name: string; type?: 'lesson' | 'break' }
+type GridDetails = { timeOffGrid?: number[][]; classrooms?: string[] }
+type AdvisorIssue = { id: string; title: string; detail: string; kind: 'critical' | 'suggestion'; lessonIds: string[] }
+type Props = {
+  classes: string[]
+  lessons: Lesson[]
+  days: string[]
+  periods: Period[]
+  classDetails: Record<string, GridDetails>
+  teacherDetails: Record<string, GridDetails>
+  subjectDetails: Record<string, GridDetails>
+  onGenerate: () => void
+  onClose: () => void
+}
 
-export default function GenerateNewAdvisor({ onClose }: GenerateNewAdvisorProps) {
-  const [criticalIgnored, setCriticalIgnored] = useState(false)
-  const [suggestIgnored, setSuggestIgnored] = useState(false)
+export default function GenerateNewAdvisor({ classes, lessons, days, periods, classDetails, teacherDetails, subjectDetails, onGenerate, onClose }: Props) {
+  const [ignored, setIgnored] = useState<string[]>([])
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+
+  const issues = useMemo(() => {
+    const result: AdvisorIssue[] = []
+    const usablePeriods = periods.map((period, index) => ({ period, index }))
+      .filter(({ period }) => period.type !== 'break' && !/break|lunch|recess/i.test(period.name))
+      .map(({ index }) => index)
+    const totalSlots = usablePeriods.length * days.length
+    classes.forEach(className => {
+      const assigned = lessons.filter(lesson => lesson.className === className)
+      if (assigned.length > totalSlots) result.push({
+        id: 'capacity:' + className,
+        title: `Class ${className} has ${assigned.length} lesson entries but only ${totalSlots} teaching positions are available in the configured week.`,
+        detail: className, kind: 'critical', lessonIds: assigned.map(lesson => lesson.id),
+      })
+    })
+
+    const locked = lessons.filter(lesson => lesson.locked)
+    locked.forEach((lesson, index) => locked.slice(index + 1).forEach(other => {
+      if (lesson.day !== other.day || lesson.period !== other.period) return
+      const resources: string[] = []
+      if (lesson.className && lesson.className === other.className) resources.push('class ' + lesson.className)
+      if (lesson.teacher && lesson.teacher === other.teacher) resources.push('teacher ' + lesson.teacher)
+      if (lesson.room && lesson.room === other.room) resources.push('room ' + lesson.room)
+      if (resources.length) result.push({
+        id: 'locked:' + lesson.id + ':' + other.id,
+        title: `Locked lessons clash at ${lesson.day}, ${periods[lesson.period]?.name || 'period ' + (lesson.period + 1)} (${resources.join(', ')}).`,
+        detail: lesson.className + ' · ' + lesson.subject,
+        kind: 'critical', lessonIds: [lesson.id, other.id],
+      })
+    }))
+
+    const byClassSubject = new Map<string, Lesson[]>()
+    lessons.forEach(lesson => {
+      const key = lesson.className + '\u0000' + lesson.subject
+      byClassSubject.set(key, [...(byClassSubject.get(key) || []), lesson])
+    })
+    byClassSubject.forEach((entries, key) => {
+      if (entries.length <= days.length) return
+      const [className, subject] = key.split('\u0000')
+      result.push({
+        id: 'frequency:' + key,
+        title: `${subject} in ${className} has ${entries.length} lesson entries per week across ${days.length} configured days.`,
+        detail: className + ' · ' + subject, kind: 'suggestion', lessonIds: entries.map(lesson => lesson.id),
+      })
+    })
+    return result
+  }, [classes, lessons, days, periods])
+
+  const critical = issues.filter(issue => issue.kind === 'critical' && !ignored.includes(issue.id))
+  const suggestions = issues.filter(issue => issue.kind === 'suggestion' && !ignored.includes(issue.id))
+  const startGeneration = () => {
+    if (critical.length) return
+    setGenerating(true)
+    onGenerate()
+  }
+  const lessonSummary = (issue: AdvisorIssue) => lessons.filter(lesson => issue.lessonIds.includes(lesson.id))
+    .map(lesson => `${lesson.day} · ${periods[lesson.period]?.name || 'Period ' + (lesson.period + 1)} · ${lesson.subject} · ${lesson.className} · ${lesson.teacher}`)
+    .join('; ')
 
   return <div style={S.overlay} role="dialog" aria-modal="true" aria-label="Generate New Advisor">
     <section style={S.window}>
@@ -13,28 +86,27 @@ export default function GenerateNewAdvisor({ onClose }: GenerateNewAdvisorProps)
         <div style={S.top}>
           <div style={S.einstein} aria-hidden="true">👨‍🦳</div>
           <div style={S.counts}>
-            <div style={S.countBox}><div style={S.barDark}/><div><div style={S.num}>{criticalIgnored ? 0 : 1}</div><div style={S.label}>Critical problems</div></div></div>
-            <div style={S.countBox}><div style={S.barBlue}/><div><div style={{ ...S.num, color: '#3498db' }}>{suggestIgnored ? 0 : 1}</div><div style={{ ...S.label, color: '#3498db' }}>Suggestions</div></div></div>
+            <div style={S.countBox}><div style={S.barDark}/><div><div style={S.num}>{critical.length}</div><div style={S.label}>Critical problems</div></div></div>
+            <div style={S.countBox}><div style={S.barBlue}/><div><div style={{ ...S.num, color: '#3498db' }}>{suggestions.length}</div><div style={{ ...S.label, color: '#3498db' }}>Suggestions</div></div></div>
           </div>
         </div>
-        {!criticalIgnored && <>
-          <div style={S.redBar}>No need to generate the timetable, these points need to be fixed first:</div>
-          <div style={S.row}><div style={S.leftDark}/><div style={S.mid}><div style={S.bold}>Class GRADE 9B has more lessons (44) than free positions in timeoff (40).</div><div style={S.small}>9B</div></div>
-            <div style={S.right}><div style={S.line}><button type="button" onClick={() => setCriticalIgnored(true)} style={S.btn}><span style={S.iconBox}>□</span> Ignore</button><span>✨🪄</span><div style={S.links}><button type="button" style={S.link}>Show me the lessons</button><button type="button" style={S.link}>Check the lesson counts</button></div></div>
-              <div style={S.line}><button type="button" style={S.btn}><span style={S.q}>?</span> Help</button><div style={S.links}><button type="button" style={S.link}>Raise the lessons per day</button><button type="button" style={S.link}>Raise the global number of lessons per day</button></div></div>
-            </div>
-          </div>
+        {critical.length > 0 && <>
+          <div style={S.redBar}>Resolve these critical problems before generating the timetable.</div>
+          {critical.map(issue => <div key={issue.id} style={S.row}><div style={S.leftDark}/><div style={S.mid}><div style={S.bold}>{issue.title}</div><div style={S.small}>{issue.detail}</div>{expanded === issue.id && <div style={S.lessonList}>{lessonSummary(issue)}</div>}</div>
+            <div style={S.right}><div style={S.line}><button type="button" onClick={() => setIgnored(current => current.filter(id => id !== issue.id))} style={S.btn} disabled>Required</button><div style={S.links}><button type="button" onClick={() => setExpanded(expanded === issue.id ? null : issue.id)} style={S.link}>Show me the lessons</button><button type="button" onClick={() => setExpanded(expanded === issue.id ? null : issue.id)} style={S.link}>Check lesson counts</button></div></div></div>
+          </div>)}
         </>}
-        {!suggestIgnored && <>
-          <div style={S.blueBar}>These points are most likely OK, but please check the help article to avoid potential problems</div>
-          <div style={S.row}><div style={S.leftBlue}/><div style={S.mid}><div style={S.bold}>CREATIVE ARTS SPORTS-GRADE 4 more times per week than days</div><div style={S.small}>G4,5E,5W, 6E,6W,6N, 9B</div></div>
-            <div style={S.right}><div style={S.line}><button type="button" onClick={() => setSuggestIgnored(true)} style={S.btn}><span style={S.iconBox}>□</span> Ignore</button><span>✨🪄</span><div style={S.links}><button type="button" style={S.link}>Show the lessons</button><button type="button" style={S.link}>Check how the lessons are defined</button></div></div>
-              <div style={S.line}><button type="button" style={S.btn}><span style={S.q}>?</span> Help</button></div>
-            </div>
-          </div>
+        {suggestions.length > 0 && <>
+          <div style={S.blueBar}>Review these suggestions. They do not block generation.</div>
+          {suggestions.map(issue => <div key={issue.id} style={S.row}><div style={S.leftBlue}/><div style={S.mid}><div style={S.bold}>{issue.title}</div><div style={S.small}>{issue.detail}</div>{expanded === issue.id && <div style={S.lessonList}>{lessonSummary(issue)}</div>}</div>
+            <div style={S.right}><div style={S.line}><button type="button" onClick={() => setIgnored(current => [...current, issue.id])} style={S.btn}>Ignore</button><div style={S.links}><button type="button" onClick={() => setExpanded(expanded === issue.id ? null : issue.id)} style={S.link}>Show the lessons</button><button type="button" onClick={() => setExpanded(expanded === issue.id ? null : issue.id)} style={S.link}>Check lesson counts</button></div></div></div>
+          </div>)}
         </>}
-        {criticalIgnored && suggestIgnored && <div style={S.empty}>All items have been ignored.</div>}
-        <footer style={S.footer}><button type="button" onClick={onClose} style={S.close}>Close</button></footer>
+        {issues.length === 0 && <div style={S.empty}>No critical problems or suggestions were found in the current timetable data.</div>}
+        <footer style={S.footer}>
+          <button type="button" onClick={onClose} style={S.close}>Close</button>
+          <button type="button" onClick={startGeneration} disabled={critical.length > 0 || generating} style={{ ...S.generate, opacity: critical.length > 0 || generating ? .5 : 1 }}>{generating ? 'Generating…' : 'Continue to Generate'}</button>
+        </footer>
       </div>
     </section>
   </div>
@@ -62,14 +134,14 @@ const S: Record<string, React.CSSProperties> = {
   mid: { flex: '1 1 280px', padding: '10px 14px', minWidth: 0 },
   bold: { fontSize: 12, fontWeight: 700 },
   small: { fontSize: 11, color: '#666', marginTop: 3 },
-  right: { width: 380, maxWidth: '100%', padding: 8, boxSizing: 'border-box' },
+  lessonList: { fontSize: 11, color: '#334155', marginTop: 8, lineHeight: 1.5, overflowWrap: 'anywhere' },
+  right: { width: 300, maxWidth: '100%', padding: 8, boxSizing: 'border-box' },
   line: { display: 'flex', gap: 12, marginBottom: 8, alignItems: 'flex-start', flexWrap: 'wrap' },
   btn: { display: 'flex', alignItems: 'center', gap: 5, border: '1px solid #a0c8e0', background: '#e3f2fb', borderRadius: 12, padding: '2px 10px', fontSize: 11, cursor: 'pointer', minHeight: 22, flexShrink: 0 },
-  iconBox: { width: 12, height: 12, border: '1px solid #777', background: '#fff', fontSize: 8, display: 'inline-grid', placeItems: 'center' },
-  q: { width: 16, height: 16, background: '#5bc0de', color: '#fff', borderRadius: '50%', display: 'inline-grid', placeItems: 'center', fontWeight: 700 },
   links: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 },
   link: { border: 0, padding: 0, background: 'transparent', fontSize: 11, color: '#2980b9', cursor: 'pointer', lineHeight: 1.4, textAlign: 'left' },
   empty: { padding: 24, background: '#fff', fontSize: 12, color: '#666' },
-  footer: { display: 'flex', justifyContent: 'flex-end', padding: 12, borderTop: '1px solid #ddd' },
-  close: { width: 80, height: 26, border: '1px solid #999', background: '#fff', cursor: 'pointer', fontSize: 11 },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, padding: 12, borderTop: '1px solid #ddd' },
+  close: { width: 80, height: 28, border: '1px solid #999', background: '#fff', cursor: 'pointer', fontSize: 11 },
+  generate: { minWidth: 150, height: 28, border: '1px solid #246b45', background: '#e2f4e8', cursor: 'pointer', fontSize: 11, padding: '0 12px' },
 }
