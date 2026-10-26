@@ -150,13 +150,31 @@ export default function TimetableModule() {
     setError('')
     setStatus('Saving to the school database…')
     try {
-      const result = await apiFetch<{ data: Workspace; updated_at: string | null }>('/api/v1/timetable/workspace', {
+      const result = await apiFetch<{ data: Workspace | null; updated_at: string | null }>('/api/v1/timetable/workspace', {
         method: 'PUT',
         body: JSON.stringify({ data: nextData }),
       })
-      const saved = normaliseWorkspace(result.data || nextData)
+
+      // Verify the committed version from a fresh read before telling the editor it
+      // can close. A successful HTTP status alone is not enough if a stale client
+      // save or server response has overwritten the assignment.
+      const verified = await apiFetch<{ data: Workspace | null; updated_at: string | null }>('/api/v1/timetable/workspace')
+      const savedData = verified.data || result.data
+      if (!savedData) throw new Error('The database accepted the save but returned no saved workspace.')
+
+      const lessonSignature = (workspace: Workspace) => JSON.stringify(
+        workspace.lessons
+          .map(({ id, day, period, className, subject, teacher, room, locked }) => ({ id, day, period, className, subject, teacher, room, locked }))
+          .sort((a, b) => a.id.localeCompare(b.id)),
+      )
+      const saved = normaliseWorkspace(savedData)
+      const expected = normaliseWorkspace(nextData)
+      if (lessonSignature(saved) !== lessonSignature(expected)) {
+        throw new Error('The database response did not match the edited lessons. The editor remains open; please retry.')
+      }
+
       setData(saved)
-      setStatus('Saved to the school database · ' + new Date().toLocaleTimeString())
+      setStatus('Saved and verified in the school database · ' + new Date().toLocaleTimeString())
       return true
     } catch (caught) {
       setError(friendlyApiError(caught, action))
