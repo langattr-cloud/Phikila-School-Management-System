@@ -100,7 +100,13 @@ export default function TimetableModule() {
       const classCatalogue = classCatalogueResult.status === 'fulfilled' && Array.isArray(classCatalogueResult.value) ? classCatalogueResult.value : []
       const canonicalSubjects = subjectCatalogue.map(item => String(item.name || '').trim()).filter(Boolean)
       const canonicalClasses = classCatalogue.map(item => String(item.display_name || item.name || '').trim()).filter(Boolean)
-      base.specification = { ...base.specification, subjects: unique([...base.specification.subjects, ...canonicalSubjects]), classes: unique([...base.specification.classes, ...canonicalClasses]) }
+      const nonDefaultSubjects = base.specification.subjects.filter(name => !EMPTY.specification.subjects.some(item => item.toLowerCase() === name.toLowerCase()))
+      const nonDefaultClasses = base.specification.classes.filter(name => !EMPTY.specification.classes.some(item => item.toLowerCase() === name.toLowerCase()))
+      base.specification = {
+        ...base.specification,
+        subjects: unique(canonicalSubjects.length ? [...canonicalSubjects, ...nonDefaultSubjects] : base.specification.subjects),
+        classes: unique(canonicalClasses.length ? [...canonicalClasses, ...nonDefaultClasses] : base.specification.classes),
+      }
       const staff = staffResult.status === 'fulfilled' && Array.isArray(staffResult.value) ? staffResult.value : []
       const profiles = profileResult.status === 'fulfilled' && Array.isArray(profileResult.value) ? profileResult.value : []
       const roster = new Map<string, { detail: Partial<TeacherDetail>; workload?: number }>()
