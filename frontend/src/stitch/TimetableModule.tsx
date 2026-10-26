@@ -519,11 +519,39 @@ type ContractLesson = Lesson
 function TeacherContractDialog({ teacher, short, lessons, periods, subjects, classes, teachers, classrooms, teacherDetails, onClose, onNew, onEdit, onRemove, onCopyTo }: { teacher: string; short: string; lessons: ContractLesson[]; periods: Period[]; subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[]; teacherDetails: Record<string, TeacherDetail>; onClose: () => void; onNew: () => void; onEdit: (lesson: ContractLesson) => void; onRemove: (lesson: ContractLesson) => void; onCopyTo: (lesson: ContractLesson, targetClass: string) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null)
   const selectedLesson = lessons.find(lesson => lesson.id === selectedId)
-  const weeklyCount = (lesson: ContractLesson) => lessons.filter(item => item.subject === lesson.subject && item.className === lesson.className).length
-  const lengthLabel = (lesson: ContractLesson) => {
-    const adjacent = lessons.some(item => item.id !== lesson.id && item.subject === lesson.subject && item.className === lesson.className && item.day === lesson.day && Math.abs(item.period - lesson.period) === 1)
-    return adjacent ? 'Double' : 'Single'
-  }
+  // A timetable stores one record per occupied period. The contract view should instead
+  // show one row per subject/class/room assignment and count contiguous blocks as sessions.
+  const contractRows = useMemo(() => {
+    const groups = new Map<string, ContractLesson[]>()
+    for (const lesson of lessons) {
+      const key = [lesson.subject.trim().toLowerCase(), lesson.className.trim().toLowerCase(), lesson.teacher.trim().toLowerCase(), lesson.room.trim().toLowerCase()].join('::')
+      groups.set(key, [...(groups.get(key) || []), lesson])
+    }
+    return [...groups.entries()].map(([key, entries]) => {
+      const byDay = new Map<string, ContractLesson[]>()
+      entries.forEach(lesson => byDay.set(lesson.day, [...(byDay.get(lesson.day) || []), lesson]))
+      const sessionLengths: number[] = []
+      byDay.forEach(dayEntries => {
+        const sorted = [...dayEntries].sort((a, b) => a.period - b.period)
+        let runLength = 0
+        let previousPeriod: number | null = null
+        for (const entry of sorted) {
+          if (previousPeriod === null || entry.period !== previousPeriod + 1) {
+            if (runLength) sessionLengths.push(runLength)
+            runLength = 1
+          } else {
+            runLength += 1
+          }
+          previousPeriod = entry.period
+        }
+        if (runLength) sessionLengths.push(runLength)
+      })
+      const distinctLengths = [...new Set(sessionLengths)]
+      const length = distinctLengths.length === 1 ? (distinctLengths[0] === 2 ? 'Double' : distinctLengths[0] === 3 ? 'Triple' : 'Single') : 'Mixed'
+      return { key, lesson: entries[0], entries, count: sessionLengths.length, length }
+    })
+  }, [lessons])
+  const selectedRow = contractRows.find(row => row.entries.some(lesson => lesson.id === selectedId))
   const copyTo = () => {
     if (!selectedLesson) return
     const target = window.prompt('Copy this lesson to which class?', classes.find(name => name !== selectedLesson.className) || '')
@@ -537,9 +565,9 @@ function TeacherContractDialog({ teacher, short, lessons, periods, subjects, cla
       <header className="phikila-tt-teachers-title"><strong>Contract</strong><button type="button" onClick={onClose} aria-label="Close contract">×</button></header>
       <div className="phikila-tt-contract-header"><span className="phikila-tt-contract-cap" aria-hidden="true">♟</span><div><strong>{teacher}</strong><span>{teacherDetails[teacher]?.number || short || 'Teacher contract and assigned lessons'}</span></div></div>
       <div className="phikila-tt-contract-table-wrap"><table className="phikila-tt-contract-table"><thead><tr><th>Subject</th><th>Teacher</th><th>Class</th><th>Count</th><th>Length</th><th>Classroom</th></tr></thead><tbody>
-        {lessons.map(lesson => <tr key={lesson.id} onClick={() => setSelectedId(lesson.id)} onDoubleClick={() => onEdit(lesson)} title="Double-click to edit this timetable entry" className={selectedId === lesson.id ? 'is-selected' : ''}><td><span className="phikila-tt-contract-code">{lesson.subject}</span></td><td>{lesson.teacher}</td><td>{lesson.className}</td><td className="phikila-tt-contract-center">{weeklyCount(lesson)}</td><td>{lengthLabel(lesson)}</td><td>{lesson.room || '—'}</td></tr>)}
+        {contractRows.map(row => <tr key={row.key} onClick={() => setSelectedId(row.lesson.id)} onDoubleClick={() => onEdit(row.lesson)} title="Double-click to edit a timetable entry in this assignment" className={selectedRow?.key === row.key ? 'is-selected' : ''}><td><span className="phikila-tt-contract-code">{row.lesson.subject}</span></td><td>{row.lesson.teacher}</td><td>{row.lesson.className}</td><td className="phikila-tt-contract-center">{row.count}</td><td>{row.length}</td><td>{row.lesson.room || '—'}</td></tr>)}
       </tbody></table>{lessons.length === 0 && <p className="phikila-tt-teachers-empty">No timetable lessons are assigned to this teacher yet. Choose New lesson to add one.</p>}</div>
-      <footer className="phikila-tt-contract-footer"><button type="button" onClick={onNew}>New lesson</button><button type="button" disabled={!selectedLesson} onClick={() => selectedLesson && onEdit(selectedLesson)}>Edit lesson</button><button type="button" disabled={!selectedLesson} onClick={() => { if (selectedLesson && window.confirm('Remove this lesson from the timetable?')) onRemove(selectedLesson) }}>Remove</button><button type="button" disabled={!selectedLesson || classes.length < 2} onClick={copyTo}>Copy to</button><button type="button" onClick={onNew}>Add more</button><span /><button type="button" onClick={onClose}>Close</button></footer>
+      <footer className="phikila-tt-contract-footer"><button type="button" onClick={onNew}>New lesson</button><button type="button" disabled={!selectedLesson} onClick={() => selectedLesson && onEdit(selectedLesson)}>Edit lesson</button><button type="button" disabled={!selectedRow} onClick={() => { if (selectedRow && window.confirm('Remove all timetable periods for ' + selectedRow.lesson.subject + ' · ' + selectedRow.lesson.className + '?')) selectedRow.entries.forEach(onRemove) }}>Remove</button><button type="button" disabled={!selectedLesson || classes.length < 2} onClick={copyTo}>Copy to</button><button type="button" onClick={onNew}>Add more</button><span /><button type="button" onClick={onClose}>Close</button></footer>
     </section>
   </div>
 }
