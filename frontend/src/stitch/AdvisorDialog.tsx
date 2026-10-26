@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 
 type AdvisorLesson = { id: string; className: string; subject: string; day: string; period: number; teacher: string; room: string }
 type AdvisorDialogProps = {
