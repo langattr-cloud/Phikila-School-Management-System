@@ -226,10 +226,31 @@ export default function TimetableModule() {
       }
       if (run) existingSessionSpans.push(run)
     })
-    // Mixed assignments retain their existing single/double/triple session lengths.
-    // If the user increases the count, append single sessions unless they choose a fixed length.
-    const spans = draft.length === 'Mixed'
-      ? [...existingSessionSpans.slice(0, requested), ...Array(Math.max(0, requested - existingSessionSpans.length)).fill(1)]
+    // Auto/Mixed preserves the real session pattern already present in the timetable.
+    // When more sessions are requested, reuse that pattern instead of forcing every new
+    // session to Single or Double. For a brand-new assignment, infer the pattern from
+    // existing assignments for the same subject; only fall back to one period if no
+    // schedule data exists from which a length can be inferred.
+    const relatedSpans: number[] = []
+    const relatedGroups = new Map<string, Lesson[]>()
+    data.lessons.filter(item => item.subject.trim().toLowerCase() === draft.subject.trim().toLowerCase() && !oldIds.has(item.id))
+      .forEach(item => {
+        const key = item.teacher.trim().toLowerCase() + '::' + item.className.trim().toLowerCase() + '::' + item.day
+        relatedGroups.set(key, [...(relatedGroups.get(key) || []), item])
+      })
+    relatedGroups.forEach(entries => {
+      const sorted = entries.map(item => item.period).sort((a, b) => a - b)
+      let run = 0, previous: number | null = null
+      for (const period of sorted) {
+        if (previous === null || period !== previous + 1) { if (run) relatedSpans.push(run); run = 1 } else run++
+        previous = period
+      }
+      if (run) relatedSpans.push(run)
+    })
+    const inferredPattern = existingSessionSpans.length ? existingSessionSpans : relatedSpans
+    const automatic = draft.length === 'Auto' || draft.length === 'Mixed'
+    const spans = automatic
+      ? Array.from({ length: requested }, (_, index) => inferredPattern.length ? inferredPattern[index % inferredPattern.length] : 1)
       : Array(requested).fill(baseSpan)
     const room = draft.room.trim() || draft.otherRooms.trim()
     const isBreak = (period: Period | undefined) => !period || period.type === 'break' || /break|lunch|recess/i.test(period.name)
@@ -677,7 +698,7 @@ function NewLessonDialog({ defaultTeacher, subjects, classes, teachers, classroo
 
 type ContractLesson = Lesson
 type ContractRow = { key: string; lesson: ContractLesson; entries: ContractLesson[]; count: number; length: string }
-type ContractEditDraft = { teacher: string; subject: string; className: string; group: string; lessonsPerWeek: number; length: 'Single' | 'Double' | 'Triple' | 'Mixed'; room: string; homeClassroom: boolean; sharedRoom: boolean; teacherRooms: boolean; subjectRooms: boolean; otherRooms: string }
+type ContractEditDraft = { teacher: string; subject: string; className: string; group: string; lessonsPerWeek: number; length: 'Auto' | 'Single' | 'Double' | 'Triple' | 'Mixed'; room: string; homeClassroom: boolean; sharedRoom: boolean; teacherRooms: boolean; subjectRooms: boolean; otherRooms: string }
 function TeacherContractDialog({ teacher, short, lessons, periods, subjects, classes, teachers, classrooms, teacherDetails, actionError, onClose, onNew, onEdit, onRemove, onCopyTo }: { teacher: string; short: string; lessons: ContractLesson[]; periods: Period[]; subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[]; teacherDetails: Record<string, TeacherDetail>; actionError?: string; onClose: () => void; onNew: () => void; onEdit: (row: ContractRow) => void; onRemove: (lesson: ContractLesson | ContractLesson[]) => void; onCopyTo: (row: ContractRow, targetClass: string) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null)
   const selectedLesson = lessons.find(lesson => lesson.id === selectedId)
@@ -745,7 +766,7 @@ function ContractLessonEditDialog({ teacher, row, subjects, classes, teachers, c
     className: row.lesson.className,
     group: 'Entire class',
     lessonsPerWeek: row.count,
-    length: row.length as ContractEditDraft['length'], 
+    length: (row.length === 'Single' || row.length === 'Double' || row.length === 'Triple' ? row.length : 'Auto') as ContractEditDraft['length'], 
     homeClassroom: true,
     sharedRoom: false,
     teacherRooms: false,
@@ -771,12 +792,12 @@ function ContractLessonEditDialog({ teacher, row, subjects, classes, teachers, c
         <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>♟</span><div><label style={label}>Teacher</label><select style={{ ...field, background: '#a8c8ff' }} value={form.teacher} onChange={event => patch('teacher', event.target.value)}>{teacherOptions.map(name => <option key={name} value={name}>{name}{teacherDetails[name]?.short ? ' (' + teacherDetails[name].short + ')' : ''}</option>)}</select></div><button type="button" style={btn} onClick={() => { const next = teacherOptions.findIndex(name => name === form.teacher); patch('teacher', teacherOptions[(next + 1) % teacherOptions.length] || form.teacher); setError('') }}>More teachers</button></div>
         <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>▣</span><div><label style={label}>Subject</label><select style={{ ...field, background: '#fffbe6' }} value={form.subject} onChange={event => patch('subject', event.target.value)}>{subjectOptions.map(subject => <option key={subject}>{subject}</option>)}</select></div><span /></div>
         <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>♧</span><div><label style={label}>Class</label><div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 135px', gap: 8 }}><select style={{ ...field, background: '#fffbe6' }} value={form.className} onChange={event => patch('className', event.target.value)}>{classOptions.map(name => <option key={name}>{name}</option>)}</select><select style={field} value={form.group} onChange={event => patch('group', event.target.value)}>{['Entire class', 'Group 1', 'Group 2', 'Half class'].map(group => <option key={group}>{group}</option>)}</select></div></div><div style={{ display: 'grid', gap: 5 }}><button type="button" style={btn} onClick={() => setError('Joint classes are not supported by the current timetable model. Select one class for this assignment.')}>Joint classes</button><button type="button" style={btn} onClick={() => setError('Class divisions are not supported by the current timetable model. Choose a class or group from the selectors.')}>Add division</button></div></div>
-        <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>▦</span><div><label style={label}>Lessons/week</label><div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 130px', gap: 8 }}><select style={{ ...field, background: '#fffbe6' }} value={form.lessonsPerWeek} onChange={event => patch('lessonsPerWeek', Number(event.target.value))}>{Array.from({ length: 10 }, (_, index) => index + 1).map(count => <option key={count} value={count}>{count}</option>)}</select><select style={field} value={form.length} onChange={event => patch('length', event.target.value as ContractEditDraft['length'])}>{(['Single', 'Double', 'Triple', 'Mixed'] as const).map(length => <option key={length}>{length}</option>)}</select></div></div><button type="button" style={btn} onClick={() => setError('This assignment applies to the standard school week. Separate week and term patterns are not currently stored.')}>More weeks/terms</button></div>
+        <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>▦</span><div><label style={label}>Lessons/week</label><div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 130px', gap: 8 }}><select style={{ ...field, background: '#fffbe6' }} value={form.lessonsPerWeek} onChange={event => patch('lessonsPerWeek', Number(event.target.value))}>{Array.from({ length: 10 }, (_, index) => index + 1).map(count => <option key={count} value={count}>{count}</option>)}</select><select style={field} value={form.length} onChange={event => patch('length', event.target.value as ContractEditDraft['length'])}>{(['Auto', 'Single', 'Double', 'Triple', 'Mixed'] as const).map(length => <option key={length}>{length}</option>)}</select></div></div><button type="button" style={btn} onClick={() => setError('This assignment applies to the standard school week. Separate week and term patterns are not currently stored.')}>More weeks/terms</button></div>
         <div style={card}><span style={{ fontSize: 25, textAlign: 'center' }}>⌂</span><div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 18px', marginBottom: 8 }}><label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.homeClassroom} onChange={event => patch('homeClassroom', event.target.checked)} />Home classroom</label><label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.teacherRooms} onChange={event => patch('teacherRooms', event.target.checked)} />Teacher's classrooms</label><label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.sharedRoom} onChange={event => patch('sharedRoom', event.target.checked)} />Shared room</label><label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.subjectRooms} onChange={event => patch('subjectRooms', event.target.checked)} />Subject's classrooms</label></div><label style={label}>Classroom</label><select style={field} value={form.room} onChange={event => patch('room', event.target.value)}><option value="">No classroom selected</option>{roomOptions.map(room => <option key={room}>{room}</option>)}</select><input style={{ ...field, marginTop: 7 }} placeholder="Other available classrooms" value={form.otherRooms} onChange={event => patch('otherRooms', event.target.value)} /></div><button type="button" style={btn} onClick={() => { if (!roomOptions.length) setError('No saved classrooms are available. Add classrooms in School setup first.'); else { patch('room', roomOptions.find(room => room !== form.room) || roomOptions[0]); setError('') } }}>More classrooms</button></div>
       </div>
-      <p style={{ fontSize: 11, color: '#475569', margin: '9px 2px 0' }}>Saving updates the whole subject/class assignment and places the requested number of sessions into free timetable slots. Day and period are not displayed on this page.</p>
+      <p style={{ fontSize: 11, color: '#475569', margin: '9px 2px 0' }}>Auto preserves the existing session-length pattern and infers a pattern from other assignments for the same subject when available. Day and period are not displayed on this page.</p>
       {(saveError || error) && <p role="alert" style={{ color: '#9f1239', fontSize: 12, margin: '8px 2px 0', padding: '8px 10px', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 4 }}>{saveError || error}</p>}
-      <footer style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid #b9bec6' }}><button type="button" style={btn} onClick={onClose}>Cancel</button><button type="button" style={btn} onClick={() => setError('Choose a teacher, subject, and class. Set lessons per week and Single/Double/Triple length, then select OK. The assignment is saved only after the database confirms it.')}>Help</button><span style={{ flex: 1 }} /><button type="button" disabled={saving} style={{ ...btn, minWidth: 140, fontWeight: 700, background: '#fff', opacity: saving ? 0.65 : 1 }} onClick={async () => { if (!form.teacher || !form.subject || !form.className) { setError('Select teacher, subject, and class.'); return } setSaving(true); setError(''); try { const saved = await onSave(form); if (saved === false) setError('This lesson was not saved. Review the error and try again.') } catch { setError('Could not save this lesson. Check the connection and try again.') } finally { setSaving(false) } }}>{saving ? 'Saving…' : 'OK'}</button></footer>
+      <footer style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid #b9bec6' }}><button type="button" style={btn} onClick={onClose}>Cancel</button><button type="button" style={btn} onClick={() => setError('Choose a teacher, subject, and class. Set lessons per week and choose Auto to preserve or infer session lengths, or choose a fixed length, then select OK. The assignment is saved only after the database confirms it.')}>Help</button><span style={{ flex: 1 }} /><button type="button" disabled={saving} style={{ ...btn, minWidth: 140, fontWeight: 700, background: '#fff', opacity: saving ? 0.65 : 1 }} onClick={async () => { if (!form.teacher || !form.subject || !form.className) { setError('Select teacher, subject, and class.'); return } setSaving(true); setError(''); try { const saved = await onSave(form); if (saved === false) setError('This lesson was not saved. Review the error and try again.') } catch { setError('Could not save this lesson. Check the connection and try again.') } finally { setSaving(false) } }}>{saving ? 'Saving…' : 'OK'}</button></footer>
     </section>
   </div>
 }
