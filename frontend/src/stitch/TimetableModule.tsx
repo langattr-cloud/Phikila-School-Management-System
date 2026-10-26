@@ -192,11 +192,12 @@ export default function TimetableModule() {
     if (await persistWorkspace(nextData, 'remove lesson')) setEditor(null)
   }
 
-  const saveContractEdit = async (teacher: string, row: ContractRow, draft: ContractEditDraft) => {
+  const saveContractEdit = async (_teacher: string, row: ContractRow, draft: ContractEditDraft): Promise<boolean> => {
     const oldIds = new Set(row.entries.map(item => item.id))
     const span = draft.length === 'Triple' ? 3 : draft.length === 'Double' ? 2 : 1
     const requested = Math.max(1, Math.min(10, Number(draft.lessonsPerWeek) || 1))
-    const isBreak = (period: Period) => period.type === 'break' || /break|lunch|recess/i.test(period.name)
+    const room = draft.room.trim() || draft.otherRooms.trim()
+    const isBreak = (period: Period | undefined) => !period || period.type === 'break' || /break|lunch|recess/i.test(period.name)
     const starts: { day: string; period: number }[] = []
     const byDay = new Map<string, ContractLesson[]>()
     row.entries.forEach(item => byDay.set(item.day, [...(byDay.get(item.day) || []), item]))
@@ -214,15 +215,25 @@ export default function TimetableModule() {
       const slots = Array.from({ length: span }, (_, offset) => candidate.period + offset)
       if (slots.some(index => isBreak(data.periods[index]))) return false
       if (chosen.some(item => item.day === candidate.day && Array.from({ length: span }, (_, offset) => item.period + offset).some(index => slots.includes(index)))) return false
-      return !data.lessons.some(item => !oldIds.has(item.id) && item.day === candidate.day && slots.includes(item.period) && (item.className === draft.className || item.teacher === draft.teacher || (draft.room && item.room === draft.room)))
+      const dayIndex = data.days.indexOf(candidate.day)
+      if (dayIndex < 0 || slots.some(index =>
+        data.classDetails?.[draft.className]?.timeOffGrid?.[dayIndex]?.[index] === 2 ||
+        data.teacherDetails?.[draft.teacher]?.timeOffGrid?.[dayIndex]?.[index] === 2 ||
+        data.subjectDetails?.[draft.subject]?.timeOffGrid?.[dayIndex]?.[index] === 2
+      )) return false
+      return !data.lessons.some(item => !oldIds.has(item.id) && item.day === candidate.day && slots.includes(item.period) &&
+        (item.className === draft.className || item.teacher === draft.teacher || (!!room && item.room === room)))
     }
     for (const candidate of candidates) { if (fits(candidate)) chosen.push(candidate); if (chosen.length === requested) break }
-    if (chosen.length !== requested) { setError('Not enough free timetable slots for ' + requested + ' ' + draft.length.toLowerCase() + ' lesson(s) for this teacher and class. No changes were saved.'); return }
+    if (chosen.length !== requested) {
+      setError('Not enough free timetable slots for ' + requested + ' ' + draft.length.toLowerCase() + ' lesson(s) for this teacher and class. No changes were saved.')
+      return false
+    }
     const oldBySlot = new Map(row.entries.map(item => [item.day + '::' + item.period, item]))
     const additions: Lesson[] = []
     chosen.forEach(slot => Array.from({ length: span }, (_, offset) => slot.period + offset).forEach(period => {
       const old = oldBySlot.get(slot.day + '::' + period)
-      additions.push({ id: old?.id || makeId(), day: slot.day, period, className: draft.className, subject: draft.subject, teacher: draft.teacher, room: draft.room, locked: old?.locked || false })
+      additions.push({ id: old?.id || makeId(), day: slot.day, period, className: draft.className, subject: draft.subject, teacher: draft.teacher, room, locked: old?.locked || false })
     }))
     const nextData: Workspace = {
       ...data,
@@ -232,15 +243,17 @@ export default function TimetableModule() {
         subjects: unique([...data.specification.subjects, draft.subject]),
         classes: unique([...data.specification.classes, draft.className]),
         teachers: unique([...data.specification.teachers, draft.teacher]),
-        classrooms: unique([...data.specification.classrooms, ...(draft.room ? [draft.room] : [])]),
+        classrooms: unique([...data.specification.classrooms, ...(room ? [room] : [])]),
       },
     }
-    if (await persistWorkspace(nextData, 'save teacher contract lesson')) {
-      setContractEditRow(null)
-      setError('')
-      setStatus('Saved ' + requested + ' weekly ' + draft.length.toLowerCase() + ' lesson(s) for ' + draft.className)
-    }
+    const saved = await persistWorkspace(nextData, 'save teacher contract lesson')
+    if (!saved) return false
+    setContractEditRow(null)
+    setError('')
+    setStatus('Saved ' + requested + ' weekly ' + draft.length.toLowerCase() + ' lesson(s) for ' + draft.className)
+    return true
   }
+
   const newWorkspace = () => {
     if (!window.confirm('Start a new empty timetable? Unsaved changes will be lost.')) return
     setData({ ...EMPTY, days: DAYS.slice(0, 5), periods: DEFAULT_PERIODS.map(period => ({ ...period })), lessons: [] })
@@ -296,7 +309,7 @@ export default function TimetableModule() {
     {classesOpen && <ClassesWorkspaceModule classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} teachers={teachers} subjects={subjects} classrooms={rooms} details={data.classDetails || {}} onClose={() => setClassesOpen(false)} onSave={(nextClasses, nextLessons, nextDetails) => { setData(current => ({ ...current, specification: { ...current.specification, classes: unique(nextClasses) }, lessons: nextLessons, classDetails: nextDetails })); setStatus('Class changes updated in the workspace · remember to Save'); setError('') }} />}
     {teachersOpen && <TeachersWorkspaceModule teachers={teachers} lessons={data.lessons} details={data.teacherDetails || {}} savedWorkloads={savedTeacherWorkloads} onClose={() => setTeachersOpen(false)} onSaveAll={async (nextTeachers, nextDetails) => { const nextData: Workspace = { ...data, specification: { ...data.specification, teachers: nextTeachers }, teacherDetails: nextDetails }; if (await persistWorkspace(nextData, 'save teacher records')) { setSavedTeacherWorkloads(current => Object.fromEntries(Object.entries(current).filter(([name]) => nextTeachers.includes(name)))); setTeachersOpen(false); } }} onOpenContract={teacher => setContractTeacher(teacher)} days={data.days} periods={data.periods} />}
     {contractTeacher && <TeacherContractDialog teacher={contractTeacher} short={data.teacherDetails?.[contractTeacher]?.short || ''} lessons={data.lessons.filter(lesson => lesson.teacher === contractTeacher || lesson.teacher.startsWith(contractTeacher + ' ('))} periods={data.periods} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onClose={() => setContractTeacher(null)} onNew={() => setNewLessonTeacher(contractTeacher)} onEdit={row => setContractEditRow({ teacher: contractTeacher, row })} onRemove={lessonOrLessons => { const removedIds = new Set((Array.isArray(lessonOrLessons) ? lessonOrLessons : [lessonOrLessons]).map(item => item.id)); const nextData: Workspace = { ...data, lessons: data.lessons.filter(item => !removedIds.has(item.id)) }; void persistWorkspace(nextData, 'remove teacher lesson'); }} onCopyTo={(lesson, targetClass) => { const conflict = data.lessons.some(item => item.day === lesson.day && item.period === lesson.period && (item.className === targetClass || item.teacher === lesson.teacher || (lesson.room && item.room === lesson.room))); if (conflict) { setError('Cannot copy this lesson to ' + targetClass + ': the class, teacher, or classroom is already occupied at that time.'); return; } const nextData: Workspace = { ...data, lessons: [...data.lessons, { ...lesson, id: makeId(), className: targetClass, locked: false }] }; void persistWorkspace(nextData, 'copy teacher lesson'); }} />}
-    {contractEditRow && <ContractLessonEditDialog teacher={contractEditRow.teacher} row={contractEditRow.row} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onClose={() => setContractEditRow(null)} onSave={draft => { void saveContractEdit(contractEditRow.teacher, contractEditRow.row, draft) }} />}
+    {contractEditRow && <ContractLessonEditDialog teacher={contractEditRow.teacher} row={contractEditRow.row} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onClose={() => setContractEditRow(null)} onSave={draft => saveContractEdit(contractEditRow.teacher, contractEditRow.row, draft)} />}
     {newLessonTeacher && <NewLessonDialog defaultTeacher={{ name: newLessonTeacher, short: data.teacherDetails?.[newLessonTeacher]?.short || '' }} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onCancel={() => setNewLessonTeacher(null)} onSave={lessonDraft => { const teacherName = teachers.find(name => lessonDraft.teacher === name || lessonDraft.teacher === name + (data.teacherDetails?.[name]?.short ? ' (' + data.teacherDetails[name].short + ')' : '')) || newLessonTeacher; const requested = Math.max(1, Math.min(10, Number(lessonDraft.count) || 1)); const span = lessonDraft.length === 'Triple' ? 3 : lessonDraft.length === 'Double' ? 2 : 1; const available: {day:string;period:number}[] = []; for (const day of data.days) for (let period = 0; period < data.periods.length; period++) { if (data.periods[period].type === 'break' || /break|lunch|recess/i.test(data.periods[period].name)) continue; if (period + span > data.periods.length) continue; const run = Array.from({length:span}, (_, offset) => period + offset); if (run.some(index => data.periods[index].type === 'break' || /break|lunch|recess/i.test(data.periods[index].name))) continue; const occupied = data.lessons.some(item => item.day === day && run.includes(item.period) && (item.className === lessonDraft.class || item.teacher === teacherName || (lessonDraft.room && item.room === lessonDraft.room))); if (!occupied) available.push({day, period}); } const chosen: {day:string;period:number}[] = []; for (const slot of available) { if (chosen.some(item => item.day === slot.day && Array.from({length:span}, (_, offset) => item.period + offset).some(index => index >= slot.period && index < slot.period + span))) continue; chosen.push(slot); if (chosen.length === requested) break; } if (chosen.length < requested) { setError('Not enough free timetable slots for ' + requested + ' lesson(s) with this teacher, class, and room.'); return; } const additions: Lesson[] = []; for (const slot of chosen) for (let offset = 0; offset < span; offset++) additions.push({ id: makeId(), day: slot.day, period: slot.period + offset, className: lessonDraft.class, subject: lessonDraft.subject, teacher: teacherName, room: lessonDraft.room, locked: false }); const nextData: Workspace = { ...data, lessons: [...data.lessons, ...additions], specification: { ...data.specification, subjects: unique([...data.specification.subjects, lessonDraft.subject]), classes: unique([...data.specification.classes, lessonDraft.class]), teachers: unique([...data.specification.teachers, teacherName]), classrooms: unique([...data.specification.classrooms, ...(lessonDraft.room ? [lessonDraft.room] : [])]) } }; void persistWorkspace(nextData, 'save teacher contract lessons').then(saved => { if (saved) { setNewLessonTeacher(null); setStatus('Saved ' + requested + ' weekly lesson(s) for ' + teacherName); setError(''); } }); }} />}
     {!(settingsOpen && setupTab === 'subjects') && <div className="phikila-tt-subbar"><strong>{whose === 'All' ? 'Whole school' : whose === 'Classes' ? 'Class timetable' : whose === 'Teachers' ? 'Teacher timetable' : 'Classroom timetable'}</strong>{filterOptions.length > 0 && <select aria-label={'Filter by ' + whose.toLowerCase()} value={filter} onChange={event => setFilter(event.target.value)}><option value="">All {whose.toLowerCase()}</option>{filterOptions.map(option => <option key={option}>{option}</option>)}</select>}<span className="phikila-tt-subbar-spacer" /><span>{data.lessons.length} lessons</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => openEditor(data.days[0], 0)}>+ Add lesson</button></div>}
     {error && <div className="phikila-tt-alert" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
