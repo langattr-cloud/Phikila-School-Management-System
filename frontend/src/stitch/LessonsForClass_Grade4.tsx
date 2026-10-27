@@ -17,6 +17,34 @@ export default function LessonsForClass_Grade4({ onClose, className = "GRADE 4" 
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showNewLesson, setShowNewLesson] = useState(false);
+  const [showEditLesson, setShowEditLesson] = useState(false);
+  const [editForm, setEditForm] = useState({
+    teacher: "", subject: "", class: className, group: "Entire class",
+    lessonsPerWeek: 1, length: "Single" as "Single" | "Double",
+    home: true, shared: false, teacherRooms: false, subjectRooms: false, otherRooms: ""
+  });
+  const selectedLesson = lessons.find(l => l.id === selectedId);
+  const openEditLesson = () => {
+    if (!selectedLesson) { alert("Select a lesson to edit"); return; }
+    setEditForm({
+      teacher: selectedLesson.teacher === "MOCHACHE PURITY" ? "MOCHACHE PURITY (20)" : selectedLesson.teacher,
+      subject: selectedLesson.subject.replace(/\.\.\.$/, ""),
+      class: className, group: "Entire class",
+      lessonsPerWeek: selectedLesson.count, length: selectedLesson.length === 2 ? "Double" : "Single",
+      home: true, shared: false, teacherRooms: false, subjectRooms: false, otherRooms: ""
+    });
+    setShowEditLesson(true);
+  };
+  const handleSaveEdit = () => {
+    if (!editForm.teacher) { alert("Select Teacher"); return; }
+    if (!editForm.subject) { alert("Select Subject"); return; }
+    setLessons(current => current.map(l => l.id === selectedId ? {
+      ...l, code: editForm.subject.substring(0, 3).toUpperCase(),
+      subject: editForm.subject, teacher: editForm.teacher.replace(/ \(20\)$/, ""),
+      cls: classCode, count: editForm.lessonsPerWeek, length: editForm.length === "Double" ? 2 : 1
+    } : l));
+    setShowEditLesson(false);
+  };
   const [newForm, setNewForm] = useState({
     teacher: "", subject: "", class: className, group: "Entire class",
     lessonsPerWeek: 1, length: "Single",
@@ -67,12 +95,28 @@ export default function LessonsForClass_Grade4({ onClose, className = "GRADE 4" 
         </div>
         <div style={S.footer}>
           <button onClick={()=>setShowNewLesson(true)} style={{...S.btn, background:"#fff", border:"2px solid #000"}}>New lesson</button>
-          <button style={S.btn}>Edit lesson</button>
+          <button onClick={openEditLesson} style={S.btn}>Edit lesson</button>
           <button onClick={()=>setLessons(lessons.filter(x=>x.id!==selectedId))} style={S.btn}>Remove</button>
           <div style={{width:40}}></div><button style={S.btn}>Copy to</button><button style={S.btn}>Add more</button>
           <div style={{flex:1}}></div><button onClick={onClose} style={S.close}>Close</button>
         </div>
       </div>
+
+      {showEditLesson && (
+        <div style={L.overlay}>
+          <div style={L.window}>
+            <div style={L.titleBar}><span>Lesson</span><button aria-label="Close" onClick={()=>setShowEditLesson(false)} style={L.x}>✕</button></div>
+            <div style={L.body}>
+              <div style={L.card}><div style={L.ic}>🎓</div><div style={L.f}><label style={L.lb}>Teacher</label><select value={editForm.teacher} onChange={e=>setEditForm({...editForm, teacher:e.target.value})} style={{...L.sel, width:"100%", background:"#fffbe6", fontWeight:"bold"}}>{["","MOCHACHE PURITY (20)","MOCHACHE PURITY","TANGUS VICTOR","CHEPKWONY MERCY","NYONGESA ABIL","CHERUIYOT RICHARD","MOMANYI POLYTON","Without teacher"].map(x=><option key={x} value={x}>{x}</option>)}</select></div><button type="button" style={L.side}>More teachers</button></div>
+              <div style={L.card}><div style={L.ic}>📘</div><div style={L.f}><label style={L.lb}>Subject</label><select value={editForm.subject} onChange={e=>setEditForm({...editForm, subject:e.target.value})} style={{...L.sel, width:"100%", background:"#a8c8ff"}}>{["","SOCIAL STUDIES","AGRICULTURE","CRE","CREATIVE ARTS","ENGLISH","KISWAHILI","MATHEMATICS","PPI","SCIENCE TECHNOLOGY"].map(x=><option key={x} value={x}>{x}</option>)}</select></div><div style={{width:140}}/></div>
+              <div style={L.card}><div style={L.ic}>👥</div><div style={L.f}><label style={L.lb}>Class</label><div style={{display:"flex",gap:12}}><select value={editForm.class} onChange={e=>setEditForm({...editForm,class:e.target.value})} style={{...L.sel,width:210}}>{["GRADE 1","GRADE 2","GRADE 3","GRADE 4","GRADE 5","GRADE 6","GRADE 7","GRADE 8","GRADE 9"].map(x=><option key={x}>{x}</option>)}</select><select value={editForm.group} onChange={e=>setEditForm({...editForm,group:e.target.value})} style={{...L.sel,width:130}}><option>Entire class</option><option>Group</option></select></div></div><div style={L.sideCol}><button type="button" style={L.side}>Joint classes</button><button type="button" style={L.side}>Add division</button></div></div>
+              <div style={L.card}><div style={L.ic}>📅</div><div style={L.f}><label style={L.lb}>Lessons/week</label><div style={{display:"flex",gap:12}}><select value={editForm.lessonsPerWeek} onChange={e=>setEditForm({...editForm,lessonsPerWeek:Number(e.target.value)})} style={{...L.sel,width:190}}>{[1,2,3,4,5,6].map(x=><option key={x} value={x}>{x}</option>)}</select><select value={editForm.length} onChange={e=>setEditForm({...editForm,length:e.target.value as "Single"|"Double"})} style={{...L.sel,width:130}}><option>Single</option><option>Double</option></select></div></div><div style={{width:140}}><span style={{fontSize:11}}>More weeks/terms</span></div></div>
+              <div style={L.card}><div style={L.ic}>🚪</div><div style={L.f}><div style={L.checkGrid}><label style={L.chk}><input type="checkbox" checked={editForm.home} onChange={e=>setEditForm({...editForm,home:e.target.checked})}/> Home classroom</label><label style={L.chk}><input type="checkbox" checked={editForm.teacherRooms} onChange={e=>setEditForm({...editForm,teacherRooms:e.target.checked})}/> Teacher's classrooms</label><label style={L.chk}><input type="checkbox" checked={editForm.shared} onChange={e=>setEditForm({...editForm,shared:e.target.checked})}/> Shared room</label><label style={L.chk}><input type="checkbox" checked={editForm.subjectRooms} onChange={e=>setEditForm({...editForm,subjectRooms:e.target.checked})}/> Subject's classrooms</label></div><input value={editForm.otherRooms} onChange={e=>setEditForm({...editForm,otherRooms:e.target.value})} placeholder="Other available classrooms" style={L.in}/></div><button type="button" style={L.side}>More classrooms</button></div>
+            </div>
+            <div style={L.foot}><button onClick={()=>setShowEditLesson(false)} style={L.cancel}>Cancel</button><button type="button" style={L.help}>Help</button><div style={{flex:1}}/><button onClick={handleSaveEdit} style={L.ok}>OK</button></div>
+          </div>
+        </div>
+      )}
 
       {/* POPUP: New lesson on GRADE 4 - GRADE 4 prefilled as your photo */}
       {showNewLesson && (
