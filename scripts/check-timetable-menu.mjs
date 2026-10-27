@@ -179,3 +179,16 @@ for (const [label, marker] of periodsMasterContract) {
 assert.ok(timetable.includes("import PeriodsMaster from './PeriodsMaster'"), "School workspace must import the combined Periods manager");
 assert.ok(periodsMaster.includes("oldIndexToNewIndex"), "Periods manager must return the old-to-new period index map");
 console.log("School Periods manager UI, persistence, and lesson-index safeguards passed.");
+
+
+// Teacher contract counts must preserve selected Single lesson counts even when
+// their timetable periods are adjacent, and edit dialogs must retain Double/Triple.
+assert.ok(
+  timetable.includes("const count = explicitLengths.length === 1 && explicitLengths[0] === 'Single' ? entries.length : sessionLengths.length"),
+  "Teacher contract must count adjacent Single lessons individually",
+);
+assert.ok(
+  timetable.includes("length: row.length === 'Double' || row.length === 'Triple' ? row.length : 'Single'"),
+  "Teacher contract edit dialog must preserve the selected Double/Triple lesson length",
+);
+console.log("Teacher contract lesson count and selected-length regression guards passed.");
