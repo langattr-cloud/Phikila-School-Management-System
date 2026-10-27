@@ -16,7 +16,7 @@ type SubjectDetail = { short: string; color: string; number: string; customField
 type SubjectForm = { title: string; short: string; color: string; number: string; customFields: string; classrooms: string[] }
 type TeacherDetail = { firstName: string; short: string; color: string; classTeacher: string; contract: string; email: string; phone: string; title1: string; title2: string; number: string; male: boolean; timeOffGrid: number[][] }
 type ClassDetail = { color?: string; classTeacher?: string; grade?: string; number?: string; count?: number; printPictures?: boolean; timeOffGrid?: number[][]; short?: string }
-type Workspace = { dayDetails?: Record<string, { short?: string; desc?: string; combinedDays?: string[] }>; classDetails?: Record<string, ClassDetail>; schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail>; teacherDetails?: Record<string, TeacherDetail> }
+type Workspace = { dayDetails?: Record<string, { short?: string; desc?: string; combinedDays?: string[] }>; periodAvailability?: Record<string, boolean[]>; classDetails?: Record<string, ClassDetail>; schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail>; teacherDetails?: Record<string, TeacherDetail> }
 type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
 type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Students' | 'Relations' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Year/Class Online' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions/Comments' | 'Questions? / Write us' | 'Questions? Comments? Write us' | 'About' | 'Periods' | 'View timetable' | 'Year Online' | 'Generate' | 'Help' | 'Timetables Online' | 'Classrooms view' | 'Teachers view'
 
@@ -30,6 +30,12 @@ const DEFAULT_PERIODS: Period[] = [
 const EMPTY: Workspace = { schoolName: 'Phikila School', academicYear: '2026/2027', registrationName: '', periodsPerDay: 6, numberOfDays: 5, weekend: 'Saturday - Sunday', workZero: false, days: DAYS.slice(0, 5), periods: DEFAULT_PERIODS, lessons: [], specification: { subjects: ['Mathematics', 'English', 'Kiswahili', 'Science', 'Social Studies', 'ICT'], classes: ['Form 1A', 'Form 1B', 'Form 2A', 'Form 2B'], teachers: ['M. Njoroge', 'A. Wanjiku', 'P. Otieno'], classrooms: ['Room 1', 'Room 2', 'Science Lab'] } }
 const makeId = () => (globalThis.crypto && globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : 'lesson-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8))
 const unique = (items: string[]) => Array.from(new Set(items.map(item => item.trim()).filter(Boolean)))
+const isTimeOffPeriod = (period: Period) => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)
+const displayPeriodName = (period: Period, index: number) => {
+  if (period.type === 'break' || /break|lunch|recess|games/i.test(period.name)) return period.name
+  const number = period.name.match(/^period\s*(\d+)$/i)?.[1]
+  return number || String(index + 1)
+}
 
 function RibbonButton({ label, glyph, tint, onClick }: { label: string; glyph: string; tint?: string; onClick: () => void }) {
   return <button type="button" className="phikila-ribbon-button" title={label} aria-label={label} onClick={onClick}><span className={'phikila-ribbon-icon tint-' + (tint || 'neutral')} aria-hidden="true">{glyph}</span><span>{label}</span></button>
@@ -44,6 +50,8 @@ export default function TimetableModule() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [editor, setEditor] = useState<{ day: string; period: number; lesson?: Lesson } | null>(null)
+  const [periodToggleDay, setPeriodToggleDay] = useState<string | null>(null)
+  const [periodToggleDraft, setPeriodToggleDraft] = useState<boolean[]>([])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [setupTab, setSetupTab] = useState<'basic' | 'bell' | 'subjects' | 'classes'>('basic')
   const [daysDialogOpen, setDaysDialogOpen] = useState(false)
@@ -184,6 +192,18 @@ export default function TimetableModule() {
   }
 
   const save = async () => { await persistWorkspace(data) }
+  const openDayPeriodToggles = (day: string) => {
+    setPeriodToggleDraft(data.periods.map((_, index) => data.periodAvailability?.[day]?.[index] !== false))
+    setPeriodToggleDay(day)
+  }
+  const saveDayPeriodToggles = async () => {
+    if (!periodToggleDay) return
+    const nextData: Workspace = { ...data, periodAvailability: { ...(data.periodAvailability || {}), [periodToggleDay]: periodToggleDraft } }
+    if (await persistWorkspace(nextData, 'save enabled periods for ' + periodToggleDay)) {
+      setPeriodToggleDay(null)
+      setStatus('Saved enabled periods for ' + periodToggleDay)
+    }
+  }
   const runTest = async () => {
     setError('')
     try {
@@ -193,6 +213,10 @@ export default function TimetableModule() {
     } catch (caught) { setError(friendlyApiError(caught, 'test timetable')) }
   }
   const openEditor = (day: string, period: number, lesson?: Lesson, preferredTeacher?: string) => {
+    if (!lesson && data.periodAvailability?.[day]?.[period] === false) {
+      setError('This period is disabled for ' + day + '. Click the day name to enable it before adding a lesson.')
+      return
+    }
     setEditor({ day, period, lesson })
     setForm(lesson ? { className: lesson.className, subject: lesson.subject, teacher: lesson.teacher, room: lesson.room, locked: lesson.locked } : { className: classes[0] || 'Form 1A', subject: subjects[0] || 'Mathematics', teacher: preferredTeacher || teachers[0] || 'Teacher', room: '', locked: false })
   }
@@ -235,6 +259,7 @@ export default function TimetableModule() {
       const span = spans[chosen.length]
       if (candidate.period + span > data.periods.length) return false
       const slots = Array.from({ length: span }, (_, offset) => candidate.period + offset)
+      if (slots.some(index => data.periodAvailability?.[candidate.day]?.[index] === false)) return false
       if (slots.some(index => isBreak(data.periods[index]))) return false
       if (chosen.some((item, chosenIndex) => item.day === candidate.day && Array.from({ length: spans[chosenIndex] }, (_, offset) => item.period + offset).some(index => slots.includes(index)))) return false
       const dayIndex = data.days.indexOf(candidate.day)
@@ -298,7 +323,7 @@ export default function TimetableModule() {
       for (const day of data.days) {
         for (let period = 0; period + span <= data.periods.length; period++) {
           const slots = Array.from({ length: span }, (_, offset) => period + offset)
-          if (slots.some(index => isBreak(data.periods[index]))) continue
+          if (slots.some(index => isBreak(data.periods[index]) || data.periodAvailability?.[day]?.[index] === false)) continue
           const overlapsNew = additions.some(item => item.day === day && slots.includes(item.period))
           if (overlapsNew) continue
           const dayIndex = data.days.indexOf(day)
@@ -410,9 +435,9 @@ export default function TimetableModule() {
         <div className="phikila-tt-bell-actions"><span>Manage teaching periods and configure breaks, their position, and print options.</span><button className="phikila-tt-button" onClick={() => setData(current => ({ ...current, periods: [...current.periods, { name: 'New period', short: 'P' + (current.periods.filter(p => p.type !== 'break').length + 1), start: '13:00', end: '13:40', type: 'lesson' }] }))}>+ Add period</button><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => setBreakDialog({ index: null, form: makeBreakForm() })}>+ Add break between lessons</button></div>
         <div className="phikila-tt-period-list">{data.periods.map((period,index)=><div className={'phikila-tt-period-row ' + (period.type === 'break' ? 'phikila-tt-break-editor-row' : '')} key={index}>
           <span className="phikila-tt-period-kind">{period.type === 'break' ? 'Break' : 'Lesson'}</span>
-          <input aria-label={'Period '+(index+1)+' name'} value={period.name} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,name:event.target.value}:item)}))}/>
-          <input aria-label={'Period '+(index+1)+' start'} type="time" value={period.start} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,start:event.target.value}:item)}))}/>
-          <input aria-label={'Period '+(index+1)+' end'} type="time" value={period.end} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,end:event.target.value}:item)}))}/>
+          <input aria-label={'Slot '+(index+1)+' name'} value={period.name} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,name:event.target.value}:item)}))}/>
+          <input aria-label={'Slot '+(index+1)+' start'} type="time" value={period.start} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,start:event.target.value}:item)}))}/>
+          <input aria-label={'Slot '+(index+1)+' end'} type="time" value={period.end} onChange={event=>setData(current=>({...current,periods:current.periods.map((item,i)=>i===index?{...item,end:event.target.value}:item)}))}/>
           <div className="phikila-tt-period-actions">{period.type === 'break' && <button className="phikila-tt-button" onClick={()=>setBreakDialog({index,form:periodToBreakForm(period)})}>Edit break</button>}<button className="phikila-tt-button phikila-tt-danger" onClick={()=>setData(current=>({...current,periods:current.periods.filter((_,i)=>i!==index),lessons:current.lessons.filter(lesson=>lesson.period!==index).map(lesson=>({...lesson,period:lesson.period>index?lesson.period-1:lesson.period}))}))}>Delete</button></div>
         </div>)}</div>
       </div>}
@@ -480,10 +505,11 @@ export default function TimetableModule() {
       setBreakDialog(null); setError(''); setStatus('Break configured · remember to Save');
     }} />}
 
-    {!(settingsOpen && setupTab === 'subjects') && <section className="phikila-tt-grid-panel"><div className="phikila-tt-panel-heading"><div><h2>Weekly timetable</h2><p>Select a lesson to edit it, or choose an empty cell to add one.</p></div><div className="phikila-tt-grid-legend"><span><i className="legend-lesson" /> Lesson</span><span><i className="legend-locked" /> Locked ({data.lessons.filter(lesson => lesson.locked).length})</span><span className="phikila-tt-verification-indicator">Verification: {conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local conflicts'}</span></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid phikila-tt-grid-days-rows"><thead><tr><th className="period-col">Day</th>{data.periods.map((period, periodIndex) => <th key={period.name + periodIndex} className={(period.type === 'break' || /break|lunch|recess|games/i.test(period.name)) ? 'phikila-tt-break-heading' : ''}>{period.name}<small>{period.start}–{period.end}</small></th>)}</tr></thead><tbody>{data.days.map(day => <tr key={day}><th className="period-cell">{day}</th>{data.periods.map((period, periodIndex) => { const isBreak = period.type === 'break' || /break|lunch|recess|games/i.test(period.name); const lessons = visibleLessons.filter(lesson => lesson.day === day && lesson.period === periodIndex); return <td key={period.name + periodIndex} className={'phikila-tt-cell ' + (isBreak ? 'phikila-tt-break-cell' : '')}>{lessons.map(lesson => <button key={lesson.id} className={'phikila-tt-lesson ' + (lesson.locked ? 'is-locked' : '')} onClick={() => openEditor(day, periodIndex, lesson)}><span className="phikila-tt-lesson-class">{lesson.className}{lesson.locked ? ' · Locked' : ''}</span><strong>{lesson.subject}</strong><span>{lesson.teacher}</span>{lesson.room && <small>{lesson.room}</small>}</button>)}{!isBreak && <button className="phikila-tt-add-cell" onClick={() => openEditor(day, periodIndex)}>+ Add lesson</button>}{isBreak && <span className="phikila-tt-break-label">{period.name}</span>}</td> })}</tr>)}</tbody></table></div></section>}
+    {!(settingsOpen && setupTab === 'subjects') && <section className="phikila-tt-grid-panel"><div className="phikila-tt-panel-heading"><div><h2>Weekly timetable</h2><p>Select a lesson to edit it, or choose an empty cell to add one.</p></div><div className="phikila-tt-grid-legend"><span><i className="legend-lesson" /> Lesson</span><span><i className="legend-locked" /> Locked ({data.lessons.filter(lesson => lesson.locked).length})</span><span className="phikila-tt-verification-indicator">Verification: {conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local conflicts'}</span></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid phikila-tt-grid-days-rows"><thead><tr><th className="period-col">Day</th>{data.periods.map((period, periodIndex) => <th key={period.name + periodIndex} className={(period.type === 'break' || /break|lunch|recess|games/i.test(period.name)) ? 'phikila-tt-break-heading' : ''}>{displayPeriodName(period, periodIndex)}<small>{period.start}–{period.end}</small></th>)}</tr></thead><tbody>{data.days.map(day => <tr key={day}><th className="period-cell"><button type="button" onClick={() => openDayPeriodToggles(day)} title={'Configure enabled periods for ' + day} aria-label={'Configure periods for ' + day} style={{ border: 0, background: 'transparent', color: 'inherit', font: 'inherit', fontWeight: 700, cursor: 'pointer', padding: '6px 3px', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>{day}</button></th>{data.periods.map((period, periodIndex) => { const isBreak = period.type === 'break' || /break|lunch|recess|games/i.test(period.name); const enabled = data.periodAvailability?.[day]?.[periodIndex] !== false; const lessons = visibleLessons.filter(lesson => lesson.day === day && lesson.period === periodIndex); return <td key={period.name + periodIndex} className={'phikila-tt-cell ' + (isBreak ? 'phikila-tt-break-cell ' : '') + (!enabled ? 'phikila-tt-period-disabled' : '')} title={!enabled ? 'Period disabled for ' + day : undefined} style={!enabled ? { background: '#f1f5f9', opacity: 0.72 } : undefined}>{lessons.map(lesson => <button key={lesson.id} className={'phikila-tt-lesson ' + (lesson.locked ? 'is-locked' : '')} onClick={() => openEditor(day, periodIndex, lesson)}><span className="phikila-tt-lesson-class">{lesson.className}{lesson.locked ? ' · Locked' : ''}</span><strong>{lesson.subject}</strong><span>{lesson.teacher}</span>{lesson.room && <small>{lesson.room}</small>}</button>)}{!isBreak && enabled && <button className="phikila-tt-add-cell" onClick={() => openEditor(day, periodIndex)}>+ Add lesson</button>}{!isBreak && !enabled && <span aria-label="Period disabled" style={{ display: 'block', padding: '7px', color: '#b91c1c', fontWeight: 700, textAlign: 'center' }}>× Disabled</span>}{isBreak && <span className="phikila-tt-break-label">{period.name}</span>}</td> })}</tr>)}</tbody></table></div></section>}
     {!(settingsOpen && setupTab === 'subjects') && <footer className="phikila-tt-footer"><span>{status}</span><span>{conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local same-slot conflicts detected'}</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => void save()}>Save workspace</button></footer>}
-    {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period]?.name}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
-    {previewOpen && <div className="phikila-tt-modal-backdrop"><section className="phikila-tt-preview" role="dialog" aria-modal="true" aria-labelledby="tt-preview-title"><div className="phikila-tt-panel-heading"><div><h2 id="tt-preview-title">Print preview · {data.schoolName}</h2><p>Academic year {data.academicYear}</p></div><div><button className="phikila-tt-button" onClick={() => setPreviewOpen(false)}>Close</button> <button className="phikila-tt-button phikila-tt-button-primary" onClick={() => window.print()}>Print</button></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th>Period</th>{data.days.map(day => <th key={day}>{day}</th>)}</tr></thead><tbody>{data.periods.map((period, index) => <tr key={period.name + index}><th>{period.name}<small>{period.start}–{period.end}</small></th>{data.days.map(day => <td key={day}>{data.lessons.filter(lesson => lesson.day === day && lesson.period === index).map(lesson => <div className="phikila-tt-print-lesson" key={lesson.id}><strong>{lesson.className} · {lesson.subject}</strong><br />{lesson.teacher}{lesson.room ? ' · ' + lesson.room : ''}</div>)}</td>)}</tr>)}</tbody></table></div></section></div>}
+    {periodToggleDay && <div className="phikila-tt-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="period-toggle-title"><section className="phikila-tt-modal" style={{ width: 'min(760px, calc(100vw - 24px))' }}><div className="phikila-tt-panel-heading"><div><h2 id="period-toggle-title">Enable periods · {periodToggleDay}</h2><p>Click a period to switch it between enabled (✓) and disabled (×). Changes are saved to the school database.</p></div><button type="button" className="phikila-tt-button" onClick={() => setPeriodToggleDay(null)}>Close</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: 8, marginTop: 14 }}>{data.periods.map((period, index) => { const enabled = periodToggleDraft[index] !== false; const isBreak = period.type === 'break' || /break|lunch|recess|games/i.test(period.name); return <button type="button" key={period.name + index} disabled={isBreak} onClick={() => setPeriodToggleDraft(current => current.map((value, itemIndex) => itemIndex === index ? !value : value))} aria-pressed={enabled} title={isBreak ? 'Breaks cannot be toggled as teaching periods' : enabled ? 'Click to disable this period' : 'Click to enable this period'} style={{ minHeight: 68, border: '1px solid ' + (isBreak ? '#cbd5e1' : enabled ? '#16a34a' : '#dc2626'), borderRadius: 6, padding: 10, background: isBreak ? '#e2e8f0' : enabled ? '#f0fdf4' : '#fef2f2', color: '#111827', cursor: isBreak ? 'not-allowed' : 'pointer', textAlign: 'left' }}><strong style={{ display: 'block' }}>{displayPeriodName(period, index)}</strong><span style={{ display: 'block', fontSize: 12, marginTop: 5 }}>{isBreak ? 'Break' : enabled ? '✓ Enabled' : '× Disabled'}</span><small>{period.start}–{period.end}</small></button> })}</div><div className="phikila-tt-modal-actions" style={{ marginTop: 16 }}><button type="button" className="phikila-tt-button" onClick={() => setPeriodToggleDay(null)}>Cancel</button><span /><button type="button" className="phikila-tt-button phikila-tt-button-primary" onClick={() => void saveDayPeriodToggles()}>Save period settings</button></div></section></div>}
+    {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period] ? displayPeriodName(data.periods[editor.period], editor.period) : editor.period + 1}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
+    {previewOpen && <div className="phikila-tt-modal-backdrop"><section className="phikila-tt-preview" role="dialog" aria-modal="true" aria-labelledby="tt-preview-title"><div className="phikila-tt-panel-heading"><div><h2 id="tt-preview-title">Print preview · {data.schoolName}</h2><p>Academic year {data.academicYear}</p></div><div><button className="phikila-tt-button" onClick={() => setPreviewOpen(false)}>Close</button> <button className="phikila-tt-button phikila-tt-button-primary" onClick={() => window.print()}>Print</button></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th>#</th>{data.days.map(day => <th key={day}>{day}</th>)}</tr></thead><tbody>{data.periods.map((period, index) => <tr key={period.name + index}><th>{displayPeriodName(period, index)}<small>{period.start}–{period.end}</small></th>{data.days.map(day => <td key={day}>{data.lessons.filter(lesson => lesson.day === day && lesson.period === index).map(lesson => <div className="phikila-tt-print-lesson" key={lesson.id}><strong>{lesson.className} · {lesson.subject}</strong><br />{lesson.teacher}{lesson.room ? ' · ' + lesson.room : ''}</div>)}</td>)}</tr>)}</tbody></table></div></section></div>}
     {advisorOpen && <AdvisorDialog classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} onClose={() => setAdvisorOpen(false)} />}
     {generateNewAdvisorOpen && <GenerateNewAdvisor classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} classDetails={data.classDetails || {}} teacherDetails={data.teacherDetails || {}} subjectDetails={data.subjectDetails || {}} onGenerate={() => { const result = generateSchedule(data); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved'); setGenerateNewAdvisorOpen(false) } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save'); setGenerateNewAdvisorOpen(false) } }} onClose={() => setGenerateNewAdvisorOpen(false)} />}
     <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={event => { openJson(event.target.files?.[0]); event.currentTarget.value = '' }} />
@@ -528,7 +554,7 @@ function BreakEditorDialog({value,lessonCount,onChange,onClose,onSave}:{value:Br
 function normaliseWorkspace(value: Partial<Workspace>): Workspace {
   const days = Array.isArray(value.days) && value.days.length ? value.days.filter(day => typeof day === 'string' && day.trim()) : [...DAYS]
   const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ ...period, name: period.name, start: period.start || '', end: period.end || '', type: period.type === 'break' || /break|lunch|recess|games/i.test(period.name) ? 'break' as const : 'lesson' as const })) : DEFAULT_PERIODS.map(period => ({ ...period }))
-  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && typeof lesson.day === 'string' && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked), length: lesson.length === 'Double' || lesson.length === 'Triple' ? lesson.length : 'Single' })) : []
+  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && typeof lesson.day === 'string' && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map((lesson): Lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked), length: lesson.length === 'Double' || lesson.length === 'Triple' ? lesson.length : 'Single' })) : []
   const rawSpec = value.specification as Partial<Specification> | undefined
   const specification: Specification = {
     subjects: Array.isArray(rawSpec?.subjects) ? unique(rawSpec.subjects.filter(item => typeof item === 'string')) : [...EMPTY.specification.subjects],
@@ -536,7 +562,7 @@ function normaliseWorkspace(value: Partial<Workspace>): Workspace {
     teachers: Array.isArray(rawSpec?.teachers) ? unique(rawSpec.teachers.filter(item => typeof item === 'string')) : [...EMPTY.specification.teachers],
     classrooms: Array.isArray(rawSpec?.classrooms) ? unique(rawSpec.classrooms.filter(item => typeof item === 'string')) : [...EMPTY.specification.classrooms],
   }
-  return { dayDetails: value.dayDetails && typeof value.dayDetails === 'object' ? value.dayDetails : {}, classDetails: value.classDetails && typeof value.classDetails === 'object' ? value.classDetails as Record<string, ClassDetail> : {}, schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), registrationName: String(value.registrationName || ''), subjectDetails: value.subjectDetails && typeof value.subjectDetails === 'object' ? value.subjectDetails : {}, teacherDetails: value.teacherDetails && typeof value.teacherDetails === 'object' ? value.teacherDetails : {}, periodsPerDay: Number(value.periodsPerDay) || Math.max(1, periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length), numberOfDays: Number(value.numberOfDays) || days.length, weekend: String(value.weekend || 'Saturday - Sunday'), workZero: Boolean(value.workZero), days, periods, lessons, specification }
+  return { dayDetails: value.dayDetails && typeof value.dayDetails === 'object' ? value.dayDetails : {}, periodAvailability: value.periodAvailability && typeof value.periodAvailability === 'object' ? value.periodAvailability : {}, classDetails: value.classDetails && typeof value.classDetails === 'object' ? value.classDetails as Record<string, ClassDetail> : {}, schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), registrationName: String(value.registrationName || ''), subjectDetails: value.subjectDetails && typeof value.subjectDetails === 'object' ? value.subjectDetails : {}, teacherDetails: value.teacherDetails && typeof value.teacherDetails === 'object' ? value.teacherDetails : {}, periodsPerDay: Number(value.periodsPerDay) || Math.max(1, periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length), numberOfDays: Number(value.numberOfDays) || days.length, weekend: String(value.weekend || 'Saturday - Sunday'), workZero: Boolean(value.workZero), days, periods, lessons, specification }
 }
 function findConflicts(data: Workspace): string[] {
   const issues: string[] = []
@@ -667,8 +693,8 @@ type ContractEditDraft = { teacher: string; subject: string; className: string; 
 function TeacherContractDialog({ teacher, short, lessons, periods, subjects, classes, teachers, classrooms, teacherDetails, actionError, onClose, onNew, onEdit, onRemove, onCopyTo }: { teacher: string; short: string; lessons: ContractLesson[]; periods: Period[]; subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[]; teacherDetails: Record<string, TeacherDetail>; actionError?: string; onClose: () => void; onNew: () => void; onEdit: (row: ContractRow) => void; onRemove: (lesson: ContractLesson | ContractLesson[]) => void; onCopyTo: (row: ContractRow, targetClass: string) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null)
   const selectedLesson = lessons.find(lesson => lesson.id === selectedId)
-  // A timetable stores one record per occupied period. The contract view should instead
-  // show one row per subject/class/room assignment and count contiguous blocks as sessions.
+  // A timetable stores one record per occupied period. Single lessons each count as one
+  // lesson even when adjacent; Double/Triple assignments count contiguous blocks as sessions.
   const contractRows = useMemo(() => {
     const groups = new Map<string, ContractLesson[]>()
     for (const lesson of lessons) {
@@ -696,7 +722,10 @@ function TeacherContractDialog({ teacher, short, lessons, periods, subjects, cla
       })
       const explicitLengths = [...new Set(entries.map(entry => entry.length === 'Double' || entry.length === 'Triple' ? entry.length : 'Single'))]
       const length = explicitLengths.length === 1 ? explicitLengths[0] : 'Mixed'
-      return { key, lesson: entries[0], entries, count: sessionLengths.length, length }
+      // Single lessons are counted per saved period, not per contiguous run; otherwise
+      // four adjacent Single lessons can incorrectly appear as only one contract lesson.
+      const count = explicitLengths.length === 1 && explicitLengths[0] === 'Single' ? entries.length : sessionLengths.length
+      return { key, lesson: entries[0], entries, count, length }
     }) as ContractRow[]
   }, [lessons])
   const selectedRow = contractRows.find(row => row.entries.some(lesson => lesson.id === selectedId))
@@ -731,7 +760,7 @@ function ContractLessonEditDialog({ teacher, row, subjects, classes, teachers, c
     className: row.lesson.className,
     group: 'Entire class',
     lessonsPerWeek: row.count,
-    length: 'Single' as ContractEditDraft['length'], 
+    length: row.length === 'Double' || row.length === 'Triple' ? row.length : 'Single', 
     homeClassroom: true,
     sharedRoom: false,
     teacherRooms: false,
@@ -775,6 +804,8 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
   const [draft, setDraft] = useState<TeacherDraft | null>(null)
   const [editingExisting, setEditingExisting] = useState(false)
   const [timeOff, setTimeOff] = useState<number[][]>([])
+  const [timeOffSelectedDay, setTimeOffSelectedDay] = useState<number | null>(null)
+  const [timeOffSelectedPeriod, setTimeOffSelectedPeriod] = useState<number | null>(null)
   const selectedRecord = records[selected]
   const startNew = () => { setEditingExisting(false); setDraft({ name: '', ...blankDetail() }); setMode('edit') }
   const startEdit = () => { if (selectedRecord) { setEditingExisting(true); setDraft({ ...selectedRecord }); setMode('edit') } }
@@ -787,8 +818,36 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
     else next.push(clean)
     setRecords(next); setSelected(editingExisting && selectedRecord ? selected : next.length - 1); setMode('list'); setDraft(null)
   }
-  const openTimeOff = () => { if (!selectedRecord) return; setTimeOff(days.map((_, row) => periods.map((_, column) => selectedRecord.timeOffGrid[row]?.[column] ?? 0))); setMode('timeoff') }
+  const openTimeOff = () => { if (!selectedRecord) return; setTimeOff(days.map((_, row) => periods.map((_, column) => selectedRecord.timeOffGrid[row]?.[column] ?? 0))); setTimeOffSelectedDay(null); setTimeOffSelectedPeriod(null); setMode('timeoff') }
   const saveTimeOff = () => { setRecords(current => current.map((teacher, index) => index === selected ? { ...teacher, timeOffGrid: timeOff } : teacher)); setMode('list') }
+  const clickTimeOffDay = (row: number) => {
+    setTimeOffSelectedDay(row); setTimeOffSelectedPeriod(null)
+    setTimeOff(current => {
+      const values = periods.map((period, column) => ({ period, value: current[row]?.[column] ?? 0 })).filter(item => isTimeOffPeriod(item.period)).map(item => item.value)
+      const nextValue = values.every(value => value === 0) ? 2 : 0
+      return current.map((dayValues, index) => index === row ? periods.map((period, column) => isTimeOffPeriod(period) ? nextValue : (dayValues?.[column] ?? 0)) : dayValues)
+    })
+  }
+  const clickTimeOffPeriod = (column: number) => {
+    setTimeOffSelectedDay(null)
+    if (timeOffSelectedPeriod !== column) {
+      setTimeOffSelectedPeriod(column)
+      return
+    }
+    setTimeOff(current => {
+      const values = current.map(row => row[column] ?? 0)
+      const allConditional = values.every(value => value === 1)
+      const allUnavailable = values.every(value => value === 2)
+      const allAvailable = values.every(value => value === 0)
+      const nextValue = allConditional ? 2 : allUnavailable ? 0 : allAvailable ? 1 : 1
+      return current.map(row => row.map((value, periodIndex) => periodIndex === column ? nextValue : value))
+    })
+  }
+  const clickTimeOffCell = (event: React.MouseEvent<HTMLButtonElement>, row: number, column: number) => {
+    event.preventDefault()
+    setTimeOffSelectedDay(row); setTimeOffSelectedPeriod(column)
+    setTimeOff(current => current.map((values, rowIndex) => rowIndex === row ? values.map((value, columnIndex) => columnIndex !== column ? value : event.type === 'contextmenu' ? 1 : value === 0 ? 2 : 0) : values))
+  }
   const saveAll = () => {
     const nextTeachers = records.map(teacher => teacher.name)
     const nextDetails: Record<string, TeacherDetail> = {}
@@ -820,7 +879,7 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
         <label className="phikila-tt-teacher-checkbox"><input type="checkbox" checked={draft.male} onChange={event => setDraft(current => current ? { ...current, male: event.target.checked } : current)} /> Male</label>
         <div className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setMode('list')}>Cancel</button><button type="button" className="is-primary" onClick={saveDraft}>OK</button></div>
       </div>}
-      {mode === 'timeoff' && <div className="phikila-tt-teacher-timeoff"><p>Click a cell to cycle available, conditional, and unavailable.</p><div className="phikila-tt-teacher-time-grid" style={{ gridTemplateColumns: `72px repeat(${Math.max(1, periods.length)}, minmax(30px, 1fr))` }}><div />{periods.map((period, index) => <strong key={index} title={period.name}>{period.short || period.name || String(index + 1)}</strong>)}{days.map((day, row) => <><strong key={day}>{day.slice(0, 3)}</strong>{(timeOff[row] || []).map((value, column) => <button type="button" key={column} title={value === 0 ? 'Available' : value === 1 ? 'Conditional' : 'Unavailable'} onClick={() => setTimeOff(current => current.map((values, r) => r === row ? values.map((cell, c) => c === column ? (cell + 1) % 3 : cell) : values))}>{value === 0 ? '✓' : value === 1 ? '?' : '×'}</button>)}</>)}</div><div className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setMode('list')}>Cancel</button><button type="button" className="is-primary" onClick={saveTimeOff}>OK</button></div></div>}
+      {mode === 'timeoff' && <div className="phikila-tt-teacher-timeoff"><p><strong>Day:</strong> click a day label to toggle its entire row. <strong>Number:</strong> click a heading to update its column. <strong>Cell:</strong> left-click toggles ✓/×; right-click sets ?.</p><div className="phikila-tt-teacher-time-grid" style={{ gridTemplateColumns: `72px repeat(${Math.max(1, periods.filter(isTimeOffPeriod).length)}, minmax(30px, 1fr))` }}><div />{periods.map((period, index) => isTimeOffPeriod(period) ? <button type="button" key={index} title={'Click to set availability for ' + displayPeriodName(period, index) + ' across all days'} aria-pressed={timeOffSelectedPeriod === index} onClick={() => clickTimeOffPeriod(index)} style={{ cursor: 'pointer', border: timeOffSelectedPeriod === index ? '2px solid #0d2a6e' : '1px dashed #aaa', background: timeOffSelectedPeriod === index ? '#ffeb3b' : '#fff', fontWeight: 700, minWidth: 0, padding: '5px 2px' }}>{displayPeriodName(period, index)}</button> : null)}{days.map((day, row) => <React.Fragment key={day}><button type="button" title={'Click to toggle all periods for ' + day} aria-pressed={timeOffSelectedDay === row} onClick={() => clickTimeOffDay(row)} style={{ cursor: 'pointer', border: timeOffSelectedDay === row ? '2px solid #0d2a6e' : '1px dashed #aaa', background: timeOffSelectedDay === row ? '#ffeb3b' : '#fff8c0', fontWeight: 700 }}>{day.slice(0, 3)}</button>{periods.map((period, column) => { if (!isTimeOffPeriod(period)) return null; const value = timeOff[row]?.[column] ?? 0; const selected = timeOffSelectedDay === row && timeOffSelectedPeriod === column; return <button type="button" key={column} title={value === 0 ? 'Available · left-click to set unavailable, right-click for conditional' : value === 1 ? 'Conditional · left-click to set available, right-click remains conditional' : 'Unavailable · left-click to set available, right-click for conditional'} aria-label={day + ', ' + periods[column].name + ': ' + (value === 0 ? 'Available' : value === 1 ? 'Conditional' : 'Unavailable')} onClick={event => clickTimeOffCell(event, row, column)} onContextMenu={event => clickTimeOffCell(event, row, column)} style={{ cursor: 'pointer', minWidth: 0, minHeight: 38, fontSize: 18, fontWeight: 900, background: selected ? '#2c3e8f' : timeOffSelectedPeriod === column || timeOffSelectedDay === row ? '#e3e8ff' : '#fff', color: selected ? (value === 2 ? '#ffb0b0' : '#fff') : value === 0 ? '#0a8a0a' : value === 1 ? '#fff' : '#e53935', border: selected ? '3px solid #0d2a6e' : '1px dashed #bbb' }}>{value === 0 ? '✓' : value === 1 ? '?' : 'X'}</button>})}</React.Fragment>)}</div><div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, padding: '10px 0', fontSize: 12 }}><span style={{ color: '#0a8a0a', fontWeight: 700 }}>✓ Available</span><span style={{ color: '#2196f3', fontWeight: 700 }}>? Conditional</span><span style={{ color: '#e53935', fontWeight: 700 }}>X Not available</span></div><div className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setMode('list')}>Cancel</button><button type="button" className="is-primary" onClick={saveTimeOff}>OK</button></div></div>}
     </section>
   </div>
 }
@@ -864,15 +923,40 @@ function LessonDialog({ initial, teachersList, subjectsList, classesList, classr
 }
 
 function SubjectTimeOffDialog({ subject, days, periods, initialGrid, onClose, onSave }: { subject: string; days: string[]; periods: Period[]; initialGrid?: number[][]; onClose: () => void; onSave: (grid: number[][]) => void }) {
-  const [grid, setGrid] = useState<number[][]>(()=>days.map((_,row)=>periods.map((_,column)=>initialGrid?.[row]?.[column]??0)));
+  const [grid, setGrid] = useState<number[][]>(() => days.map((_, row) => periods.map((_, column) => initialGrid?.[row]?.[column] ?? 0)))
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [selectedPeriod, setSelectedPeriod] = useState<number | null>(null)
+  const clickDay = (row: number) => {
+    setSelectedDay(row); setSelectedPeriod(null)
+    setGrid(current => {
+      const values = periods.map((period, column) => ({ period, value: current[row]?.[column] ?? 0 })).filter(item => isTimeOffPeriod(item.period)).map(item => item.value)
+      const nextValue = values.every(value => value === 0) ? 2 : 0
+      return current.map((dayValues, index) => index === row ? periods.map((period, column) => isTimeOffPeriod(period) ? nextValue : (dayValues?.[column] ?? 0)) : dayValues)
+    })
+  }
+  const clickPeriod = (column: number) => {
+    setSelectedDay(null)
+    if (selectedPeriod !== column) { setSelectedPeriod(column); return }
+    setGrid(current => {
+      const values = current.map(row => row[column] ?? 0)
+      const nextValue = values.every(value => value === 1) ? 2 : values.every(value => value === 2) ? 0 : 1
+      return current.map(row => row.map((value, index) => index === column ? nextValue : value))
+    })
+  }
+  const clickCell = (event: React.MouseEvent<HTMLButtonElement>, row: number, column: number) => {
+    event.preventDefault()
+    setSelectedDay(row); setSelectedPeriod(column)
+    setGrid(current => current.map((values, rowIndex) => rowIndex === row ? values.map((value, columnIndex) => columnIndex !== column ? value : event.type === 'contextmenu' ? 1 : value === 0 ? 2 : 0) : values))
+  }
   return <div className="phikila-tt-teachers-overlay" role="dialog" aria-modal="true" aria-label={"Time off for " + subject}>
     <section className="phikila-tt-teachers-window">
       <header className="phikila-tt-teachers-title"><strong>Subject time off · {subject}</strong><button type="button" onClick={onClose} aria-label="Close">×</button></header>
-      <div className="phikila-tt-teacher-timeoff"><p>Click a cell to cycle Available, Conditional, and Unavailable. Save workspace to persist the changes.</p>
-        <div className="phikila-tt-teacher-time-grid" style={{gridTemplateColumns:`72px repeat(${Math.max(1,periods.length)}, minmax(30px, 1fr))`}}>
-          <div />{periods.map((period,index)=><strong key={index} title={period.name}>{period.short||period.name||String(index+1)}</strong>)}
-          {days.map((day,row)=><React.Fragment key={day}><strong>{day.slice(0,3)}</strong>{periods.map((period,column)=>{const value=grid[row]?.[column]??0;return <button type="button" key={period.name+column} title={value===0?'Available':value===1?'Conditional':'Unavailable'} onClick={()=>setGrid(current=>current.map((values,r)=>r===row?values.map((cell,c)=>c===column?(cell+1)%3:cell):values))}>{value===0?'✓':value===1?'?':'×'}</button>})}</React.Fragment>)}
+      <div className="phikila-tt-teacher-timeoff"><p><strong>Day:</strong> click a day label to toggle its row. <strong>Number:</strong> click a heading to select its column; click it again to cycle the column. <strong>Cell:</strong> left-click toggles ✓/X; right-click sets ?.</p>
+        <div className="phikila-tt-teacher-time-grid" style={{gridTemplateColumns:`72px repeat(${Math.max(1, periods.filter(isTimeOffPeriod).length)}, minmax(30px, 1fr))`}}>
+          <div />{periods.map((period, index) => isTimeOffPeriod(period) ? <button type="button" key={index} title={"Select/cycle " + displayPeriodName(period, index) + " across all days"} aria-pressed={selectedPeriod === index} onClick={() => clickPeriod(index)} style={{cursor:'pointer',border:selectedPeriod===index?'2px solid #0d2a6e':'1px dashed #aaa',background:selectedPeriod===index?'#ffeb3b':'#fff',fontWeight:700,minWidth:0,padding:'5px 2px'}}>{displayPeriodName(period, index)}</button> : null)}
+          {days.map((day, row) => <React.Fragment key={day}><button type="button" title={"Toggle all periods for " + day} aria-pressed={selectedDay === row} onClick={() => clickDay(row)} style={{cursor:'pointer',border:selectedDay===row?'2px solid #0d2a6e':'1px dashed #aaa',background:selectedDay===row?'#ffeb3b':'#fff8c0',fontWeight:700}}>{day.slice(0, 3)}</button>{periods.map((period, column) => {if (!isTimeOffPeriod(period)) return null; const value=grid[row]?.[column]??0;const selected=selectedDay===row&&selectedPeriod===column;return <button type="button" key={period.name+column} title={value===0?'Available · left-click unavailable, right-click conditional':value===1?'Conditional · left-click available':'Unavailable · left-click available, right-click conditional'} aria-label={day+', '+period.name+': '+(value===0?'Available':value===1?'Conditional':'Unavailable')} onClick={event=>clickCell(event,row,column)} onContextMenu={event=>clickCell(event,row,column)} style={{cursor:'pointer',minWidth:0,minHeight:38,fontSize:18,fontWeight:900,background:selected?'#2c3e8f':selectedPeriod===column||selectedDay===row?'#e3e8ff':'#fff',color:selected?(value===2?'#ffb0b0':'#fff'):value===0?'#0a8a0a':value===1?'#2196f3':'#e53935',border:selected?'3px solid #0d2a6e':'1px dashed #bbb'}}>{value===0?'✓':value===1?'?':'X'}</button>})}</React.Fragment>)}
         </div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:14,padding:'10px 0',fontSize:12}}><span style={{color:'#0a8a0a',fontWeight:700}}>✓ Available</span><span style={{color:'#2196f3',fontWeight:700}}>? Conditional</span><span style={{color:'#e53935',fontWeight:700}}>X Not available</span></div>
       </div>
       <div className="phikila-tt-teacher-form-actions"><button type="button" onClick={onClose}>Cancel</button><button type="button" className="is-primary" onClick={()=>onSave(grid)}>OK</button></div>
     </section>
