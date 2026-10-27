@@ -1,8 +1,9 @@
 // LessonsForClass_Grade4_Combined.jsx - Combined as you asked
 import { useState, type CSSProperties } from "react";
 
-export default function LessonsForClass_Grade4({ onClose }: { onClose: () => void }) {
-  const [lessons, setLessons] = useState([
+export default function LessonsForClass_Grade4({ onClose, className = "GRADE 4" }: { onClose: () => void; className?: string }) {
+  const classCode = className.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase();
+  const [lessons, setLessons] = useState(() => className.trim().toUpperCase() === "GRADE 4" ? [
     { id:1, code:"AGN", subject:"AGRICULTURE ...", teacher:"TANGUS VICTOR", cls:"G4", count:4, length:1, color:"#f2780d" },
     { id:2, code:"CRE", subject:"CRE", teacher:"CHEPKWONY MERCY", cls:"G4", count:3, length:1, color:"#d67a7a" },
     { id:3, code:"CAS", subject:"CREATIVE ART...", teacher:"NYONGESA ABIL", cls:"G4", count:6, length:1, color:"#c25b5b" },
@@ -12,12 +13,12 @@ export default function LessonsForClass_Grade4({ onClose }: { onClose: () => voi
     { id:7, code:"PPI", subject:"PPI", teacher:"Without teacher", cls:"G4", count:1, length:1, color:"#d9d2e9" },
     { id:8, code:"SCT", subject:"SCIENCE TECH...", teacher:"CHEPKWONY MERCY", cls:"G4", count:4, length:1, color:"#e6a57e" },
     { id:9, code:"SST", subject:"SOCIAL STUDIES", teacher:"MOCHACHE PURITY", cls:"G4", count:3, length:1, color:"#b6d7a8" },
-  ]);
+  ] : []);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showNewLesson, setShowNewLesson] = useState(false);
   const [newForm, setNewForm] = useState({
-    teacher: "", subject: "", class: "GRADE 4", group: "Entire class",
+    teacher: "", subject: "", class: className, group: "Entire class",
     lessonsPerWeek: 1, length: "Single",
     home: true, shared: false, teacherRooms: false, subjectRooms: false, otherRooms: ""
   });
@@ -29,14 +30,14 @@ export default function LessonsForClass_Grade4({ onClose }: { onClose: () => voi
       code: newForm.subject.substring(0,3).toUpperCase(),
       subject: newForm.subject.toUpperCase(),
       teacher: newForm.teacher,
-      cls: "G4",
+      cls: classCode,
       count: newForm.lessonsPerWeek,
       length: 1,
       color: "#ddd"
     };
     setLessons([...lessons, newLesson]);
     setShowNewLesson(false);
-    setNewForm({ teacher:"", subject:"", class:"GRADE 4", group:"Entire class", lessonsPerWeek:1, length:"Single", home:true, shared:false, teacherRooms:false, subjectRooms:false, otherRooms:"" });
+    setNewForm({ teacher:"", subject:"", class:className, group:"Entire class", lessonsPerWeek:1, length:"Single", home:true, shared:false, teacherRooms:false, subjectRooms:false, otherRooms:"" });
   };
 
   return (
@@ -44,7 +45,7 @@ export default function LessonsForClass_Grade4({ onClose }: { onClose: () => voi
       {/* MAIN: Lessons for class GRADE 4 */}
       <div style={S.window}>
         <div style={S.titleBar}><span>Lessons for class</span><div style={S.winBtns}><span style={S.box}>☐</span><span onClick={onClose} style={S.x}>✕</span></div></div>
-        <div style={S.header}><div style={S.iconGroup}>👩‍👦‍👦</div><div><div style={S.name}>GRADE 4</div><div style={S.sub}>G4</div></div></div>
+        <div style={S.header}><div style={S.iconGroup}>👩‍👦‍👦</div><div><div style={S.name}>{className}</div><div style={S.sub}>{classCode}</div></div></div>
         <div style={S.tableWrap}>
           <div style={S.headRow}>
             <div style={{width:"18%"}}>Subject</div><div style={{width:"24%"}}></div><div style={{width:"22%"}}>Teacher</div><div style={{width:"8%"}}>Class</div><div style={{width:"8%"}}>Count</div><div style={{width:"8%"}}>Length</div><div style={{width:"12%"}}>Classrooms</div>
@@ -81,7 +82,7 @@ export default function LessonsForClass_Grade4({ onClose }: { onClose: () => voi
             <div style={L.body}>
               <div style={L.card}><div style={L.ic}>🎓</div><div style={L.f}><label style={L.lb}>Teacher</label><select value={newForm.teacher} onChange={e=>setNewForm({...newForm, teacher:e.target.value})} style={L.sel}><option value=""></option><option>TANGUS VICTOR</option><option>CHEPKWONY MERCY</option><option>NYONGESA ABIL</option><option>CHERUIYOT RICHARD</option><option>MOMANYI POLYTON</option><option>MOCHACHE PURITY</option><option>Without teacher</option></select></div><button style={L.side}>More teachers</button></div>
               <div style={L.card}><div style={L.ic}>📘</div><div style={L.f}><label style={L.lb}>Subject</label><select value={newForm.subject} onChange={e=>setNewForm({...newForm, subject:e.target.value})} style={L.sel}><option value=""></option><option>AGRICULTURE</option><option>CRE</option><option>CREATIVE ARTS</option><option>ENGLISH</option><option>KISWAHILI</option><option>MATHEMATICS</option><option>PPI</option><option>SCIENCE TECHNOLOGY</option><option>SOCIAL STUDIES</option></select></div><div style={{width:140}}></div></div>
-              <div style={L.card}><div style={L.ic}>👥</div><div style={L.f}><label style={L.lb}>Class</label><div style={{display:"flex", gap:12}}><select value={newForm.class} style={{...L.sel, width:200, background:"#fffbe6"}}><option>GRADE 4</option></select><select value={newForm.group} onChange={e=>setNewForm({...newForm, group:e.target.value})} style={{...L.sel, width:130}}><option>Entire class</option><option>Group</option></select></div></div><div style={L.sideCol}><button style={L.side}>Joint classes</button><button style={L.side}>Add division</button></div></div>
+              <div style={L.card}><div style={L.ic}>👥</div><div style={L.f}><label style={L.lb}>Class</label><div style={{display:"flex", gap:12}}><select value={newForm.class} onChange={e=>setNewForm({...newForm, class:e.target.value})} style={{...L.sel, width:200, background:"#fffbe6"}}>{["GRADE 1","GRADE 2","GRADE 3","GRADE 4","GRADE 5","GRADE 6","GRADE 7","GRADE 8","GRADE 9"].map(name=><option key={name}>{name}</option>)}</select><select value={newForm.group} onChange={e=>setNewForm({...newForm, group:e.target.value})} style={{...L.sel, width:130}}><option>Entire class</option><option>Group</option></select></div></div><div style={L.sideCol}><button style={L.side}>Joint classes</button><button style={L.side}>Add division</button></div></div>
               <div style={L.card}><div style={L.ic}>📅</div><div style={L.f}><label style={L.lb}>Lessons/week</label><div style={{display:"flex", gap:12}}><select value={newForm.lessonsPerWeek} onChange={e=>setNewForm({...newForm, lessonsPerWeek:parseInt(e.target.value)})} style={{...L.sel, width:180}}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option><option value={5}>5</option><option value={6}>6</option></select><select value={newForm.length} onChange={e=>setNewForm({...newForm, length:e.target.value})} style={{...L.sel, width:130}}><option>Single</option><option>Double</option></select></div></div><div style={{width:140}}><span style={{fontSize:11}}>More weeks/terms</span></div></div>
               <div style={L.card}><div style={L.ic}>🚪</div><div style={L.f}><div style={L.checkGrid}><label style={L.chk}><input type="checkbox" checked={newForm.home} onChange={e=>setNewForm({...newForm, home:e.target.checked})}/> Home classroom</label><label style={L.chk}><input type="checkbox" checked={newForm.teacherRooms} onChange={e=>setNewForm({...newForm, teacherRooms:e.target.checked})}/> Teacher's classrooms</label><label style={L.chk}><input type="checkbox" checked={newForm.shared} onChange={e=>setNewForm({...newForm, shared:e.target.checked})}/> Shared room</label><label style={L.chk}><input type="checkbox" checked={newForm.subjectRooms} onChange={e=>setNewForm({...newForm, subjectRooms:e.target.checked})}/> Subject's classrooms</label></div><input value={newForm.otherRooms} onChange={e=>setNewForm({...newForm, otherRooms:e.target.value})} placeholder="Other available classrooms" style={L.in}/></div><button style={L.side}>More classrooms</button></div>
             </div>
