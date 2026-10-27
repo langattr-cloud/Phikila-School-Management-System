@@ -274,7 +274,60 @@ export default function TimetableModule() {
     <header className="phikila-tt-heading"><div><p className="phikila-tt-eyebrow">PHIKILA · TIMETABLE MODULE</p><h1>{data.schoolName || 'School timetable'}</h1><p className="phikila-tt-subtitle">Academic year {data.academicYear} · Weekly timetable editor</p></div><div className="phikila-tt-heading-actions"><span className={'phikila-tt-status-dot ' + (loading ? 'is-loading' : '')} /><span>{loading ? 'Loading' : 'Workspace'}</span><button className="phikila-tt-button" onClick={() => void load()} disabled={loading}>Reload</button></div></header>
     <AscTimetableMenu onNavigate={name => { const action = name.replace(/\n/g, ' '); onAction((action === 'Students / Seminars' ? 'Students' : action) as Action) }} />
     {classesOpen && <ClassesWorkspaceModule classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} teachers={teachers} subjects={subjects} classrooms={rooms} details={data.classDetails || {}} onClose={() => setClassesOpen(false)} onSave={(nextClasses, nextLessons, nextDetails) => { const nextData: Workspace = { ...data, specification: { ...data.specification, classes: unique(nextClasses) }, lessons: nextLessons, classDetails: nextDetails }; void persistWorkspace(nextData, 'save class records'); }} />}
-    {teachersOpen && <TeachersWorkspaceModule teachers={teachers} lessons={data.lessons} details={data.teacherDetails || {}} savedWorkloads={savedTeacherWorkloads} onClose={() => setTeachersOpen(false)} onSaveAll={async (nextTeachers, nextDetails) => { const nextData = { ...data, specification: { ...data.specification, teachers: nextTeachers }, teacherDetails: nextDetails }; const ok = await persistWorkspace(nextData, 'save teacher records'); if (!ok) return false; try { const check = await apiFetch<{ data: Workspace | null }>('/api/v1/timetable/workspace'); const saved = normaliseWorkspace(check.data || EMPTY); const expected = unique(nextTeachers); const actual = unique(saved.specification.teachers || []); const detailsPresent = expected.every(name => actual.includes(name) && !!saved.teacherDetails?.[name]); if (!detailsPresent) { setError('The database did not confirm every teacher record. Keep this window open and retry saving.'); setStatus('Teacher save could not be verified'); return false; } setStatus('Teacher records saved and verified in the database'); return true; } catch (caught) { setError(friendlyApiError(caught, 'verify saved teacher records')); setStatus('Teacher save could not be verified · keep this window open and retry'); return false; } }} onOpenContract={teacher => setContractTeacher(teacher)} days={data.days} periods={data.periods} />}
+    {teachersOpen && <TeachersWorkspaceModule teachers={teachers} lessons={data.lessons} details={data.teacherDetails || {}} savedWorkloads={savedTeacherWorkloads} onClose={() => setTeachersOpen(false)} onSaveAll={async (nextTeachers, nextDetails) => {
+      try {
+        const existing = await apiFetch<SavedTeacherSource[]>('/api/v1/timetable/teachers')
+        const fullName = (source: SavedTeacherSource) => {
+          const p = source.profile && typeof source.profile === 'object' ? source.profile : source
+          const first = String(p.firstName || p.first_name || '').trim()
+          const last = String(p.lastName || p.last_name || '').trim()
+          return String(p.name || [first, last].filter(Boolean).join(' ')).trim().toLocaleLowerCase()
+        }
+        const existingByName = new Map(existing.map(source => [fullName(source), source]))
+        const kept = new Set(nextTeachers.map(name => name.trim().toLocaleLowerCase()))
+        for (const name of nextTeachers) {
+          const detail = nextDetails[name] || ({} as TeacherDetail)
+          const parts = name.trim().split(/\s+/)
+          const profile = {
+            name: name.trim(), firstName: parts[0] || '', lastName: parts.slice(1).join(' '),
+            short: String(detail.short || '').trim(), code: String(detail.short || '').trim(),
+            email: String(detail.email || '').trim(), phone: String(detail.phone || '').trim(),
+            color: detail.color || '#1e40af',
+            count: data.lessons.filter(lesson => lesson.teacher === name || lesson.teacher.startsWith(name + ' (')).length,
+            unavailable: [],
+            timetableDetails: detail,
+          }
+          const match = existingByName.get(name.trim().toLocaleLowerCase())
+          if (match?.id != null) {
+            await apiFetch('/api/v1/timetable/teachers/' + match.id, { method: 'PUT', body: JSON.stringify({ profile: { ...(match.profile || {}), ...profile } }) })
+          } else {
+            await apiFetch('/api/v1/timetable/teachers', { method: 'POST', body: JSON.stringify({ profile }) })
+          }
+        }
+        for (const source of existing) {
+          if (source.id != null && !kept.has(fullName(source))) await apiFetch('/api/v1/timetable/teachers/' + source.id, { method: 'DELETE' })
+        }
+        const checkProfiles = await apiFetch<SavedTeacherSource[]>('/api/v1/timetable/teachers')
+        const confirmed = new Set(checkProfiles.map(fullName))
+        const missing = nextTeachers.filter(name => !confirmed.has(name.trim().toLocaleLowerCase()))
+        if (missing.length) throw new Error('Database verification failed for: ' + missing.join(', '))
+        const nextData: Workspace = { ...data, specification: { ...data.specification, teachers: nextTeachers }, teacherDetails: nextDetails }
+        const ok = await persistWorkspace(nextData, 'save teacher records')
+        if (!ok) return false
+        const check = await apiFetch<{ data: Workspace | null }>('/api/v1/timetable/workspace')
+        const saved = normaliseWorkspace(check.data || EMPTY)
+        const expected = unique(nextTeachers)
+        const actual = unique(saved.specification.teachers || [])
+        const detailsPresent = expected.every(name => actual.includes(name) && !!saved.teacherDetails?.[name])
+        if (!detailsPresent) { setError('The database did not confirm every teacher record. Keep this window open and retry saving.'); setStatus('Teacher save could not be verified'); return false }
+        setStatus('Teacher records saved and verified in the database')
+        return true
+      } catch (caught) {
+        setError(friendlyApiError(caught, 'save teacher records'))
+        setStatus('Teacher save failed · keep the window open and retry')
+        return false
+      }
+    }} onOpenContract={teacher => setContractTeacher(teacher)} days={data.days} periods={data.periods} />}
     {contractTeacher && <TeacherContractDialog teacher={contractTeacher} short={data.teacherDetails?.[contractTeacher]?.short || ''} lessons={data.lessons.filter(lesson => lesson.teacher === contractTeacher || lesson.teacher.startsWith(contractTeacher + ' ('))} periods={data.periods} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onClose={() => setContractTeacher(null)} onNew={() => setNewLessonTeacher(contractTeacher)} onEdit={lesson => { setContractTeacher(null); openEditor(lesson.day, lesson.period, lesson) }} onRemove={lesson => { const nextData: Workspace = { ...data, lessons: data.lessons.filter(item => item.id !== lesson.id) }; void persistWorkspace(nextData, 'remove teacher lesson').then(ok => { if (ok) { setStatus('Teacher lesson removed and saved'); setError(''); } }); }} onCopyTo={(lesson, targetClass) => { const conflict = data.lessons.some(item => item.day === lesson.day && item.period === lesson.period && (item.className === targetClass || item.teacher === lesson.teacher || (lesson.room && item.room === lesson.room))); if (conflict) { setError('Cannot copy this lesson to ' + targetClass + ': the class, teacher, or classroom is already occupied at that time.'); return; } const nextData: Workspace = { ...data, lessons: [...data.lessons, { ...lesson, id: makeId(), className: targetClass, locked: false }] }; void persistWorkspace(nextData, 'copy teacher lesson').then(ok => { if (ok) { setError(''); setStatus('Lesson copied and saved to ' + targetClass); } }); }} />}
     {newLessonTeacher && <NewLessonDialog defaultTeacher={{ name: newLessonTeacher, short: data.teacherDetails?.[newLessonTeacher]?.short || '' }} subjects={subjects} classes={classes} teachers={teachers} classrooms={rooms} teacherDetails={data.teacherDetails || {}} onCancel={() => setNewLessonTeacher(null)} onSave={lessonDraft => { const teacherName = teachers.find(name => lessonDraft.teacher === name || lessonDraft.teacher === name + (data.teacherDetails?.[name]?.short ? ' (' + data.teacherDetails[name].short + ')' : '')) || newLessonTeacher; const requested = Math.max(1, Math.min(10, Number(lessonDraft.count) || 1)); const span = lessonDraft.length === 'Triple' ? 3 : lessonDraft.length === 'Double' ? 2 : 1; const available: {day:string;period:number}[] = []; for (const day of data.days) for (let period = 0; period < data.periods.length; period++) { if (data.periods[period].type === 'break' || /break|lunch|recess/i.test(data.periods[period].name)) continue; if (period + span > data.periods.length) continue; const run = Array.from({length:span}, (_, offset) => period + offset); if (run.some(index => data.periods[index].type === 'break' || /break|lunch|recess/i.test(data.periods[index].name))) continue; const occupied = data.lessons.some(item => item.day === day && run.includes(item.period) && (item.className === lessonDraft.class || item.teacher === teacherName || (lessonDraft.room && item.room === lessonDraft.room))); if (!occupied) available.push({day, period}); } const chosen: {day:string;period:number}[] = []; for (const slot of available) { if (chosen.some(item => item.day === slot.day && Array.from({length:span}, (_, offset) => item.period + offset).some(index => index >= slot.period && index < slot.period + span))) continue; chosen.push(slot); if (chosen.length === requested) break; } if (chosen.length < requested) { setError('Not enough free timetable slots for ' + requested + ' lesson(s) with this teacher, class, and room.'); return; } const additions: Lesson[] = []; for (const slot of chosen) for (let offset = 0; offset < span; offset++) additions.push({ id: makeId(), day: slot.day, period: slot.period + offset, className: lessonDraft.class, subject: lessonDraft.subject, teacher: teacherName, room: lessonDraft.room, roomPreferences: lessonDraft.roomPreferences, locked: false }); const nextData: Workspace = { ...data, lessons: [...data.lessons, ...additions] }; void persistWorkspace(nextData, 'save teacher lessons').then(ok => { if (ok) { setNewLessonTeacher(null); setStatus('Added and saved ' + requested + ' weekly lesson(s)'); setError(''); } }); }} />}
     {!(settingsOpen && setupTab === 'subjects') && <div className="phikila-tt-subbar"><strong>{whose === 'All' ? 'Whole school' : whose === 'Classes' ? 'Class timetable' : whose === 'Teachers' ? 'Teacher timetable' : 'Classroom timetable'}</strong>{filterOptions.length > 0 && <select aria-label={'Filter by ' + whose.toLowerCase()} value={filter} onChange={event => setFilter(event.target.value)}><option value="">All {whose.toLowerCase()}</option>{filterOptions.map(option => <option key={option}>{option}</option>)}</select>}<span className="phikila-tt-subbar-spacer" /><span>{data.lessons.length} lessons</span><button className="phikila-tt-button phikila-tt-button-primary" onClick={() => openEditor(data.days[0], 0)}>+ Add lesson</button></div>}
