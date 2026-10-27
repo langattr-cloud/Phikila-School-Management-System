@@ -798,6 +798,8 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
   const [draft, setDraft] = useState<TeacherDraft | null>(null)
   const [editingExisting, setEditingExisting] = useState(false)
   const [timeOff, setTimeOff] = useState<number[][]>([])
+  const [timeOffSelectedDay, setTimeOffSelectedDay] = useState<number | null>(null)
+  const [timeOffSelectedPeriod, setTimeOffSelectedPeriod] = useState<number | null>(null)
   const selectedRecord = records[selected]
   const startNew = () => { setEditingExisting(false); setDraft({ name: '', ...blankDetail() }); setMode('edit') }
   const startEdit = () => { if (selectedRecord) { setEditingExisting(true); setDraft({ ...selectedRecord }); setMode('edit') } }
@@ -810,8 +812,34 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
     else next.push(clean)
     setRecords(next); setSelected(editingExisting && selectedRecord ? selected : next.length - 1); setMode('list'); setDraft(null)
   }
-  const openTimeOff = () => { if (!selectedRecord) return; setTimeOff(days.map((_, row) => periods.map((_, column) => selectedRecord.timeOffGrid[row]?.[column] ?? 0))); setMode('timeoff') }
+  const openTimeOff = () => { if (!selectedRecord) return; setTimeOff(days.map((_, row) => periods.map((_, column) => selectedRecord.timeOffGrid[row]?.[column] ?? 0))); setTimeOffSelectedDay(null); setTimeOffSelectedPeriod(null); setMode('timeoff') }
   const saveTimeOff = () => { setRecords(current => current.map((teacher, index) => index === selected ? { ...teacher, timeOffGrid: timeOff } : teacher)); setMode('list') }
+  const clickTimeOffDay = (row: number) => {
+    setTimeOffSelectedDay(row); setTimeOffSelectedPeriod(null)
+    setTimeOff(current => {
+      const values = current[row] || periods.map(() => 0)
+      const allAvailable = values.every(value => value === 0)
+      const allUnavailable = values.every(value => value === 2)
+      const nextValue = allAvailable ? 2 : allUnavailable ? 0 : 0
+      return current.map((dayValues, index) => index === row ? periods.map((_, column) => nextValue) : dayValues)
+    })
+  }
+  const clickTimeOffPeriod = (column: number) => {
+    setTimeOffSelectedPeriod(column); setTimeOffSelectedDay(null)
+    setTimeOff(current => {
+      const values = current.map(row => row[column] ?? 0)
+      const allConditional = values.every(value => value === 1)
+      const allUnavailable = values.every(value => value === 2)
+      const allAvailable = values.every(value => value === 0)
+      const nextValue = allConditional ? 2 : allUnavailable ? 0 : allAvailable ? 1 : 1
+      return current.map((row, index) => row.map((value, periodIndex) => periodIndex === column ? nextValue : value))
+    })
+  }
+  const clickTimeOffCell = (event: React.MouseEvent<HTMLButtonElement>, row: number, column: number) => {
+    event.preventDefault()
+    setTimeOffSelectedDay(row); setTimeOffSelectedPeriod(column)
+    setTimeOff(current => current.map((values, rowIndex) => rowIndex === row ? values.map((value, columnIndex) => columnIndex !== column ? value : event.type === 'contextmenu' ? 1 : value === 0 ? 2 : 0) : values))
+  }
   const saveAll = () => {
     const nextTeachers = records.map(teacher => teacher.name)
     const nextDetails: Record<string, TeacherDetail> = {}
@@ -843,7 +871,7 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
         <label className="phikila-tt-teacher-checkbox"><input type="checkbox" checked={draft.male} onChange={event => setDraft(current => current ? { ...current, male: event.target.checked } : current)} /> Male</label>
         <div className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setMode('list')}>Cancel</button><button type="button" className="is-primary" onClick={saveDraft}>OK</button></div>
       </div>}
-      {mode === 'timeoff' && <div className="phikila-tt-teacher-timeoff"><p>Click a cell to cycle available, conditional, and unavailable.</p><div className="phikila-tt-teacher-time-grid" style={{ gridTemplateColumns: `72px repeat(${Math.max(1, periods.length)}, minmax(30px, 1fr))` }}><div />{periods.map((period, index) => <strong key={index} title={period.name}>{period.short || period.name || String(index + 1)}</strong>)}{days.map((day, row) => <><strong key={day}>{day.slice(0, 3)}</strong>{(timeOff[row] || []).map((value, column) => <button type="button" key={column} title={value === 0 ? 'Available' : value === 1 ? 'Conditional' : 'Unavailable'} onClick={() => setTimeOff(current => current.map((values, r) => r === row ? values.map((cell, c) => c === column ? (cell + 1) % 3 : cell) : values))}>{value === 0 ? '✓' : value === 1 ? '?' : '×'}</button>)}</>)}</div><div className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setMode('list')}>Cancel</button><button type="button" className="is-primary" onClick={saveTimeOff}>OK</button></div></div>}
+      {mode === 'timeoff' && <div className="phikila-tt-teacher-timeoff"><p><strong>Day:</strong> click a day label to toggle its entire row. <strong>Period:</strong> click a period heading to update its column. <strong>Cell:</strong> left-click toggles ✓/×; right-click sets ?.</p><div className="phikila-tt-teacher-time-grid" style={{ gridTemplateColumns: `72px repeat(${Math.max(1, periods.length)}, minmax(30px, 1fr))` }}><div />{periods.map((period, index) => <button type="button" key={index} title={'Click to set availability for ' + period.name + ' across all days'} aria-pressed={timeOffSelectedPeriod === index} onClick={() => clickTimeOffPeriod(index)} style={{ cursor: 'pointer', border: timeOffSelectedPeriod === index ? '2px solid #0d2a6e' : '1px dashed #aaa', background: timeOffSelectedPeriod === index ? '#ffeb3b' : '#fff', fontWeight: 700, minWidth: 0, padding: '5px 2px' }}>{period.short || period.name || String(index + 1)}</button>)}{days.map((day, row) => <React.Fragment key={day}><button type="button" title={'Click to toggle all periods for ' + day} aria-pressed={timeOffSelectedDay === row} onClick={() => clickTimeOffDay(row)} style={{ cursor: 'pointer', border: timeOffSelectedDay === row ? '2px solid #0d2a6e' : '1px dashed #aaa', background: timeOffSelectedDay === row ? '#ffeb3b' : '#fff8c0', fontWeight: 700 }}>{day.slice(0, 3)}</button>{periods.map((_, column) => { const value = timeOff[row]?.[column] ?? 0; const selected = timeOffSelectedDay === row && timeOffSelectedPeriod === column; return <button type="button" key={column} title={value === 0 ? 'Available · left-click to set unavailable, right-click for conditional' : value === 1 ? 'Conditional · left-click to set available, right-click remains conditional' : 'Unavailable · left-click to set available, right-click for conditional'} aria-label={day + ', ' + periods[column].name + ': ' + (value === 0 ? 'Available' : value === 1 ? 'Conditional' : 'Unavailable')} onClick={event => clickTimeOffCell(event, row, column)} onContextMenu={event => clickTimeOffCell(event, row, column)} style={{ cursor: 'pointer', minWidth: 0, minHeight: 38, fontSize: 18, fontWeight: 900, background: selected ? '#2c3e8f' : timeOffSelectedPeriod === column && value === 0 ? '#4a5ab0' : timeOffSelectedDay === row && value === 0 ? '#d0d8ff' : '#fff', color: selected ? (value === 2 ? '#ffb0b0' : '#fff') : value === 0 ? '#0a8a0a' : value === 1 ? '#fff' : '#e53935', border: selected ? '3px solid #0d2a6e' : '1px dashed #bbb' }}>{value === 0 ? '✓' : value === 1 ? '?' : 'X'}</button>})}</React.Fragment>)}</div><div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, padding: '10px 0', fontSize: 12 }}><span style={{ color: '#0a8a0a', fontWeight: 700 }}>✓ Available</span><span style={{ color: '#2196f3', fontWeight: 700 }}>? Conditional</span><span style={{ color: '#e53935', fontWeight: 700 }}>X Not available</span></div><div className="phikila-tt-teacher-form-actions"><button type="button" onClick={() => setMode('list')}>Cancel</button><button type="button" className="is-primary" onClick={saveTimeOff}>OK</button></div></div>}
     </section>
   </div>
 }
