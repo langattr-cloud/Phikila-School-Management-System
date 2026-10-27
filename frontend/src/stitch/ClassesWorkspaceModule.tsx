@@ -1,13 +1,13 @@
 import { useMemo, useState, type FormEvent } from 'react'
 
 type Period = { name: string; start: string; end: string; type?: 'lesson' | 'break' }
-type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
+type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean; roomPreferences?: { homeClassroom: boolean; teacherRooms: boolean; sharedRoom: boolean; subjectRooms: boolean; otherRooms: string } }
 type ClassDetail = { color?: string; classTeacher?: string; grade?: string; number?: string; count?: number; printPictures?: boolean; timeOffGrid?: number[][] }
 type ClassDraft = { name: string; short: string; color: string; classTeacher: string; grade: string; number: string; count: number; printPictures: boolean }
-type LessonDraft = { subject: string; teacher: string; count: number; length: 'Single' | 'Double' | 'Triple'; room: string }
+type LessonDraft = { subject: string; teacher: string; count: number; length: 'Single' | 'Double' | 'Triple'; room: string; homeClassroom: boolean; teacherRooms: boolean; sharedRoom: boolean; subjectRooms: boolean; otherRooms: string }
 const palette = ['#b8e6d0','#fbcfe8','#facc15','#60a5fa','#ef4444','#22c55e','#a78bfa','#fb923c','#a5b4fc','#fff']
 const emptyClass: ClassDraft = { name: '', short: '', color: '#b8e6d0', classTeacher: '', grade: '', number: '', count: 0, printPictures: true }
-const emptyLesson: LessonDraft = { subject: '', teacher: '', count: 1, length: 'Single', room: '' }
+const emptyLesson: LessonDraft = { subject: '', teacher: '', count: 1, length: 'Single', room: '', homeClassroom: true, teacherRooms: false, sharedRoom: false, subjectRooms: false, otherRooms: '' }
 const styles = `
 .cm-backdrop{position:fixed;inset:0;z-index:12000;background:#10182870;display:flex;align-items:center;justify-content:center;padding:12px;font:13px "Segoe UI",Tahoma,Arial;color:#202939}
 .cm-window{width:min(1180px,98vw);height:min(850px,94vh);display:flex;flex-direction:column;background:#e8ecf3;border:1px solid #667085;box-shadow:0 18px 55px #0004;min-height:0}
@@ -40,6 +40,8 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
   const [lessonDraft, setLessonDraft] = useState<LessonDraft>(emptyLesson)
   const [lessonEditId, setLessonEditId] = useState<string|null>(null)
   const [selectedLessonId, setSelectedLessonId] = useState<string|null>(null)
+  const [copyTarget, setCopyTarget] = useState('')
+  const [addMoreAfterSave, setAddMoreAfterSave] = useState(false)
   const [error, setError] = useState('')
   const [timeGrid, setTimeGrid] = useState<number[][]>([])
   const selectedLessons = useMemo(() => lessons.filter(item => item.className === selected), [lessons, selected])
@@ -74,7 +76,7 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
     onSave(nextClasses,lessons,nextDetails); setSelected(nextClasses[0] || ''); setError('')
   }
   const openLessons = () => { setLessonDraft(emptyLesson); setLessonEditId(null); setSelectedLessonId(null); setError(''); setDialog('lessons') }
-  const editLesson = (lesson: Lesson) => { setSelectedLessonId(lesson.id); setLessonDraft({subject:lesson.subject,teacher:lesson.teacher,count:1,length:'Single',room:lesson.room}); setLessonEditId(lesson.id); setError('') }
+  const editLesson = (lesson: Lesson) => { setSelectedLessonId(lesson.id); setLessonDraft({subject:lesson.subject,teacher:lesson.teacher,count:1,length:'Single',room:lesson.room,homeClassroom:lesson.roomPreferences?.homeClassroom ?? true,teacherRooms:lesson.roomPreferences?.teacherRooms ?? false,sharedRoom:lesson.roomPreferences?.sharedRoom ?? false,subjectRooms:lesson.roomPreferences?.subjectRooms ?? false,otherRooms:lesson.roomPreferences?.otherRooms ?? ''}); setLessonEditId(lesson.id); setAddMoreAfterSave(false); setError('') }
   const removeLesson = () => { if (!selectedLessonId) { setError('Select a lesson to remove.'); return } const target = lessons.find(item=>item.id===selectedLessonId); if (!target) { setError('That lesson no longer exists. Reload the workspace.'); return } if (!window.confirm('Remove this '+target.subject+' lesson from '+selected+'?')) return; onSave(classes,lessons.filter(item=>item.id!==selectedLessonId),details); setSelectedLessonId(null); setLessonEditId(null); setLessonDraft(emptyLesson); setError('') }
   const saveLesson = (event: FormEvent) => {
     event.preventDefault()
@@ -82,7 +84,7 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
     if (lessonEditId) {
       const old = lessons.find(item=>item.id===lessonEditId)
       if (!old) { setError('That lesson no longer exists. Reload the workspace.'); return }
-      const updated = lessons.map(item=>item.id===lessonEditId?{...item,subject:lessonDraft.subject,teacher:lessonDraft.teacher,room:lessonDraft.room}:item)
+      const updated = lessons.map(item=>item.id===lessonEditId?{...item,subject:lessonDraft.subject,teacher:lessonDraft.teacher,room:lessonDraft.room,roomPreferences:{homeClassroom:lessonDraft.homeClassroom,teacherRooms:lessonDraft.teacherRooms,sharedRoom:lessonDraft.sharedRoom,subjectRooms:lessonDraft.subjectRooms,otherRooms:lessonDraft.otherRooms}}:item)
       onSave(classes,updated,details); setLessonEditId(null); setDialog(null); setError(''); return
     }
     const count = Math.max(1,Math.min(10,Number(lessonDraft.count)||1)), span = lessonDraft.length==='Triple'?3:lessonDraft.length==='Double'?2:1
@@ -106,9 +108,10 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
     }
     if(chosen.length<count){setError('Not enough free timetable slots for the requested lessons. Existing lessons were not changed.');return}
     const additions: Lesson[] = []
-    for (const slot of chosen) for (let offset=0;offset<span;offset++) additions.push({id:'class-lesson-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+offset,day:slot.day,period:slot.period+offset,className:selected,subject:lessonDraft.subject,teacher:lessonDraft.teacher,room:lessonDraft.room,locked:false})
-    onSave(classes,[...lessons,...additions],details); setDialog(null); setError('')
+    for (const slot of chosen) for (let offset=0;offset<span;offset++) additions.push({id:'class-lesson-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+offset,day:slot.day,period:slot.period+offset,className:selected,subject:lessonDraft.subject,teacher:lessonDraft.teacher,room:lessonDraft.room,roomPreferences:{homeClassroom:lessonDraft.homeClassroom,teacherRooms:lessonDraft.teacherRooms,sharedRoom:lessonDraft.sharedRoom,subjectRooms:lessonDraft.subjectRooms,otherRooms:lessonDraft.otherRooms},locked:false})
+    onSave(classes,[...lessons,...additions],details); setError(''); if(addMoreAfterSave){setLessonDraft({...emptyLesson,subject:lessonDraft.subject,teacher:lessonDraft.teacher});setLessonEditId(null);setSelectedLessonId(null);setAddMoreAfterSave(false)}else{setDialog(null)}
   }
+  const copySelectedLesson = () => { const source=lessons.find(item=>item.id===selectedLessonId); if(!source){setError('Select a lesson to copy.');return} if(!copyTarget){setError('Choose a destination class first.');return} if(lessons.some(item=>item.className===copyTarget&&item.day===source.day&&item.period===source.period)){setError('The destination class already has a lesson in that period.');return} const copy={...source,id:'class-lesson-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),className:copyTarget,locked:false}; onSave(classes,[...lessons,copy],details);setError('Lesson copied to '+copyTarget+'.');setSelectedLessonId(null) }
   const openTimeOff = () => { const grid = selectedDetails.timeOffGrid || days.map(()=>periods.map(()=>0)); setTimeGrid(days.map((_,d)=>periods.map((_,p)=>grid[d]?.[p] ?? 0))); setError(''); setDialog('timeoff') }
   const cycleTimeOff = (d:number,p:number,reverse=false) => setTimeGrid(current=>current.map((row,di)=>row.map((value,pi)=>di===d&&pi===p?(value+(reverse?2:1))%3:value)))
   const saveTimeOff = () => { onSave(classes,lessons,{...details,[selected]:{...selectedDetails,timeOffGrid:timeGrid}}); setDialog(null); setError('') }
