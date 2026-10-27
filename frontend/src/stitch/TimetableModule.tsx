@@ -825,14 +825,18 @@ function TeachersWorkspaceModule({ teachers, lessons, details, savedWorkloads = 
     })
   }
   const clickTimeOffPeriod = (column: number) => {
-    setTimeOffSelectedPeriod(column); setTimeOffSelectedDay(null)
+    setTimeOffSelectedDay(null)
+    if (timeOffSelectedPeriod !== column) {
+      setTimeOffSelectedPeriod(column)
+      return
+    }
     setTimeOff(current => {
       const values = current.map(row => row[column] ?? 0)
       const allConditional = values.every(value => value === 1)
       const allUnavailable = values.every(value => value === 2)
       const allAvailable = values.every(value => value === 0)
       const nextValue = allConditional ? 2 : allUnavailable ? 0 : allAvailable ? 1 : 1
-      return current.map((row, index) => row.map((value, periodIndex) => periodIndex === column ? nextValue : value))
+      return current.map(row => row.map((value, periodIndex) => periodIndex === column ? nextValue : value))
     })
   }
   const clickTimeOffCell = (event: React.MouseEvent<HTMLButtonElement>, row: number, column: number) => {
