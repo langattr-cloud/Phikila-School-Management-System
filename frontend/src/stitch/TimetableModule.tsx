@@ -27,7 +27,7 @@ const DEFAULT_PERIODS: Period[] = [
   { name: 'Period 4', start: '10:20', end: '11:00' }, { name: 'Lunch', start: '11:00', end: '11:40', type: 'break' },
   { name: 'Period 5', start: '11:40', end: '12:20' }, { name: 'Period 6', start: '12:20', end: '13:00' },
 ]
-const EMPTY: Workspace = { schoolName: 'Phikila School', academicYear: '2026/2027', registrationName: '', periodsPerDay: 6, numberOfDays: 5, weekend: 'Saturday - Sunday', workZero: false, days: DAYS.slice(0, 5), periods: DEFAULT_PERIODS, lessons: [], specification: { subjects: ['Mathematics', 'English', 'Kiswahili', 'Science', 'Social Studies', 'ICT'], classes: ['Form 1A', 'Form 1B', 'Form 2A', 'Form 2B'], teachers: ['M. Njoroge', 'A. Wanjiku', 'P. Otieno'], classrooms: ['Room 1', 'Room 2', 'Science Lab'] } }
+const EMPTY: Workspace = { schoolName: 'Phikila School', academicYear: '2026/2027', registrationName: '', periodsPerDay: 6, numberOfDays: 5, weekend: 'Saturday - Sunday', workZero: false, days: DAYS.slice(0, 5), periods: DEFAULT_PERIODS, lessons: [], specification: { subjects: ['Mathematics', 'English', 'Kiswahili', 'Science', 'Social Studies', 'ICT'], classes: ['Form 1A', 'Form 1B', 'Form 2A', 'Form 2B'], teachers: [], classrooms: ['Room 1', 'Room 2', 'Science Lab'] } }
 const makeId = () => (globalThis.crypto && globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : 'lesson-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8))
 const unique = (items: string[]) => Array.from(new Set(items.map(item => item.trim()).filter(Boolean)))
 
@@ -129,7 +129,9 @@ export default function TimetableModule() {
       staff.forEach(source => addRoster(source, false))
       profiles.forEach(source => addRoster(source, true))
       const rosterNames = Array.from(roster.keys())
-      const mergedTeachers = unique([...base.specification.teachers, ...rosterNames])
+      const placeholderTeachers = new Set(['M. Njoroge', 'A. Wanjiku', 'P. Otieno'])
+      // Keep the school's real saved teacher roster and remove demo placeholders from older workspaces.
+      const mergedTeachers = unique([...base.specification.teachers.filter(name => !placeholderTeachers.has(name.trim())), ...rosterNames])
       const mergedDetails: Record<string, TeacherDetail> = { ...(base.teacherDetails || {}) }
       const workloads: Record<string, number> = {}
       roster.forEach((value, name) => {
