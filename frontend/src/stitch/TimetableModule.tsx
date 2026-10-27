@@ -667,8 +667,8 @@ type ContractEditDraft = { teacher: string; subject: string; className: string; 
 function TeacherContractDialog({ teacher, short, lessons, periods, subjects, classes, teachers, classrooms, teacherDetails, actionError, onClose, onNew, onEdit, onRemove, onCopyTo }: { teacher: string; short: string; lessons: ContractLesson[]; periods: Period[]; subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[]; teacherDetails: Record<string, TeacherDetail>; actionError?: string; onClose: () => void; onNew: () => void; onEdit: (row: ContractRow) => void; onRemove: (lesson: ContractLesson | ContractLesson[]) => void; onCopyTo: (row: ContractRow, targetClass: string) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null)
   const selectedLesson = lessons.find(lesson => lesson.id === selectedId)
-  // A timetable stores one record per occupied period. The contract view should instead
-  // show one row per subject/class/room assignment and count contiguous blocks as sessions.
+  // A timetable stores one record per occupied period. Single lessons each count as one
+  // lesson even when adjacent; Double/Triple assignments count contiguous blocks as sessions.
   const contractRows = useMemo(() => {
     const groups = new Map<string, ContractLesson[]>()
     for (const lesson of lessons) {
@@ -696,7 +696,10 @@ function TeacherContractDialog({ teacher, short, lessons, periods, subjects, cla
       })
       const explicitLengths = [...new Set(entries.map(entry => entry.length === 'Double' || entry.length === 'Triple' ? entry.length : 'Single'))]
       const length = explicitLengths.length === 1 ? explicitLengths[0] : 'Mixed'
-      return { key, lesson: entries[0], entries, count: sessionLengths.length, length }
+      // Single lessons are counted per saved period, not per contiguous run; otherwise
+      // four adjacent Single lessons can incorrectly appear as only one contract lesson.
+      const count = explicitLengths.length === 1 && explicitLengths[0] === 'Single' ? entries.length : sessionLengths.length
+      return { key, lesson: entries[0], entries, count, length }
     }) as ContractRow[]
   }, [lessons])
   const selectedRow = contractRows.find(row => row.entries.some(lesson => lesson.id === selectedId))
@@ -731,7 +734,7 @@ function ContractLessonEditDialog({ teacher, row, subjects, classes, teachers, c
     className: row.lesson.className,
     group: 'Entire class',
     lessonsPerWeek: row.count,
-    length: 'Single' as ContractEditDraft['length'], 
+    length: row.length === 'Double' || row.length === 'Triple' ? row.length : 'Single', 
     homeClassroom: true,
     sharedRoom: false,
     teacherRooms: false,
