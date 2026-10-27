@@ -207,6 +207,10 @@ export default function TimetableModule() {
     } catch (caught) { setError(friendlyApiError(caught, 'test timetable')) }
   }
   const openEditor = (day: string, period: number, lesson?: Lesson, preferredTeacher?: string) => {
+    if (!lesson && data.periodAvailability?.[day]?.[period] === false) {
+      setError('This period is disabled for ' + day + '. Click the day name to enable it before adding a lesson.')
+      return
+    }
     setEditor({ day, period, lesson })
     setForm(lesson ? { className: lesson.className, subject: lesson.subject, teacher: lesson.teacher, room: lesson.room, locked: lesson.locked } : { className: classes[0] || 'Form 1A', subject: subjects[0] || 'Mathematics', teacher: preferredTeacher || teachers[0] || 'Teacher', room: '', locked: false })
   }
@@ -249,6 +253,7 @@ export default function TimetableModule() {
       const span = spans[chosen.length]
       if (candidate.period + span > data.periods.length) return false
       const slots = Array.from({ length: span }, (_, offset) => candidate.period + offset)
+      if (slots.some(index => data.periodAvailability?.[candidate.day]?.[index] === false)) return false
       if (slots.some(index => isBreak(data.periods[index]))) return false
       if (chosen.some((item, chosenIndex) => item.day === candidate.day && Array.from({ length: spans[chosenIndex] }, (_, offset) => item.period + offset).some(index => slots.includes(index)))) return false
       const dayIndex = data.days.indexOf(candidate.day)
@@ -312,7 +317,7 @@ export default function TimetableModule() {
       for (const day of data.days) {
         for (let period = 0; period + span <= data.periods.length; period++) {
           const slots = Array.from({ length: span }, (_, offset) => period + offset)
-          if (slots.some(index => isBreak(data.periods[index]))) continue
+          if (slots.some(index => isBreak(data.periods[index]) || data.periodAvailability?.[day]?.[index] === false)) continue
           const overlapsNew = additions.some(item => item.day === day && slots.includes(item.period))
           if (overlapsNew) continue
           const dayIndex = data.days.indexOf(day)
@@ -551,7 +556,7 @@ function normaliseWorkspace(value: Partial<Workspace>): Workspace {
     teachers: Array.isArray(rawSpec?.teachers) ? unique(rawSpec.teachers.filter(item => typeof item === 'string')) : [...EMPTY.specification.teachers],
     classrooms: Array.isArray(rawSpec?.classrooms) ? unique(rawSpec.classrooms.filter(item => typeof item === 'string')) : [...EMPTY.specification.classrooms],
   }
-  return { dayDetails: value.dayDetails && typeof value.dayDetails === 'object' ? value.dayDetails : {}, classDetails: value.classDetails && typeof value.classDetails === 'object' ? value.classDetails as Record<string, ClassDetail> : {}, schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), registrationName: String(value.registrationName || ''), subjectDetails: value.subjectDetails && typeof value.subjectDetails === 'object' ? value.subjectDetails : {}, teacherDetails: value.teacherDetails && typeof value.teacherDetails === 'object' ? value.teacherDetails : {}, periodsPerDay: Number(value.periodsPerDay) || Math.max(1, periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length), numberOfDays: Number(value.numberOfDays) || days.length, weekend: String(value.weekend || 'Saturday - Sunday'), workZero: Boolean(value.workZero), days, periods, lessons, specification }
+  return { dayDetails: value.dayDetails && typeof value.dayDetails === 'object' ? value.dayDetails : {}, periodAvailability: value.periodAvailability && typeof value.periodAvailability === 'object' ? value.periodAvailability : {}, classDetails: value.classDetails && typeof value.classDetails === 'object' ? value.classDetails as Record<string, ClassDetail> : {}, schoolName: String(value.schoolName || EMPTY.schoolName), academicYear: String(value.academicYear || EMPTY.academicYear), registrationName: String(value.registrationName || ''), subjectDetails: value.subjectDetails && typeof value.subjectDetails === 'object' ? value.subjectDetails : {}, teacherDetails: value.teacherDetails && typeof value.teacherDetails === 'object' ? value.teacherDetails : {}, periodsPerDay: Number(value.periodsPerDay) || Math.max(1, periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length), numberOfDays: Number(value.numberOfDays) || days.length, weekend: String(value.weekend || 'Saturday - Sunday'), workZero: Boolean(value.workZero), days, periods, lessons, specification }
 }
 function findConflicts(data: Workspace): string[] {
   const issues: string[] = []
