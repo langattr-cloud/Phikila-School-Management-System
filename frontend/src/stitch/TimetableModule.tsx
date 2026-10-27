@@ -919,15 +919,40 @@ function LessonDialog({ initial, teachersList, subjectsList, classesList, classr
 }
 
 function SubjectTimeOffDialog({ subject, days, periods, initialGrid, onClose, onSave }: { subject: string; days: string[]; periods: Period[]; initialGrid?: number[][]; onClose: () => void; onSave: (grid: number[][]) => void }) {
-  const [grid, setGrid] = useState<number[][]>(()=>days.map((_,row)=>periods.map((_,column)=>initialGrid?.[row]?.[column]??0)));
+  const [grid, setGrid] = useState<number[][]>(() => days.map((_, row) => periods.map((_, column) => initialGrid?.[row]?.[column] ?? 0)))
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [selectedPeriod, setSelectedPeriod] = useState<number | null>(null)
+  const clickDay = (row: number) => {
+    setSelectedDay(row); setSelectedPeriod(null)
+    setGrid(current => {
+      const values = current[row] || periods.map(() => 0)
+      const nextValue = values.every(value => value === 0) ? 2 : 0
+      return current.map((dayValues, index) => index === row ? periods.map(() => nextValue) : dayValues)
+    })
+  }
+  const clickPeriod = (column: number) => {
+    setSelectedDay(null)
+    if (selectedPeriod !== column) { setSelectedPeriod(column); return }
+    setGrid(current => {
+      const values = current.map(row => row[column] ?? 0)
+      const nextValue = values.every(value => value === 1) ? 2 : values.every(value => value === 2) ? 0 : 1
+      return current.map(row => row.map((value, index) => index === column ? nextValue : value))
+    })
+  }
+  const clickCell = (event: React.MouseEvent<HTMLButtonElement>, row: number, column: number) => {
+    event.preventDefault()
+    setSelectedDay(row); setSelectedPeriod(column)
+    setGrid(current => current.map((values, rowIndex) => rowIndex === row ? values.map((value, columnIndex) => columnIndex !== column ? value : event.type === 'contextmenu' ? 1 : value === 0 ? 2 : 0) : values))
+  }
   return <div className="phikila-tt-teachers-overlay" role="dialog" aria-modal="true" aria-label={"Time off for " + subject}>
     <section className="phikila-tt-teachers-window">
       <header className="phikila-tt-teachers-title"><strong>Subject time off · {subject}</strong><button type="button" onClick={onClose} aria-label="Close">×</button></header>
-      <div className="phikila-tt-teacher-timeoff"><p>Click a cell to cycle Available, Conditional, and Unavailable. Save workspace to persist the changes.</p>
-        <div className="phikila-tt-teacher-time-grid" style={{gridTemplateColumns:`72px repeat(${Math.max(1,periods.length)}, minmax(30px, 1fr))`}}>
-          <div />{periods.map((period,index)=><strong key={index} title={period.name}>{period.short||period.name||String(index+1)}</strong>)}
-          {days.map((day,row)=><React.Fragment key={day}><strong>{day.slice(0,3)}</strong>{periods.map((period,column)=>{const value=grid[row]?.[column]??0;return <button type="button" key={period.name+column} title={value===0?'Available':value===1?'Conditional':'Unavailable'} onClick={()=>setGrid(current=>current.map((values,r)=>r===row?values.map((cell,c)=>c===column?(cell+1)%3:cell):values))}>{value===0?'✓':value===1?'?':'×'}</button>})}</React.Fragment>)}
+      <div className="phikila-tt-teacher-timeoff"><p><strong>Day:</strong> click a day label to toggle its row. <strong>Period:</strong> click a heading to select a column; click it again to cycle the column. <strong>Cell:</strong> left-click toggles ✓/X; right-click sets ?.</p>
+        <div className="phikila-tt-teacher-time-grid" style={{gridTemplateColumns:`72px repeat(${Math.max(1, periods.length)}, minmax(30px, 1fr))`}}>
+          <div />{periods.map((period, index) => <button type="button" key={index} title={"Select/cycle " + period.name across all days} aria-pressed={selectedPeriod === index} onClick={() => clickPeriod(index)} style={{cursor:'pointer',border:selectedPeriod===index?'2px solid #0d2a6e':'1px dashed #aaa',background:selectedPeriod===index?'#ffeb3b':'#fff',fontWeight:700,minWidth:0,padding:'5px 2px'}}>{period.short || period.name || String(index + 1)}</button>)}
+          {days.map((day, row) => <React.Fragment key={day}><button type="button" title={"Toggle all periods for " + day} aria-pressed={selectedDay === row} onClick={() => clickDay(row)} style={{cursor:'pointer',border:selectedDay===row?'2px solid #0d2a6e':'1px dashed #aaa',background:selectedDay===row?'#ffeb3b':'#fff8c0',fontWeight:700}}>{day.slice(0, 3)}</button>{periods.map((period, column) => {const value=grid[row]?.[column]??0;const selected=selectedDay===row&&selectedPeriod===column;return <button type="button" key={period.name+column} title={value===0?'Available · left-click unavailable, right-click conditional':value===1?'Conditional · left-click available':'Unavailable · left-click available, right-click conditional'} aria-label={day+', '+period.name+': '+(value===0?'Available':value===1?'Conditional':'Unavailable')} onClick={event=>clickCell(event,row,column)} onContextMenu={event=>clickCell(event,row,column)} style={{cursor:'pointer',minWidth:0,minHeight:38,fontSize:18,fontWeight:900,background:selected?'#2c3e8f':selectedPeriod===column&&value===0?'#4a5ab0':selectedDay===row&&value===0?'#d0d8ff':'#fff',color:selected?(value===2?'#ffb0b0':'#fff'):value===0?'#0a8a0a':value===1?'#2196f3':'#e53935',border:selected?'3px solid #0d2a6e':'1px dashed #bbb'}}>{value===0?'✓':value===1?'?':'X'}</button>})}</React.Fragment>)}
         </div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:14,padding:'10px 0',fontSize:12}}><span style={{color:'#0a8a0a',fontWeight:700}}>✓ Available</span><span style={{color:'#2196f3',fontWeight:700}}>? Conditional</span><span style={{color:'#e53935',fontWeight:700}}>X Not available</span></div>
       </div>
       <div className="phikila-tt-teacher-form-actions"><button type="button" onClick={onClose}>Cancel</button><button type="button" className="is-primary" onClick={()=>onSave(grid)}>OK</button></div>
     </section>
