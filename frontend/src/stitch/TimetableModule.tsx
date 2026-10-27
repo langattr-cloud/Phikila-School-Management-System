@@ -9,7 +9,7 @@ import AdvisorDialog from './AdvisorDialog'
 import GenerateNewAdvisor from './GenerateNewAdvisor'
 import './timetable-module.css'
 
-type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean; length?: 'Single' | 'Double' | 'Triple' }
+type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean; length?: 'Single' | 'Double' | 'Triple'; roomPreferences?: { homeClassroom: boolean; teacherRooms: boolean; sharedRoom: boolean; subjectRooms: boolean; otherRooms: string } }
 type Period = { name: string; start: string; end: string; type?: 'lesson' | 'break'; short?: string; len?: number; position?: number; textForPrintouts?: string; printSummary?: boolean; printTeacher?: boolean; printClass?: boolean; printClassroom?: boolean; printInBells?: string; doubleCannotSpan?: boolean }
 type Specification = { subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[] }
 type SubjectDetail = { short: string; color: string; number: string; customFields: string; classrooms: string[]; timeOffGrid?: number[][]; distrib?: string }
