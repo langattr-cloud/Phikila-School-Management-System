@@ -1,5 +1,5 @@
 // LessonsForClass_Grade4_Combined.jsx - Combined as you asked
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 export default function LessonsForClass_Grade4({ onClose }: { onClose: () => void }) {
   const [lessons, setLessons] = useState([
@@ -93,7 +93,7 @@ export default function LessonsForClass_Grade4({ onClose }: { onClose: () => voi
   );
 }
 
-const S = {
+const S: Record<string, CSSProperties> = {
   overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:10070, fontFamily:"Segoe UI" },
   window:{ width:"98%", maxWidth:1120, height:"92vh", background:"#e8e8e8", border:"1px solid #777", boxShadow:"12px 12px 26px rgba(0,0,0,0.5)", display:"flex", flexDirection:"column" },
   titleBar:{ height:28, background:"#f0f0f0", borderBottom:"1px solid #aaa", display:"flex", justifyContent:"space-between", padding:"0 10px", alignItems:"center", fontSize:12 },
@@ -114,7 +114,7 @@ const S = {
   close:{ minWidth:80, height:26, border:"none", borderBottom:"1px solid #666", background:"transparent", fontSize:11, cursor:"pointer", textDecoration:"underline", marginLeft:"auto" },
 };
 
-const L = {
+const L: Record<string, CSSProperties> = {
   overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:10120, fontFamily:"Segoe UI" },
   window:{ width:"98%", maxWidth:860, background:"#e8e8ea", border:"1px solid #777", boxShadow:"18px 18px 36px rgba(0,0,0,0.8)", display:"flex", flexDirection:"column" },
   titleBar:{ height:26, background:"#f0f0f0", borderBottom:"1px solid #aaa", display:"flex", justifyContent:"space-between", padding:"0 10px", alignItems:"center", fontSize:12 },
