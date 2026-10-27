@@ -139,7 +139,9 @@ export default function TimetableModule() {
       const rosterNames = Array.from(roster.keys())
       const placeholderTeachers = new Set(['M. Njoroge', 'A. Wanjiku', 'P. Otieno'])
       // Keep the school's real saved teacher roster and remove demo placeholders from older workspaces.
-      const mergedTeachers = unique([...base.specification.teachers.filter(name => !placeholderTeachers.has(name.trim())), ...rosterNames])
+      const savedDetailNames = Object.keys(base.teacherDetails || {})
+      // Retain teacher names already saved in workspace details even when the roster API omits them.
+      const mergedTeachers = unique([...base.specification.teachers.filter(name => !placeholderTeachers.has(name.trim())), ...savedDetailNames.filter(name => !placeholderTeachers.has(name.trim())), ...rosterNames])
       const mergedDetails: Record<string, TeacherDetail> = { ...(base.teacherDetails || {}) }
       const workloads: Record<string, number> = {}
       roster.forEach((value, name) => {
