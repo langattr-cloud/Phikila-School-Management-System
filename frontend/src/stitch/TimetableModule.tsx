@@ -110,11 +110,17 @@ export default function TimetableModule() {
         const profile = source.profile && typeof source.profile === 'object' ? source.profile : source
         const firstName = String(profile.firstName || profile.first_name || source.firstName || source.first_name || '').trim()
         const lastName = String(profile.lastName || profile.last_name || source.lastName || source.last_name || '').trim()
-        const name = String(profile.name || source.name || [firstName, lastName].filter(Boolean).join(' ')).trim()
+        // Saved teacher profiles may contain a stale/short `name` alongside the real
+        // firstName + lastName fields. Prefer the complete saved name when both exist.
+        const fullName = [firstName, lastName].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim()
+        const name = String(fullName || profile.name || source.name || '').replace(/\\s+/g, ' ').trim()
         if (!name) return
-        const previous = roster.get(name) || { detail: {} }
+        const rosterKey = name.toLocaleLowerCase()
+        const existingEntry = Array.from(roster.entries()).find(([existingName]) => existingName.toLocaleLowerCase() === rosterKey)
+        const canonicalName = existingEntry?.[0] || name
+        const previous = roster.get(canonicalName) || { detail: {} }
         const workloadValue = Number(profile.count ?? profile.workload ?? source.count ?? 0)
-        roster.set(name, {
+        roster.set(canonicalName, {
           detail: {
             ...previous.detail,
             firstName: firstName || previous.detail.firstName || '',
