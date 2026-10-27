@@ -37,7 +37,7 @@ def get_email_status(
 
     catalog = get_templates_catalog()
     return {
-        "provider": "Resend",
+        "provider": "Disabled",
         "configured": email_service.is_configured(),
         "api_key_masked": masked,
         "default_from": email_service.default_from,
@@ -98,7 +98,7 @@ def send_test_email(
     if not email_service.is_configured():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Resend API key is not configured.",
+            detail="Email delivery is disabled. Configure a supported provider before sending email.",
         )
 
     result = email_service.send_test_email(to=payload.to, template_id=payload.template_id)
@@ -153,7 +153,7 @@ def send_email(
     if not result.get("success"):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=result.get("error", "Failed to deliver email via Resend."),
+            detail=result.get("error", "Email delivery is disabled."),
         )
 
     return result

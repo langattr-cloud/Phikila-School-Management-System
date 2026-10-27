@@ -95,7 +95,7 @@ export function PlatformEmailPage() {
         notify(result.error || 'Failed to send test email.', 'error')
       }
     } catch (err) {
-      notify(friendlyApiError(err, 'send test email via Resend'), 'error')
+      notify(friendlyApiError(err, 'send test email'), 'error')
     } finally {
       setSendingTest(false)
     }
@@ -105,18 +105,8 @@ export function PlatformEmailPage() {
     <>
       <PageHeader
         title="Email & Templates"
-        description="Transactional email delivery powered by Resend and responsive templates."
+        description="Email templates are available for preview; sending is currently disabled."
         breadcrumbs={[{ label: 'Platform', to: '/platform' }, { label: 'Email & templates' }]}
-        actions={
-          <button
-            type="button"
-            className="button button--primary button--sm"
-            onClick={() => setTestModalOpen(true)}
-          >
-            <SparkIcon width={16} height={16} />
-            Send test email
-          </button>
-        }
       />
 
       {error ? (
@@ -135,7 +125,7 @@ export function PlatformEmailPage() {
                   <CheckIcon />
                 </span>
                 <span className="summary-card__label">Email Provider</span>
-                <span className="summary-card__value">Resend</span>
+                <span className="summary-card__value">Disabled</span>
                 <span className="summary-card__detail">
                   <Badge tone={status?.configured ? 'success' : 'danger'}>
                     {status?.configured ? 'Active' : 'Unconfigured'}
@@ -383,7 +373,7 @@ export function PlatformEmailPage() {
                   disabled={sendingTest || !testRecipient.trim()}
                 >
                   {sendingTest && <Spinner label="Sending email" />}
-                  {sendingTest ? 'Sending via Resend…' : 'Send Test Email'}
+                  {sendingTest ? 'Sending…' : 'Send Test Email'}
                 </button>
               </div>
             </form>

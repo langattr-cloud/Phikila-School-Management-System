@@ -29,8 +29,6 @@ class Settings:
         self.supabase_jwt_audience = os.getenv("SUPABASE_JWT_AUDIENCE", "authenticated")
         self.supabase_jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
         self.app_jwt_secret = os.getenv("APP_JWT_SECRET", "")
-        self.resend_api_key = os.getenv("RESEND_API_KEY", "")
-        self.resend_from_email = os.getenv("RESEND_FROM_EMAIL", "Phikila School System <onboarding@resend.dev>")
         self.microsoft_client_id = os.getenv("MICROSOFT_CLIENT_ID", "")
         self.microsoft_client_secret = os.getenv("MICROSOFT_CLIENT_SECRET", "")
         self.microsoft_redirect_uri = os.getenv("MICROSOFT_REDIRECT_URI", "")
