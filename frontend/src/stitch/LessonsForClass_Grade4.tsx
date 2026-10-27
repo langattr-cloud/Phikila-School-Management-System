@@ -115,7 +115,7 @@ const S: Record<string, CSSProperties> = {
 };
 
 const L: Record<string, CSSProperties> = {
-  overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:10120, fontFamily:"Segoe UI" },
+  overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:12001, fontFamily:"Segoe UI" },
   window:{ width:"98%", maxWidth:860, background:"#e8e8ea", border:"1px solid #777", boxShadow:"18px 18px 36px rgba(0,0,0,0.8)", display:"flex", flexDirection:"column" },
   titleBar:{ height:26, background:"#f0f0f0", borderBottom:"1px solid #aaa", display:"flex", justifyContent:"space-between", padding:"0 10px", alignItems:"center", fontSize:12 },
   x:{ width:22, height:18, border:"1px solid #aaa", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" },
