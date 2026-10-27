@@ -9,7 +9,7 @@ import AdvisorDialog from './AdvisorDialog'
 import GenerateNewAdvisor from './GenerateNewAdvisor'
 import './timetable-module.css'
 
-type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean; length?: 'Single' | 'Double' | 'Triple'; roomPreferences?: { homeClassroom: boolean; teacherRooms: boolean; sharedRoom: boolean; subjectRooms: boolean; otherRooms: string } }
+type Lesson = { id: string; day: string; period: number; className: string; group?: string; subject: string; teacher: string; room: string; locked: boolean; length?: 'Single' | 'Double' | 'Triple'; roomPreferences?: { homeClassroom: boolean; teacherRooms: boolean; sharedRoom: boolean; subjectRooms: boolean; otherRooms: string } }
 type Period = { name: string; start: string; end: string; type?: 'lesson' | 'break'; short?: string; len?: number; position?: number; textForPrintouts?: string; printSummary?: boolean; printTeacher?: boolean; printClass?: boolean; printClassroom?: boolean; printInBells?: string; doubleCannotSpan?: boolean }
 type Specification = { subjects: string[]; classes: string[]; teachers: string[]; classrooms: string[] }
 type SubjectDetail = { short: string; color: string; number: string; customFields: string; classrooms: string[]; timeOffGrid?: number[][]; distrib?: string }
@@ -164,7 +164,7 @@ export default function TimetableModule() {
 
       const lessonSignature = (workspace: Workspace) => JSON.stringify(
         workspace.lessons
-          .map(({ id, day, period, className, subject, teacher, room, locked }) => ({ id, day, period, className, subject, teacher, room, locked }))
+          .map(({ id, day, period, className, group, subject, teacher, room, locked, length, roomPreferences }) => ({ id, day, period, className, group, subject, teacher, room, locked, length, roomPreferences }))
           .sort((a, b) => a.id.localeCompare(b.id)),
       )
       const saved = normaliseWorkspace(savedData)
@@ -528,7 +528,7 @@ function BreakEditorDialog({value,lessonCount,onChange,onClose,onSave}:{value:Br
 function normaliseWorkspace(value: Partial<Workspace>): Workspace {
   const days = Array.isArray(value.days) && value.days.length ? value.days.filter(day => typeof day === 'string' && day.trim()) : [...DAYS]
   const periods = Array.isArray(value.periods) && value.periods.length ? value.periods.filter(period => period && typeof period.name === 'string').map(period => ({ ...period, name: period.name, start: period.start || '', end: period.end || '', type: period.type === 'break' || /break|lunch|recess|games/i.test(period.name) ? 'break' as const : 'lesson' as const })) : DEFAULT_PERIODS.map(period => ({ ...period }))
-  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && typeof lesson.day === 'string' && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked), length: (lesson.length === 'Double' || lesson.length === 'Triple' ? lesson.length : 'Single') as Lesson['length'], roomPreferences: lesson.roomPreferences && typeof lesson.roomPreferences === 'object' ? lesson.roomPreferences : undefined })) : []
+  const lessons = Array.isArray(value.lessons) ? value.lessons.filter(lesson => lesson && typeof lesson.day === 'string' && Number.isInteger(lesson.period) && lesson.period >= 0 && lesson.period < periods.length && lesson.className && lesson.subject && lesson.teacher).map(lesson => ({ id: String(lesson.id || makeId()), day: lesson.day, period: lesson.period, className: String(lesson.className), group: typeof lesson.group === 'string' ? lesson.group : 'Entire class', subject: String(lesson.subject), teacher: String(lesson.teacher), room: String(lesson.room || ''), locked: Boolean(lesson.locked), length: (lesson.length === 'Double' || lesson.length === 'Triple' ? lesson.length : 'Single') as Lesson['length'], roomPreferences: lesson.roomPreferences && typeof lesson.roomPreferences === 'object' ? lesson.roomPreferences : undefined })) : []
   const rawSpec = value.specification as Partial<Specification> | undefined
   const specification: Specification = {
     subjects: Array.isArray(rawSpec?.subjects) ? unique(rawSpec.subjects.filter(item => typeof item === 'string')) : [...EMPTY.specification.subjects],
