@@ -144,8 +144,6 @@ def _validate_teacher_profile(profile: dict[str, Any]) -> dict[str, Any]:
     short = str(clean.get("short", clean.get("code", ""))).strip()
     if not (name or first_name or last_name):
         raise HTTPException(status_code=422, detail="Teacher name is required")
-    if not short:
-        raise HTTPException(status_code=422, detail="Teacher short code is required")
     clean["firstName"] = first_name
     clean["lastName"] = last_name
     clean["short"] = short
@@ -208,7 +206,7 @@ def update_teacher_profile(
         TimetableTeacherProfile.owner_id == owner_id,
         TimetableTeacherProfile.id != teacher_id,
     ).all()
-    if any(str((item.profile or {}).get("short", (item.profile or {}).get("code", ""))).strip().casefold() == short for item in duplicate):
+    if short and any(str((item.profile or {}).get("short", (item.profile or {}).get("code", ""))).strip().casefold() == short for item in duplicate):
         raise HTTPException(status_code=409, detail="That teacher short code is already in use")
     row.profile = profile
     row.updated_at = datetime.now(timezone.utc)
