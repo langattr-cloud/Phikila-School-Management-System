@@ -70,7 +70,7 @@ export default function TimetableModule() {
 
   const classes = useMemo(() => unique(data.specification.classes.concat(data.lessons.map(item => item.className))), [data.specification.classes, data.lessons])
   const subjects = useMemo(() => unique(data.specification.subjects.concat(data.lessons.map(item => item.subject))), [data.specification.subjects, data.lessons])
-  const teachers = useMemo(() => unique(data.specification.teachers.concat(data.lessons.map(item => item.teacher))), [data.specification.teachers, data.lessons])
+  const teachers = useMemo(() => unique(data.specification.teachers.concat(data.lessons.map(item => item.teacher))).filter(name => !['M. Njoroge', 'A. Wanjiku', 'P. Otieno'].includes(name.trim())), [data.specification.teachers, data.lessons])
   const rooms = useMemo(() => unique(data.specification.classrooms.concat(data.lessons.map(item => item.room).filter(Boolean))), [data.specification.classrooms, data.lessons])
   const filterOptions = whose === 'Classes' ? classes : whose === 'Teachers' ? teachers : whose === 'Classrooms' ? rooms : []
   const visibleLessons = useMemo(() => data.lessons.filter(item => {
