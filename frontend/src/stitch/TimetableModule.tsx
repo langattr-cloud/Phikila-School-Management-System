@@ -113,7 +113,9 @@ export default function TimetableModule() {
         // Saved teacher profiles may contain a stale/short `name` alongside the real
         // firstName + lastName fields. Prefer the complete saved name when both exist.
         const fullName = [firstName, lastName].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim()
-        const name = String(fullName || profile.name || source.name || '').replace(/\\s+/g, ' ').trim()
+        // If only one name component is present, preserve the saved display name,
+        // which may already contain both names.
+        const name = String(firstName && lastName ? fullName : (profile.name || source.name || fullName)).replace(/\\s+/g, ' ').trim()
         if (!name) return
         const rosterKey = name.toLocaleLowerCase()
         const existingEntry = Array.from(roster.entries()).find(([existingName]) => existingName.toLocaleLowerCase() === rosterKey)
