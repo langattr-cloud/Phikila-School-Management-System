@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import LessonsForClass_Grade4 from './LessonsForClass_Grade4'
+// @ts-ignore -- this supplied JSX component is intentionally kept unchanged.
+import LessonsForClass_Grade4 from './LessonsForClass_Grade4.jsx'
 
 type Period = { name: string; start: string; end: string; type?: 'lesson' | 'break' }
 type Lesson = { id: string; day: string; period: number; className: string; subject: string; teacher: string; room: string; locked: boolean }
