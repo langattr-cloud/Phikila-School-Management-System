@@ -144,9 +144,6 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
         length: 1,
         color: details[selected]?.color || '#d9d2e9',
         room: item.room,
-        day: item.day,
-        period: item.period,
-        periodName: periods[item.period]?.name || 'Period ' + (item.period + 1),
       }))}
       onClose={() => setShowClassLessons(false)}
       onNew={() => { setShowClassLessons(false); setLessonDraft(emptyLesson); setLessonEditId(null); setSelectedLessonId(null); setDialog('lessons') }}
