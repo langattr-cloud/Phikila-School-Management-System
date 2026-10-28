@@ -18,6 +18,9 @@ assert.match(windowComponent, /onClick=\{\(\)=>selectedId != null && onEdit\(sel
 assert.match(windowComponent, /onClick=\{\(\)=>selectedId != null && onRemove\(selectedId\)\}/,
   'Remove must use the workspace save handler.');
 assert.doesNotMatch(windowComponent, /Week|Day|Term|l\.day|l\.periodName/, 'The shared lessons window must exclude week, day, and term fields.');
+assert.match(windowComponent, /const groupedLessons = lessons\.reduce/, 'Identical lessons must be grouped in the display.');
+assert.match(windowComponent, /existing\.count \+= lesson\.count/, 'Grouped rows must show the total count without deleting underlying records.');
+assert.match(windowComponent, /Edit, Remove, and Copy to act on one saved lesson in the group/, 'Grouped-row actions must be clearly scoped to one saved lesson.');
 assert.doesNotMatch(windowComponent, /TANGUS VICTOR|CHEPKWONY MERCY|setLessons\(|const \[lessons, setLessons\]/,
   'The shared window must not include hard-coded demo lessons or its own unsaved lesson store.');
 
