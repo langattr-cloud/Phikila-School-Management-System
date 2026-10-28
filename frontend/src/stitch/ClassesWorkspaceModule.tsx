@@ -132,13 +132,13 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
   {dialog==='timeoff' && <div className="cm-backdrop"><section className="cm-modal" role="dialog" aria-modal="true" aria-labelledby="cm-time-title"><header className="cm-title"><span id="cm-time-title">Time off · {selected}</span><button onClick={()=>setDialog(null)}>×</button></header><div className="cm-modal-body"><p className="cm-subtle">Click a cell to cycle Available → Conditional → Not available. Right-click cycles backwards.</p><div className="cm-table-scroll"><table className="cm-table"><thead><tr><th>Day</th>{periods.map((p,i)=><th key={p.name+i}>{p.name}</th>)}</tr></thead><tbody>{days.map((day,d)=><tr key={day}><td>{day}</td>{periods.map((p,i)=>{const v=timeGrid[d]?.[i]||0;return <td key={p.name+i} style={{padding:3}}><button className={'cm-slot '+(v===1?'conditional':v===2?'off':'')} title={v===0?'Available':v===1?'Conditional':'Not available'} aria-label={day+' '+p.name+': '+(v===0?'Available':v===1?'Conditional':'Not available')} onContextMenu={e=>{e.preventDefault();cycleTimeOff(d,i,true)}} onClick={()=>cycleTimeOff(d,i)} style={{width:'100%'}}>{v===0?'✓':v===1?'?':'×'}</button></td>})}</tr>)}</tbody></table></div><div className="cm-subtle">Time-off settings are saved with class details in the shared timetable workspace.</div></div><footer className="cm-footer"><button className="cm-btn" onClick={()=>setDialog(null)}>Cancel</button><span className="cm-spacer"/><button className="cm-btn primary" onClick={saveTimeOff}>Save time off</button></footer></section></div>}
     {showClassLessons && <ClassLessonsWindow
       className={selected}
-      shortClass={details[selected]?.short || selected}
+      shortClass={(details[selected] as (ClassDetail & {short?:string}) | undefined)?.short || selected}
       lessons={selectedLessons.map(item => ({
         id: item.id,
         code: item.subject.trim().slice(0, 3).toUpperCase(),
         subject: item.subject,
         teacher: item.teacher,
-        cls: details[selected]?.short || selected,
+        cls: (details[selected] as (ClassDetail & {short?:string}) | undefined)?.short || selected,
         count: 1,
         length: 1,
         color: details[selected]?.color || '#d9d2e9',
@@ -154,7 +154,7 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
       onCopyTo={(id: string) => {
         const target = lessons.find(item => item.id === id);
         if (!target) return;
-        const targetClass = window.prompt('Copy this lesson to which existing class?', classes.filter(name => name !== target.className).join(', '));
+        const targetClass = window.prompt('Enter the exact target class name. Available classes: ' + classes.filter(name => name !== target.className).join(', '), '');
         if (!targetClass) return;
         if (!classes.includes(targetClass) || targetClass === target.className) { window.alert('Choose a different class from the existing class list.'); return; }
         const conflict = lessons.some(item => item.day === target.day && item.period === target.period && (item.className === targetClass || item.teacher === target.teacher || (!!target.room && item.room === target.room)));
