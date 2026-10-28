@@ -17,6 +17,7 @@ assert.match(windowComponent, /onClick=\{\(\)=>selectedId != null && onEdit\(sel
   'Edit must use the workspace lesson editor.');
 assert.match(windowComponent, /onClick=\{\(\)=>selectedId != null && onRemove\(selectedId\)\}/,
   'Remove must use the workspace save handler.');
+assert.doesNotMatch(windowComponent, /Week|Day|Term|l\.day|l\.periodName/, 'The shared lessons window must exclude week, day, and term fields.');
 assert.doesNotMatch(windowComponent, /TANGUS VICTOR|CHEPKWONY MERCY|setLessons\(|const \[lessons, setLessons\]/,
   'The shared window must not include hard-coded demo lessons or its own unsaved lesson store.');
 
