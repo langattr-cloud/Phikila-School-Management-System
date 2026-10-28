@@ -26,6 +26,22 @@ type Props = {
 
 export default function ClassLessonsWindow({ className, shortClass, lessons, onClose, onNew, onEdit, onRemove, onCopyTo }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Group visually identical lessons while keeping every saved timetable record intact.
+  const groupedLessons = lessons.reduce<LessonRow[]>((groups, lesson) => {
+    const existing = groups.find(group =>
+      group.subject === lesson.subject &&
+      group.teacher === lesson.teacher &&
+      group.cls === lesson.cls &&
+      group.length === lesson.length &&
+      group.room === lesson.room
+    );
+    if (existing) {
+      existing.count += lesson.count;
+    } else {
+      groups.push({ ...lesson, count: lesson.count || 1 });
+    }
+    return groups;
+  }, []);
   return (
     <div style={S.overlay}>
       {/* BACKGROUND MAIN TIMETABLE (blur) */}
@@ -48,7 +64,7 @@ export default function ClassLessonsWindow({ className, shortClass, lessons, onC
           </div>
 
           <div style={S.list}>
-            {lessons.map((l,i)=>(
+            {groupedLessons.map((l,i)=>(
               <div key={l.id} onClick={()=>setSelectedId(l.id)} onDoubleClick={()=>onEdit(l.id)} style={{...S.row, background: selectedId===l.id ? "#0d6efd" : i%2===0 ? "#fff" : "#eef2ff", color: selectedId===l.id ? "#fff" : "#000"}}>
                 <div style={{...S.c, width:"4%", background:l.color, fontWeight:"bold", fontSize:10, color:"#000", textAlign:"center"}}>{l.code}</div>
                 <div style={{...S.c, width:"16%"}}>{l.subject}</div>
@@ -59,10 +75,11 @@ export default function ClassLessonsWindow({ className, shortClass, lessons, onC
                 <div style={{...S.c, width:"12%", textAlign:"center"}}>{l.room || "—"}</div>
               </div>
             ))}
-            {lessons.length === 0 && <div style={S.empty}>No timetable lessons are assigned to {className} yet.</div>}
+            {groupedLessons.length === 0 && <div style={S.empty}>No timetable lessons are assigned to {className} yet.</div>}
           </div>
         </div>
 
+        <div style={S.groupNote}>Count combines matching lessons. Edit, Remove, and Copy to act on one saved lesson in the group.</div>
         <div style={S.footer}>
           <button onClick={onNew} style={S.btn}>New lesson</button>
           <button onClick={()=>selectedId != null && onEdit(selectedId)} disabled={selectedId == null} style={S.btn}>Edit lesson</button>
@@ -99,6 +116,7 @@ const S: Record<string, CSSProperties> = {
   empty:{ padding:20, color:"#666", fontSize:12 },
   row:{ display:"flex", alignItems:"center", height:28, fontSize:11, borderBottom:"1px solid #e0e0e0", cursor:"pointer" },
   c:{ padding:4, whiteSpace:"nowrap", overflow:"hidden" },
+  groupNote:{ padding:"5px 16px", fontSize:10, color:"#555", background:"#f5f5f5", borderTop:"1px solid #ddd" },
   footer:{ display:"flex", gap:8, padding:"12px 16px", borderTop:"1px solid #bbb", background:"#e8e8e8", alignItems:"center" },
   btn:{ minWidth:100, height:28, border:"1px solid #999", background:"#f0f0f0", fontSize:11, cursor:"pointer", borderBottom:"2px solid #888" },
   btn2:{ minWidth:100, height:26, border:"1px solid #999", background:"#f5f5f5", fontSize:11, cursor:"pointer", borderBottom:"2px solid #888" },
