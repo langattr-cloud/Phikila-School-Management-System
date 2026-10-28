@@ -10,7 +10,7 @@ assert.match(workspace, /lessons=\{selectedLessons\.map\(item => \(\{/,
   'The shared window must display lessons from the selected class in the saved workspace.');
 assert.match(workspace, /onSave\(classes, lessons\.filter\(item => item\.id !== id\), details\)/,
   'Removing a lesson must update the shared timetable workspace.');
-assert.match(workspace, /onSave\(classes, \[\.\.\.lessons, \{ \.\.\.target, id: makeId\(\), className: targetClass, locked: false \}\], details\)/,
+assert.match(workspace, /onSave\(classes, \[\.\.\.lessons, \{ \.\.\.target, id: makeClassLessonId\(\), className: targetClass, locked: false \}\], details\)/,
   'Copying a lesson must persist it through the existing workspace save path.');
 assert.match(windowComponent, /onClick=\{onNew\}/, 'New/Add more controls must use the workspace lesson editor.');
 assert.match(windowComponent, /onClick=\{\(\)=>selectedId != null && onEdit\(selectedId\)\}/,
