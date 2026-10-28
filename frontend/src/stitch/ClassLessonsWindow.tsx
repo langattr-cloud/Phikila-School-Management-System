@@ -11,8 +11,6 @@ type LessonRow = {
   length: number;
   color: string;
   room: string;
-  day: string;
-  periodName: string;
 };
 
 type Props = {
@@ -47,8 +45,6 @@ export default function ClassLessonsWindow({ className, shortClass, lessons, onC
             <div style={{...S.h, width:"8%"}}>Count</div>
             <div style={{...S.h, width:"8%"}}>Length</div>
             <div style={{...S.h, width:"12%"}}>Classrooms</div>
-            <div style={{...S.h, width:"9%"}}>Week</div>
-            <div style={{...S.h, width:"9%"}}>Term</div>
           </div>
 
           <div style={S.list}>
@@ -61,8 +57,6 @@ export default function ClassLessonsWindow({ className, shortClass, lessons, onC
                 <div style={{...S.c, width:"8%", textAlign:"center"}}>{l.count}</div>
                 <div style={{...S.c, width:"8%", textAlign:"center"}}>{l.length}</div>
                 <div style={{...S.c, width:"12%", textAlign:"center"}}>{l.room || "—"}</div>
-                <div style={{...S.c, width:"9%"}}>{l.day}</div>
-                <div style={{...S.c, width:"9%"}}>{l.periodName}</div>
               </div>
             ))}
             {lessons.length === 0 && <div style={S.empty}>No timetable lessons are assigned to {className} yet.</div>}
