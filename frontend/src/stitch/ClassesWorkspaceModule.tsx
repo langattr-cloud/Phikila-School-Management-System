@@ -9,6 +9,7 @@ type LessonDraft = { subject: string; teacher: string; count: number; length: 'S
 const palette = ['#b8e6d0','#fbcfe8','#facc15','#60a5fa','#ef4444','#22c55e','#a78bfa','#fb923c','#a5b4fc','#fff']
 const emptyClass: ClassDraft = { name: '', short: '', color: '#b8e6d0', classTeacher: '', grade: '', number: '', count: 0, printPictures: true }
 const emptyLesson: LessonDraft = { subject: '', teacher: '', count: 1, length: 'Single', room: '' }
+const makeClassLessonId = () => (globalThis.crypto && globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : 'lesson-copy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8))
 const styles = `
 .cm-backdrop{position:fixed;inset:0;z-index:12000;background:#10182870;display:flex;align-items:center;justify-content:center;padding:12px;font:13px "Segoe UI",Tahoma,Arial;color:#202939}
 .cm-window{width:min(1180px,98vw);height:min(850px,94vh);display:flex;flex-direction:column;background:#e8ecf3;border:1px solid #667085;box-shadow:0 18px 55px #0004;min-height:0}
@@ -159,7 +160,7 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
         if (!classes.includes(targetClass) || targetClass === target.className) { window.alert('Choose a different class from the existing class list.'); return; }
         const conflict = lessons.some(item => item.day === target.day && item.period === target.period && (item.className === targetClass || item.teacher === target.teacher || (!!target.room && item.room === target.room)));
         if (conflict) { window.alert('Cannot copy: the class, teacher, or room is already occupied at that time.'); return; }
-        onSave(classes, [...lessons, { ...target, id: makeId(), className: targetClass, locked: false }], details);
+        onSave(classes, [...lessons, { ...target, id: makeClassLessonId(), className: targetClass, locked: false }], details);
       }}
     />}
   </div>
