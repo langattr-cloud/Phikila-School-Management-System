@@ -481,7 +481,7 @@ export default function TimetableModule() {
     {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period]?.name}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
     {previewOpen && <div className="phikila-tt-modal-backdrop"><section className="phikila-tt-preview" role="dialog" aria-modal="true" aria-labelledby="tt-preview-title"><div className="phikila-tt-panel-heading"><div><h2 id="tt-preview-title">Print preview · {data.schoolName}</h2><p>Academic year {data.academicYear}</p></div><div><button className="phikila-tt-button" onClick={() => setPreviewOpen(false)}>Close</button> <button className="phikila-tt-button phikila-tt-button-primary" onClick={() => window.print()}>Print</button></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th>Period</th>{data.days.map(day => <th key={day}>{day}</th>)}</tr></thead><tbody>{data.periods.map((period, index) => <tr key={period.name + index}><th>{period.name}<small>{period.start}–{period.end}</small></th>{data.days.map(day => <td key={day}>{data.lessons.filter(lesson => lesson.day === day && lesson.period === index).map(lesson => <div className="phikila-tt-print-lesson" key={lesson.id}><strong>{lesson.className} · {lesson.subject}</strong><br />{lesson.teacher}{lesson.room ? ' · ' + lesson.room : ''}</div>)}</td>)}</tr>)}</tbody></table></div></section></div>}
     {advisorOpen && <AdvisorDialog classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} onClose={() => setAdvisorOpen(false)} />}
-    {generateNewAdvisorOpen && <GenerateNewAdvisor classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} classDetails={data.classDetails || {}} teacherDetails={data.teacherDetails || {}} subjectDetails={data.subjectDetails || {}} onGenerate={() => { const result = generateSchedule(data); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved'); setGenerateNewAdvisorOpen(false) } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save'); setGenerateNewAdvisorOpen(false) } }} onClose={() => setGenerateNewAdvisorOpen(false)} />}
+    {generateNewAdvisorOpen && <GenerateNewAdvisor classes={classes} lessons={data.lessons} days={data.days} periods={data.periods} classDetails={data.classDetails || {}} teacherDetails={data.teacherDetails || {}} subjectDetails={data.subjectDetails || {}} onGenerate={async reportProgress => { const result = await generateSchedule(data, reportProgress); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved'); setGenerateNewAdvisorOpen(false) } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save'); setGenerateNewAdvisorOpen(false) } }} onClose={() => setGenerateNewAdvisorOpen(false)} />}
     <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={event => { openJson(event.target.files?.[0]); event.currentTarget.value = '' }} />
   </main>
 }
@@ -548,7 +548,9 @@ function findConflicts(data: Workspace): string[] {
 type GenerationResult = { lessons: Lesson[]; error?: string }
 
 /** Greedy, constraint-aware draft placement. Locked lessons are never moved. */
-function generateSchedule(data: Workspace): GenerationResult {
+async function generateSchedule(data: Workspace, onProgress?: (percent: number, message: string) => void): Promise<GenerationResult> {
+  onProgress?.(3, 'Checking timetable constraints')
+  await new Promise<void>(resolve => window.setTimeout(resolve, 0))
   const locked = data.lessons.filter(lesson => lesson.locked)
   const movable = data.lessons.filter(lesson => !lesson.locked)
   const lockedConflicts = findConflicts({ ...data, lessons: locked })
@@ -598,7 +600,8 @@ function generateSchedule(data: Workspace): GenerationResult {
   }
 
   const unscheduled: Lesson[] = []
-  for (const lesson of ordered) {
+  for (let lessonIndex = 0; lessonIndex < ordered.length; lessonIndex++) {
+    const lesson = ordered[lessonIndex]
     const candidates = slots
       .filter(slot => !isUnavailable(lesson, slot.day, slot.period) && !conflictsAt(lesson, slot.day, slot.period))
       .sort((a, b) => score(lesson, a.day, a.period) - score(lesson, b.day, b.period))
@@ -608,13 +611,22 @@ function generateSchedule(data: Workspace): GenerationResult {
       continue
     }
     placed.push({ ...lesson, day: slot.day, period: slot.period })
+    const updateEvery = Math.max(1, Math.ceil(ordered.length / 35))
+    if (lessonIndex % updateEvery === 0 || lessonIndex === ordered.length - 1) {
+      const percent = 10 + Math.round(((lessonIndex + 1) / Math.max(1, ordered.length)) * 78)
+      onProgress?.(percent, 'Placing lessons · ' + (lessonIndex + 1) + ' of ' + ordered.length)
+      await new Promise<void>(resolve => window.setTimeout(resolve, 0))
+    }
   }
+  onProgress?.(93, 'Verifying class, teacher, room, and time-off constraints')
+  await new Promise<void>(resolve => window.setTimeout(resolve, 0))
   if (unscheduled.length) {
     return {
       lessons: data.lessons,
       error: 'Could not place ' + unscheduled.length + ' lesson(s) without class, teacher, or room clashes. Existing timetable was left unchanged; add teaching periods or review resource assignments.',
     }
   }
+  onProgress?.(100, 'Generation complete · draft ready to review')
   return { lessons: placed }
 }
 
