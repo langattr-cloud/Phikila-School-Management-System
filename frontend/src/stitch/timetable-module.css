@@ -395,3 +395,17 @@
   .phikila-print-lesson{background:#f0f2f5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .phikila-print-table th.is-break,.phikila-print-table td.is-break{background:#e3e5e8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+/* Teacher personal timetable: compact, photo-style lesson grid. */
+.phikila-print-sheet.is-teacher-report{max-width:1100px;padding:20px 24px 14px}
+.phikila-print-sheet.is-teacher-report .phikila-print-sheet-heading{padding-bottom:10px}
+.phikila-print-sheet.is-teacher-report .phikila-print-sheet-heading h1{margin:2px 0 4px;font-size:28px;letter-spacing:.01em;color:#111}
+.phikila-print-sheet.is-teacher-report .phikila-print-table{font-size:11px}
+.phikila-print-sheet.is-teacher-report .phikila-print-table thead th{height:42px;background:#fff;color:#111}
+.phikila-print-sheet.is-teacher-report .phikila-print-table th.is-break,.phikila-print-sheet.is-teacher-report .phikila-print-table td.is-break{background:#fff}
+.phikila-print-sheet.is-teacher-report .phikila-print-table tbody td{height:68px}
+.phikila-print-sheet.is-teacher-report .phikila-print-lesson{background:transparent;border-radius:0;margin:0;padding:2px 1px}
+.phikila-print-sheet.is-teacher-report .phikila-print-lesson strong{font-size:13px;color:#111}
+.phikila-print-sheet.is-teacher-report .phikila-print-lesson small{font-size:11px;color:#111}
+.phikila-print-sheet.is-teacher-report .phikila-print-table thead th.is-break,.phikila-print-sheet.is-teacher-report .phikila-print-table tbody td.is-break{width:4.2%;min-width:32px;padding:2px 1px}
+@media print{.phikila-print-sheet.is-teacher-report{max-width:none;padding:0}.phikila-print-sheet.is-teacher-report .phikila-print-table tbody td{height:68px}.phikila-print-sheet.is-teacher-report .phikila-print-table th.is-break,.phikila-print-sheet.is-teacher-report .phikila-print-table td.is-break{background:#fff!important}}
