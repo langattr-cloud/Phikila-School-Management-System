@@ -29,6 +29,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
   const changeReport = (next: Report) => { setReport(next); setPage(0) }
   const goPage = (next: number) => setPage(Math.max(0, Math.min(next, entries.length - 1)))
   const subjectLabel = (subject: string) => props.subjectDetails[subject]?.short?.trim() || subject
+  const classLabel = (className: string) => className.replace(/^grade\s*/i, '').trim() || className
   const teacherLabel = (name: string) => displayName(name, props.teacherDetails[name]?.short || props.teacherDetails[name]?.number)
   const generated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 
@@ -67,7 +68,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
                 const cellLessons = getLessons(day, periodIndex)
                 const blocked = isBreak(period)
                 return <td key={period.name + periodIndex} className={blocked ? 'is-break' : ''}>{blocked ? null : cellLessons.map(lesson => <div className="phikila-print-lesson" key={lesson.id}>
-                  <strong>{report === 'Teachers' ? `${subjectLabel(lesson.subject)} ${lesson.className}` : subjectLabel(lesson.subject)}</strong>
+                  <strong>{report === 'Teachers' ? `${subjectLabel(lesson.subject)} ${classLabel(lesson.className)}` : subjectLabel(lesson.subject)}</strong>
                   {report !== 'Teachers' && <span>{teacherLabel(lesson.teacher)}</span>}
                   {report === 'Classrooms' && <small>{lesson.className}</small>}
                   {report !== 'Classrooms' && lesson.room && <small>{lesson.room}</small>}
