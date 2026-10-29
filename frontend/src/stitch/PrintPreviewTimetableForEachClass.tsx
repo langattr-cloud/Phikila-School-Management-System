@@ -54,15 +54,13 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
         <button type="button" onClick={props.onClose}>Close preview</button>
       </div>
       <div className="phikila-print-sheet-wrap">
-        {current ? <article className={'phikila-print-sheet' + (compact ? ' is-compact' : '')}>
+        {current ? <article className={'phikila-print-sheet' + (compact ? ' is-compact' : '') + (report === 'Teachers' ? ' is-teacher-report' : '')}>
           <div className="phikila-print-sheet-heading">
             <div className="phikila-print-school">{props.schoolName}</div>
-            <div className="phikila-print-year">Academic year {props.academicYear}</div>
+            {report !== 'Teachers' && <div className="phikila-print-year">Academic year {props.academicYear}</div>}
             <h1>{current}</h1>
             {report === 'Classes' && <p>Class teacher: <strong>{teacher || 'Not assigned'}</strong></p>}
-            {report === 'Teachers' && <p>Teacher number: <strong>{props.teacherDetails[current]?.number || props.teacherDetails[current]?.short || '—'}</strong></p>}
-            {report === 'Classrooms' && <p>Classroom timetable</p>}
-            <h2>{titleFor(report)}</h2>
+            {report === 'Classrooms' && <><p>Classroom timetable</p><h2>{titleFor(report)}</h2></>}
           </div>
           <div className="phikila-print-table-wrap">
             <table className="phikila-print-table">
