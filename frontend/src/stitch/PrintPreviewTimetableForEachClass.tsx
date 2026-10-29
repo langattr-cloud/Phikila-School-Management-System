@@ -19,7 +19,6 @@ const titleFor = (report: Report) => report === 'Classes' ? 'Timetable for each 
 export default function PrintPreviewTimetableForEachClass(props: Props) {
   const [report, setReport] = useState<Report>('Classes')
   const [page, setPage] = useState(0)
-  const [showCodes, setShowCodes] = useState(true)
   const [compact, setCompact] = useState(false)
   const entries = report === 'Classes' ? props.classes : report === 'Teachers' ? props.teachers : props.classrooms
   const safePage = Math.max(0, Math.min(page, Math.max(0, entries.length - 1)))
@@ -29,7 +28,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
   const teacher = report === 'Classes' ? props.classDetails[current]?.classTeacher : ''
   const changeReport = (next: Report) => { setReport(next); setPage(0) }
   const goPage = (next: number) => setPage(Math.max(0, Math.min(next, entries.length - 1)))
-  const subjectLabel = (subject: string) => showCodes ? displayName(subject, props.subjectDetails[subject]?.short) : subject
+  const subjectLabel = (subject: string) => props.subjectDetails[subject]?.short?.trim() || subject
   const teacherLabel = (name: string) => displayName(name, props.teacherDetails[name]?.short || props.teacherDetails[name]?.number)
   const generated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 
@@ -49,7 +48,6 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
           </select>
         </label>
         <span className="phikila-print-page-count">Page {entries.length ? safePage + 1 : 0} of {entries.length}</span>
-        <button type="button" onClick={() => setShowCodes(value => !value)} title="Switch between subject codes and full subject names">{showCodes ? 'Subject codes' : 'Full subject names'}</button>
         <button type="button" onClick={() => setCompact(value => !value)}>{compact ? 'Comfortable size' : 'Compact size'}</button>
         <button type="button" onClick={props.onClose}>Close preview</button>
       </div>
