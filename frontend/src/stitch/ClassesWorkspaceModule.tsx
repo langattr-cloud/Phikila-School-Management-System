@@ -9,6 +9,7 @@ type LessonDraft = { subject: string; teacher: string; count: number; length: 'S
 const palette = ['#b8e6d0','#fbcfe8','#facc15','#60a5fa','#ef4444','#22c55e','#a78bfa','#fb923c','#a5b4fc','#fff']
 const emptyClass: ClassDraft = { name: '', short: '', color: '#b8e6d0', classTeacher: '', grade: '', number: '', count: 0, printPictures: true }
 const emptyLesson: LessonDraft = { subject: '', teacher: '', count: 1, length: 'Single', room: '' }
+const hiddenFormRows = new Set(['Form 1A', 'Form 1B', 'Form 2A', 'Form 2B'])
 const makeClassLessonId = () => (globalThis.crypto && globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : 'lesson-copy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8))
 const styles = `
 .cm-backdrop{position:fixed;inset:0;z-index:12000;background:#10182870;display:flex;align-items:center;justify-content:center;padding:12px;font:13px "Segoe UI",Tahoma,Arial;color:#202939}
@@ -20,7 +21,7 @@ const styles = `
 .cm-table{width:100%;border-collapse:collapse;min-width:560px}
 .cm-table th{position:sticky;top:0;background:#d8deea;text-align:left;font-size:11px;padding:9px;border-bottom:1px solid #aab2c0}
 .cm-table td{padding:8px 9px;border-bottom:1px solid #edf0f4;font-size:12px}
-.cm-table tr{cursor:pointer}.cm-table tr.selected{background:#c7d8ff}.cm-actions{width:168px;flex:none;padding:10px;background:#e8ecf3;border-left:1px solid #aab2c0;display:flex;flex-direction:column;gap:7px}
+.cm-table tr{cursor:pointer}.cm-table tr.selected{background:#c7d8ff}.cm-class-list{flex:1;min-width:0;background:#fff;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:6px}.cm-class-option{display:flex;align-items:center;gap:9px;width:100%;padding:12px;border:1px solid #d0d5dd;background:#fff;text-align:left;cursor:pointer;color:#202939;font:inherit}.cm-class-option.selected{background:#dbeafe;border-color:#60a5fa}.cm-class-option-color{width:10px;height:10px;border-radius:2px;flex:none}.cm-actions{width:168px;flex:none;padding:10px;background:#e8ecf3;border-left:1px solid #aab2c0;display:flex;flex-direction:column;gap:7px}
 .cm-btn{border:1px solid #9ba4b2;background:#f8fafc;padding:8px 10px;text-align:left;cursor:pointer;color:#202939;font-size:12px}
 .cm-btn.primary{background:#2563eb;border-color:#1d4ed8;color:#fff}.cm-btn:disabled{opacity:.45;cursor:not-allowed}
 .cm-footer{display:flex;gap:8px;align-items:center;padding:9px 12px;border-top:1px solid #aab2c0;background:#e8ecf3}.cm-spacer{flex:1}
@@ -35,7 +36,7 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
   classes: string[]; lessons: Lesson[]; days: string[]; periods: Period[]; teachers: string[]; subjects: string[]; classrooms: string[]; details: Record<string, ClassDetail>
   onClose: () => void; onSave: (classes: string[], lessons: Lesson[], details: Record<string, ClassDetail>) => void
 }) {
-  const [selected, setSelected] = useState(classes[0] || '')
+  const [selected, setSelected] = useState(classes.find(name => !hiddenFormRows.has(name)) || classes[0] || '')
   const [dialog, setDialog] = useState<'class'|'lessons'|'timeoff'|null>(null)
   const [showClassLessons, setShowClassLessons] = useState(false)
   const [editingName, setEditingName] = useState<string|null>(null)
@@ -117,8 +118,8 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
     <header className="cm-title"><span id="cm-title">Classes</span><button onClick={onClose} aria-label="Close classes">×</button></header>
     <div className="cm-main">
       <div className="cm-table-wrap"><table className="cm-table"><thead><tr><th>Name</th><th>Short</th><th>Count</th><th>Class teacher</th><th>Time off</th></tr></thead><tbody>
-      {classes.map(name=><tr key={name} className={selected===name?'selected':''} onClick={()=>{setSelected(name);setError('')}} onDoubleClick={()=>{setSelected(name);setDialog(null);setShowClassLessons(true);setError('')}}><td><span style={{ background: (details[name] && details[name].color) || '#b8e6d0', display: 'inline-block', width: 10, height: 10, borderRadius: 2, marginRight: 7 }}/>{name}</td><td>{(details[name] as (ClassDetail & {short?:string})|undefined)?.short || name}</td><td>{details[name]?.count ?? ''}</td><td>{details[name]?.classTeacher || '—'}</td><td><div className="cm-mini">{Array.from({length:Math.min(40,days.length*periods.length)},(_,i)=>{const v=details[name]?.timeOffGrid?.[Math.floor(i/Math.max(1,periods.length))]?.[i%Math.max(1,periods.length)]||0;return <i key={i} style={{background:v===2?'#ef4444':v===1?'#38bdf8':'#22c55e'}}/>})}</div></td></tr>)}
-      {classes.length===0 && <tr><td colSpan={5}>No classes are configured. Use New to add the first class.</td></tr>}
+      {classes.filter(name=>!hiddenFormRows.has(name)).map(name=><tr key={name} className={selected===name?'selected':''} onClick={()=>{setSelected(name);setError('')}} onDoubleClick={()=>{setSelected(name);setDialog(null);setShowClassLessons(true);setError('')}}><td><span style={{background:(details[name]&&details[name].color)||'#b8e6d0',display:'inline-block',width:10,height:10,borderRadius:2,marginRight:7}}/>{name}</td><td>{(details[name] as (ClassDetail & {short?:string})|undefined)?.short || name}</td><td>{details[name]?.count ?? ''}</td><td>{details[name]?.classTeacher || '—'}</td><td><div className="cm-mini">{Array.from({length:Math.min(40,days.length*periods.length)},(_,i)=>{const v=details[name]?.timeOffGrid?.[Math.floor(i/Math.max(1,periods.length))]?.[i%Math.max(1,periods.length)]||0;return <i key={i} style={{background:v===2?'#ef4444':v===1?'#38bdf8':'#22c55e'}}/>})}</div></td></tr>)}
+      {classes.filter(name=>!hiddenFormRows.has(name)).length===0 && <tr><td colSpan={5}>No other saved grades to display.</td></tr>}
       </tbody></table></div>
       <aside className="cm-actions"><button className="cm-btn primary" onClick={()=>openClass()}>＋ New</button><button className="cm-btn" disabled={!selected} onClick={()=>openClass(selected)}>Edit</button><button className="cm-btn" disabled={!selected} onClick={removeClass}>Remove</button><div style={{height:8}}/><button className="cm-btn" disabled={!selected} onClick={openLessons}>Lessons</button><button className="cm-btn" disabled={!selected} onClick={openTimeOff}>Time off</button><button className="cm-btn" disabled={!selected} onClick={()=>setError('Class constraints are represented by the time-off grid; additional constraint rules are not yet available.')}>Constraints</button><div className="cm-spacer"/><button className="cm-btn" onClick={()=>setSelected(classes[Math.max(0,classes.indexOf(selected)-1)]||'')} disabled={!classes.length}>↑ Previous</button><button className="cm-btn" onClick={()=>setSelected(classes[Math.min(classes.length-1,classes.indexOf(selected)+1)]||'')} disabled={!classes.length}>↓ Next</button></aside>
     </div>
@@ -145,7 +146,7 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
       onClose={() => setShowClassLessons(false)}
       onNew={() => { setShowClassLessons(false); setLessonDraft(emptyLesson); setLessonEditId(null);  setDialog('lessons') }}
       onEdit={(id: string) => { const item = selectedLessons.find(lesson => lesson.id === id); if (!item) return; setShowClassLessons(false); setLessonDraft({subject:item.subject,teacher:item.teacher,count:1,length:'Single',room:item.room}); setLessonEditId(item.id); setError(''); setDialog('lessons') }}
-      onRemove={(id: string) => { const target = lessons.find(item => item.id === id); if (!target) return; if (!window.confirm('Remove this ' + target.subject + ' lesson from ' + selected + '?')) return; onSave(classes, lessons.filter(item => item.id !== id), details);  setError('') }}
+      onRemove={(id: string) => { const target = lessons.find(item => item.id === id); if (!target) return; if (!window.confirm('Remove this '+target.subject+' lesson from '+selected+'?')) return; onSave(classes, lessons.filter(item => item.id !== id), details);  setError('') }}
       onCopyTo={(id: string) => {
         const target = lessons.find(item => item.id === id);
         if (!target) return;
