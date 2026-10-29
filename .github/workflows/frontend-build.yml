@@ -30,5 +30,9 @@ jobs:
         run: npm ci --include=dev
       - name: Check shared class lessons regression guards
         run: node scripts/check-shared-class-lessons.mjs
+      - name: Report dependency audit findings
+        run: |
+          npm audit --json > /tmp/npm-audit.json || true
+          node --input-type=module -e 'import fs from "node:fs"; const a=JSON.parse(fs.readFileSync("/tmp/npm-audit.json","utf8")); console.log(JSON.stringify({metadata:a.metadata?.vulnerabilities, vulnerabilities:Object.entries(a.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable,via:v.via.map(x=>typeof x === "string" ? x : {title:x.title,url:x.url,range:x.range})}))},null,2))'
       - name: Type-check and build frontend
         run: npm run build
