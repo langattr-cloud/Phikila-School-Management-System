@@ -357,8 +357,12 @@
 .phikila-print-table thead th{height:47px;background:#edf1f6;color:#243449;font-weight:700}
 .phikila-print-table thead th span{display:block}
 .phikila-print-table th small,.phikila-print-table td small{display:block;margin-top:4px;font-size:9px;font-weight:400;color:#5e6877}
-.phikila-print-table .phikila-print-day-heading{width:72px}
-.phikila-print-table .phikila-print-day{width:72px;background:#f4f6f8;font-weight:700}
+.phikila-print-table .phikila-print-day-heading{width:7%}
+.phikila-print-table .phikila-print-day{width:7%;background:#f4f6f8;font-weight:700}
+.phikila-print-table thead th.is-break,.phikila-print-table tbody td.is-break{width:4.2%;min-width:34px;padding:3px 1px}
+.phikila-print-table thead th:not(.is-break):not(.phikila-print-day-heading){width:7.1%}
+.phikila-print-table thead th.is-break span{font-size:8px;line-height:1.1;overflow-wrap:anywhere}
+.phikila-print-table tbody td.is-break{background:#f0f0f0}
 .phikila-print-table .phikila-print-day small{font-size:9px}
 .phikila-print-table th.is-break,.phikila-print-table td.is-break{background:#e3e5e8;color:#626b76}
 .phikila-print-table .phikila-print-break-label{display:block;writing-mode:vertical-rl;transform:rotate(180deg);margin:auto;max-height:110px;font-size:9px;letter-spacing:.04em;text-transform:uppercase}
