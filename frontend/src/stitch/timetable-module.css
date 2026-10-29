@@ -326,3 +326,68 @@
 .phikila-tt-contract-center{text-align:center}
 .phikila-tt-contract-footer{background:#e8e8e8;min-height:48px}
 .phikila-tt-contract-footer button{min-width:80px;min-height:28px;font-size:11px}
+
+
+/* Print preview designed as a one-entity-per-page timetable report. */
+.phikila-print-preview-backdrop{z-index:12000;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(24,31,42,.58)}
+.phikila-print-preview{display:flex;flex-direction:column;width:min(1500px,98vw);height:min(94vh,1000px);min-height:0;overflow:hidden;background:#e7e9ed;border:1px solid #7f8792;box-shadow:0 16px 50px #0005;font:12px Arial,Helvetica,sans-serif;color:#1c2735}
+.phikila-print-menu{display:flex;align-items:center;gap:0;min-height:34px;padding:0 10px;background:#f7f8fa;border-bottom:1px solid #c5cbd3}
+.phikila-print-menu button{height:32px;padding:0 11px;border:0;background:transparent;color:#303946;font:inherit;cursor:pointer}
+.phikila-print-menu button:hover{background:#e4eaf3}
+.phikila-print-menu strong{margin-left:auto;padding:0 8px;color:#273e60}
+.phikila-print-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:8px;background:#eef0f3;border-bottom:1px solid #c5cbd3}
+.phikila-print-toolbar button,.phikila-print-status button{min-height:29px;padding:4px 9px;border:1px solid #aab2bd;border-radius:2px;background:#fff;color:#283342;font:inherit;cursor:pointer}
+.phikila-print-toolbar button:disabled{opacity:.45;cursor:default}
+.phikila-print-toolbar .phikila-print-primary{background:#245a9c;border-color:#17457d;color:#fff;font-weight:700}
+.phikila-print-select-label{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.phikila-print-select-label select{max-width:210px;min-height:29px;padding:4px;border:1px solid #aab2bd;background:white;color:#263244;font:inherit}
+.phikila-print-page-count{padding:0 6px;white-space:nowrap;font-weight:700}
+.phikila-print-sheet-wrap{flex:1;min-height:0;overflow:auto;padding:22px;background:#d9dce1}
+.phikila-print-sheet{width:100%;max-width:1200px;min-height:680px;margin:0 auto;padding:28px 30px 18px;background:#fff;box-shadow:0 2px 9px #0002;display:flex;flex-direction:column}
+.phikila-print-sheet.is-compact{padding:18px 20px 12px}
+.phikila-print-sheet-heading{text-align:center;padding:0 0 15px}
+.phikila-print-school{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#4b5563}
+.phikila-print-year{margin-top:4px;color:#626d7a;font-size:11px}
+.phikila-print-sheet-heading h1{margin:10px 0 4px;font-size:30px;line-height:1.15;font-weight:700;color:#172b4d}
+.phikila-print-sheet-heading p{margin:5px 0;color:#424d5c;font-size:12px}
+.phikila-print-sheet-heading h2{margin:12px 0 0;font-size:15px;font-weight:700;color:#334155}
+.phikila-print-table-wrap{flex:1;overflow:visible}
+.phikila-print-table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}
+.phikila-print-table th,.phikila-print-table td{border:1px solid #aab3bf;padding:5px 4px;text-align:center;vertical-align:middle;overflow-wrap:anywhere}
+.phikila-print-table thead th{height:47px;background:#edf1f6;color:#243449;font-weight:700}
+.phikila-print-table thead th span{display:block}
+.phikila-print-table th small,.phikila-print-table td small{display:block;margin-top:4px;font-size:9px;font-weight:400;color:#5e6877}
+.phikila-print-table .phikila-print-day-heading{width:72px}
+.phikila-print-table .phikila-print-day{width:72px;background:#f4f6f8;font-weight:700}
+.phikila-print-table .phikila-print-day small{font-size:9px}
+.phikila-print-table th.is-break,.phikila-print-table td.is-break{background:#e3e5e8;color:#626b76}
+.phikila-print-table .phikila-print-break-label{display:block;writing-mode:vertical-rl;transform:rotate(180deg);margin:auto;max-height:110px;font-size:9px;letter-spacing:.04em;text-transform:uppercase}
+.phikila-print-lesson{display:flex;flex-direction:column;gap:3px;margin:2px 0;padding:5px 2px;border-radius:2px;background:#f0f4fa;break-inside:avoid}
+.phikila-print-lesson strong{font-size:12px;color:#1d3558}
+.phikila-print-lesson span{font-size:10px;color:#39485c}
+.phikila-print-lesson small{font-size:9px}
+.phikila-print-sheet.is-compact .phikila-print-table th,.phikila-print-sheet.is-compact .phikila-print-table td{padding:2px}
+.phikila-print-sheet.is-compact .phikila-print-lesson{gap:1px;padding:2px 1px}
+.phikila-print-sheet.is-compact .phikila-print-lesson strong{font-size:10px}
+.phikila-print-sheet-footer{display:flex;justify-content:space-between;gap:12px;margin-top:14px;padding-top:7px;border-top:1px solid #cbd1d9;color:#67717e;font-size:9px}
+.phikila-print-empty{margin:auto;padding:40px;text-align:center;color:#596579}
+.phikila-print-status{display:flex;align-items:center;gap:20px;min-height:34px;padding:3px 9px;background:#f2f3f5;border-top:1px solid #c2c8d1;color:#4b5563;font-size:11px}
+.phikila-print-status-spacer{flex:1}
+@media(max-width:760px){.phikila-print-preview-backdrop{padding:0}.phikila-print-preview{width:100vw;height:100dvh}.phikila-print-sheet-wrap{padding:8px}.phikila-print-sheet{min-width:760px;padding:16px}.phikila-print-toolbar{gap:4px}.phikila-print-select-label select{max-width:155px}}
+@media print{
+  @page{size:landscape;margin:9mm}
+  body:has(.phikila-print-preview){background:#fff!important}
+  body:has(.phikila-print-preview) *{visibility:hidden!important}
+  .phikila-print-preview-backdrop,.phikila-print-preview-backdrop *{visibility:visible!important}
+  .phikila-print-preview-backdrop{display:block!important;position:static!important;width:auto!important;height:auto!important;padding:0!important;margin:0!important;background:#fff!important;overflow:visible!important}
+  .phikila-print-preview{display:block!important;width:auto!important;height:auto!important;min-height:0!important;overflow:visible!important;border:0!important;box-shadow:none!important;background:#fff!important}
+  .phikila-print-menu,.phikila-print-toolbar,.phikila-print-status{display:none!important}
+  .phikila-print-sheet-wrap{display:block!important;overflow:visible!important;padding:0!important;background:#fff!important}
+  .phikila-print-sheet{display:flex!important;width:100%!important;max-width:none!important;min-height:0!important;height:180mm!important;margin:0!important;padding:0!important;box-shadow:none!important;break-after:page;page-break-after:always}
+  .phikila-print-sheet:last-child{break-after:auto;page-break-after:auto}
+  .phikila-print-sheet-heading h1{font-size:24px}
+  .phikila-print-table{font-size:9px}
+  .phikila-print-table th,.phikila-print-table td{padding:3px 2px}
+  .phikila-print-lesson{background:#f0f2f5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .phikila-print-table th.is-break,.phikila-print-table td.is-break{background:#e3e5e8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
