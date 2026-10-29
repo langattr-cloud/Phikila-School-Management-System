@@ -8,6 +8,12 @@ assert.match(workspace, /onDoubleClick=\{\(\)=>\{setSelected\(name\);setDialog\(
   'Double-clicking any class should open the shared lessons window.');
 assert.match(workspace, /lessons=\{selectedLessons\.map\(item => \(\{/,
   'The shared window must display lessons from the selected class in the saved workspace.');
+assert.doesNotMatch(workspace, /Existing timetable lessons are shown below|Day \/ period/,
+  'The class lesson editor must not reintroduce the removed existing-lessons table.');
+assert.doesNotMatch(workspace, /selectedLessonId|setSelectedLessonId|editLesson/,
+  'Removing the existing-lessons table must not leave stale selection or edit references that break the build.');
+assert.match(workspace, /form onSubmit=\{saveLesson\}/,
+  'The new lesson form must remain available after the existing-lessons table is removed.');
 assert.match(workspace, /onSave\(classes, lessons\.filter\(item => item\.id !== id\), details\)/,
   'Removing a lesson must update the shared timetable workspace.');
 assert.match(workspace, /onSave\(classes, \[\.\.\.lessons, \{ \.\.\.target, id: makeClassLessonId\(\), className: targetClass, locked: false \}\], details\)/,
