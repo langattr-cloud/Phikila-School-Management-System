@@ -14,7 +14,7 @@ type Props = {
 }
 type Report = 'Classes' | 'Teachers' | 'Classrooms'
 type TimetableStructureProps = {
-  title: string; name: string; timetableData: TimetableData; days: string[]; periods: Period[]
+  title: string; name: string; classTeacher: string; timetableData: TimetableData; days: string[]; periods: Period[]
   lessonsByCell: Record<string, Lesson[]>; report: Report; pageInfo: string; nextName: string
   schoolName: string; academicYear: string; compact: boolean; onePageView: boolean
   teacherLabel: (teacher: string) => string
@@ -28,14 +28,14 @@ const dayKey = (day: string) => {
   return aliases[value] || value.slice(0, 3)
 }
 
-export function TimetableStructure({ title, name, timetableData, days, periods, lessonsByCell, report, pageInfo, nextName, schoolName, academicYear, compact, onePageView, teacherLabel }: TimetableStructureProps) {
+export function TimetableStructure({ title, name, classTeacher, timetableData, days, periods, lessonsByCell, report, pageInfo, nextName, schoolName, academicYear, compact, onePageView, teacherLabel }: TimetableStructureProps) {
   const generated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
   return <article className={'phikila-print-sheet' + (compact ? ' is-compact' : '') + (report === 'Classes' ? ' is-class-report' : '') + (report === 'Teachers' ? ' is-teacher-report' : '') + (onePageView && report === 'Teachers' ? ' is-one-page-view' : '')}>
     <div className="phikila-print-sheet-heading">
-      <div className="phikila-print-school">{title}</div>
+      <div className="phikila-print-school">{report === 'Teachers' ? 'Teacher ' + name : title}</div>
       {report !== 'Teachers' && <div className="phikila-print-year">Academic year {academicYear}</div>}
-      <h1>{name}</h1>
-      {report === 'Classes' && <p className="phikila-print-class-teacher">Class teacher: <strong>{name || 'Not assigned'}</strong></p>}
+      {report !== 'Teachers' && <h1>{name}</h1>}
+      {report === 'Classes' && <p className="phikila-print-class-teacher">Class teacher: <strong>{classTeacher || 'Not assigned'}</strong></p>}
       {report === 'Classrooms' && <><p>Classroom timetable</p><h2>{titleFor(report)}</h2></>}
     </div>
     <div className="phikila-print-table-wrap">
@@ -120,7 +120,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
         <button type="button" onClick={props.onClose}>Close preview</button>
       </div>
       <div className="phikila-print-sheet-wrap">
-        {current ? <TimetableStructure title={title} name={name} timetableData={timetableData} days={props.days} periods={props.periods} lessonsByCell={lessonsByCell} report={report} pageInfo={pageInfo} nextName={nextName} schoolName={props.schoolName} academicYear={props.academicYear} compact={compact} onePageView={onePageView} teacherLabel={teacherLabel} /> : <div className="phikila-print-empty">No {report.toLowerCase()} available to preview.</div>}
+        {current ? <TimetableStructure title={title} name={name} classTeacher={classTeacher} timetableData={timetableData} days={props.days} periods={props.periods} lessonsByCell={lessonsByCell} report={report} pageInfo={pageInfo} nextName={nextName} schoolName={props.schoolName} academicYear={props.academicYear} compact={compact} onePageView={onePageView} teacherLabel={teacherLabel} /> : <div className="phikila-print-empty">No {report.toLowerCase()} available to preview.</div>}
       </div>
       <footer className="phikila-print-status"><span>Ready</span><span>{pageInfo}</span><span>Next: {nextName || '—'}</span><span className="phikila-print-status-spacer" /><button type="button" onClick={props.onClose}>Close</button></footer>
     </section>
