@@ -69,9 +69,9 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
                 const cellLessons = getLessons(day, periodIndex)
                 const blocked = isBreak(period)
                 return <td key={period.name + periodIndex} className={blocked ? 'is-break' : ''}>{blocked ? null : cellLessons.map(lesson => <div className="phikila-print-lesson" key={lesson.id}>
-                  <strong>{subjectLabel(lesson.subject)}</strong>
+                  <strong>{report === 'Teachers' ? `${subjectLabel(lesson.subject)} ${lesson.className}` : subjectLabel(lesson.subject)}</strong>
                   {report !== 'Teachers' && <span>{teacherLabel(lesson.teacher)}</span>}
-                  {report !== 'Classes' && <small>{lesson.className}</small>}
+                  {report === 'Classrooms' && <small>{lesson.className}</small>}
                   {report !== 'Classrooms' && lesson.room && <small>{lesson.room}</small>}
                 </div>)}</td>
               })}</tr>)}</tbody>
