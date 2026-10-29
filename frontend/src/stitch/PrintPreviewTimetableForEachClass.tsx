@@ -31,7 +31,7 @@ export function TimetableStructure({ title, name, timetableData, days, periods, 
       <div className="phikila-print-school">{title}</div>
       {report !== 'Teachers' && <div className="phikila-print-year">Academic year {academicYear}</div>}
       <h1>{name}</h1>
-      {report === 'Classes' && <p>{name.startsWith('Class teacher:') ? '' : 'Class teacher: '}<strong>{name.startsWith('Class teacher:') ? '' : (name || 'Not assigned')}</strong></p>}
+      {report === 'Classes' && !name.startsWith('Class teacher:') && <p>Class teacher: <strong>{name || 'Not assigned'}</strong></p>}
       {report === 'Classrooms' && <><p>Classroom timetable</p><h2>{titleFor(report)}</h2></>}
     </div>
     <div className="phikila-print-table-wrap">
