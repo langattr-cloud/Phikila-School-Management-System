@@ -427,53 +427,57 @@ export default function TimetableModule() {
     }} />}
 
     {!(settingsOpen && setupTab === 'subjects') && (whose === 'All' ? <section className="phikila-tt-grid-panel">
-      <div className="phikila-tt-panel-heading">
-        <div><h2>Whole school timetable</h2><p>Live view of saved timetable lessons across all configured classes, days, and periods. Select a lesson for details; double-click to edit.</p></div>
-        <div className="phikila-tt-grid-legend"><span>{classes.length} classes</span><span>{data.days.length} days</span><span>{data.periods.filter(period => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name)).length} teaching periods/day</span><span>{data.lessons.length} saved lessons</span></div>
-      </div>
-      <div style={{overflow:'auto',maxWidth:'100%',maxHeight:'min(68vh, 900px)',background:'#fff',border:'1px solid #b8bec7'}}>
-        <table style={{borderCollapse:'separate',borderSpacing:0,whiteSpace:'nowrap',fontSize:11,minWidth:'100%',width:'max-content'}}>
-          <thead>
-            <tr>
-              <th rowSpan={2} style={{position:'sticky',left:0,top:0,zIndex:5,minWidth:96,padding:'7px 10px',background:'#e1e5eb',border:'1px solid #b8bec7',textAlign:'left'}}>Class</th>
-              {data.days.map(day=><th key={day} colSpan={data.periods.length} style={{position:'sticky',top:0,zIndex:4,padding:'7px 5px',background:'#e7e9fa',border:'1px solid #b8bec7',textAlign:'center'}}>{data.dayDetails?.[day]?.short || day}</th>)}
-            </tr>
-            <tr>
-              {data.days.flatMap(day=>data.periods.map((period,index)=><th key={day+'-'+period.name+'-'+index} title={period.start+'–'+period.end} style={{position:'sticky',top:31,zIndex:3,minWidth:48,maxWidth:76,padding:'5px 3px',background:period.type==='break'||/break|lunch|recess|games/i.test(period.name)?'#dedede':'#f2f3f6',border:'1px solid #c4c8ce',fontWeight:500,textAlign:'center'}}>{period.short || period.name || index+1}<div style={{fontSize:9,color:'#626976'}}>{period.start}</div></th>))}
-            </tr>
-          </thead>
-          <tbody>
-            {classes.map(className=><tr key={className}>
-              <th title={data.classDetails?.[className]?.classTeacher ? 'Class teacher: '+(data.classDetails?.[className]?.classTeacher || '') : className} style={{position:'sticky',left:0,zIndex:2,minWidth:96,padding:'7px 10px',background:data.classDetails?.[className]?.color || '#e7e9ed',border:'1px solid #c4c8ce',textAlign:'left',fontWeight:700}}>{data.classDetails?.[className]?.short || className}</th>
-              {data.days.flatMap(day=>data.periods.map((period,periodIndex)=>{
-                const isBreak=period.type==='break'||/break|lunch|recess|games/i.test(period.name);
-                const slotLessons=data.lessons.filter(lesson=>lesson.className===className&&lesson.day===day&&lesson.period===periodIndex);
-                return <td key={className+'-'+day+'-'+periodIndex} style={{minWidth:48,width:76,height:48,verticalAlign:'top',padding:2,background:isBreak?'#e8e8e8':'#fafafa',border:'1px solid #d0d3d8'}}>
-                  {slotLessons.map(lesson=>{
-                    const subjectColor=data.subjectDetails?.[lesson.subject]?.color || getSubjectColor(lesson.subject);
-                    const isSelected=selectedWholeLesson?.id===lesson.id;
-                    return <button key={lesson.id} type="button" title={[lesson.subject,lesson.teacher,lesson.className,lesson.room].filter(Boolean).join(' · ')} onClick={()=>setSelectedWholeLesson(lesson)} onDoubleClick={()=>openEditor(day,periodIndex,lesson)} style={{display:'flex',flexDirection:'column',gap:2,width:'100%',height:'100%',minHeight:42,boxSizing:'border-box',padding:'4px 3px',border:isSelected?'2px solid #111':'1px solid '+subjectColor,borderRadius:2,background:subjectColor,color:'#17202a',textAlign:'center',cursor:'pointer',whiteSpace:'normal',overflowWrap:'anywhere'}}>
-                      <strong style={{fontSize:10,lineHeight:1.15}}>{data.subjectDetails?.[lesson.subject]?.short || lesson.subject}</strong>
-                      <span style={{fontSize:9,lineHeight:1.15}}>{lesson.teacher}</span>
-                      {lesson.room&&<span style={{fontSize:9,lineHeight:1.1,color:'#343b45'}}>{lesson.room}</span>}
-                    </button>
-                  })}
-                  {!isBreak&&slotLessons.length===0&&<button type="button" aria-label={'Add lesson for '+className+', '+day+', '+period.name} title="Add lesson" onClick={()=>{openEditor(day,periodIndex);setForm(current=>({...current,className}))}} style={{width:'100%',height:'100%',minHeight:42,border:'1px dashed #d5d9df',background:'transparent',color:'#b0b5bd',cursor:'pointer',fontSize:12}}>+</button>}
-                  {isBreak&&<span style={{display:'block',paddingTop:12,textAlign:'center',fontSize:9,color:'#737780'}}>{period.name}</span>}
-                </td>
-              }))}
-            </tr>)}
-          </tbody>
-        </table>
-      </div>
-      <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',justifyContent:'space-between',padding:'10px 12px',marginTop:8,border:'1px solid #c5ccd6',background:'#e9edf4',fontSize:12}}>
-        {selectedWholeLesson ? <div style={{display:'flex',alignItems:'center',gap:10,minWidth:220,flex:'1 1 360px'}}>
-          <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:44,height:44,background:data.subjectDetails?.[selectedWholeLesson.subject]?.color||getSubjectColor(selectedWholeLesson.subject),border:'1px solid #9ca3af',fontWeight:700,fontSize:11}}>{data.subjectDetails?.[selectedWholeLesson.subject]?.short||selectedWholeLesson.subject.slice(0,3).toUpperCase()}</span>
-          <div><strong>{selectedWholeLesson.subject}</strong><div>{selectedWholeLesson.className} · {selectedWholeLesson.day} · {data.periods[selectedWholeLesson.period]?.name||'Period '+(selectedWholeLesson.period+1)}</div><div>{selectedWholeLesson.teacher}{selectedWholeLesson.room?' · '+selectedWholeLesson.room:''}</div></div>
-          <button type="button" className="phikila-tt-button" onClick={()=>openEditor(selectedWholeLesson.day,selectedWholeLesson.period,selectedWholeLesson)}>Edit lesson</button>
-        </div> : <span style={{color:'#586170'}}>Select any saved lesson to see its subject, class, teacher, period, and classroom.</span>}
-        <span style={{color:'#424b57'}}>Schedule coverage: {classes.length&&data.days.length&&data.periods.length?Math.round((data.lessons.length/Math.max(1,classes.length*data.days.length*data.periods.filter(period=>period.type!=='break'&&!/break|lunch|recess|games/i.test(period.name)).length))*100):0}% of configured teaching slots</span>
-      </div>
+      {(() => {
+        const teachingPeriods = data.periods.map((period, originalIndex) => ({period, originalIndex})).filter(({period}) => period.type !== 'break' && !/break|lunch|recess|games/i.test(period.name));
+        const displayClass = (name: string) => name.replace(/^(grade|class)\s+/i, '').trim();
+        return <>
+          <div className="phikila-tt-panel-heading" style={{padding:'6px 8px',gap:8}}>
+            <div><h2 style={{margin:0,fontSize:15}}>Whole school timetable</h2></div>
+            <div className="phikila-tt-grid-legend" style={{gap:8,fontSize:11}}><span>{classes.length} classes</span><span>{data.days.length} days</span><span>{teachingPeriods.length} periods/day</span><span>{data.lessons.length} lessons</span></div>
+          </div>
+          <div style={{overflow:'auto',maxWidth:'100%',maxHeight:'min(72vh, 960px)',background:'#fff',border:'1px solid #b8bec7'}}>
+            <table style={{borderCollapse:'collapse',whiteSpace:'nowrap',fontSize:10,tableLayout:'fixed',width:'100%',minWidth:Math.max(640,112+data.days.length*teachingPeriods.length*42)}}>
+              <thead>
+                <tr>
+                  <th rowSpan={2} style={{position:'sticky',left:0,top:0,zIndex:5,width:68,minWidth:68,maxWidth:68,padding:'4px 6px',background:'#e1e5eb',border:'1px solid #b8bec7',textAlign:'left'}}></th>
+                  {data.days.map(day=><th key={day} colSpan={teachingPeriods.length} style={{position:'sticky',top:0,zIndex:4,padding:'4px 2px',background:'#e7e9fa',border:'1px solid #b8bec7',textAlign:'center',fontSize:11}}>{data.dayDetails?.[day]?.short || day}</th>)}
+                </tr>
+                <tr>
+                  {data.days.flatMap(day=>teachingPeriods.map(({period},index)=><th key={day+'-'+period.name+'-'+index} title={period.start+'–'+period.end} style={{position:'sticky',top:25,zIndex:3,width:42,minWidth:42,padding:'3px 1px',background:'#f2f3f6',border:'1px solid #c4c8ce',fontWeight:600,textAlign:'center'}}>{index+1}<div style={{fontSize:8,fontWeight:400,color:'#626976'}}>{period.start}</div></th>))}
+                </tr>
+              </thead>
+              <tbody>
+                {classes.map(className=><tr key={className}>
+                  <th title={data.classDetails?.[className]?.classTeacher ? 'Class teacher: '+data.classDetails[className].classTeacher : className} style={{position:'sticky',left:0,zIndex:2,width:68,minWidth:68,maxWidth:68,padding:'4px 6px',background:data.classDetails?.[className]?.color || '#e7e9ed',border:'1px solid #c4c8ce',textAlign:'left',fontWeight:700,fontSize:10}}>{data.classDetails?.[className]?.short || displayClass(className)}</th>
+                  {data.days.flatMap(day=>teachingPeriods.map(({period,originalIndex},index)=>{
+                    const slotLessons=data.lessons.filter(lesson=>lesson.className===className&&lesson.day===day&&lesson.period===originalIndex);
+                    return <td key={className+'-'+day+'-'+originalIndex} style={{width:42,minWidth:42,height:42,verticalAlign:'top',padding:1,background:'#fafafa',border:'1px solid #d0d3d8'}}>
+                      {slotLessons.map(lesson=>{
+                        const subjectColor=data.subjectDetails?.[lesson.subject]?.color || getSubjectColor(lesson.subject);
+                        const isSelected=selectedWholeLesson?.id===lesson.id;
+                        return <button key={lesson.id} type="button" title={[lesson.subject,lesson.teacher,lesson.className,lesson.room].filter(Boolean).join(' · ')} onClick={()=>setSelectedWholeLesson(lesson)} onDoubleClick={()=>openEditor(day,originalIndex,lesson)} style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:1,width:'100%',height:'100%',minHeight:39,boxSizing:'border-box',padding:'2px 1px',border:isSelected?'2px solid #111':'1px solid '+subjectColor,borderRadius:1,background:subjectColor,color:'#17202a',textAlign:'center',cursor:'pointer',whiteSpace:'normal',overflowWrap:'anywhere'}}>
+                          <strong style={{fontSize:9,lineHeight:1.1}}>{data.subjectDetails?.[lesson.subject]?.short || lesson.subject}</strong>
+                          <span style={{fontSize:8,lineHeight:1.1}}>{lesson.teacher}</span>
+                          {lesson.room&&<span style={{fontSize:8,lineHeight:1.05}}>{lesson.room}</span>}
+                        </button>
+                      })}
+                      {slotLessons.length===0&&<button type="button" aria-label={'Add lesson for '+displayClass(className)+', '+day+', '+(index+1)} title="Add lesson" onClick={()=>{openEditor(day,originalIndex);setForm(current=>({...current,className}))}} style={{width:'100%',height:'100%',minHeight:39,border:'1px dashed #e0e3e8',background:'transparent',color:'#b0b5bd',cursor:'pointer',fontSize:12,padding:0}}>+</button>}
+                    </td>
+                  }))}
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8,alignItems:'center',justifyContent:'space-between',padding:'6px 8px',marginTop:6,border:'1px solid #c5ccd6',background:'#e9edf4',fontSize:11}}>
+            {selectedWholeLesson ? <div style={{display:'flex',alignItems:'center',gap:8,minWidth:200,flex:'1 1 320px'}}>
+              <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:36,height:36,flexShrink:0,background:data.subjectDetails?.[selectedWholeLesson.subject]?.color||getSubjectColor(selectedWholeLesson.subject),border:'1px solid #9ca3af',fontWeight:700,fontSize:10}}>{data.subjectDetails?.[selectedWholeLesson.subject]?.short||selectedWholeLesson.subject.slice(0,3).toUpperCase()}</span>
+              <div><strong>{selectedWholeLesson.subject}</strong><div>{displayClass(selectedWholeLesson.className)} · {selectedWholeLesson.day} · {teachingPeriods.findIndex(item=>item.originalIndex===selectedWholeLesson.period)+1} ({data.periods[selectedWholeLesson.period]?.start||''}–{data.periods[selectedWholeLesson.period]?.end||''})</div><div>{selectedWholeLesson.teacher}{selectedWholeLesson.room?' · '+selectedWholeLesson.room:''}</div></div>
+              <button type="button" className="phikila-tt-button" onClick={()=>openEditor(selectedWholeLesson.day,selectedWholeLesson.period,selectedWholeLesson)}>Edit</button>
+            </div> : <span style={{color:'#586170'}}>Select a lesson for details.</span>}
+            <span style={{color:'#424b57'}}>Coverage: {classes.length&&data.days.length&&teachingPeriods.length?Math.round((data.lessons.length/Math.max(1,classes.length*data.days.length*teachingPeriods.length))*100):0}%</span>
+          </div>
+        </>;
+      })()}
     </section> : <section className="phikila-tt-grid-panel"><div className="phikila-tt-panel-heading"><div><h2>{whose === 'Classes' ? 'Class timetable' : whose === 'Teachers' ? 'Teacher timetable' : 'Classroom timetable'}</h2><p>Select a lesson to edit it, or choose an empty cell to add one.</p></div><div className="phikila-tt-grid-legend"><span><i className="legend-lesson" /> Lesson</span><span><i className="legend-locked" /> Locked ({data.lessons.filter(lesson => lesson.locked).length})</span><span className="phikila-tt-verification-indicator">Verification: {conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local conflicts'}</span></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid phikila-tt-grid-days-rows"><thead><tr><th className="period-col">Day</th>{data.periods.map((period, periodIndex) => <th key={period.name + periodIndex} className={(period.type === 'break' || /break|lunch|recess|games/i.test(period.name)) ? 'phikila-tt-break-heading' : ''}>{period.name}<small>{period.start}–{period.end}</small></th>)}</tr></thead><tbody>{data.days.map(day => <tr key={day}><th className="period-cell">{day}</th>{data.periods.map((period, periodIndex) => { const isBreak = period.type === 'break' || /break|lunch|recess|games/i.test(period.name); const lessons = visibleLessons.filter(lesson => lesson.day === day && lesson.period === periodIndex); return <td key={period.name + periodIndex} className={'phikila-tt-cell ' + (isBreak ? 'phikila-tt-break-cell' : '')}>{lessons.map(lesson => <button key={lesson.id} className={'phikila-tt-lesson ' + (lesson.locked ? 'is-locked' : '')} onClick={() => openEditor(day, periodIndex, lesson)}><span className="phikila-tt-lesson-class">{lesson.className}{lesson.locked ? ' · Locked' : ''}</span><strong>{lesson.subject}</strong><span>{lesson.teacher}</span>{lesson.room && <small>{lesson.room}</small>}</button>)}{!isBreak && <button className="phikila-tt-add-cell" onClick={() => openEditor(day, periodIndex)}>+ Add lesson</button>}{isBreak && <span className="phikila-tt-break-label">{period.name}</span>}</td> })}</tr>)}</tbody></table></div></section>)}
     {!(settingsOpen && setupTab === 'subjects') && <footer className="phikila-tt-footer"><span>{status}</span><span>{conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local same-slot conflicts detected'}</span><button className="phikila-tt-button phikila-tt-button-primary" disabled={loading || loadFailed} onClick={() => void save()}>Save workspace</button></footer>}
     {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period]?.name}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
