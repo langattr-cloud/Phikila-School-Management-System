@@ -111,7 +111,6 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
           subject:lessonDraft.subject,teacher:lessonDraft.teacher,room:lessonDraft.room,locked:false
         })
       }
-      const keptIds = new Set(kept.map(item=>item.id))
       const updated = [
         ...lessons.filter(item=>!groupIds.has(item.id)),
         ...kept,
