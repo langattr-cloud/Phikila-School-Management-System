@@ -145,7 +145,7 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
       onClose={() => setShowClassLessons(false)}
       onNew={() => { setShowClassLessons(false); setLessonDraft(emptyLesson); setLessonEditId(null);  setDialog('lessons') }}
       onEdit={(id: string) => { const item = selectedLessons.find(lesson => lesson.id === id); if (!item) return; setShowClassLessons(false); setLessonDraft({subject:item.subject,teacher:item.teacher,count:1,length:'Single',room:item.room}); setLessonEditId(item.id); setError(''); setDialog('lessons') }}
-      onRemove={(id: string) => { const target = lessons.find(item => item.id === id); if (!target) return; if (!window.confirm('Remove this ' + target.subject + ' lesson from ' + selected + '?')) return; onSave(classes, lessons.filter(item => item.id !== id), details);  setError('') }}
+      onRemove={(id: string) => { const target = lessons.find(item => item.id === id); if (!target) return; if (!window.confirm('Remove this '+target.subject+' lesson from '+selected+'?')) return; onSave(classes, lessons.filter(item => item.id !== id), details);  setError('') }}
       onCopyTo={(id: string) => {
         const target = lessons.find(item => item.id === id);
         if (!target) return;
