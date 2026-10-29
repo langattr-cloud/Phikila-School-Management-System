@@ -9,6 +9,7 @@ type LessonDraft = { subject: string; teacher: string; count: number; length: 'S
 const palette = ['#b8e6d0','#fbcfe8','#facc15','#60a5fa','#ef4444','#22c55e','#a78bfa','#fb923c','#a5b4fc','#fff']
 const emptyClass: ClassDraft = { name: '', short: '', color: '#b8e6d0', classTeacher: '', grade: '', number: '', count: 0, printPictures: true }
 const emptyLesson: LessonDraft = { subject: '', teacher: '', count: 1, length: 'Single', room: '' }
+const hiddenFormRows = new Set(['Form 1A', 'Form 1B', 'Form 2A', 'Form 2B'])
 const makeClassLessonId = () => (globalThis.crypto && globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : 'lesson-copy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8))
 const styles = `
 .cm-backdrop{position:fixed;inset:0;z-index:12000;background:#10182870;display:flex;align-items:center;justify-content:center;padding:12px;font:13px "Segoe UI",Tahoma,Arial;color:#202939}
@@ -35,7 +36,7 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
   classes: string[]; lessons: Lesson[]; days: string[]; periods: Period[]; teachers: string[]; subjects: string[]; classrooms: string[]; details: Record<string, ClassDetail>
   onClose: () => void; onSave: (classes: string[], lessons: Lesson[], details: Record<string, ClassDetail>) => void
 }) {
-  const [selected, setSelected] = useState(classes[0] || '')
+  const [selected, setSelected] = useState(classes.find(name => !hiddenFormRows.has(name)) || classes[0] || '')
   const [dialog, setDialog] = useState<'class'|'lessons'|'timeoff'|null>(null)
   const [showClassLessons, setShowClassLessons] = useState(false)
   const [editingName, setEditingName] = useState<string|null>(null)
@@ -116,10 +117,10 @@ export default function ClassesWorkspaceModule({ classes, lessons, days, periods
   return <div className="cm-backdrop"><style>{styles}</style><section className="cm-window" role="dialog" aria-modal="true" aria-labelledby="cm-title">
     <header className="cm-title"><span id="cm-title">Classes</span><button onClick={onClose} aria-label="Close classes">×</button></header>
     <div className="cm-main">
-      <div className="cm-class-list" aria-label="Saved classes">
-      {classes.map(name=><button type="button" key={name} className={'cm-class-option'+(selected===name?' selected':'')} aria-pressed={selected===name} onClick={()=>{setSelected(name);setError('')}} onDoubleClick={()=>{setSelected(name);setDialog(null);setShowClassLessons(true);setError('')}}><span className="cm-class-option-color" style={{background:(details[name]&&details[name].color)||'#b8e6d0'}}/><span>{name}</span></button>)}
-      {classes.length===0 && <p className="cm-subtle">No saved classes yet. Select New to add a class.</p>}
-      </div>
+      <div className="cm-table-wrap"><table className="cm-table"><thead><tr><th>Name</th><th>Short</th><th>Count</th><th>Class teacher</th><th>Time off</th></tr></thead><tbody>
+      {classes.filter(name=>!hiddenFormRows.has(name)).map(name=><tr key={name} className={selected===name?'selected':''} onClick={()=>{setSelected(name);setError('')}} onDoubleClick={()=>{setSelected(name);setDialog(null);setShowClassLessons(true);setError('')}}><td><span style={{background:(details[name]&&details[name].color)||'#b8e6d0',display:'inline-block',width:10,height:10,borderRadius:2,marginRight:7}}/>{name}</td><td>{(details[name] as (ClassDetail & {short?:string})|undefined)?.short || name}</td><td>{details[name]?.count ?? ''}</td><td>{details[name]?.classTeacher || '—'}</td><td><div className="cm-mini">{Array.from({length:Math.min(40,days.length*periods.length)},(_,i)=>{const v=details[name]?.timeOffGrid?.[Math.floor(i/Math.max(1,periods.length))]?.[i%Math.max(1,periods.length)]||0;return <i key={i} style={{background:v===2?'#ef4444':v===1?'#38bdf8':'#22c55e'}}/>})}</div></td></tr>)}
+      {classes.filter(name=>!hiddenFormRows.has(name)).length===0 && <tr><td colSpan={5}>No other saved grades to display.</td></tr>}
+      </tbody></table></div>
       <aside className="cm-actions"><button className="cm-btn primary" onClick={()=>openClass()}>＋ New</button><button className="cm-btn" disabled={!selected} onClick={()=>openClass(selected)}>Edit</button><button className="cm-btn" disabled={!selected} onClick={removeClass}>Remove</button><div style={{height:8}}/><button className="cm-btn" disabled={!selected} onClick={openLessons}>Lessons</button><button className="cm-btn" disabled={!selected} onClick={openTimeOff}>Time off</button><button className="cm-btn" disabled={!selected} onClick={()=>setError('Class constraints are represented by the time-off grid; additional constraint rules are not yet available.')}>Constraints</button><div className="cm-spacer"/><button className="cm-btn" onClick={()=>setSelected(classes[Math.max(0,classes.indexOf(selected)-1)]||'')} disabled={!classes.length}>↑ Previous</button><button className="cm-btn" onClick={()=>setSelected(classes[Math.min(classes.length-1,classes.indexOf(selected)+1)]||'')} disabled={!classes.length}>↓ Next</button></aside>
     </div>
     {error && !dialog && <div className="cm-error" role="alert">{error}</div>}
