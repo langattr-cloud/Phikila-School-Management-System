@@ -22,7 +22,11 @@ type TimetableStructureProps = {
 const isBreak = (period: Period) => period.type === 'break' || /break|lunch|recess|games/i.test(period.name)
 const displayName = (value: string, short?: string) => short?.trim() || value
 const titleFor = (report: Report) => report === 'Classes' ? 'Timetable for each class' : report === 'Teachers' ? 'Timetable for each teacher' : 'Timetable for each classroom'
-const dayKey = (day: string) => day.slice(0, 3).toUpperCase()
+const dayKey = (day: string) => {
+  const value = day.trim().toUpperCase()
+  const aliases: Record<string, string> = { MO: 'MON', MON: 'MON', MONDAY: 'MON', TU: 'TUE', TUE: 'TUE', TUESDAY: 'TUE', WE: 'WED', WED: 'WED', WEDNESDAY: 'WED', TH: 'THU', THU: 'THU', THURSDAY: 'THU', FR: 'FRI', FRI: 'FRI', FRIDAY: 'FRI' }
+  return aliases[value] || value.slice(0, 3)
+}
 
 export function TimetableStructure({ title, name, timetableData, days, periods, lessonsByCell, report, pageInfo, nextName, schoolName, academicYear, compact, onePageView, teacherLabel }: TimetableStructureProps) {
   const generated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -38,7 +42,7 @@ export function TimetableStructure({ title, name, timetableData, days, periods, 
       <table className="phikila-print-table">
         <thead><tr><th className="phikila-print-day-heading">Day</th>{periods.map((period, index) => <th key={period.name + index} className={isBreak(period) ? 'is-break' : ''}><span>{period.short || period.name}</span><small>{period.start}{period.end ? '–' + period.end : ''}</small></th>)}</tr></thead>
         <tbody>{days.map(day => <tr key={day}><th className="phikila-print-day">{dayKey(day)}</th>{periods.map((period, periodIndex) => {
-          const key = day + ':' + periodIndex
+          const key = dayKey(day) + ':' + periodIndex
           const cellLessons = lessonsByCell[key] || []
           const blocked = isBreak(period)
           const value = timetableData[day]?.[periodIndex] || timetableData[dayKey(day)]?.[periodIndex] || ''
@@ -72,18 +76,20 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
   const name = report === 'Classes' ? (classTeacher ? 'Class teacher: ' + classTeacher : current) : current
   const timetableData = useMemo(() => {
     const result: TimetableData = {}
-    for (const day of props.days) result[day] = {}
+    for (const day of props.days) result[dayKey(day)] = {}
     for (const lesson of lessonsForEntry) {
       const label = report === 'Teachers' ? subjectLabel(lesson.subject) + ' ' + classLabel(lesson.className) : subjectLabel(lesson.subject)
-      const existing = result[lesson.day]?.[lesson.period]
-      if (result[lesson.day]) result[lesson.day][lesson.period] = existing ? existing + ' / ' + label : label
+      const key = dayKey(lesson.day)
+      if (!result[key]) result[key] = {}
+      const existing = result[key][lesson.period]
+      result[key][lesson.period] = existing ? existing + ' / ' + label : label
     }
     return result
   }, [props.days, lessonsForEntry, report, props.subjectDetails])
   const lessonsByCell = useMemo(() => {
     const result: Record<string, Lesson[]> = {}
     for (const lesson of lessonsForEntry) {
-      const key = lesson.day + ':' + lesson.period
+      const key = dayKey(lesson.day) + ':' + lesson.period
       ;(result[key] ||= []).push(lesson)
     }
     return result
