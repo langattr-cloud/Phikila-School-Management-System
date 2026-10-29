@@ -253,7 +253,7 @@ export default function TimetableModule() {
       case 'Print preview': setPreviewOpen(true); break
       case 'Test': setAdvisorOpen(true); break
       case 'Verification': void runTest(); break
-      case 'Generate': { const result = generateSchedule(data); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved') } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save') } break }
+      case 'Generate': { void (async () => { const result = await generateSchedule(data, (percent, message) => setStatus('Generating timetable · ' + percent + '% · ' + message)); if (result.error) { setError(result.error); setStatus('Generation stopped · existing timetable preserved') } else { setData(current => ({ ...current, lessons: result.lessons })); setError(''); setStatus('Generated a conflict-free draft for ' + result.lessons.length + ' lessons · review and Save') } })(); break }
       case 'Help': case 'Contents': case 'Questions/Comments': case 'Questions? / Write us': case 'Questions? Comments? Write us': case 'About': setStatus('Phikila Timetable Help · Use the menu bar for File, Specification, View, Timetable, Options, and Help actions.'); break
       case 'School': case 'Settings': setSetupTab('basic'); setSettingsOpen(true); break
       case 'Year/Class Online': case 'Year Online': case 'Timetables Online': setStatus('Year/Class Online · online publishing will be available after the timetable is generated and approved.'); break
