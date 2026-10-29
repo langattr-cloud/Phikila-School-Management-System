@@ -30,12 +30,12 @@ const dayKey = (day: string) => {
 
 export function TimetableStructure({ title, name, timetableData, days, periods, lessonsByCell, report, pageInfo, nextName, schoolName, academicYear, compact, onePageView, teacherLabel }: TimetableStructureProps) {
   const generated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-  return <article className={'phikila-print-sheet' + (compact ? ' is-compact' : '') + (report === 'Teachers' ? ' is-teacher-report' : '') + (onePageView && report === 'Teachers' ? ' is-one-page-view' : '')}>
+  return <article className={'phikila-print-sheet' + (compact ? ' is-compact' : '') + (report === 'Classes' ? ' is-class-report' : '') + (report === 'Teachers' ? ' is-teacher-report' : '') + (onePageView && report === 'Teachers' ? ' is-one-page-view' : '')}>
     <div className="phikila-print-sheet-heading">
       <div className="phikila-print-school">{title}</div>
       {report !== 'Teachers' && <div className="phikila-print-year">Academic year {academicYear}</div>}
       <h1>{name}</h1>
-      {report === 'Classes' && !name.startsWith('Class teacher:') && <p>Class teacher: <strong>{name || 'Not assigned'}</strong></p>}
+      {report === 'Classes' && <p className="phikila-print-class-teacher">Class teacher: <strong>{name || 'Not assigned'}</strong></p>}
       {report === 'Classrooms' && <><p>Classroom timetable</p><h2>{titleFor(report)}</h2></>}
     </div>
     <div className="phikila-print-table-wrap">
@@ -73,7 +73,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
   const teacherLabel = (name: string) => displayName(name, props.teacherDetails[name]?.short || props.teacherDetails[name]?.number)
   const classTeacher = report === 'Classes' ? props.classDetails[current]?.classTeacher || '' : ''
   const title = report === 'Teachers' ? 'Teacher' : report === 'Classes' ? current : props.schoolName
-  const name = report === 'Classes' ? (classTeacher ? 'Class teacher: ' + classTeacher : current) : current
+  const name = current
   const timetableData = useMemo(() => {
     const result: TimetableData = {}
     for (const day of props.days) result[dayKey(day)] = {}
