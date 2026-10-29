@@ -21,7 +21,7 @@ export default function GenerateNewAdvisor({ classes, lessons, days, periods, cl
   const [expanded, setExpanded] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [progressMessage, setProgressMessage] = useState('Preparing timetable generation')
+  const [progressMessage, setProgressMessage] = useState('Ready to generate timetable')
 
   const issues = useMemo(() => {
     const result: AdvisorIssue[] = []
@@ -131,13 +131,13 @@ export default function GenerateNewAdvisor({ classes, lessons, days, periods, cl
           </div>)}
         </>}
         {issues.length === 0 && <div style={S.empty}>No critical problems or suggestions were found in the current timetable data.</div>}
-        {generating && <div role="status" aria-live="polite" style={{padding:'12px 16px',background:'#eef6fb',borderTop:'1px solid #c8deed',borderBottom:'1px solid #c8deed'}}>
+        <div role="status" aria-live="polite" style={{padding:'12px 16px',background:'#eef6fb',borderTop:'1px solid #c8deed',borderBottom:'1px solid #c8deed'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,fontSize:12,marginBottom:7}}><strong>{progressMessage}</strong><span style={{fontVariantNumeric:'tabular-nums',fontWeight:700}}>{progress}%</span></div>
           <div role="progressbar" aria-label="Timetable generation progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} style={{height:10,background:'#d6e0e8',borderRadius:6,overflow:'hidden'}}>
             <div style={{width:progress+'%',height:'100%',background:'#2185d0',transition:'width 160ms ease'}} />
           </div>
-          <div style={{fontSize:10,color:'#52616b',marginTop:6}}>Your existing timetable stays unchanged until a successful draft is ready.</div>
-        </div>}
+          <div style={{fontSize:10,color:'#52616b',marginTop:6}}>{generating ? 'Your existing timetable stays unchanged until a successful draft is ready.' : 'Progress will update here as the timetable is generated.'}</div>
+        </div>
         <footer style={S.footer}>
           <button type="button" onClick={onClose} disabled={generating} style={{...S.close,opacity:generating?.5:1}}>{generating ? 'Please wait…' : 'Close'}</button>
           <button type="button" onClick={startGeneration} disabled={critical.length > 0 || generating} style={{ ...S.generate, opacity: critical.length > 0 || generating ? .5 : 1 }}>{generating ? 'Generating…' : 'Continue to Generate'}</button>
