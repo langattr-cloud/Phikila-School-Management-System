@@ -41,7 +41,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
       </header>
       <div className="phikila-print-toolbar">
         <button type="button" onClick={() => goPage(safePage - 1)} disabled={safePage <= 0}>‹ Previous page</button>
-        <button type="button" onClick={() => goPage(safePage + 1)} disabled={safePage >= filteredEntries.length - 1}>Next page ›</button>
+        <button type="button" onClick={() => goPage(safePage + 1)} disabled={safePage >= entries.length - 1}>Next page ›</button>
         <button type="button" className="phikila-print-primary" onClick={() => window.print()}>Print</button>
         <label className="phikila-print-select-label">Report
           <select value={report} onChange={event => changeReport(event.target.value as Report)}>
