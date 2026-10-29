@@ -434,3 +434,26 @@
 .phikila-print-sheet.is-one-page-view .phikila-print-lesson span,.phikila-print-sheet.is-one-page-view .phikila-print-lesson small{font-size:clamp(6px,.62vw,9px);color:#333}
 .phikila-print-sheet.is-one-page-view .phikila-print-sheet-footer{flex:0 0 auto;margin-top:6px;padding-top:4px;border-top:0;font-size:8px;color:#888}
 @media(max-width:760px){.phikila-print-preview:has(.phikila-print-sheet.is-one-page-view) .phikila-print-sheet-wrap{padding:4px}.phikila-print-sheet.is-one-page-view{width:100%;padding:10px 4px 5px}.phikila-print-sheet.is-one-page-view .phikila-print-sheet-heading h1{font-size:16px}.phikila-print-sheet.is-one-page-view .phikila-print-table thead th small{font-size:5px}.phikila-print-sheet.is-one-page-view .phikila-print-table .phikila-print-day{font-size:9px}.phikila-print-sheet.is-one-page-view .phikila-print-lesson strong{font-size:7px}.phikila-print-sheet.is-one-page-view .phikila-print-sheet-footer{gap:4px;font-size:6px}}
+
+
+/* Reclaim heading space for the class timetable so lesson cells have more room. */
+.phikila-print-sheet.is-class-report{padding:14px 16px 10px}
+.phikila-print-sheet.is-class-report .phikila-print-sheet-heading{padding-bottom:5px}
+.phikila-print-sheet.is-class-report .phikila-print-school{font-size:11px;line-height:1.1}
+.phikila-print-sheet.is-class-report .phikila-print-year{margin-top:2px;font-size:10px}
+.phikila-print-sheet.is-class-report .phikila-print-sheet-heading h1{margin:3px 0 1px;font-size:21px;line-height:1.05}
+.phikila-print-sheet.is-class-report .phikila-print-class-teacher{margin:2px 0 0;font-size:10px;line-height:1.1}
+.phikila-print-sheet.is-class-report .phikila-print-table-wrap{flex:1 1 auto;min-height:0}
+.phikila-print-sheet.is-class-report .phikila-print-table tbody td{padding:4px 3px}
+.phikila-print-sheet.is-class-report .phikila-print-lesson{gap:2px;margin:1px 0;padding:3px 2px}
+.phikila-print-sheet.is-class-report .phikila-print-lesson strong{font-size:12px}
+.phikila-print-sheet.is-class-report .phikila-print-lesson span,.phikila-print-sheet.is-class-report .phikila-print-lesson small{font-size:9px}
+.phikila-print-sheet.is-class-report .phikila-print-sheet-footer{margin-top:6px;padding-top:4px}
+@media(max-width:760px){
+ .phikila-print-sheet.is-class-report{min-width:0;padding:10px 6px 6px}
+ .phikila-print-sheet.is-class-report .phikila-print-sheet-heading h1{font-size:18px}
+ .phikila-print-sheet.is-class-report .phikila-print-table{font-size:9px}
+ .phikila-print-sheet.is-class-report .phikila-print-table th,.phikila-print-sheet.is-class-report .phikila-print-table td{padding:2px 1px}
+ .phikila-print-sheet.is-class-report .phikila-print-lesson strong{font-size:9px}
+ .phikila-print-sheet.is-class-report .phikila-print-lesson span,.phikila-print-sheet.is-class-report .phikila-print-lesson small{font-size:8px}
+}
