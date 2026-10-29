@@ -19,18 +19,16 @@ const titleFor = (report: Report) => report === 'Classes' ? 'Timetable for each 
 export default function PrintPreviewTimetableForEachClass(props: Props) {
   const [report, setReport] = useState<Report>('Classes')
   const [page, setPage] = useState(0)
-  const [filter, setFilter] = useState('All')
   const [showCodes, setShowCodes] = useState(true)
   const [compact, setCompact] = useState(false)
   const entries = report === 'Classes' ? props.classes : report === 'Teachers' ? props.teachers : props.classrooms
-  const filteredEntries = useMemo(() => entries.filter(entry => filter === 'All' || entry === filter), [entries, filter])
-  const safePage = Math.max(0, Math.min(page, Math.max(0, filteredEntries.length - 1)))
-  const current = filteredEntries[safePage] || ''
+  const safePage = Math.max(0, Math.min(page, Math.max(0, entries.length - 1)))
+  const current = entries[safePage] || ''
   const lessonsForEntry = useMemo(() => props.lessons.filter(lesson => report === 'Classes' ? lesson.className === current : report === 'Teachers' ? lesson.teacher === current : lesson.room === current), [props.lessons, report, current])
   const getLessons = (day: string, periodIndex: number) => lessonsForEntry.filter(lesson => lesson.day === day && lesson.period === periodIndex)
   const teacher = report === 'Classes' ? props.classDetails[current]?.classTeacher : ''
-  const changeReport = (next: Report) => { setReport(next); setPage(0); setFilter('All') }
-  const goPage = (next: number) => setPage(Math.max(0, Math.min(next, filteredEntries.length - 1)))
+  const changeReport = (next: Report) => { setReport(next); setPage(0) }
+  const goPage = (next: number) => setPage(Math.max(0, Math.min(next, entries.length - 1)))
   const subjectLabel = (subject: string) => showCodes ? displayName(subject, props.subjectDetails[subject]?.short) : subject
   const teacherLabel = (name: string) => displayName(name, props.teacherDetails[name]?.short || props.teacherDetails[name]?.number)
   const generated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -50,12 +48,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
             <option value="Classes">Timetable for each class</option><option value="Teachers">Timetable for each teacher</option><option value="Classrooms">Timetable for each classroom</option>
           </select>
         </label>
-        <span className="phikila-print-page-count">Page {filteredEntries.length ? safePage + 1 : 0} of {filteredEntries.length}</span>
-        <label className="phikila-print-select-label">Filter
-          <select value={filter} onChange={event => { setFilter(event.target.value); setPage(0) }}>
-            <option value="All">All {report.toLowerCase()}</option>{entries.map(entry => <option key={entry} value={entry}>{entry}</option>)}
-          </select>
-        </label>
+        <span className="phikila-print-page-count">Page {entries.length ? safePage + 1 : 0} of {entries.length}</span>
         <button type="button" onClick={() => setShowCodes(value => !value)} title="Switch between subject codes and full subject names">{showCodes ? 'Subject codes' : 'Full subject names'}</button>
         <button type="button" onClick={() => setCompact(value => !value)}>{compact ? 'Comfortable size' : 'Compact size'}</button>
         <button type="button" onClick={props.onClose}>Close preview</button>
@@ -89,7 +82,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
           <footer className="phikila-print-sheet-footer"><span>Generated {generated}</span><span>{props.schoolName} · Timetable</span><span>aSc Timetables</span></footer>
         </article> : <div className="phikila-print-empty">No {report.toLowerCase()} available to preview.</div>}
       </div>
-      <footer className="phikila-print-status"><span>Ready</span><span>Page {filteredEntries.length ? safePage + 1 : 0}/{filteredEntries.length}</span><span>Next: {filteredEntries[safePage + 1] || '—'}</span><span className="phikila-print-status-spacer" /><button type="button" onClick={props.onClose}>Close</button></footer>
+      <footer className="phikila-print-status"><span>Ready</span><span>Page {entries.length ? safePage + 1 : 0}/{entries.length}</span><span>Next: {entries[safePage + 1] || '—'}</span><span className="phikila-print-status-spacer" /><button type="button" onClick={props.onClose}>Close</button></footer>
     </section>
   </div>
 }
