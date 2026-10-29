@@ -72,7 +72,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
   const classLabel = (className: string) => className.replace(/^grade\s*/i, '').trim() || className
   const teacherLabel = (name: string) => displayName(name, props.teacherDetails[name]?.short || props.teacherDetails[name]?.number)
   const classTeacher = report === 'Classes' ? props.classDetails[current]?.classTeacher || '' : ''
-  const title = report === 'Classes' ? current : props.schoolName
+  const title = report === 'Teachers' ? 'Teacher' : report === 'Classes' ? current : props.schoolName
   const name = report === 'Classes' ? (classTeacher ? 'Class teacher: ' + classTeacher : current) : current
   const timetableData = useMemo(() => {
     const result: TimetableData = {}
