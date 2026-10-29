@@ -444,7 +444,7 @@ export default function TimetableModule() {
           </thead>
           <tbody>
             {classes.map(className=><tr key={className}>
-              <th title={data.classDetails?.[className]?.classTeacher ? 'Class teacher: '+data.classDetails[className].classTeacher : className} style={{position:'sticky',left:0,zIndex:2,minWidth:96,padding:'7px 10px',background:data.classDetails?.[className]?.color || '#e7e9ed',border:'1px solid #c4c8ce',textAlign:'left',fontWeight:700}}>{data.classDetails?.[className]?.short || className}</th>
+              <th title={data.classDetails?.[className]?.classTeacher ? 'Class teacher: '+(data.classDetails?.[className]?.classTeacher || '') : className} style={{position:'sticky',left:0,zIndex:2,minWidth:96,padding:'7px 10px',background:data.classDetails?.[className]?.color || '#e7e9ed',border:'1px solid #c4c8ce',textAlign:'left',fontWeight:700}}>{data.classDetails?.[className]?.short || className}</th>
               {data.days.flatMap(day=>data.periods.map((period,periodIndex)=>{
                 const isBreak=period.type==='break'||/break|lunch|recess|games/i.test(period.name);
                 const slotLessons=data.lessons.filter(lesson=>lesson.className===className&&lesson.day===day&&lesson.period===periodIndex);
