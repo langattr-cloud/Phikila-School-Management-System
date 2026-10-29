@@ -409,3 +409,29 @@
 .phikila-print-sheet.is-teacher-report .phikila-print-lesson small{font-size:11px;color:#111}
 .phikila-print-sheet.is-teacher-report .phikila-print-table thead th.is-break,.phikila-print-sheet.is-teacher-report .phikila-print-table tbody td.is-break{width:4.2%;min-width:32px;padding:2px 1px}
 @media print{.phikila-print-sheet.is-teacher-report{max-width:none;padding:0}.phikila-print-sheet.is-teacher-report .phikila-print-table tbody td{height:68px}.phikila-print-sheet.is-teacher-report .phikila-print-table th.is-break,.phikila-print-sheet.is-teacher-report .phikila-print-table td.is-break{background:#fff!important}}
+
+
+/* Teacher one-page view: fit Monday-Friday in the visible preview without scrolling. */
+.phikila-print-preview:has(.phikila-print-sheet.is-one-page-view) .phikila-print-sheet-wrap{overflow:hidden;padding:8px}
+.phikila-print-sheet.is-one-page-view{box-sizing:border-box;width:100%;max-width:none;height:100%;min-height:0;margin:0;padding:12px 16px;overflow:hidden}
+.phikila-print-sheet.is-one-page-view .phikila-print-sheet-heading{flex:0 0 auto;padding-bottom:6px}
+.phikila-print-sheet.is-one-page-view .phikila-print-sheet-heading h1{font-size:20px;margin:2px 0 4px}
+.phikila-print-sheet.is-one-page-view .phikila-print-table-wrap{flex:1 1 0;min-height:0;overflow:hidden}
+.phikila-print-sheet.is-one-page-view .phikila-print-table{height:100%;font-size:clamp(7px, .75vw, 11px)}
+.phikila-print-sheet.is-one-page-view .phikila-print-table thead th{height:36px;padding:2px 1px;font-size:clamp(6px, .62vw, 9px)}
+.phikila-print-sheet.is-one-page-view .phikila-print-table th,.phikila-print-sheet.is-one-page-view .phikila-print-table td{padding:2px 1px;overflow:hidden}
+.phikila-print-sheet.is-one-page-view .phikila-print-table tbody tr{height:20%}
+.phikila-print-sheet.is-one-page-view .phikila-print-table th.is-break,.phikila-print-sheet.is-one-page-view .phikila-print-table td.is-break{min-width:0;width:3.6%;padding:1px}
+.phikila-print-sheet.is-one-page-view .phikila-print-table thead th.is-break span{font-size:clamp(5px, .52vw, 8px)}
+.phikila-print-sheet.is-one-page-view .phikila-print-lesson{gap:2px;margin:0;padding:1px;background:transparent}
+.phikila-print-sheet.is-one-page-view .phikila-print-lesson strong{font-size:clamp(7px, .82vw, 12px);overflow-wrap:anywhere}
+.phikila-print-sheet.is-one-page-view .phikila-print-lesson small{font-size:clamp(6px, .65vw, 9px)}
+.phikila-print-sheet.is-one-page-view .phikila-print-sheet-footer{flex:0 0 auto;margin-top:5px;padding-top:4px;font-size:8px}
+@media(max-width:760px){
+  .phikila-print-preview:has(.phikila-print-sheet.is-one-page-view) .phikila-print-sheet-wrap{padding:4px}
+  .phikila-print-sheet.is-one-page-view{padding:8px 4px}
+  .phikila-print-sheet.is-one-page-view .phikila-print-sheet-heading h1{font-size:16px}
+  .phikila-print-sheet.is-one-page-view .phikila-print-table thead th small{font-size:5px}
+  .phikila-print-sheet.is-one-page-view .phikila-print-lesson strong{font-size:7px}
+  .phikila-print-sheet.is-one-page-view .phikila-print-sheet-footer{gap:4px;font-size:6px}
+}
