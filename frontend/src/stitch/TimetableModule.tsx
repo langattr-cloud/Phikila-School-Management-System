@@ -435,31 +435,31 @@ export default function TimetableModule() {
             <div><h2 style={{margin:0,fontSize:15}}>Whole school timetable</h2></div>
             <div className="phikila-tt-grid-legend" style={{gap:8,fontSize:11}}><span>{classes.length} classes</span><span>{data.days.length} days</span><span>{teachingPeriods.length} periods/day</span><span>{data.lessons.length} lessons</span></div>
           </div>
-          <div style={{overflowX:'hidden',overflowY:'auto',width:'100%',maxWidth:'100%',maxHeight:'min(76vh, 960px)',background:'#fff',border:'1px solid #b8bec7',boxSizing:'border-box'}}>
+          <div style={{overflowX:'hidden',overflowY:'auto',width:'100%',maxWidth:'100%',maxHeight:'min(82vh, 1100px)',background:'#fff',border:'1px solid #b8bec7',boxSizing:'border-box'}}>
             <table style={{borderCollapse:'collapse',whiteSpace:'nowrap',fontSize:10,tableLayout:'fixed',width:'100%',minWidth:0}}>
               <thead>
                 <tr>
                   <th rowSpan={2} style={{position:'sticky',left:0,top:0,zIndex:5,width:44,minWidth:44,maxWidth:44,padding:'3px 3px',background:'#e1e5eb',border:'1px solid #b8bec7',textAlign:'left'}}></th>
-                  {data.days.map(day=><th key={day} colSpan={teachingPeriods.length} style={{position:'sticky',top:0,zIndex:4,padding:'4px 2px',background:'#e7e9fa',border:'1px solid #b8bec7',textAlign:'center',fontSize:11}}>{data.dayDetails?.[day]?.short || day}</th>)}
+                  {data.days.map(day=><th key={day} colSpan={teachingPeriods.length} style={{position:'sticky',top:0,zIndex:4,padding:'3px 1px',background:'#e7e9fa',border:'1px solid #b8bec7',textAlign:'center',fontSize:11}}>{data.dayDetails?.[day]?.short || day}</th>)}
                 </tr>
                 <tr>
-                  {data.days.flatMap(day=>teachingPeriods.map(({period},index)=><th key={day+'-'+period.name+'-'+index} title={period.start+'–'+period.end} style={{position:'sticky',top:25,zIndex:3,width:'auto',minWidth:0,padding:'2px 0',background:'#f2f3f6',border:'1px solid #c4c8ce',fontWeight:600,textAlign:'center'}}>{index+1}<div style={{fontSize:8,fontWeight:400,color:'#626976'}}>{period.start}</div></th>))}
+                  {data.days.flatMap(day=>teachingPeriods.map(({period},index)=><th key={day+'-'+period.name+'-'+index} title={period.start+'–'+period.end} style={{position:'sticky',top:25,zIndex:3,width:'auto',minWidth:0,padding:'1px 0',background:'#f2f3f6',border:'1px solid #c4c8ce',fontWeight:600,textAlign:'center'}}>{index+1}<div style={{fontSize:8,fontWeight:400,color:'#626976'}}>{period.start}</div></th>))}
                 </tr>
               </thead>
               <tbody>
                 {classes.map(className=><tr key={className}>
-                  <th title={data.classDetails?.[className]?.classTeacher ? 'Class teacher: '+data.classDetails[className].classTeacher : className} style={{position:'sticky',left:0,zIndex:2,width:68,minWidth:68,maxWidth:68,padding:'4px 6px',background:data.classDetails?.[className]?.color || '#e7e9ed',border:'1px solid #c4c8ce',textAlign:'left',fontWeight:700,fontSize:10}}>{displayClass(data.classDetails?.[className]?.short || className)}</th>
+                  <th title={data.classDetails?.[className]?.classTeacher ? 'Class teacher: '+data.classDetails[className].classTeacher : className} style={{position:'sticky',left:0,zIndex:2,width:36,minWidth:36,maxWidth:36,padding:'2px 2px',background:data.classDetails?.[className]?.color || '#e7e9ed',border:'1px solid #c4c8ce',textAlign:'center',fontWeight:700,fontSize:8}}>{displayClass(data.classDetails?.[className]?.short || className)}</th>
                   {data.days.flatMap(day=>teachingPeriods.map(({period,originalIndex},index)=>{
                     const slotLessons=data.lessons.filter(lesson=>lesson.className===className&&lesson.day===day&&lesson.period===originalIndex);
-                    return <td key={className+'-'+day+'-'+originalIndex} style={{width:'auto',minWidth:0,height:34,verticalAlign:'middle',padding:0,background:'#fafafa',border:'1px solid #d0d3d8'}}>
+                    return <td key={className+'-'+day+'-'+originalIndex} style={{width:'auto',minWidth:0,height:25,verticalAlign:'middle',padding:0,background:'#fafafa',border:'1px solid #d0d3d8'}}>
                       {slotLessons.map(lesson=>{
                         const subjectColor=data.subjectDetails?.[lesson.subject]?.color || getSubjectColor(lesson.subject);
                         const isSelected=selectedWholeLesson?.id===lesson.id;
-                        return <button key={lesson.id} type="button" title={[lesson.subject,lesson.teacher,lesson.className,lesson.room].filter(Boolean).join(' · ')} onClick={()=>setSelectedWholeLesson(lesson)} onDoubleClick={()=>openEditor(day,originalIndex,lesson)} style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:1,width:'100%',height:'100%',minHeight:39,boxSizing:'border-box',padding:'2px 1px',border:isSelected?'2px solid #111':'1px solid '+subjectColor,borderRadius:1,background:subjectColor,color:'#17202a',textAlign:'center',cursor:'pointer',whiteSpace:'normal',overflowWrap:'anywhere'}}>
-                          <strong style={{fontSize:8,lineHeight:1.05}}>{data.subjectDetails?.[lesson.subject]?.short || lesson.subject.slice(0,3).toUpperCase()}</strong>
+                        return <button key={lesson.id} type="button" title={[lesson.subject,lesson.teacher,lesson.className,lesson.room].filter(Boolean).join(' · ')} onClick={()=>setSelectedWholeLesson(lesson)} onDoubleClick={()=>openEditor(day,originalIndex,lesson)} style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:1,width:'100%',height:'100%',minHeight:23,boxSizing:'border-box',padding:'1px 0',border:isSelected?'2px solid #111':'1px solid '+subjectColor,borderRadius:1,background:subjectColor,color:'#17202a',textAlign:'center',cursor:'pointer',whiteSpace:'normal',overflowWrap:'anywhere'}}>
+                          <strong style={{fontSize:7,lineHeight:1}}>{data.subjectDetails?.[lesson.subject]?.short || lesson.subject.slice(0,3).toUpperCase()}</strong>
                         </button>
                       })}
-                      {slotLessons.length===0&&<button type="button" aria-label={'Add lesson for '+displayClass(className)+', '+day+', '+(index+1)} title="Add lesson" onClick={()=>{openEditor(day,originalIndex);setForm(current=>({...current,className}))}} style={{width:'100%',height:'100%',minHeight:31,border:'1px dashed #e0e3e8',background:'transparent',color:'#b0b5bd',cursor:'pointer',fontSize:12,padding:0}}>+</button>}
+                      {slotLessons.length===0&&<button type="button" aria-label={'Add lesson for '+displayClass(className)+', '+day+', '+(index+1)} title="Add lesson" onClick={()=>{openEditor(day,originalIndex);setForm(current=>({...current,className}))}} style={{width:'100%',height:'100%',minHeight:23,border:'1px dashed #e0e3e8',background:'transparent',color:'#b0b5bd',cursor:'pointer',fontSize:12,padding:0}}>+</button>}
                     </td>
                   }))}
                 </tr>)}
