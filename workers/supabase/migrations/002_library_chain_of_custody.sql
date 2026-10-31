@@ -123,8 +123,8 @@ begin
     v_to_type:='library'; v_to_id:=null; v_to_name:='Library';
   elsif p_action='reconcile_copy' then
     if v_copy.status<>'unreconciled' or v_copy.current_holder_type<>'unverified'
-       or p_reconcile_holder_type is null or p_reconcile_holder_type not in ('library','teacher','student') then
-      raise exception 'Only an unreconciled legacy copy can be physically reconciled to library, teacher, or student custody.' using errcode='23514';
+       or p_reconcile_holder_type is null or p_reconcile_holder_type not in ('library','teacher') then
+      raise exception 'An unreconciled legacy copy must be verified at the library or accepted by its responsible teacher.' using errcode='23514';
     end if;
     if p_reconcile_holder_type='library' then
       if p_to_holder_id is not null then raise exception 'Library custody does not take a holder ID.' using errcode='22023'; end if;
