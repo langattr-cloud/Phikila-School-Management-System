@@ -8,13 +8,13 @@ import { useToast } from '../components/Toast'
 type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
 type TeacherInventorySummary = { teachers: Array<{ teacher_id: number; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> }>; all_teachers: { teacher_id: null; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> } | null }
 type Copy = {
-  id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled'
+  id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled' | 'excluded'
   current_holder_type: 'library' | 'teacher' | 'student' | 'unverified'; current_holder_id: number | null
   current_holder_name: string | null; condition: 'good' | 'damaged' | 'lost'; due_date?: string | null
   book?: { id: number; title: string } | null
 }
 type Movement = { id: number; action: string; from_holder_name?: string | null; to_holder_name?: string | null; condition: string; performed_at: string; notes?: string | null }
-type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; unreconciled_copies: number }
+type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; excluded_copies: number; unreconciled_copies: number }
 type Reconciliation = { outstanding_count: number; with_teachers: number; with_students: number; lost_count: number; unreconciled_count: number; outstanding_copies: Copy[] }
 type TeacherAccountability = {
   total_accountable: number; with_students: number; retained_by_teachers: number; lost: number
@@ -29,8 +29,10 @@ const actionLabels: Record<string, string> = {
   teacher_return_to_library: 'Teacher → Library',
   mark_lost: 'Mark copy lost',
   reconcile_copy: 'Verify a legacy copy',
+  exclude_before_issue: 'Exclude missing copy before issue',
+  restore_excluded_copy: 'Restore previously excluded copy',
 }
-const statusLabel = (status: Copy['status']) => ({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs physical verification' })[status]
+const statusLabel = (status: Copy['status']) => ({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs physical verification', excluded: 'Missing before issue — excluded' })[status]
 
 export default function LibraryPage() {
   const { notify } = useToast()
@@ -87,6 +89,8 @@ export default function LibraryPage() {
     if (action === 'student_return_to_teacher') return copy.status === 'with_student'
     if (action === 'teacher_return_to_library') return copy.status === 'with_teacher'
     if (action === 'reconcile_copy') return copy.status === 'unreconciled'
+    if (action === 'exclude_before_issue') return copy.status === 'available'
+    if (action === 'restore_excluded_copy') return copy.status === 'excluded'
     return copy.status === 'with_teacher' || copy.status === 'with_student' || copy.status === 'unreconciled'
   }), [copies, action])
 
@@ -210,6 +214,7 @@ export default function LibraryPage() {
           ['With teachers', stats?.with_teachers ?? 0],
           ['With students', stats?.with_students ?? 0],
           ['Lost', stats?.lost_copies ?? 0],
+          ['Excluded before issue', stats?.excluded_copies ?? 0],
           ['Legacy copies to verify', stats?.unreconciled_copies ?? 0],
         ].map(([label, value]) => <section className="card section" key={label}><p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{label}</p><strong style={{ fontSize: '1.65rem' }}>{value}</strong></section>)}
       </div>
@@ -253,7 +258,7 @@ export default function LibraryPage() {
           </>}
           <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
           <label className="field"><span className="field__label">Due date (optional)</span><input className="input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
-          <label className="field" style={{ gridColumn: '1 / -1' }}><span className="field__label">Notes (optional)</span><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Class, subject, condition notes…" /></label>
+          <label className="field" style={{ gridColumn: '1 / -1' }}><span className="field__label">Notes (optional)</span><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={action === 'exclude_before_issue' || action === 'restore_excluded_copy' ? 'Required reason for this register change…' : 'Class, subject, condition notes…'} /></label>
           <div><button className="button button--primary" type="submit" disabled={saving || eligibleCopies.length === 0}>{saving ? 'Saving…' : 'Record hand-off'}</button></div>
         </form>
         {eligibleCopies.length === 0 && <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>No copies currently qualify for this movement.</p>}
