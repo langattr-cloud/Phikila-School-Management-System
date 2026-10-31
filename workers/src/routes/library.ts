@@ -239,7 +239,7 @@ libraryRoutes.get('/teacher-accountability', async (c) => {
 
   const grouped = new Map<string, {
     teacher_id: number; teacher_name: string; total_accountable: number;
-    with_students: number; retained_by_teacher: number; lost: number; copies: typeof data
+    with_students: number; retained_by_teacher: number; lost: number; copies: any[]
   }>()
   for (const copy of data ?? []) {
     if (copy.accountable_teacher_id == null) continue
