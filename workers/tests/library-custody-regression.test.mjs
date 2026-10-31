@@ -29,6 +29,9 @@ test('every successful transition appends a movement record before updating the 
   assert.match(migration, /insert into public\.library_copy_movements[\s\S]*?update public\.library_book_copies/i)
   assert.match(migration, /transaction_ref uuid not null/i)
   assert.match(migration, /performed_by uuid/i)
+  assert.match(migration, /before update or delete on public\.library_copy_movements/i)
+  assert.match(migration, /Library movement history is immutable/i)
+  assert.match(migration, /grant select,insert on public\.library_copy_movements to service_role/i)
 })
 
 test('library API exposes individual copies, movement history and holder reconciliation', () => {
