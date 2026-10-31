@@ -139,6 +139,9 @@ export default function TimetableModule() {
         const name = String(profile.name || source.name || [firstName, lastName].filter(Boolean).join(' ')).trim()
         if (!name) return
         const previous = roster.get(name) || { detail: {} }
+        const timetableDetails = profile.timetableDetails && typeof profile.timetableDetails === 'object'
+          ? profile.timetableDetails as Record<string, unknown>
+          : {}
         const workloadValue = Number(profile.count ?? profile.workload ?? source.count ?? 0)
         roster.set(name, {
           detail: {
@@ -148,6 +151,7 @@ export default function TimetableModule() {
             color: String(profile.color || previous.detail.color || '#1e40af'),
             email: String(profile.email || source.email || previous.detail.email || ''),
             phone: String(profile.phone || source.phone || previous.detail.phone || ''),
+            classTeacher: String(timetableDetails.classTeacher || profile.classTeacher || source.classTeacher || previous.detail.classTeacher || ''),
           },
           workload: Number.isFinite(workloadValue) && workloadValue >= 0 ? Math.max(previous.workload || 0, workloadValue) : previous.workload,
         })
@@ -159,7 +163,14 @@ export default function TimetableModule() {
       const mergedDetails: Record<string, TeacherDetail> = { ...(base.teacherDetails || {}) }
       const workloads: Record<string, number> = {}
       roster.forEach((value, name) => {
-        mergedDetails[name] = { ...({ firstName: '', short: '', color: '#1e40af', classTeacher: '', contract: '', email: '', phone: '', title1: '', title2: '', number: '', male: false, timeOffGrid: base.days.map(() => base.periods.map(() => 0)) } as TeacherDetail), ...(value.detail as TeacherDetail), ...(mergedDetails[name] || {}) }
+        const savedWorkspaceDetail = mergedDetails[name] || {} as TeacherDetail
+        mergedDetails[name] = {
+          ...({ firstName: '', short: '', color: '#1e40af', classTeacher: '', contract: '', email: '', phone: '', title1: '', title2: '', number: '', male: false, timeOffGrid: base.days.map(() => base.periods.map(() => 0)) } as TeacherDetail),
+          ...(value.detail as TeacherDetail),
+          ...savedWorkspaceDetail,
+          // An empty workspace field must not erase the class assignment stored in the teacher profile.
+          classTeacher: String(savedWorkspaceDetail.classTeacher || value.detail.classTeacher || ''),
+        }
         if (value.workload != null) workloads[name] = value.workload
       })
       setSavedTeacherWorkloads(workloads)
