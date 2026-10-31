@@ -23,7 +23,7 @@ All endpoints require a verified Supabase bearer token.
 
 ### Verify a legacy copy
 
-The migration deliberately marks copies that correspond to existing active aggregate loans as `unreconciled` / `unverified`. The old loan rows do not contain physical copy numbers, so the system does not guess which copy is in whose hands or show those copies as available. Physically inspect each copy, choose `reconcile_copy`, and set `to_holder_type` to `library`, `teacher`, or `student`. For teacher/student custody, also supply `to_holder_id` and `to_holder_name`. This creates an auditable opening balance before ordinary issue/return operations can proceed.
+The migration deliberately marks copies that correspond to existing active aggregate loans as `unreconciled` / `unverified`. The old loan rows do not contain physical copy numbers, so the system does not guess which copy is in whose hands or show those copies as available. Physically inspect each copy, choose `reconcile_copy`, and set `to_holder_type` to `library` or `teacher`. If a legacy copy is still with a student, first have the student return it to the responsible teacher; then reconcile it to that teacher. For teacher custody, also supply `to_holder_id` and `to_holder_name`. This creates an auditable opening balance before ordinary issue/return operations can proceed.
 
 ### Record a hand-off
 
