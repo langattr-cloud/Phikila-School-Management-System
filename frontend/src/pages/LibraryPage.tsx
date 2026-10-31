@@ -15,6 +15,11 @@ type Copy = {
 type Movement = { id: number; action: string; from_holder_name?: string | null; to_holder_name?: string | null; condition: string; performed_at: string; notes?: string | null }
 type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; unreconciled_copies: number }
 type Reconciliation = { outstanding_count: number; with_teachers: number; with_students: number; lost_count: number; unreconciled_count: number; outstanding_copies: Copy[] }
+type TeacherAccountability = {
+  total_accountable: number; with_students: number; retained_by_teachers: number; lost: number
+  teachers: Array<{ teacher_id: number; teacher_name: string; total_accountable: number; with_students: number; retained_by_teacher: number; lost: number;
+    copies: Array<{ copy_id: string; book_id: number; copy_number: string; book_title: string; status: string; current_holder_type: string; current_holder_name: string | null; condition: string; student_id: number | null; student_name: string | null }> }>
+}
 
 const actionLabels: Record<string, string> = {
   issue_to_teacher: 'Library → Teacher',
@@ -31,7 +36,7 @@ export default function LibraryPage() {
   const [books, setBooks] = useState<Book[]>([])
   const [copies, setCopies] = useState<Copy[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
-  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)
+  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)\n  const [teacherAccountability, setTeacherAccountability] = useState<TeacherAccountability | null>(null)
   const [movements, setMovements] = useState<Movement[]>([])
   const [selectedCopy, setSelectedCopy] = useState('')
   const [action, setAction] = useState('issue_to_teacher')
@@ -54,13 +59,13 @@ export default function LibraryPage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [bookRows, copyRows, overview, outstanding] = await Promise.all([
+      const [bookRows, copyRows, overview, outstanding, teacherRegister] = await Promise.all([
         apiFetch<Book[]>('/api/v1/library/books'),
         apiFetch<Copy[]>('/api/v1/library/copies'),
         apiFetch<Stats>('/api/v1/library/books/stats'),
-        apiFetch<Reconciliation>('/api/v1/library/reconciliation'),
+        apiFetch<Reconciliation>('/api/v1/library/reconciliation'),\n        apiFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),
       ])
-      setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding)
+      setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccountability(teacherRegister)
     } catch (err) { setError(friendlyApiError(err, 'load the library register')) }
     finally { setLoading(false) }
   }, [])
@@ -151,6 +156,32 @@ export default function LibraryPage() {
           ['Legacy copies to verify', stats?.unreconciled_copies ?? 0],
         ].map(([label, value]) => <section className="card section" key={label}><p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{label}</p><strong style={{ fontSize: '1.65rem' }}>{value}</strong></section>)}
       </div>
+
+      <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
+        <h2 className="section__title">Teacher accountability register</h2>
+        <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>A teacher remains accountable for every copy issued by the librarian, including copies currently reissued to students. Only a recorded teacher-to-library return removes a copy from this account.</p>
+        <div className="summary-grid" style={{ marginBottom: 'var(--space-3)' }}>
+          {[
+            ['Copies on teacher accounts', teacherAccountability?.total_accountable ?? 0],
+            ['Currently with students', teacherAccountability?.with_students ?? 0],
+            ['Retained by teachers', teacherAccountability?.retained_by_teachers ?? 0],
+            ['Lost while accountable', teacherAccountability?.lost ?? 0],
+          ].map(([label, value]) => <div className="card section" key={label}><p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{label}</p><strong style={{ fontSize: '1.5rem' }}>{value}</strong></div>)}
+        </div>
+        {(teacherAccountability?.teachers.length ?? 0) === 0 ? <EmptyState title="No outstanding teacher accounts" description="Copies appear here after the librarian issues them to a teacher." /> :
+          teacherAccountability?.teachers.map(teacher => <details key={teacher.teacher_id} style={{ borderTop: '1px solid var(--color-line)', padding: 'var(--space-3) 0' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{teacher.teacher_name} · {teacher.total_accountable} accountable · {teacher.with_students} with students · {teacher.retained_by_teacher} retained · {teacher.lost} lost</summary>
+            <div style={{ overflowX: 'auto', marginTop: 'var(--space-2)' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.9rem' }}>
+              <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--color-line)' }}>{['Book','Copy','Current location','Student','Condition','Status'].map(label => <th key={label} style={{ padding: 'var(--space-2)' }}>{label}</th>)}</tr></thead>
+              <tbody>{teacher.copies.map(copy => <tr key={copy.copy_id} style={{ borderBottom: '1px solid var(--color-line)' }}>
+                <td style={{ padding: 'var(--space-2)' }}>{copy.book_title}</td><td style={{ padding: 'var(--space-2)', fontWeight: 700 }}>{copy.copy_number}</td>
+                <td style={{ padding: 'var(--space-2)' }}>{copy.current_holder_type === 'student' ? 'Student' : 'Teacher'} · {copy.current_holder_name ?? 'Unknown'}</td>
+                <td style={{ padding: 'var(--space-2)' }}>{copy.student_name ?? '—'}{copy.student_id ? ' (#' + copy.student_id + ')' : ''}</td>
+                <td style={{ padding: 'var(--space-2)' }}>{copy.condition}</td><td style={{ padding: 'var(--space-2)' }}>{copy.status}</td>
+              </tr>)}</tbody>
+            </table></div>
+          </details>)}
+      </section>
 
       <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
         <h2 className="section__title">Record a book hand-off</h2>
