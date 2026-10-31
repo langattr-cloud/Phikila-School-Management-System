@@ -21,6 +21,10 @@ All endpoints require a verified Supabase bearer token.
 - `GET /api/v1/library/reconciliation` — list every copy currently outside the library and group by current holder. Optional `teacher_id` narrows the result to a teacher's own outstanding copies.
 - `GET /api/v1/library/books/:bookId` — includes the physical `copies` array alongside legacy loan history.
 
+### Verify a legacy copy
+
+The migration deliberately marks copies that correspond to existing active aggregate loans as `unreconciled` / `unverified`. The old loan rows do not contain physical copy numbers, so the system does not guess which copy is in whose hands or show those copies as available. Physically inspect each copy, choose `reconcile_copy`, and set `to_holder_type` to `library`, `teacher`, or `student`. For teacher/student custody, also supply `to_holder_id` and `to_holder_name`. This creates an auditable opening balance before ordinary issue/return operations can proceed.
+
 ### Record a hand-off
 
 ```json
@@ -38,6 +42,6 @@ For `teacher_return_to_library`, no receiving holder is supplied: the copy is ex
 
 ## Migration and existing records
 
-Apply `workers/supabase/migrations/002_library_chain_of_custody.sql` after the initial schema. Existing catalogue quantities are backfilled as numbered physical copies. Historical aggregate loans are not mapped to individual copies because the old records do not identify which physical copy was lent; reconcile those historical holdings before treating the new register as a complete opening balance.
+Apply `workers/supabase/migrations/002_library_chain_of_custody.sql` after the initial schema. Existing catalogue quantities are backfilled as numbered physical copies. Active historical aggregate loans are allocated unreconciled copy slots, but are not assigned guessed physical copy identities or shown as available. Physically verify each copy and use the `reconcile_copy` movement to establish its true holder. If active historical loans exceed the catalogue's `total_copies`, investigate that discrepancy separately.
 
 New catalogue records automatically create numbered copies through the existing books API. Existing book quantity changes should be reconciled against the physical copy register rather than assumed to create or remove copy identities.
