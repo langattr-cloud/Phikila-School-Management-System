@@ -101,7 +101,7 @@ export default function LibraryPage() {
     const directoryByName = new Map(teacherDirectory.map(teacher => [teacher.name.trim().toLocaleLowerCase(), teacher]))
     return lessons.map(lesson => {
       const className = String(lesson.className ?? '').trim()
-      const grade = String(classDetails[className]?.grade ?? className.match(/(?:grade|form|year)\\s*\\d+/i)?.[0] ?? '').trim()
+      const grade = String(classDetails[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? '').trim()
       const teacherName = String(lesson.teacher ?? '').trim()
       const directoryTeacher = directoryByName.get(teacherName.toLocaleLowerCase())
       return { grade, subject: String(lesson.subject ?? '').trim(), teacherName, teacherId: directoryTeacher?.id ?? null }
