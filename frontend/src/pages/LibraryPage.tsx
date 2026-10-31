@@ -6,6 +6,7 @@ import { apiFetch, friendlyApiError } from '../lib/api'
 import { useToast } from '../components/Toast'
 
 type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
+type TeacherInventorySummary = { teachers: Array<{ teacher_id: number; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> }>; all_teachers: { teacher_id: null; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> } | null }
 type GradeSubjectSummary = { grade: string; subject: string; title_count: number; total_copies: number; titles: Array<{ id: number; title: string; total_copies: number; copies: Array<{ id: string; copy_number: string; status: string; current_holder_type: string }> }> }
 type Copy = {
   id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled'
@@ -54,6 +55,8 @@ export default function LibraryPage() {
   const [newBookSubject, setNewBookSubject] = useState('')
   const [showInventorySummary, setShowInventorySummary] = useState(false)
   const [inventorySummary, setInventorySummary] = useState<GradeSubjectSummary[]>([])
+  const [inventoryTeacher, setInventoryTeacher] = useState('all')
+  const [teacherInventory, setTeacherInventory] = useState<TeacherInventorySummary | null>(null)
   const [loadingInventorySummary, setLoadingInventorySummary] = useState(false)
   const [newBookTitle, setNewBookTitle] = useState('')
   const [newBookAuthor, setNewBookAuthor] = useState('')
@@ -147,9 +150,16 @@ export default function LibraryPage() {
     if (showInventorySummary) { setShowInventorySummary(false); return }
     setLoadingInventorySummary(true); setError(null)
     try {
-      setInventorySummary(await apiFetch<GradeSubjectSummary[]>('/api/v1/library/books/grade-subject-summary'))
+      setTeacherInventory(await apiFetch<TeacherInventorySummary>('/api/v1/library/teacher-inventory-summary?teacher_id=' + encodeURIComponent(inventoryTeacher)))
       setShowInventorySummary(true)
     } catch (err) { setError(friendlyApiError(err, 'load grade and subject book totals')) }
+    finally { setLoadingInventorySummary(false) }
+  }
+
+  async function changeInventoryTeacher(value: string) {
+    setInventoryTeacher(value); setLoadingInventorySummary(true); setError(null)
+    try { setTeacherInventory(await apiFetch<TeacherInventorySummary>('/api/v1/library/teacher-inventory-summary?teacher_id=' + encodeURIComponent(value))) }
+    catch (err) { setError(friendlyApiError(err, 'filter teacher inventory totals')) }
     finally { setLoadingInventorySummary(false) }
   }
 
@@ -166,19 +176,32 @@ export default function LibraryPage() {
     {loading ? <LoadingBlock label="Loading library register" rows={5} /> : <>
       <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-          <div><h2 className="section__title" style={{ marginBottom: '.25rem' }}>Books by grade and subject</h2><p style={{ margin: 0, color: 'var(--color-ink-muted)' }}>Totals count registered physical copies, including copies issued to teachers or students.</p></div>
-          <button className="button button--secondary button--sm" onClick={() => void toggleInventorySummary()} disabled={loadingInventorySummary}>{loadingInventorySummary ? 'Loading…' : showInventorySummary ? 'Hide book totals' : 'View book totals'}</button>
+          <div><h2 className="section__title" style={{ marginBottom: '.25rem' }}>Teacher book accountability</h2><p style={{ margin: 0, color: 'var(--color-ink-muted)' }}>Choose a teacher or All Teachers. Student-held copies remain accountable until the librarian accepts them.</p></div>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select className="input" aria-label="Filter inventory by teacher" value={inventoryTeacher} onChange={e => void changeInventoryTeacher(e.target.value)} disabled={loadingInventorySummary} style={{ minWidth: '12rem' }}>
+              <option value="all">All Teachers</option>
+              {(teacherAccountability?.teachers ?? []).map(teacher => <option key={teacher.teacher_id} value={String(teacher.teacher_id)}>{teacher.teacher_name}</option>)}
+            </select>
+            <button className="button button--secondary button--sm" onClick={() => void toggleInventorySummary()} disabled={loadingInventorySummary}>{loadingInventorySummary ? 'Loading…' : showInventorySummary ? 'Hide report' : 'View report'}</button>
+          </div>
         </div>
-        {showInventorySummary && <div style={{ overflowX: 'auto', marginTop: 'var(--space-3)' }}>
-          {inventorySummary.length === 0 ? <EmptyState title="No catalogue titles found" description="Add titles with a grade and subject to see inventory totals." /> : inventorySummary.map(group => <details key={group.grade + '|' + group.subject} style={{ borderTop: '1px solid var(--color-line)', padding: 'var(--space-3) 0' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{group.grade} · {group.subject} — {group.total_copies} copies · {group.title_count} titles</summary>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.9rem', marginTop: 'var(--space-2)' }}>
-              <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--color-line)' }}>{['Book title', 'Total copies', 'Copy numbers'].map(label => <th key={label} style={{ padding: 'var(--space-2)' }}>{label}</th>)}</tr></thead>
-              <tbody>{group.titles.map(book => <tr key={book.id} style={{ borderBottom: '1px solid var(--color-line)' }}><td style={{ padding: 'var(--space-2)' }}>{book.title}</td><td style={{ padding: 'var(--space-2)', fontWeight: 700 }}>{book.total_copies}</td><td style={{ padding: 'var(--space-2)' }}>{book.copies.map(copy => copy.copy_number).join(', ') || 'No copies registered'}</td></tr>)}</tbody>
-            </table>
-            <p style={{ textAlign: 'right', fontWeight: 700, marginBottom: 0 }}>Total {group.subject} {group.grade}: {group.total_copies}</p>
-            <p style={{ textAlign: 'right', color: 'var(--color-ink-muted)', marginTop: '.25rem' }}>Total all subjects in {group.grade}: {inventorySummary.filter(item => item.grade === group.grade).reduce((sum, item) => sum + item.total_copies, 0)}</p>
-          </details>)}
+        {showInventorySummary && teacherInventory && <div style={{ marginTop: 'var(--space-3)' }}>
+          {(inventoryTeacher === 'all' ? (teacherInventory.all_teachers ? [teacherInventory.all_teachers] : []) : teacherInventory.teachers).map(teacher => <div key={teacher.teacher_id ?? 'all'}>
+            <h3 style={{ margin: 'var(--space-3) 0' }}>{teacher.teacher_name} — {teacher.total_copies} accountable copies</h3>
+            {teacher.grades.map(grade => <details key={grade.grade} open style={{ borderTop: '1px solid var(--color-line)', padding: 'var(--space-3) 0' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{grade.grade} — {grade.total_copies} copies</summary>
+              {grade.subjects.map(subject => <details key={subject.subject} style={{ margin: 'var(--space-2) 0 var(--space-2) var(--space-3)' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{subject.subject} — {subject.total_copies} copies</summary>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.9rem', marginTop: 'var(--space-2)' }}>
+                  <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--color-line)' }}>{['Book title', 'Copies', 'Physical copy numbers'].map(label => <th key={label} style={{ padding: 'var(--space-2)' }}>{label}</th>)}</tr></thead>
+                  <tbody>{subject.titles.map(title => <tr key={title.book_id} style={{ borderBottom: '1px solid var(--color-line)' }}><td style={{ padding: 'var(--space-2)' }}>{title.title}</td><td style={{ padding: 'var(--space-2)', fontWeight: 700 }}>{title.total_copies}</td><td style={{ padding: 'var(--space-2)' }}>{title.copies.map(copy => copy.copy_number).join(', ')}</td></tr>)}</tbody>
+                </table>
+                <p style={{ textAlign: 'right', fontWeight: 700 }}>Total {subject.subject} {grade.grade}: {subject.total_copies}</p>
+              </details>)}
+              <p style={{ textAlign: 'right', color: 'var(--color-ink-muted)' }}>Total {grade.grade}: {grade.total_copies}</p>
+            </details>)}
+          </div>)}
+          {((inventoryTeacher === 'all' && !teacherInventory.all_teachers) || (inventoryTeacher !== 'all' && teacherInventory.teachers.length === 0)) && <EmptyState title="No accountable copies" description="No physical copies are currently assigned to this selection." />}
         </div>}
       </section>
 
