@@ -63,7 +63,7 @@ select b.id,
   case when legacy.copy_ordinal is null then 'library' else 'unverified' end,
   case when legacy.copy_ordinal is null then null else coalesce(legacy.borrower_name,'Legacy loan: physical holder to verify') end
 from public.library_books b
-cross join lateral generate_series(1,greatest(1,coalesce(b.total_copies,1))) n
+cross join lateral generate_series(1,greatest(1,coalesce(b.total_copies,1))) as series(n)
 left join ranked_loans legacy on legacy.book_id=b.id and legacy.copy_ordinal=n
 on conflict(book_id,copy_number) do nothing;
 
