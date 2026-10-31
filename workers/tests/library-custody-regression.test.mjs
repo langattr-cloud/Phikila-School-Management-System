@@ -63,3 +63,13 @@ test('teacher accountability includes student-held copies until library acceptan
   assert.match(routes, /retained_by_teacher/)
   assert.match(routes, /with_students/)
 })
+
+
+test('grade and subject inventory summary counts individually registered physical copies', async () => {
+  const classificationMigration = await readFile(new URL('../supabase/migrations/004_library_grade_subject.sql', import.meta.url), 'utf8')
+  assert.match(classificationMigration, /add column if not exists grade text/i)
+  assert.match(classificationMigration, /add column if not exists subject text/i)
+  assert.match(routes, /grade-subject-summary/)
+  assert.match(routes, /group.total_copies \+= copies.length/)
+  assert.match(routes, /Grade and subject are required/)
+})
