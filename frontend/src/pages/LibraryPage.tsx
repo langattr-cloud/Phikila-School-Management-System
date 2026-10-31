@@ -36,7 +36,7 @@ export default function LibraryPage() {
   const [selectedCopy, setSelectedCopy] = useState('')
   const [action, setAction] = useState('issue_to_teacher')
   const [holderId, setHolderId] = useState('')
-  const [toHolderType, setToHolderType] = useState<'library' | 'teacher' | 'student'>('library')
+  const [toHolderType, setToHolderType] = useState<'library' | 'teacher'>('library')
   const [holderName, setHolderName] = useState('')
   const [condition, setCondition] = useState<'good' | 'damaged'>('good')
   const [dueDate, setDueDate] = useState('')
@@ -158,9 +158,9 @@ export default function LibraryPage() {
         <form onSubmit={submitMovement} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}>
           <label className="field"><span className="field__label">Movement</span><select className="input" value={action} onChange={e => setAction(e.target.value)}>{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>
-          {action === 'reconcile_copy' && <label className="field"><span className="field__label">Verified physical holder</span><select className="input" value={toHolderType} onChange={e => setToHolderType(e.target.value as 'library' | 'teacher' | 'student')}><option value="library">Returned to library</option><option value="teacher">With a teacher</option><option value="student">With a student</option></select></label>}
+          {action === 'reconcile_copy' && <label className="field"><span className="field__label">Verified physical holder</span><select className="input" value={toHolderType} onChange={e => setToHolderType(e.target.value as 'library' | 'teacher')}><option value="library">Returned to library</option><option value="teacher">With a teacher</option></select></label>}
           {showReceiver && <>
-            <label className="field"><span className="field__label">{action === 'issue_to_student' || (action === 'reconcile_copy' && toHolderType === 'student') ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
+            <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
             <label className="field"><span className="field__label">{action === 'issue_to_student' || (action === 'reconcile_copy' && toHolderType === 'student') ? 'Student name' : 'Teacher name'}</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Full name" /></label>
           </>}
           <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
