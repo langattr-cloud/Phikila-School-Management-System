@@ -73,13 +73,27 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
   // Teacher IDs/numbers are metadata only; never use them as printed name fallbacks.
   const teacherLabel = (name: string) => displayName(name, props.teacherDetails[name]?.short)
   const title = report === 'Classrooms' ? props.schoolName : ''
-  // Keep the grade as the heading and show an assigned class teacher on a separate line.
-  const classTeacher = report === 'Classes' ? props.classDetails[current]?.classTeacher?.trim() || '' : ''
+  // Class teacher can be recorded on the class record or on the teacher record.
+  // Resolve either source to a display name; never fall back to teacher IDs/numbers.
+  const classTeacher = report === 'Classes'
+    ? props.classDetails[current]?.classTeacher?.trim()
+      || Object.entries(props.teacherDetails).find(([, detail]) => detail.classTeacher?.trim().toLocaleLowerCase() === current.trim().toLocaleLowerCase())?.[0]
+      || ''
+    : ''
+  // Always include Friday in weekday timetables, even if an older saved workspace
+  // contains only Monday–Thursday. Keep configured weekend days in their order.
+  const previewDays = useMemo(() => {
+    const configured = [...props.days]
+    if (configured.some(day => dayKey(day) === 'FRI')) return configured
+    const thursday = configured.findIndex(day => dayKey(day) === 'THU')
+    configured.splice(thursday >= 0 ? thursday + 1 : Math.min(4, configured.length), 0, 'Friday')
+    return configured
+  }, [props.days])
   const classHeading = current.trim()
   const name = report === 'Teachers' ? (current ? 'Teacher ' + current : 'Teacher: Not assigned') : report === 'Classes' ? classHeading : current
   const timetableData = useMemo(() => {
     const result: TimetableData = {}
-    for (const day of props.days) result[dayKey(day)] = {}
+    for (const day of previewDays) result[dayKey(day)] = {}
     for (const lesson of lessonsForEntry) {
       const label = report === 'Teachers' ? subjectLabel(lesson.subject) + ' ' + classLabel(lesson.className) : subjectLabel(lesson.subject)
       const key = dayKey(lesson.day)
@@ -88,7 +102,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
       result[key][lesson.period] = existing ? existing + ' / ' + label : label
     }
     return result
-  }, [props.days, lessonsForEntry, report, props.subjectDetails])
+  }, [previewDays, lessonsForEntry, report, props.subjectDetails])
   const lessonsByCell = useMemo(() => {
     const result: Record<string, Lesson[]> = {}
     for (const lesson of lessonsForEntry) {
@@ -177,7 +191,7 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
         <button type="button" onClick={props.onClose}>Close preview</button>
       </div>
       <div className="phikila-print-sheet-wrap">
-        {current ? <TimetableStructure title={title} name={name} timetableData={timetableData} days={props.days} periods={props.periods} lessonsByCell={lessonsByCell} report={report} pageInfo={pageInfo} nextName={nextName} schoolName={props.schoolName} academicYear={props.academicYear} compact={compact} onePageView={onePageView} teacherLabel={teacherLabel} classTeacher={classTeacher} /> : <div className="phikila-print-empty">No {report.toLowerCase()} available to preview.</div>}
+        {current ? <TimetableStructure title={title} name={name} timetableData={timetableData} days={previewDays} periods={props.periods} lessonsByCell={lessonsByCell} report={report} pageInfo={pageInfo} nextName={nextName} schoolName={props.schoolName} academicYear={props.academicYear} compact={compact} onePageView={onePageView} teacherLabel={teacherLabel} classTeacher={classTeacher} /> : <div className="phikila-print-empty">No {report.toLowerCase()} available to preview.</div>}
       </div>
       <footer className="phikila-print-status"><span>Ready</span><span>{pageInfo}</span><span>Next: {nextName || '—'}</span><span className="phikila-print-status-spacer" /><button type="button" onClick={props.onClose}>Close</button></footer>
     </section>
