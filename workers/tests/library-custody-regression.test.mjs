@@ -73,3 +73,12 @@ test('grade and subject inventory summary counts individually registered physica
   assert.match(routes, /group.total_copies \+= copies.length/)
   assert.match(routes, /Grade and subject are required/)
 })
+
+test('teacher inventory summary groups accountable physical copies by teacher, grade, subject and title', () => {
+  assert.match(routes, /teacher-inventory-summary/)
+  assert.match(routes, /accountable_teacher_id/)
+  assert.match(routes, /addCopy\('all'/)
+  assert.match(routes, /grade: book\.grade/)
+  assert.match(routes, /subject: book\.subject/)
+  assert.match(routes, /copy_number/)
+})
