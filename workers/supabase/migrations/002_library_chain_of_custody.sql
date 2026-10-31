@@ -1,11 +1,15 @@
 -- Individual physical-copy register and hierarchical custody ledger.
--- Existing aggregate catalogue and historic loans remain compatible.
+-- Legacy loans are not mapped to specific copy numbers: their exact physical
+-- copies are unknown. Those quantities are quarantined as unreconciled until
+-- a staff member verifies the physical copy and its actual holder.
 create table if not exists public.library_book_copies (
   id uuid primary key default gen_random_uuid(),
   book_id bigint not null references public.library_books(id) on delete cascade,
   copy_number text not null,
-  status text not null default 'available' check (status in ('available','with_teacher','with_student','lost')),
-  current_holder_type text not null default 'library' check (current_holder_type in ('library','teacher','student')),
+  status text not null default 'available'
+    check (status in ('available','with_teacher','with_student','lost','unreconciled')),
+  current_holder_type text not null default 'library'
+    check (current_holder_type in ('library','teacher','student','unverified')),
   current_holder_id bigint,
   current_holder_name text,
   condition text not null default 'good' check (condition in ('good','damaged','lost')),
@@ -13,8 +17,10 @@ create table if not exists public.library_book_copies (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(book_id, copy_number),
-  check ((current_holder_type = 'library' and current_holder_id is null)
-      or (current_holder_type in ('teacher','student') and current_holder_id is not null))
+  check (
+    (current_holder_type in ('library','unverified') and current_holder_id is null)
+    or (current_holder_type in ('teacher','student') and current_holder_id is not null)
+  )
 );
 create index if not exists library_book_copies_book_idx on public.library_book_copies(book_id);
 create index if not exists library_book_copies_holder_idx on public.library_book_copies(current_holder_type,current_holder_id);
@@ -23,11 +29,11 @@ create index if not exists library_book_copies_status_idx on public.library_book
 create table if not exists public.library_copy_movements (
   id bigint generated always as identity primary key,
   copy_id uuid not null references public.library_book_copies(id) on delete restrict,
-  action text not null check(action in ('issue_to_teacher','issue_to_student','student_return_to_teacher','teacher_return_to_library','mark_lost')),
-  from_holder_type text not null,
+  action text not null check(action in ('issue_to_teacher','issue_to_student','student_return_to_teacher','teacher_return_to_library','mark_lost','reconcile_copy')),
+  from_holder_type text not null check(from_holder_type in ('library','teacher','student','unverified')),
   from_holder_id bigint,
   from_holder_name text,
-  to_holder_type text not null,
+  to_holder_type text not null check(to_holder_type in ('library','teacher','student','unverified')),
   to_holder_id bigint,
   to_holder_name text,
   condition text not null default 'good' check(condition in ('good','damaged','lost')),
@@ -40,20 +46,32 @@ create table if not exists public.library_copy_movements (
 create index if not exists library_copy_movements_copy_time_idx on public.library_copy_movements(copy_id,performed_at desc);
 create index if not exists library_copy_movements_transaction_idx on public.library_copy_movements(transaction_ref);
 
--- Backfill one uniquely numbered physical record per currently catalogued copy.
-insert into public.library_book_copies(book_id,copy_number)
+-- Backfill numbered copies. Active legacy loans consume copy slots as
+-- unreconciled records, never as falsely available stock or guessed copies.
+with ranked_loans as (
+  select book_id, borrower_name,
+    row_number() over(partition by book_id order by loan_date,id) as copy_ordinal
+  from public.library_loans
+  where status in ('on_loan','overdue')
+)
+insert into public.library_book_copies(book_id,copy_number,status,current_holder_type,current_holder_name)
 select b.id,
-       lpad(n::text,greatest(2,length(coalesce(b.total_copies,1)::text)),'0')
-       || '/' ||
-       lpad(coalesce(b.total_copies,1)::text,greatest(2,length(coalesce(b.total_copies,1)::text)),'0')
+  lpad(n::text,greatest(2,length(coalesce(b.total_copies,1)::text)),'0')
+    || '/' ||
+  lpad(coalesce(b.total_copies,1)::text,greatest(2,length(coalesce(b.total_copies,1)::text)),'0'),
+  case when legacy.copy_ordinal is null then 'available' else 'unreconciled' end,
+  case when legacy.copy_ordinal is null then 'library' else 'unverified' end,
+  case when legacy.copy_ordinal is null then null else coalesce(legacy.borrower_name,'Legacy loan: physical holder to verify') end
 from public.library_books b
 cross join lateral generate_series(1,greatest(1,coalesce(b.total_copies,1))) n
+left join ranked_loans legacy on legacy.book_id=b.id and legacy.copy_ordinal=n
 on conflict(book_id,copy_number) do nothing;
 
 create or replace function public.move_library_book_copy(
   p_copy_id uuid, p_action text, p_to_holder_id bigint default null,
   p_to_holder_name text default null, p_condition text default 'good',
-  p_due_date date default null, p_notes text default null, p_performed_by uuid default null
+  p_due_date date default null, p_notes text default null, p_performed_by uuid default null,
+  p_reconcile_holder_type text default null
 ) returns public.library_book_copies
 language plpgsql
 set search_path = ''
@@ -66,7 +84,7 @@ declare
   v_issuing_teacher_id bigint;
   v_tx uuid := gen_random_uuid();
 begin
-  if p_action not in ('issue_to_teacher','issue_to_student','student_return_to_teacher','teacher_return_to_library','mark_lost')
+  if p_action not in ('issue_to_teacher','issue_to_student','student_return_to_teacher','teacher_return_to_library','mark_lost','reconcile_copy')
      or p_condition not in ('good','damaged','lost') then
     raise exception 'Invalid movement action or condition.' using errcode='22023';
   end if;
@@ -103,9 +121,23 @@ begin
       raise exception 'Only a teacher-held copy can be returned to the library.' using errcode='23514';
     end if;
     v_to_type:='library'; v_to_id:=null; v_to_name:='Library';
+  elsif p_action='reconcile_copy' then
+    if v_copy.status<>'unreconciled' or v_copy.current_holder_type<>'unverified'
+       or p_reconcile_holder_type not in ('library','teacher','student') then
+      raise exception 'Only an unreconciled legacy copy can be physically reconciled to library, teacher, or student custody.' using errcode='23514';
+    end if;
+    if p_reconcile_holder_type='library' then
+      if p_to_holder_id is not null then raise exception 'Library custody does not take a holder ID.' using errcode='22023'; end if;
+      v_to_type:='library'; v_to_id:=null; v_to_name:='Library';
+    else
+      if p_to_holder_id is null or coalesce(trim(p_to_holder_name),'')='' then
+        raise exception 'A verified teacher or student ID and name are required.' using errcode='22023';
+      end if;
+      v_to_type:=p_reconcile_holder_type; v_to_id:=p_to_holder_id; v_to_name:=trim(p_to_holder_name);
+    end if;
   elsif p_action='mark_lost' then
     if v_copy.current_holder_type='library' or v_copy.status='lost' then
-      raise exception 'Only an issued copy can be marked lost.' using errcode='23514';
+      raise exception 'Only an issued or unreconciled copy can be marked lost.' using errcode='23514';
     end if;
   end if;
 
@@ -118,7 +150,8 @@ begin
   update public.library_book_copies set current_holder_type=v_to_type,current_holder_id=v_to_id,
     current_holder_name=v_to_name,
     status=case when p_action='mark_lost' then 'lost' when v_to_type='library' then 'available'
-      when v_to_type='teacher' then 'with_teacher' else 'with_student' end,
+      when v_to_type='teacher' then 'with_teacher' when v_to_type='student' then 'with_student'
+      else 'unreconciled' end,
     condition=case when p_action='mark_lost' then 'lost' else p_condition end,
     due_date=case when v_to_type='library' then null else p_due_date end,
     updated_at=now()
@@ -126,8 +159,8 @@ begin
   return v_copy;
 end;
 $$;
-revoke all on function public.move_library_book_copy(uuid,text,bigint,text,text,date,text,uuid) from public,anon,authenticated;
-grant execute on function public.move_library_book_copy(uuid,text,bigint,text,text,date,text,uuid) to service_role;
+revoke all on function public.move_library_book_copy(uuid,text,bigint,text,text,date,text,uuid,text) from public,anon,authenticated;
+grant execute on function public.move_library_book_copy(uuid,text,bigint,text,text,date,text,uuid,text) to service_role;
 alter table public.library_book_copies enable row level security;
 alter table public.library_copy_movements enable row level security;
 revoke all on public.library_book_copies,public.library_copy_movements from anon,authenticated;
