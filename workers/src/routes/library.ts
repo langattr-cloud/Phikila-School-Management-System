@@ -154,11 +154,11 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
       && (!toHolderId || !toHolderName)) {
     return c.json({ detail: 'A valid receiving holder ID and name are required for this action.' }, 400)
   }
-  if (action === 'reconcile_copy' && !['library', 'teacher', 'student'].includes(reconcileHolderType ?? '')) {
-    return c.json({ detail: 'Choose the physically verified holder: library, teacher, or student.' }, 400)
+  if (action === 'reconcile_copy' && !['library', 'teacher'].includes(reconcileHolderType ?? '')) {
+    return c.json({ detail: 'Physically verify the copy at the library or with its responsible teacher.' }, 400)
   }
   if (action === 'reconcile_copy' && reconcileHolderType !== 'library' && (!toHolderId || !toHolderName)) {
-    return c.json({ detail: 'A verified holder ID and name are required for teacher or student custody.' }, 400)
+    return c.json({ detail: 'A verified teacher ID and name are required when the copy is with a teacher.' }, 400)
   }
   const dueDate = body.due_date == null || body.due_date === '' ? null : String(body.due_date)
   if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
