@@ -42,6 +42,6 @@ For `teacher_return_to_library`, no receiving holder is supplied: the copy is ex
 
 ## Migration and existing records
 
-Apply `workers/supabase/migrations/002_library_chain_of_custody.sql` after the initial schema. Existing catalogue quantities are backfilled as numbered physical copies. Active historical aggregate loans are allocated unreconciled copy slots, but are not assigned guessed physical copy identities or shown as available. Physically verify each copy and use the `reconcile_copy` movement to establish its true holder. If active historical loans exceed the catalogue's `total_copies`, investigate that discrepancy separately.
+Apply `workers/supabase/migrations/002_library_chain_of_custody.sql` after the initial schema. Existing catalogue quantities are backfilled as numbered physical copies. If a title has any active historical aggregate loans, all of that title's physical copies are marked unreconciled because the old records do not identify which numbered copies are held. None are incorrectly shown as available until the librarian physically checks each copy. Physically verify each copy and use the `reconcile_copy` movement to establish its true holder. If active historical loans exceed the catalogue's `total_copies`, investigate that discrepancy separately.
 
 New catalogue records automatically create numbered copies through the existing books API. Existing book quantity changes should be reconciled against the physical copy register rather than assumed to create or remove copy identities.
