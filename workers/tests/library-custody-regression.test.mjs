@@ -7,7 +7,8 @@ const migration = await readFile(
   new URL('../supabase/migrations/002_library_chain_of_custody.sql', import.meta.url),
   'utf8',
 )
-const accountabilityMigration = await readFile(new URL('../supabase/migrations/003_library_teacher_accountability.sql', import.meta.url), 'utf8')\nconst routes = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+const accountabilityMigration = await readFile(new URL('../supabase/migrations/003_library_teacher_accountability.sql', import.meta.url), 'utf8')
+const routes = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
 
 test('library copy register enforces unique physical copy numbers per title', () => {
   assert.match(migration, /unique\s*\(book_id,\s*copy_number\)/i)
@@ -44,7 +45,8 @@ test('library API exposes individual copies, movement history and holder reconci
 test('custody and reconciliation endpoints require verified authentication', async () => {
   for (const path of [
     '/api/v1/library/copies',
-    '/api/v1/library/reconciliation',\n    '/api/v1/library/teacher-accountability',
+    '/api/v1/library/reconciliation',
+    '/api/v1/library/teacher-accountability',
     '/api/v1/library/copies/00000000-0000-0000-0000-000000000000/movements',
   ]) {
     const response = await app.request(path)
