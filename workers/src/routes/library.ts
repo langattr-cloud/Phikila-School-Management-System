@@ -12,6 +12,8 @@ const movementActions = new Set([
   'teacher_return_to_library',
   'mark_lost',
   'reconcile_copy',
+  'exclude_before_issue',
+  'restore_excluded_copy',
 ])
 const copyConditions = new Set(['good', 'damaged', 'lost'])
 
@@ -77,6 +79,7 @@ libraryRoutes.get('/books/stats', async (c) => {
     with_teachers: copyRows.filter((x) => x.current_holder_type === 'teacher').length,
     with_students: copyRows.filter((x) => x.current_holder_type === 'student').length,
     lost_copies: copyRows.filter((x) => x.status === 'lost').length,
+    excluded_copies: copyRows.filter((x) => x.status === 'excluded').length,
     unreconciled_copies: copyRows.filter((x) => x.status === 'unreconciled').length,
     active_loans: (loans.data ?? []).filter((l) => l.status === 'borrowed' || l.status === 'overdue' || l.status === 'on_loan').length,
   })
@@ -198,6 +201,24 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
   const dueDate = body.due_date == null || body.due_date === '' ? null : String(body.due_date)
   if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
     return c.json({ detail: 'due_date must use YYYY-MM-DD format.' }, 400)
+  }
+
+  if (action === 'exclude_before_issue' || action === 'restore_excluded_copy') {
+    const reason = body.notes == null ? '' : String(body.notes).trim()
+    if (!reason) return c.json({ detail: 'A reason is required for pre-issue exclusion or restoration.' }, 400)
+    const { data, error: exclusionError } = await db().rpc('set_library_copy_preissue_exclusion', {
+      p_copy_id: c.req.param('copyId'),
+      p_action: action,
+      p_reason: reason,
+      p_performed_by: actorId(user),
+    })
+    if (exclusionError) {
+      const status = exclusionError.code === 'P0002' ? 404
+        : exclusionError.code === '23514' ? 409
+        : exclusionError.code === '22023' ? 400 : 500
+      return jsonError(c, exclusionError.message, status)
+    }
+    return c.json(data)
   }
 
   const { data, error: movementError } = await db().rpc('move_library_book_copy', {
