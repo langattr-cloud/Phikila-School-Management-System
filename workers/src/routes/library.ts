@@ -44,7 +44,7 @@ libraryRoutes.get('/books/grade-subject-summary', async (c) => {
     const grade = book.grade || 'Unassigned'
     const subject = book.subject || 'Unassigned'
     const key = grade + String.fromCharCode(0) + subject
-    const group = groups.get(key) ?? { grade, subject, title_count: 0, total_copies: 0, titles: [] }
+    const group: { grade: string; subject: string; title_count: number; total_copies: number; titles: Array<Record<string, unknown>> } = groups.get(key) ?? { grade, subject, title_count: 0, total_copies: 0, titles: [] }
     const copies = copiesByBook.get(book.id) ?? []
     group.title_count += 1
     group.total_copies += copies.length
@@ -250,20 +250,34 @@ libraryRoutes.get('/teacher-inventory-summary', async (c) => {
   if (teacherId && teacherId !== 'all') custodyQuery = custodyQuery.eq('accountable_teacher_id', teacherId)
   const { data: custodyRows, error: custodyError } = await custodyQuery
   if (custodyError) return jsonError(c, custodyError.message, 500)
-  const rows = custodyRows ?? []
-  const bookIds = [...new Set(rows.map(row => row.book_id))]
+  type CustodyRow = {
+    accountable_teacher_id: number | null
+    accountable_teacher_name: string | null
+    book_id: number
+    copy_id: string
+    copy_number: string
+    status: string
+    current_holder_type: string
+    current_holder_name: string | null
+  }
+  type InventoryCopy = { copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }
+  type InventoryTitle = { book_id: number; title: string; total_copies: number; copies: InventoryCopy[] }
+  type InventoryGroup = { grade: string; subject: string; total_copies: number; titles: Map<number, InventoryTitle> }
+  type InventoryTeacher = { teacher_id: number | null; teacher_name: string; groups: Map<string, InventoryGroup> }
+  const rows = (custodyRows ?? []) as CustodyRow[]
+  const bookIds = [...new Set(rows.map((row: CustodyRow) => row.book_id))]
   const { data: bookRows, error: booksError } = bookIds.length ? await db().from('library_books').select('id,title,grade,subject').in('id', bookIds) : { data: [], error: null }
   if (booksError) return jsonError(c, booksError.message, 500)
-  const books = new Map((bookRows ?? []).map(book => [book.id, book]))
-  const teachers = new Map()
-  const addCopy = (key, id, name, row) => {
+  const books = new Map<number, { id: number; title: string; grade: string | null; subject: string | null }>((bookRows ?? []).map(book => [book.id, book]))
+  const teachers = new Map<string, InventoryTeacher>()
+  const addCopy = (key: string, id: number | null, name: string, row: CustodyRow): void => {
     const book = books.get(row.book_id)
     if (!book) return
-    const teacher = teachers.get(key) ?? { teacher_id: id, teacher_name: name, groups: new Map() }
+    const teacher: InventoryTeacher = teachers.get(key) ?? { teacher_id: id, teacher_name: name, groups: new Map<string, InventoryGroup>() }
     const grade = book.grade || 'Unassigned', subject = book.subject || 'Unassigned'
     const groupKey = grade + String.fromCharCode(0) + subject
-    const group = teacher.groups.get(groupKey) ?? { grade, subject, total_copies: 0, titles: new Map() }
-    const title = group.titles.get(row.book_id) ?? { book_id: row.book_id, title: book.title, total_copies: 0, copies: [] }
+    const group: InventoryGroup = teacher.groups.get(groupKey) ?? { grade, subject, total_copies: 0, titles: new Map<number, InventoryTitle>() }
+    const title: InventoryTitle = group.titles.get(row.book_id) ?? { book_id: row.book_id, title: book.title, total_copies: 0, copies: [] }
     title.total_copies++; group.total_copies++
     title.copies.push({ copy_id: row.copy_id, copy_number: row.copy_number, status: row.status, current_holder_type: row.current_holder_type, current_holder_name: row.current_holder_name })
     group.titles.set(row.book_id, title); teacher.groups.set(groupKey, group); teachers.set(key, teacher)
@@ -273,7 +287,7 @@ libraryRoutes.get('/teacher-inventory-summary', async (c) => {
     addCopy(String(row.accountable_teacher_id), row.accountable_teacher_id, row.accountable_teacher_name ?? 'Teacher ' + row.accountable_teacher_id, row)
     if (!teacherId || teacherId === 'all') addCopy('all', null, 'All Teachers', row)
   }
-  const serialize = teacher => ({
+  const serialize = (teacher: InventoryTeacher) => ({
     teacher_id: teacher.teacher_id, teacher_name: teacher.teacher_name,
     total_copies: [...teacher.groups.values()].reduce((sum, group) => sum + group.total_copies, 0),
     grades: [...new Set([...teacher.groups.values()].map(group => group.grade))].sort().map(grade => ({
@@ -284,7 +298,7 @@ libraryRoutes.get('/teacher-inventory-summary', async (c) => {
       }))
     }))
   })
-  const output = [...teachers.values()].filter(teacher => !teacherId || teacherId === 'all' || teacher.teacher_id !== null).sort((a,b) => a.teacher_name.localeCompare(b.teacher_name)).map(serialize)
+  const output = [...teachers.values()].sort((a,b) => a.teacher_name.localeCompare(b.teacher_name)).map(serialize)
   return c.json({ teachers: output.filter(teacher => teacher.teacher_id !== null), all_teachers: teacherId && teacherId !== 'all' ? null : output.find(teacher => teacher.teacher_id === null) ?? null })
 })
 // Teacher accountability includes student-held copies until the teacher physically
@@ -306,7 +320,7 @@ libraryRoutes.get('/teacher-accountability', async (c) => {
   for (const copy of rows) {
     if (copy.accountable_teacher_id == null) continue
     const key = String(copy.accountable_teacher_id)
-    const group = teachers.get(key) ?? {
+    const group: { teacher_id: number; teacher_name: string; total_accountable: number; with_students: number; retained_by_teacher: number; lost: number; copies: typeof rows } = teachers.get(key) ?? {
       teacher_id: copy.accountable_teacher_id,
       teacher_name: copy.accountable_teacher_name ?? 'Teacher ' + key,
       total_accountable: 0, with_students: 0, retained_by_teacher: 0, lost: 0, copies: [],
@@ -347,7 +361,7 @@ libraryRoutes.get('/reconciliation', async (c) => {
   const grouped = new Map<string, { holder_type: string; holder_id: number | null; holder_name: string | null; copies: typeof outstanding }>()
   for (const copy of outstanding) {
     const key = copy.current_holder_type + ':' + String(copy.current_holder_id)
-    const group = grouped.get(key) ?? {
+    const group: { holder_type: string; holder_id: number | null; holder_name: string | null; copies: typeof outstanding } = grouped.get(key) ?? {
       holder_type: copy.current_holder_type,
       holder_id: copy.current_holder_id,
       holder_name: copy.current_holder_name,
