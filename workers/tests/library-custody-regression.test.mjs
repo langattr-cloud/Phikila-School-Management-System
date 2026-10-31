@@ -21,6 +21,8 @@ test('custody transitions are serialized and reject skipping chain levels', () =
   assert.match(migration, /Only a student-held copy can be returned to a teacher/i)
   assert.match(migration, /Only a teacher-held copy can be returned to the library/i)
   assert.match(migration, /must be returned to the teacher who issued it/i)
+  assert.match(migration, /p_action='reconcile_copy'[\s\S]*?status<>'unreconciled'/i)
+  assert.match(migration, /legacy loan: physical holder to verify/i)
 })
 
 test('every successful transition appends a movement record before updating the copy', () => {
