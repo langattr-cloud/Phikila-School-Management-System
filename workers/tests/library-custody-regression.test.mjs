@@ -82,3 +82,17 @@ test('teacher inventory summary groups accountable physical copies by teacher, g
   assert.match(routes, /subject: book\.subject/)
   assert.match(routes, /copy_number/)
 })
+
+
+test('pre-issue missing copies can be excluded and restored without entering teacher custody', async () => {
+  const exclusionMigration = await readFile(new URL('../supabase/migrations/005_library_preissue_exclusions.sql', import.meta.url), 'utf8')
+  assert.match(exclusionMigration, /status in \([^)]*'excluded'/i)
+  assert.match(exclusionMigration, /exclude_before_issue/)
+  assert.match(exclusionMigration, /restore_excluded_copy/)
+  assert.match(exclusionMigration, /Only an available copy still in library custody can be excluded before issue/i)
+  assert.match(exclusionMigration, /Only a copy previously excluded before issue can be restored/i)
+  assert.match(exclusionMigration, /for update/i)
+  assert.match(exclusionMigration, /insert into public\.library_copy_movements[\s\S]*?update public\.library_book_copies/i)
+  assert.match(routes, /set_library_copy_preissue_exclusion/)
+  assert.match(routes, /A reason is required for pre-issue exclusion or restoration/i)
+})
