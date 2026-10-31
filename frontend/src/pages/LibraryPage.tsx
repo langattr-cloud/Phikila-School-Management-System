@@ -177,6 +177,7 @@ export default function LibraryPage() {
               <tbody>{group.titles.map(book => <tr key={book.id} style={{ borderBottom: '1px solid var(--color-line)' }}><td style={{ padding: 'var(--space-2)' }}>{book.title}</td><td style={{ padding: 'var(--space-2)', fontWeight: 700 }}>{book.total_copies}</td><td style={{ padding: 'var(--space-2)' }}>{book.copies.map(copy => copy.copy_number).join(', ') || 'No copies registered'}</td></tr>)}</tbody>
             </table>
             <p style={{ textAlign: 'right', fontWeight: 700, marginBottom: 0 }}>Total {group.subject} {group.grade}: {group.total_copies}</p>
+            <p style={{ textAlign: 'right', color: 'var(--color-ink-muted)', marginTop: '.25rem' }}>Total all subjects in {group.grade}: {inventorySummary.filter(item => item.grade === group.grade).reduce((sum, item) => sum + item.total_copies, 0)}</p>
           </details>)}
         </div>}
       </section>
