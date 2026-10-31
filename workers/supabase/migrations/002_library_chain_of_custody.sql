@@ -131,7 +131,7 @@ begin
       v_to_type:='library'; v_to_id:=null; v_to_name:='Library';
     else
       if p_to_holder_id is null or coalesce(trim(p_to_holder_name),'')='' then
-        raise exception 'A verified teacher or student ID and name are required.' using errcode='22023';
+        raise exception 'A verified teacher ID and name are required.' using errcode='22023';
       end if;
       v_to_type:=p_reconcile_holder_type; v_to_id:=p_to_holder_id; v_to_name:=trim(p_to_holder_name);
     end if;
@@ -163,11 +163,11 @@ create or replace function public.prevent_library_copy_movement_mutation()
 returns trigger
 language plpgsql
 set search_path = ''
-as $
+as $immutable$
 begin
   raise exception 'Library movement history is immutable.' using errcode='23514';
 end;
-$;
+$immutable$;
 
 drop trigger if exists library_copy_movements_immutable on public.library_copy_movements;
 create trigger library_copy_movements_immutable
