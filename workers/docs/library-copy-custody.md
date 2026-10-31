@@ -51,3 +51,8 @@ New catalogue records automatically create numbered copies through the existing 
 The teacher accountability view derives the responsible teacher from the latest librarian-to-teacher issue and the latest teacher-to-student issue. A student-held copy therefore remains on the issuing teacher's account; it is not treated as returned to the library. When a student returns a copy to the teacher, the copy remains on that teacher's account but its current holder becomes the teacher. Only the explicit `teacher_return_to_library` transition moves it out of the account. The API response and Library page show the copy-level list and summary counts, so reconciliation is performed by copy number rather than quantity alone.
 
 **Authorization limitation:** the library endpoints currently require verified authentication but do not yet enforce separate librarian, teacher, and student membership roles or restrict a teacher to their own account. The optional `teacher_id` filter is a reporting filter, not an authorization boundary. Do not expose this API as a role-secure teacher portal until role checks are implemented using the school's authoritative membership records.
+
+
+## Grade and subject inventory report
+
+Every new catalogue title must include a grade and subject. Migration 004 adds those fields and leaves existing catalogue rows as **Unassigned** until the librarian classifies them. The Library page's **View book totals** button calls the grade-subject summary endpoint. Totals are calculated from individual physical copy records, regardless of whether copies are in the library, with teachers, or with students. Expanding a grade/subject group lists each title, its copy count, and numbered copies.
