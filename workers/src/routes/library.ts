@@ -185,6 +185,47 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
   return c.json(data)
 })
 
+// Teacher accountability includes student-held copies until the teacher physically
+// returns each numbered copy and the library records acceptance.
+libraryRoutes.get('/teacher-accountability', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const teacherId = c.req.query('teacher_id')
+  let query = db().from('library_teacher_accountability').select('*')
+    .order('accountable_teacher_name').order('book_title').order('copy_number')
+  if (teacherId) query = query.eq('accountable_teacher_id', teacherId)
+  const { data, error: queryError } = await query
+  if (queryError) return jsonError(c, queryError.message, 500)
+  const rows = data ?? []
+  const teachers = new Map<string, {
+    teacher_id: number; teacher_name: string; total_accountable: number;
+    with_students: number; retained_by_teacher: number; lost: number; copies: typeof rows
+  }>()
+  for (const copy of rows) {
+    if (copy.accountable_teacher_id == null) continue
+    const key = String(copy.accountable_teacher_id)
+    const group = teachers.get(key) ?? {
+      teacher_id: copy.accountable_teacher_id,
+      teacher_name: copy.accountable_teacher_name ?? 'Teacher ' + key,
+      total_accountable: 0, with_students: 0, retained_by_teacher: 0, lost: 0, copies: [],
+    }
+    group.total_accountable++
+    if (copy.current_holder_type === 'student') group.with_students++
+    else if (copy.current_holder_type === 'teacher') group.retained_by_teacher++
+    if (copy.status === 'lost') group.lost++
+    group.copies.push(copy)
+    teachers.set(key, group)
+  }
+  return c.json({
+    total_accountable: rows.length,
+    with_students: rows.filter(x => x.current_holder_type === 'student').length,
+    retained_by_teachers: rows.filter(x => x.current_holder_type === 'teacher').length,
+    lost: rows.filter(x => x.status === 'lost').length,
+    teachers: [...teachers.values()],
+    copies: rows,
+  })
+})
+
 // Exact, per-copy reconciliation; a copy stays assigned to its last recorded holder.
 libraryRoutes.get('/reconciliation', async (c) => {
   const { error } = requireAuth(c as never)
