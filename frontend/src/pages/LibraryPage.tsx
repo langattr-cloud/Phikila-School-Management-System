@@ -1,0 +1,167 @@
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { PageHeader } from '../components/PageHeader'
+import { Alert } from '../components/Alert'
+import { EmptyState, LoadingBlock } from '../components/States'
+import { apiFetch, friendlyApiError } from '../lib/api'
+import { useToast } from '../components/Toast'
+
+type Book = { id: number; title: string; author?: string | null; total_copies?: number }
+type Copy = {
+  id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost'
+  current_holder_type: 'library' | 'teacher' | 'student'; current_holder_id: number | null
+  current_holder_name: string | null; condition: 'good' | 'damaged' | 'lost'; due_date?: string | null
+  book?: { id: number; title: string } | null
+}
+type Movement = { id: number; action: string; from_holder_name?: string | null; to_holder_name?: string | null; condition: string; performed_at: string; notes?: string | null }
+type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number }
+type Reconciliation = { outstanding_count: number; with_teachers: number; with_students: number; lost_count: number; outstanding_copies: Copy[] }
+
+const actionLabels: Record<string, string> = {
+  issue_to_teacher: 'Library → Teacher',
+  issue_to_student: 'Teacher → Student',
+  student_return_to_teacher: 'Student → Teacher',
+  teacher_return_to_library: 'Teacher → Library',
+  mark_lost: 'Mark copy lost',
+}
+const statusLabel = (status: Copy['status']) => ({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost' })[status]
+
+export default function LibraryPage() {
+  const { notify } = useToast()
+  const [books, setBooks] = useState<Book[]>([])
+  const [copies, setCopies] = useState<Copy[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)
+  const [movements, setMovements] = useState<Movement[]>([])
+  const [selectedCopy, setSelectedCopy] = useState('')
+  const [action, setAction] = useState('issue_to_teacher')
+  const [holderId, setHolderId] = useState('')
+  const [holderName, setHolderName] = useState('')
+  const [condition, setCondition] = useState<'good' | 'damaged'>('good')
+  const [dueDate, setDueDate] = useState('')
+  const [notes, setNotes] = useState('')
+  const [filterBook, setFilterBook] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null)
+    try {
+      const [bookRows, copyRows, overview, outstanding] = await Promise.all([
+        apiFetch<Book[]>('/api/v1/library/books'),
+        apiFetch<Copy[]>('/api/v1/library/copies'),
+        apiFetch<Stats>('/api/v1/library/books/stats'),
+        apiFetch<Reconciliation>('/api/v1/library/reconciliation'),
+      ])
+      setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding)
+    } catch (err) { setError(friendlyApiError(err, 'load the library register')) }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  const eligibleCopies = useMemo(() => copies.filter(copy => {
+    if (action === 'issue_to_teacher') return copy.status === 'available'
+    if (action === 'issue_to_student') return copy.status === 'with_teacher'
+    if (action === 'student_return_to_teacher') return copy.status === 'with_student'
+    if (action === 'teacher_return_to_library') return copy.status === 'with_teacher'
+    return copy.status === 'with_teacher' || copy.status === 'with_student'
+  }), [copies, action])
+
+  const visibleCopies = useMemo(() => filterBook === 'all' ? copies : copies.filter(copy => String(copy.book_id) === filterBook), [copies, filterBook])
+
+  useEffect(() => {
+    if (selectedCopy && !eligibleCopies.some(copy => copy.id === selectedCopy)) setSelectedCopy('')
+  }, [eligibleCopies, selectedCopy])
+
+  const showReceiver = ['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action)
+
+  async function submitMovement(event: FormEvent) {
+    event.preventDefault()
+    if (!selectedCopy) { setError('Select a physical book copy first.'); return }
+    setSaving(true); setError(null)
+    try {
+      await apiFetch<Copy>(`/api/v1/library/copies/${selectedCopy}/movements`, {
+        method: 'POST',
+        body: JSON.stringify({
+          action,
+          to_holder_id: showReceiver ? Number(holderId) : null,
+          to_holder_name: showReceiver ? holderName.trim() : null,
+          condition,
+          due_date: dueDate || null,
+          notes: notes.trim() || null,
+        }),
+      })
+      notify('Book custody movement recorded.', 'success')
+      setHolderId(''); setHolderName(''); setDueDate(''); setNotes('')
+      await load()
+      const history = await apiFetch<Movement[]>(`/api/v1/library/copies/${selectedCopy}/movements`)
+      setMovements(history)
+    } catch (err) { setError(friendlyApiError(err, 'record this book movement')) }
+    finally { setSaving(false) }
+  }
+
+  async function openHistory(copyId: string) {
+    setSelectedCopy(copyId)
+    try { setMovements(await apiFetch<Movement[]>(`/api/v1/library/copies/${copyId}/movements`)) }
+    catch (err) { setError(friendlyApiError(err, 'load book movement history')) }
+  }
+
+  return <div className="library-page">
+    <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." />
+    {error && <Alert tone="error">{error}</Alert>}
+    {loading ? <LoadingBlock label="Loading library register" rows={5} /> : <>
+      <div className="summary-grid" style={{ marginBottom: 'var(--space-4)' }}>
+        {[
+          ['Physical copies', stats?.total_copies ?? 0],
+          ['Available in library', stats?.available_copies ?? 0],
+          ['With teachers', stats?.with_teachers ?? 0],
+          ['With students', stats?.with_students ?? 0],
+          ['Lost', stats?.lost_copies ?? 0],
+        ].map(([label, value]) => <section className="card section" key={label}><p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{label}</p><strong style={{ fontSize: '1.65rem' }}>{value}</strong></section>)}
+      </div>
+
+      <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
+        <h2 className="section__title">Record a book hand-off</h2>
+        <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>Choose the correct transition. The system checks the current holder and rejects skipped steps.</p>
+        <form onSubmit={submitMovement} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}>
+          <label className="field"><span className="field__label">Movement</span><select className="input" value={action} onChange={e => setAction(e.target.value)}>{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>
+          {showReceiver && <>
+            <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
+            <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student name' : 'Teacher name'}</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Full name" /></label>
+          </>}
+          <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
+          <label className="field"><span className="field__label">Due date (optional)</span><input className="input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
+          <label className="field" style={{ gridColumn: '1 / -1' }}><span className="field__label">Notes (optional)</span><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Class, subject, condition notes…" /></label>
+          <div><button className="button button--primary" type="submit" disabled={saving || eligibleCopies.length === 0}>{saving ? 'Saving…' : 'Record hand-off'}</button></div>
+        </form>
+        {eligibleCopies.length === 0 && <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>No copies currently qualify for this movement.</p>}
+      </section>
+
+      <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <div><h2 className="section__title" style={{ marginBottom: '.25rem' }}>Outstanding book reconciliation</h2><p style={{ margin: 0, color: 'var(--color-ink-muted)' }}>{reconciliation?.outstanding_count ?? 0} copies remain outside the library.</p></div>
+          <button className="button button--secondary button--sm" onClick={load}>Refresh register</button>
+        </div>
+        {(reconciliation?.outstanding_copies.length ?? 0) === 0 ? <EmptyState title="All copies are in the library" description="No outstanding teacher or student holdings are recorded." /> : <div style={{ overflowX: 'auto', marginTop: 'var(--space-3)' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.9rem' }}>
+          <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--color-line)' }}>{['Book title','Copy number','Current holder','Holder type','Condition','Due date'].map(x => <th key={x} style={{ padding: 'var(--space-2)' }}>{x}</th>)}</tr></thead>
+          <tbody>{reconciliation?.outstanding_copies.map(copy => <tr key={copy.id} style={{ borderBottom: '1px solid var(--color-line)' }}><td style={{ padding: 'var(--space-2)' }}>{copy.book?.title ?? `Book #${copy.book_id}`}</td><td style={{ padding: 'var(--space-2)', fontWeight: 700 }}>{copy.copy_number}</td><td style={{ padding: 'var(--space-2)' }}>{copy.current_holder_name ?? 'Unknown'}</td><td style={{ padding: 'var(--space-2)' }}>{copy.current_holder_type}</td><td style={{ padding: 'var(--space-2)' }}>{copy.condition}</td><td style={{ padding: 'var(--space-2)' }}>{copy.due_date ?? '—'}</td></tr>)}</tbody>
+        </table></div>}
+      </section>
+
+      <section className="card section">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
+          <h2 className="section__title" style={{ margin: 0 }}>Physical copy register</h2>
+          <select className="input" style={{ maxWidth: '20rem' }} value={filterBook} onChange={e => setFilterBook(e.target.value)}><option value="all">All titles</option>{books.map(book => <option key={book.id} value={book.id}>{book.title}</option>)}</select>
+        </div>
+        <div style={{ overflowX: 'auto', marginTop: 'var(--space-3)' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.9rem' }}>
+          <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--color-line)' }}>{['Title','Copy ID','Status','Current holder','Condition','History'].map(x => <th key={x} style={{ padding: 'var(--space-2)' }}>{x}</th>)}</tr></thead>
+          <tbody>{visibleCopies.map(copy => <tr key={copy.id} style={{ borderBottom: '1px solid var(--color-line)' }}><td style={{ padding: 'var(--space-2)' }}>{copy.book?.title ?? `Book #${copy.book_id}`}</td><td style={{ padding: 'var(--space-2)', fontWeight: 700 }}>{copy.copy_number}</td><td style={{ padding: 'var(--space-2)' }}>{statusLabel(copy.status)}</td><td style={{ padding: 'var(--space-2)' }}>{copy.current_holder_name ?? 'Library'}</td><td style={{ padding: 'var(--space-2)' }}>{copy.condition}</td><td style={{ padding: 'var(--space-2)' }}><button className="button button--ghost button--sm" onClick={() => void openHistory(copy.id)}>View history</button></td></tr>)}</tbody>
+        </table></div>
+        {visibleCopies.length === 0 && <EmptyState title="No physical copies registered" description="Add catalogue titles and run the library custody migration to populate the copy register." />}
+        {movements.length > 0 && <div style={{ marginTop: 'var(--space-4)' }}><h3 className="section__title">Movement history · {copies.find(copy => copy.id === selectedCopy)?.copy_number}</h3><ol style={{ paddingLeft: '1.25rem' }}>{movements.map(move => <li key={move.id} style={{ padding: '.4rem 0' }}><strong>{actionLabels[move.action] ?? move.action}</strong> · {move.from_holder_name ?? 'Library'} → {move.to_holder_name ?? 'Library'} · {move.condition} · {new Date(move.performed_at).toLocaleString()}{move.notes ? <div style={{ color: 'var(--color-ink-muted)' }}>{move.notes}</div> : null}</li>)}</ol></div>}
+      </section>
+    </>}
+  </div>
+}
