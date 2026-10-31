@@ -7,7 +7,7 @@ const migration = await readFile(
   new URL('../supabase/migrations/002_library_chain_of_custody.sql', import.meta.url),
   'utf8',
 )
-const routes = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+const accountabilityMigration = await readFile(new URL('../supabase/migrations/003_library_teacher_accountability.sql', import.meta.url), 'utf8')\nconst routes = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
 
 test('library copy register enforces unique physical copy numbers per title', () => {
   assert.match(migration, /unique\s*\(book_id,\s*copy_number\)/i)
@@ -50,4 +50,14 @@ test('custody and reconciliation endpoints require verified authentication', asy
     const response = await app.request(path)
     assert.equal(response.status, 401, path)
   }
+})
+
+test('teacher accountability includes student-held copies until library acceptance', () => {
+  assert.match(accountabilityMigration, /library_teacher_accountability/i)
+  assert.match(accountabilityMigration, /action = 'issue_to_student'/i)
+  assert.match(accountabilityMigration, /action = 'issue_to_teacher'/i)
+  assert.match(accountabilityMigration, /current_holder_type in \('teacher','student'\)/i)
+  assert.match(routes, /get\('\/teacher-accountability'/)
+  assert.match(routes, /retained_by_teacher/)
+  assert.match(routes, /with_students/)
 })
