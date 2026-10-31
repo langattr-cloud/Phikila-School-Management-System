@@ -15,7 +15,6 @@ type Copy = {
 type Movement = { id: number; action: string; from_holder_name?: string | null; to_holder_name?: string | null; condition: string; performed_at: string; notes?: string | null }
 type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; unreconciled_copies: number }
 type Reconciliation = { outstanding_count: number; with_teachers: number; with_students: number; lost_count: number; unreconciled_count: number; outstanding_copies: Copy[] }
-type TeacherAccountability = { teachers: TeacherAccount[]; total_accountable: number; copies: AccountableCopy[] }
 type TeacherAccountability = {
   total_accountable: number; with_students: number; retained_by_teachers: number; lost: number
   teachers: Array<{ teacher_id: number; teacher_name: string; total_accountable: number; with_students: number; retained_by_teacher: number; lost: number;
