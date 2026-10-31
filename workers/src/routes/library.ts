@@ -220,6 +220,52 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
   return c.json(data)
 })
 
+// Teacher → grade → subject → title report. All Teachers aggregates accountable copies across teachers.
+libraryRoutes.get('/teacher-inventory-summary', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const teacherId = c.req.query('teacher_id')
+  let custodyQuery = db().from('library_teacher_accountability').select('*').order('accountable_teacher_name').order('copy_number')
+  if (teacherId && teacherId !== 'all') custodyQuery = custodyQuery.eq('accountable_teacher_id', teacherId)
+  const { data: custodyRows, error: custodyError } = await custodyQuery
+  if (custodyError) return jsonError(c, custodyError.message, 500)
+  const rows = custodyRows ?? []
+  const bookIds = [...new Set(rows.map(row => row.book_id))]
+  const { data: bookRows, error: booksError } = bookIds.length ? await db().from('library_books').select('id,title,grade,subject').in('id', bookIds) : { data: [], error: null }
+  if (booksError) return jsonError(c, booksError.message, 500)
+  const books = new Map((bookRows ?? []).map(book => [book.id, book]))
+  const teachers = new Map()
+  const addCopy = (key, id, name, row) => {
+    const book = books.get(row.book_id)
+    if (!book) return
+    const teacher = teachers.get(key) ?? { teacher_id: id, teacher_name: name, groups: new Map() }
+    const grade = book.grade || 'Unassigned', subject = book.subject || 'Unassigned'
+    const groupKey = grade + String.fromCharCode(0) + subject
+    const group = teacher.groups.get(groupKey) ?? { grade, subject, total_copies: 0, titles: new Map() }
+    const title = group.titles.get(row.book_id) ?? { book_id: row.book_id, title: book.title, total_copies: 0, copies: [] }
+    title.total_copies++; group.total_copies++
+    title.copies.push({ copy_id: row.copy_id, copy_number: row.copy_number, status: row.status, current_holder_type: row.current_holder_type, current_holder_name: row.current_holder_name })
+    group.titles.set(row.book_id, title); teacher.groups.set(groupKey, group); teachers.set(key, teacher)
+  }
+  for (const row of rows) {
+    if (row.accountable_teacher_id == null) continue
+    addCopy(String(row.accountable_teacher_id), row.accountable_teacher_id, row.accountable_teacher_name ?? 'Teacher ' + row.accountable_teacher_id, row)
+    if (!teacherId || teacherId === 'all') addCopy('all', null, 'All Teachers', row)
+  }
+  const serialize = teacher => ({
+    teacher_id: teacher.teacher_id, teacher_name: teacher.teacher_name,
+    total_copies: [...teacher.groups.values()].reduce((sum, group) => sum + group.total_copies, 0),
+    grades: [...new Set([...teacher.groups.values()].map(group => group.grade))].sort().map(grade => ({
+      grade, total_copies: [...teacher.groups.values()].filter(group => group.grade === grade).reduce((sum, group) => sum + group.total_copies, 0),
+      subjects: [...teacher.groups.values()].filter(group => group.grade === grade).sort((a,b) => a.subject.localeCompare(b.subject)).map(group => ({
+        subject: group.subject, total_copies: group.total_copies,
+        titles: [...group.titles.values()].sort((a,b) => a.title.localeCompare(b.title)).map(title => ({ ...title, copies: title.copies.sort((a,b) => a.copy_number.localeCompare(b.copy_number)) }))
+      }))
+    }))
+  })
+  const output = [...teachers.values()].filter(teacher => !teacherId || teacherId === 'all' || teacher.teacher_id !== null).sort((a,b) => a.teacher_name.localeCompare(b.teacher_name)).map(serialize)
+  return c.json({ teachers: output.filter(teacher => teacher.teacher_id !== null), all_teachers: teacherId && teacherId !== 'all' ? null : output.find(teacher => teacher.teacher_id === null) ?? null })
+})
 // Teacher accountability includes student-held copies until the teacher physically
 // returns each numbered copy and the library records acceptance.
 libraryRoutes.get('/teacher-accountability', async (c) => {
