@@ -210,8 +210,8 @@ libraryRoutes.get('/teacher-accountability', async (c) => {
       total_accountable: 0, with_students: 0, retained_by_teacher: 0, lost: 0, copies: [],
     }
     group.total_accountable++
-    if (copy.current_holder_type === 'student') group.with_students++
-    else if (copy.current_holder_type === 'teacher') group.retained_by_teacher++
+    if (copy.current_holder_type === 'student' && copy.status !== 'lost') group.with_students++
+    else if (copy.current_holder_type === 'teacher' && copy.status !== 'lost') group.retained_by_teacher++
     if (copy.status === 'lost') group.lost++
     group.copies.push(copy)
     teachers.set(key, group)
