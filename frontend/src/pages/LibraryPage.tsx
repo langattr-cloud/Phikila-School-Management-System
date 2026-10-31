@@ -193,8 +193,8 @@ export default function LibraryPage() {
         <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>All copies issued by the librarian remain on the teacher account until the librarian records physical return. Student-held copies remain included in that teacher's total.</p>
         <div className="summary-grid" style={{ marginBottom: 'var(--space-3)' }}>
           <section className="card section"><p>Copies still accountable</p><strong>{teacherAccounts?.total_accountable ?? 0}</strong></section>
-          <section className="card section"><p>Currently with students</p><strong>{teacherAccounts?.copies.filter(copy => copy.current_holder_type === 'student').length ?? 0}</strong></section>
-          <section className="card section"><p>Retained by teachers</p><strong>{teacherAccounts?.copies.filter(copy => copy.current_holder_type === 'teacher').length ?? 0}</strong></section>
+          <section className="card section"><p>Currently with students</p><strong>{teacherAccounts?.copies.filter(copy => copy.current_holder_type === 'student' && copy.status !== 'lost').length ?? 0}</strong></section>
+          <section className="card section"><p>Retained by teachers</p><strong>{teacherAccounts?.copies.filter(copy => copy.current_holder_type === 'teacher' && copy.status !== 'lost').length ?? 0}</strong></section>
         </div>
         {(teacherAccounts?.teachers.length ?? 0) === 0 ? <EmptyState title="No outstanding teacher accounts" description="Copies issued to teachers appear here, including copies currently held by their students." /> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>{['Teacher','Total accountable','With students','Held by teacher','Lost'].map(label => <th key={label} style={{ textAlign: 'left', padding: 'var(--space-2)' }}>{label}</th>)}</tr></thead>
