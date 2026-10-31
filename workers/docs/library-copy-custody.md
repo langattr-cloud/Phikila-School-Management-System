@@ -56,3 +56,12 @@ The teacher accountability view derives the responsible teacher from the latest 
 ## Grade and subject inventory report
 
 Every new catalogue title must include a grade and subject. Migration 004 adds those fields and leaves existing catalogue rows as **Unassigned** until the librarian classifies them. The Library page's **View book totals** button calls the grade-subject summary endpoint. Totals are calculated from individual physical copy records, regardless of whether copies are in the library, with teachers, or with students. Expanding a grade/subject group lists each title, its copy count, and numbered copies.
+
+
+## Missing before issue: pre-issue exclusion
+
+If a numbered copy cannot be physically located before the librarian issues a class set to a teacher, record **Exclude missing copy before issue** for that exact copy number. The librarian must enter a reason. The copy remains in the master physical-copy register with status `excluded` and holder `Library`, but it is not available for issue and is not included in any teacher accountability account. The immutable movement log records the actor, timestamp, reason and transaction reference.
+
+A copy may later be restored using **Restore previously excluded copy**, with a reason explaining the physical verification. Restoration changes its status to `available`; it does not erase the original exclusion event. This is distinct from `mark_lost`: a copy lost after it was issued remains accountable to its last responsible teacher.
+
+Example: for 25 registered copies, if 13/25 is missing before issue, exclude 13/25 and issue only the remaining 24 copies. The report must show 24 accountable copies for that teacher, while the catalogue still shows all 25 registered copy numbers and one pre-issue exclusion.
