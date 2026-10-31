@@ -218,45 +218,12 @@ libraryRoutes.get('/teacher-accountability', async (c) => {
   }
   return c.json({
     total_accountable: rows.length,
-    with_students: rows.filter(x => x.current_holder_type === 'student').length,
-    retained_by_teachers: rows.filter(x => x.current_holder_type === 'teacher').length,
+    with_students: rows.filter(x => x.current_holder_type === 'student' && x.status !== 'lost').length,
+    retained_by_teachers: rows.filter(x => x.current_holder_type === 'teacher' && x.status !== 'lost').length,
     lost: rows.filter(x => x.status === 'lost').length,
     teachers: [...teachers.values()],
     copies: rows,
   })
-})
-
-// Teacher accountability includes student-held copies under the teacher who issued them.
-libraryRoutes.get('/teacher-accountability', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
-  const teacherId = c.req.query('teacher_id')
-  let query = db().from('library_teacher_accountability').select('*')
-    .order('accountable_teacher_name').order('book_title').order('copy_number')
-  if (teacherId) query = query.eq('accountable_teacher_id', teacherId)
-  const { data, error: queryError } = await query
-  if (queryError) return jsonError(c, queryError.message, 500)
-
-  const grouped = new Map<string, {
-    teacher_id: number; teacher_name: string; total_accountable: number;
-    with_students: number; retained_by_teacher: number; lost: number; copies: any[]
-  }>()
-  for (const copy of data ?? []) {
-    if (copy.accountable_teacher_id == null) continue
-    const key = String(copy.accountable_teacher_id)
-    const group = grouped.get(key) ?? {
-      teacher_id: copy.accountable_teacher_id,
-      teacher_name: copy.accountable_teacher_name ?? 'Teacher ' + key,
-      total_accountable: 0, with_students: 0, retained_by_teacher: 0, lost: 0, copies: [],
-    }
-    group.total_accountable++
-    if (copy.current_holder_type === 'student') group.with_students++
-    if (copy.current_holder_type === 'teacher') group.retained_by_teacher++
-    if (copy.status === 'lost') group.lost++
-    group.copies.push(copy)
-    grouped.set(key, group)
-  }
-  return c.json({ teachers: [...grouped.values()], total_accountable: (data ?? []).length, copies: data ?? [] })
 })
 
 // Exact, per-copy reconciliation; a copy stays assigned to its last recorded holder.
