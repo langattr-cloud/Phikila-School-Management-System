@@ -18,7 +18,7 @@ All endpoints require a verified Supabase bearer token.
 - `GET /api/v1/library/copies` — list physical copies. Optional filters: `book_id`, `holder_type`, `holder_id`, `status`.
 - `GET /api/v1/library/copies/:copyId/movements` — full audit history for one copy.
 - `POST /api/v1/library/copies/:copyId/movements` — record a validated custody transition.
-- `GET /api/v1/library/reconciliation` — list every copy currently outside the library and group by current holder. Optional `teacher_id` narrows the result to a teacher's own outstanding copies.
+- `GET /api/v1/library/reconciliation` — list every copy currently outside the library and group by current holder. Optional `teacher_id` narrows the result to copies currently held directly by that teacher.
 - `GET /api/v1/library/books/:bookId` — includes the physical `copies` array alongside legacy loan history.
 
 ### Verify a legacy copy
