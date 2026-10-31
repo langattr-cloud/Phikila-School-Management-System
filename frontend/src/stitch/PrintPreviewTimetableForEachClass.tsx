@@ -106,6 +106,9 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
     <style>{`
       /* Personal class and teacher reports are constrained to one landscape page. */
       .phikila-print-sheet.is-one-page-view { height: 100%; min-height: 0; overflow: hidden; }
+      .phikila-print-sheet-heading { position: relative; }
+      .phikila-print-class-teacher { position: absolute; top: 0; right: 0; max-width: 38%; margin: 0; font-size: 0.75rem; line-height: 1.25; font-weight: 400; text-align: right; }
+      @media print { .phikila-print-class-teacher { font-size: 9pt; } }
       .phikila-print-sheet.is-one-page-view .phikila-print-year { display: block; }
       @media print {
         @page { size: landscape; margin: 9mm; }
