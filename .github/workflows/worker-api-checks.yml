@@ -46,6 +46,8 @@ jobs:
         run: npm run test:finance-migrations
       - name: Finance API authentication and CORS regression checks
         run: npm run test:finance-auth
+      - name: Library custody and pre-issue exclusion regression checks
+        run: npm run test:library-custody
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
