@@ -6,6 +6,8 @@ import { apiFetch, friendlyApiError } from '../lib/api'
 import { useToast } from '../components/Toast'
 
 type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
+type TimetableWorkspace = { data?: { specification?: { teachers?: string[]; classes?: string[]; subjects?: string[] }; lessons?: Array<{ className: string; subject: string; teacher: string }>; classDetails?: Record<string, { grade?: string }> } | null }
+type DirectoryTeacher = { id: number; name: string }
 type TeacherInventorySummary = { teachers: Array<{ teacher_id: number; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> }>; all_teachers: { teacher_id: null; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> } | null }
 type Copy = {
   id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled' | 'excluded'
@@ -37,6 +39,8 @@ const statusLabel = (status: Copy['status']) => ({ available: 'In library', with
 export default function LibraryPage() {
   const { notify } = useToast()
   const [books, setBooks] = useState<Book[]>([])
+  const [timetable, setTimetable] = useState<TimetableWorkspace['data']>(null)
+  const [teacherDirectory, setTeacherDirectory] = useState<DirectoryTeacher[]>([])
   const [copies, setCopies] = useState<Copy[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)
@@ -77,11 +81,46 @@ export default function LibraryPage() {
         apiFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),
       ])
       setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccountability(teacherRegister)
+      const [workspaceResult, directoryResult] = await Promise.allSettled([
+        apiFetch<TimetableWorkspace>('/api/v1/timetable/workspace'),
+        apiFetch<DirectoryTeacher[]>('/api/v1/teachers/'),
+      ])
+      if (workspaceResult.status === 'fulfilled') setTimetable(workspaceResult.value.data ?? null)
+      else setTimetable(null)
+      if (directoryResult.status === 'fulfilled') setTeacherDirectory(directoryResult.value.filter(item => Number.isSafeInteger(Number(item.id)) && String(item.name ?? '').trim()).map(item => ({ id: Number(item.id), name: String(item.name).trim() })))
+      else setTeacherDirectory([])
     } catch (err) { setError(friendlyApiError(err, 'load the library register')) }
     finally { setLoading(false) }
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  const timetableAssignments = useMemo(() => {
+    const lessons = timetable?.lessons ?? []
+    const classDetails = timetable?.classDetails ?? {}
+    const directoryByName = new Map(teacherDirectory.map(teacher => [teacher.name.trim().toLocaleLowerCase(), teacher]))
+    return lessons.map(lesson => {
+      const className = String(lesson.className ?? '').trim()
+      const grade = String(classDetails[className]?.grade ?? className.match(/(?:grade|form|year)\\s*\\d+/i)?.[0] ?? '').trim()
+      const teacherName = String(lesson.teacher ?? '').trim()
+      const directoryTeacher = directoryByName.get(teacherName.toLocaleLowerCase())
+      return { grade, subject: String(lesson.subject ?? '').trim(), teacherName, teacherId: directoryTeacher?.id ?? null }
+    }).filter(item => item.grade && item.subject && item.teacherName)
+  }, [timetable, teacherDirectory])
+  const timetableGrades = useMemo(() => Array.from(new Set(timetableAssignments.map(item => item.grade))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [timetableAssignments])
+  const timetableSubjects = useMemo(() => Array.from(new Set(timetableAssignments.filter(item => item.grade === newBookGrade).map(item => item.subject))).sort(), [timetableAssignments, newBookGrade])
+  const eligibleTeacherReceivers = useMemo(() => {
+    const book = copies.find(copy => copy.id === selectedCopy)?.book ?? books.find(item => item.id === copies.find(copy => copy.id === selectedCopy)?.book_id)
+    if (!book) return []
+    const bookRecord = books.find(item => item.id === book.id)
+    const grade = String(bookRecord?.grade ?? '')
+    const subject = String(bookRecord?.subject ?? '')
+    const byId = new Map<number, string>()
+    for (const assignment of timetableAssignments) {
+      if (assignment.grade === grade && assignment.subject.toLocaleLowerCase() === subject.toLocaleLowerCase() && assignment.teacherId != null) byId.set(assignment.teacherId, assignment.teacherName)
+    }
+    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [books, copies, selectedCopy, timetableAssignments])
 
   const eligibleCopies = useMemo(() => copies.filter(copy => {
     if (action === 'issue_to_teacher') return copy.status === 'available'
@@ -112,7 +151,7 @@ export default function LibraryPage() {
         body: JSON.stringify({
           action,
           to_holder_type: action === 'reconcile_copy' ? toHolderType : null,
-          to_holder_id: showReceiver ? Number(holderId) : null,
+          to_holder_id: showReceiver ? Number(action === 'issue_to_teacher' ? holderId : holderId) : null,
           to_holder_name: showReceiver ? holderName.trim() : null,
           condition,
           due_date: dueDate || null,
@@ -131,8 +170,8 @@ export default function LibraryPage() {
   async function createBook(event: FormEvent) {
     event.preventDefault()
     const count = Number(newBookCopies)
-    if (!newBookTitle.trim() || !newBookGrade.trim() || !newBookSubject.trim() || !Number.isSafeInteger(count) || count < 1 || count > 5000) {
-      setError('Enter a title, grade, subject and a whole-number copy count between 1 and 5,000.')
+    if (!newBookTitle.trim() || !timetableGrades.includes(newBookGrade) || !timetableSubjects.includes(newBookSubject) || !Number.isSafeInteger(count) || count < 1 || count > 5000) {
+      setError('Choose a grade and subject from the saved timetable, then enter a title and a whole-number copy count between 1 and 5,000.')
       return
     }
     setAddingBook(true); setError(null)
@@ -173,7 +212,7 @@ export default function LibraryPage() {
 
   return <div className="library-page">
     <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." actions={<button className="button button--primary button--sm" onClick={() => setShowNewBook(value => !value)}>{showNewBook ? 'Cancel' : 'Add book title'}</button>} />
-    {showNewBook && <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Add a catalogue title</h2><form onSubmit={createBook} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}><label className="field"><span className="field__label">Grade</span><input className="input" required value={newBookGrade} onChange={e => setNewBookGrade(e.target.value)} placeholder="e.g. Grade 9" /></label><label className="field"><span className="field__label">Subject</span><input className="input" required value={newBookSubject} onChange={e => setNewBookSubject(e.target.value)} placeholder="e.g. English" /></label><label className="field"><span className="field__label">Book title</span><input className="input" required value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="e.g. Skills in English Grade 9" /></label><label className="field"><span className="field__label">Author (optional)</span><input className="input" value={newBookAuthor} onChange={e => setNewBookAuthor(e.target.value)} /></label><label className="field"><span className="field__label">Number of physical copies</span><input className="input" type="number" min="1" max="5000" required value={newBookCopies} onChange={e => setNewBookCopies(e.target.value)} /></label><button className="button button--primary" type="submit" disabled={addingBook}>{addingBook ? 'Creating…' : 'Create title & copies'}</button></form><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Copies are numbered automatically, for example 01/25 through 25/25.</p></section>}
+    {showNewBook && <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Add a catalogue title</h2><form onSubmit={createBook} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}><label className="field"><span className="field__label">Grade (from timetable)</span><select className="input" required value={newBookGrade} onChange={e => { setNewBookGrade(e.target.value); setNewBookSubject('') }}><option value="">Select timetable grade…</option>{timetableGrades.map(grade => <option key={grade} value={grade}>{grade}</option>)}</select></label><label className="field"><span className="field__label">Subject (from timetable)</span><select className="input" required value={newBookSubject} onChange={e => setNewBookSubject(e.target.value)} disabled={!newBookGrade}><option value="">Select timetable subject…</option>{timetableSubjects.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label><label className="field"><span className="field__label">Book title</span><input className="input" required value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="e.g. Skills in English Grade 9" /></label><label className="field"><span className="field__label">Author (optional)</span><input className="input" value={newBookAuthor} onChange={e => setNewBookAuthor(e.target.value)} /></label><label className="field"><span className="field__label">Number of physical copies</span><input className="input" type="number" min="1" max="5000" required value={newBookCopies} onChange={e => setNewBookCopies(e.target.value)} /></label><button className="button button--primary" type="submit" disabled={addingBook}>{addingBook ? 'Creating…' : 'Create title & copies'}</button></form><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Grades and subjects are read from saved timetable lessons and class grade metadata. Copies are numbered automatically, for example 01/25 through 25/25. {timetableGrades.length === 0 ? 'No timetable assignments were found; save the timetable before creating a catalogue title.' : ''}</p></section>}
     {error && <Alert tone="error">{error}</Alert>}
     {loading ? <LoadingBlock label="Loading library register" rows={5} /> : <>
       <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
@@ -252,14 +291,15 @@ export default function LibraryPage() {
           <label className="field"><span className="field__label">Movement</span><select className="input" value={action} onChange={e => setAction(e.target.value)}>{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>
           {action === 'reconcile_copy' && <label className="field"><span className="field__label">Verified physical holder</span><select className="input" value={toHolderType} onChange={e => setToHolderType(e.target.value as 'library' | 'teacher')}><option value="library">Returned to library</option><option value="teacher">With a teacher</option></select></label>}
-          {showReceiver && <>
+          {showReceiver && action === 'issue_to_teacher' && <label className="field"><span className="field__label">Teacher (assigned to this grade and subject in timetable)</span><select className="input" required value={holderId} onChange={e => { const teacher = eligibleTeacherReceivers.find(item => String(item.id) === e.target.value); setHolderId(e.target.value); setHolderName(teacher?.name ?? '') }}><option value="">Select assigned teacher…</option>{eligibleTeacherReceivers.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select>{eligibleTeacherReceivers.length === 0 && <small style={{ color: 'var(--color-ink-muted)' }}>No matching timetable teacher is linked to a teacher directory record for this book’s grade and subject.</small>}</label>}
+          {showReceiver && action !== 'issue_to_teacher' && <>
             <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
             <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student name' : 'Teacher name'}</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Full name" /></label>
           </>}
           <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
           <label className="field"><span className="field__label">Due date (optional)</span><input className="input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span className="field__label">Notes (optional)</span><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={action === 'exclude_before_issue' || action === 'restore_excluded_copy' ? 'Required reason for this register change…' : 'Class, subject, condition notes…'} /></label>
-          <div><button className="button button--primary" type="submit" disabled={saving || eligibleCopies.length === 0}>{saving ? 'Saving…' : 'Record hand-off'}</button></div>
+          <div><button className="button button--primary" type="submit" disabled={saving || eligibleCopies.length === 0 || (action === 'issue_to_teacher' && eligibleTeacherReceivers.length === 0)}>{saving ? 'Saving…' : 'Record hand-off'}</button></div>
         </form>
         {eligibleCopies.length === 0 && <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>No copies currently qualify for this movement.</p>}
       </section>
