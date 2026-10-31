@@ -72,7 +72,9 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
   // Teacher IDs/numbers are metadata only; never use them as printed name fallbacks.
   const teacherLabel = (name: string) => displayName(name, props.teacherDetails[name]?.short)
   const title = report === 'Classrooms' ? props.schoolName : ''
-  const name = report === 'Teachers' ? (current ? 'Teacher ' + current : 'Teacher: Not assigned') : current
+  // Class print headings contain only the selected grade/class name; never append class-teacher metadata.
+  const classHeading = current.trim()
+  const name = report === 'Teachers' ? (current ? 'Teacher ' + current : 'Teacher: Not assigned') : report === 'Classes' ? classHeading : current
   const timetableData = useMemo(() => {
     const result: TimetableData = {}
     for (const day of props.days) result[dayKey(day)] = {}
