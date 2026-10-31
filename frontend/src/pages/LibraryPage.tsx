@@ -7,7 +7,6 @@ import { useToast } from '../components/Toast'
 
 type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
 type TeacherInventorySummary = { teachers: Array<{ teacher_id: number; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> }>; all_teachers: { teacher_id: null; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> } | null }
-type GradeSubjectSummary = { grade: string; subject: string; title_count: number; total_copies: number; titles: Array<{ id: number; title: string; total_copies: number; copies: Array<{ id: string; copy_number: string; status: string; current_holder_type: string }> }> }
 type Copy = {
   id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled'
   current_holder_type: 'library' | 'teacher' | 'student' | 'unverified'; current_holder_id: number | null
@@ -54,7 +53,6 @@ export default function LibraryPage() {
   const [newBookGrade, setNewBookGrade] = useState('')
   const [newBookSubject, setNewBookSubject] = useState('')
   const [showInventorySummary, setShowInventorySummary] = useState(false)
-  const [inventorySummary, setInventorySummary] = useState<GradeSubjectSummary[]>([])
   const [inventoryTeacher, setInventoryTeacher] = useState('all')
   const [teacherInventory, setTeacherInventory] = useState<TeacherInventorySummary | null>(null)
   const [loadingInventorySummary, setLoadingInventorySummary] = useState(false)
