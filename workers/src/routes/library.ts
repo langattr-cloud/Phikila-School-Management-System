@@ -20,6 +20,38 @@ function actorId(user: { id: string } | null): string | null {
 }
 
 // ── Books ─────────────────────────────────────────────────────────────────
+// Grade → subject → title inventory. Totals count physical copy rows, regardless of custody status.
+libraryRoutes.get('/books/grade-subject-summary', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const client = db()
+  const [{ data: bookRows, error: bookError }, { data: copyRows, error: copyError }] = await Promise.all([
+    client.from('library_books').select('id,title,author,grade,subject,total_copies').order('grade').order('subject').order('title'),
+    client.from('library_book_copies').select('id,book_id,copy_number,status,current_holder_type'),
+  ])
+  if (bookError) return jsonError(c, bookError.message, 500)
+  if (copyError) return jsonError(c, copyError.message, 500)
+  const copiesByBook = new Map<number, Array<{ id: string; book_id: number; copy_number: string; status: string; current_holder_type: string }>>()
+  for (const copy of copyRows ?? []) {
+    const group = copiesByBook.get(copy.book_id) ?? []
+    group.push(copy)
+    copiesByBook.set(copy.book_id, group)
+  }
+  const groups = new Map<string, { grade: string; subject: string; title_count: number; total_copies: number; titles: Array<Record<string, unknown>> }>()
+  for (const book of bookRows ?? []) {
+    const grade = book.grade || 'Unassigned'
+    const subject = book.subject || 'Unassigned'
+    const key = grade + String.fromCharCode(0) + subject
+    const group = groups.get(key) ?? { grade, subject, title_count: 0, total_copies: 0, titles: [] }
+    const copies = copiesByBook.get(book.id) ?? []
+    group.title_count += 1
+    group.total_copies += copies.length
+    group.titles.push({ ...book, total_copies: copies.length, copies })
+    groups.set(key, group)
+  }
+  return c.json([...groups.values()].sort((a, b) => a.grade.localeCompare(b.grade) || a.subject.localeCompare(b.subject)))
+})
+
 libraryRoutes.get('/books', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
@@ -55,12 +87,15 @@ libraryRoutes.post('/books', async (c) => {
   if (error) return error
   const body = await c.req.json().catch(() => ({})) as Record<string, unknown>
   const title = String(body.title ?? '').trim()
+  const grade = String(body.grade ?? '').trim()
+  const subject = String(body.subject ?? '').trim()
   const count = Number(body.total_copies ?? 1)
   if (!title) return c.json({ detail: 'Book title is required.' }, 400)
+  if (!grade || !subject) return c.json({ detail: 'Grade and subject are required for every catalogue title.' }, 400)
   if (!Number.isSafeInteger(count) || count < 1 || count > 5000) {
     return c.json({ detail: 'total_copies must be a whole number between 1 and 5,000.' }, 400)
   }
-  const payload = { ...body, title, total_copies: count, available_copies: count }
+  const payload = { ...body, title, grade, subject, total_copies: count, available_copies: count }
   const { data, error: insertError } = await db().from('library_books').insert(payload).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   const width = Math.max(2, String(count).length)
