@@ -11,6 +11,7 @@ const movementActions = new Set([
   'student_return_to_teacher',
   'teacher_return_to_library',
   'mark_lost',
+  'reconcile_copy',
 ])
 const copyConditions = new Set(['good', 'damaged', 'lost'])
 
@@ -44,6 +45,7 @@ libraryRoutes.get('/books/stats', async (c) => {
     with_teachers: copyRows.filter((x) => x.current_holder_type === 'teacher').length,
     with_students: copyRows.filter((x) => x.current_holder_type === 'student').length,
     lost_copies: copyRows.filter((x) => x.status === 'lost').length,
+    unreconciled_copies: copyRows.filter((x) => x.status === 'unreconciled').length,
     active_loans: (loans.data ?? []).filter((l) => l.status === 'borrowed' || l.status === 'overdue' || l.status === 'on_loan').length,
   })
 })
@@ -140,11 +142,12 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
     return c.json({ detail: 'to_holder_id must be a positive integer.' }, 400)
   }
   const toHolderName = body.to_holder_name == null ? null : String(body.to_holder_name).trim()
+  const reconcileHolderType = body.to_holder_type == null ? null : String(body.to_holder_type)
   if (['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action)
       && (!toHolderId || !toHolderName)) {
     return c.json({ detail: 'A valid receiving holder ID and name are required for this action.' }, 400)
   }
-  const dueDate = body.due_date == null || body.due_date === '' ? null : String(body.due_date)
+  if (action === 'reconcile_copy' && !['library', 'teacher', 'student'].includes(reconcileHolderType ?? '')) {\n    return c.json({ detail: 'Choose the physically verified holder: library, teacher, or student.' }, 400)\n  }\n  if (action === 'reconcile_copy' && reconcileHolderType !== 'library' && (!toHolderId || !toHolderName)) {\n    return c.json({ detail: 'A verified holder ID and name are required for teacher or student custody.' }, 400)\n  }\n  const dueDate = body.due_date == null || body.due_date === '' ? null : String(body.due_date)
   if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
     return c.json({ detail: 'due_date must use YYYY-MM-DD format.' }, 400)
   }
@@ -157,7 +160,7 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
     p_condition: condition,
     p_due_date: dueDate,
     p_notes: body.notes == null ? null : String(body.notes),
-    p_performed_by: actorId(user),
+    p_performed_by: actorId(user),\n    p_reconcile_holder_type: reconcileHolderType,
   })
   if (movementError) {
     const status = movementError.code === 'P0002' ? 404
@@ -199,7 +202,7 @@ libraryRoutes.get('/reconciliation', async (c) => {
   return c.json({
     outstanding_count: outstanding.length,
     with_teachers: outstanding.filter((x) => x.current_holder_type === 'teacher').length,
-    with_students: outstanding.filter((x) => x.current_holder_type === 'student').length,
+    with_students: outstanding.filter((x) => x.current_holder_type === 'student').length,\n    unreconciled_count: outstanding.filter((x) => x.status === 'unreconciled').length,
     lost_count: outstanding.filter((x) => x.status === 'lost').length,
     outstanding_copies: outstanding,
     by_holder: [...grouped.values()],
