@@ -48,23 +48,23 @@ create index if not exists library_copy_movements_transaction_idx on public.libr
 
 -- Backfill numbered copies. Active legacy loans consume copy slots as
 -- unreconciled records, never as falsely available stock or guessed copies.
-with ranked_loans as (
-  select book_id,
-    row_number() over(partition by book_id order by loan_date,id) as copy_ordinal
+with active_loan_books as (
+  select book_id, count(*) as active_loan_count
   from public.library_loans
   where status in ('on_loan','overdue','borrowed')
+  group by book_id
 )
 insert into public.library_book_copies(book_id,copy_number,status,current_holder_type,current_holder_name)
 select b.id,
   lpad(n::text,greatest(2,length(coalesce(b.total_copies,1)::text)),'0')
     || '/' ||
   lpad(coalesce(b.total_copies,1)::text,greatest(2,length(coalesce(b.total_copies,1)::text)),'0'),
-  case when legacy.copy_ordinal is null then 'available' else 'unreconciled' end,
-  case when legacy.copy_ordinal is null then 'library' else 'unverified' end,
-  case when legacy.copy_ordinal is null then null else 'Legacy loan: physical copy not identified' end
+  case when coalesce(active.active_loan_count,0)>0 then 'unreconciled' else 'available' end,
+  case when coalesce(active.active_loan_count,0)>0 then 'unverified' else 'library' end,
+  case when coalesce(active.active_loan_count,0)>0 then 'Legacy loans: physical copy assignments unknown' else null end
 from public.library_books b
 cross join lateral generate_series(1,greatest(1,coalesce(b.total_copies,1))) as series(n)
-left join ranked_loans legacy on legacy.book_id=b.id and legacy.copy_ordinal=n
+left join active_loan_books active on active.book_id=b.id
 on conflict(book_id,copy_number) do nothing;
 
 create or replace function public.move_library_book_copy(
