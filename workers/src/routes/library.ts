@@ -196,7 +196,7 @@ libraryRoutes.get('/teacher-accountability', async (c) => {
   if (teacherId) query = query.eq('accountable_teacher_id', teacherId)
   const { data, error: queryError } = await query
   if (queryError) return jsonError(c, queryError.message, 500)
-  const rows = data ?? []
+  const rows: any[] = data ?? []
   const teachers = new Map<string, {
     teacher_id: number; teacher_name: string; total_accountable: number;
     with_students: number; retained_by_teacher: number; lost: number; copies: typeof rows
@@ -241,7 +241,7 @@ libraryRoutes.get('/reconciliation', async (c) => {
   }
   const { data, error: queryError } = await query
   if (queryError) return jsonError(c, queryError.message, 500)
-  const outstanding = data ?? []
+  const outstanding: any[] = data ?? []
   const grouped = new Map<string, { holder_type: string; holder_id: number | null; holder_name: string | null; copies: typeof outstanding }>()
   for (const copy of outstanding) {
     const key = copy.current_holder_type + ':' + String(copy.current_holder_id)
