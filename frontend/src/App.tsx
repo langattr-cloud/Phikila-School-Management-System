@@ -140,7 +140,7 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
     : path.startsWith('/finance') ? 'finance'
     : path.startsWith('/library') ? 'library'
     : path.startsWith('/ocr') ? 'ai_tools' : null
-  const moduleDenied = Boolean(requiredModule && platformSession && !platformSession.enabled_modules.includes(requiredModule))
+  const moduleDenied = Boolean(requiredModule && platformSession && !platformSession.is_super_admin && !platformSession.enabled_modules.includes(requiredModule))
   return <RequireAuth><AccessGate>
     {moduleDenied ? <section className="card section"><h1>Module not enabled</h1><p>This module is not enabled for your school. Contact your platform administrator to request access.</p></section> : <NormalLayout pathname={pathname} />}
   </AccessGate></RequireAuth>
