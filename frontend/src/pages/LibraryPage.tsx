@@ -42,6 +42,11 @@ export default function LibraryPage() {
   const [dueDate, setDueDate] = useState('')
   const [notes, setNotes] = useState('')
   const [filterBook, setFilterBook] = useState('all')
+  const [showNewBook, setShowNewBook] = useState(false)
+  const [newBookTitle, setNewBookTitle] = useState('')
+  const [newBookAuthor, setNewBookAuthor] = useState('')
+  const [newBookCopies, setNewBookCopies] = useState('1')
+  const [addingBook, setAddingBook] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -105,6 +110,26 @@ export default function LibraryPage() {
     finally { setSaving(false) }
   }
 
+  async function createBook(event: FormEvent) {
+    event.preventDefault()
+    const count = Number(newBookCopies)
+    if (!newBookTitle.trim() || !Number.isSafeInteger(count) || count < 1 || count > 5000) {
+      setError('Enter a title and a whole-number copy count between 1 and 5,000.')
+      return
+    }
+    setAddingBook(true); setError(null)
+    try {
+      await apiFetch<Book>('/api/v1/library/books', {
+        method: 'POST',
+        body: JSON.stringify({ title: newBookTitle.trim(), author: newBookAuthor.trim() || null, total_copies: count, available_copies: count }),
+      })
+      setNewBookTitle(''); setNewBookAuthor(''); setNewBookCopies('1'); setShowNewBook(false)
+      notify('Book title and numbered physical copies created.', 'success')
+      await load()
+    } catch (err) { setError(friendlyApiError(err, 'add this book title')) }
+    finally { setAddingBook(false) }
+  }
+
   async function openHistory(copyId: string) {
     setSelectedCopy(copyId)
     try { setMovements(await apiFetch<Movement[]>(`/api/v1/library/copies/${copyId}/movements`)) }
@@ -112,7 +137,8 @@ export default function LibraryPage() {
   }
 
   return <div className="library-page">
-    <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." />
+    <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." actions={<button className="button button--primary button--sm" onClick={() => setShowNewBook(value => !value)}>{showNewBook ? 'Cancel' : 'Add book title'}</button>} />
+    {showNewBook && <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Add a catalogue title</h2><form onSubmit={createBook} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}><label className="field"><span className="field__label">Book title</span><input className="input" required value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="e.g. Skills in English Grade 9" /></label><label className="field"><span className="field__label">Author (optional)</span><input className="input" value={newBookAuthor} onChange={e => setNewBookAuthor(e.target.value)} /></label><label className="field"><span className="field__label">Number of physical copies</span><input className="input" type="number" min="1" max="5000" required value={newBookCopies} onChange={e => setNewBookCopies(e.target.value)} /></label><button className="button button--primary" type="submit" disabled={addingBook}>{addingBook ? 'Creating…' : 'Create title & copies'}</button></form><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Copies are numbered automatically, for example 01/25 through 25/25.</p></section>}
     {error && <Alert tone="error">{error}</Alert>}
     {loading ? <LoadingBlock label="Loading library register" rows={5} /> : <>
       <div className="summary-grid" style={{ marginBottom: 'var(--space-4)' }}>
