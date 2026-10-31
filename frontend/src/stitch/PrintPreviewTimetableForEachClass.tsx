@@ -122,8 +122,32 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
         .phikila-print-sheet.is-one-page-view .phikila-print-sheet-heading { flex: 0 0 auto !important; padding-bottom: 3mm !important; }
         .phikila-print-sheet.is-one-page-view .phikila-print-year { display: block !important; }
         .phikila-print-sheet.is-one-page-view .phikila-print-table-wrap { flex: 1 1 0 !important; min-height: 0 !important; overflow: hidden !important; }
-        .phikila-print-sheet.is-one-page-view .phikila-print-table { height: 100% !important; }
-        .phikila-print-sheet.is-one-page-view .phikila-print-table tbody tr { height: 20% !important; }
+        .phikila-print-sheet.is-one-page-view .phikila-print-table {
+          display: table !important;
+          width: 100% !important;
+          height: 100% !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
+        }
+        .phikila-print-sheet.is-one-page-view .phikila-print-table thead { height: 16% !important; }
+        .phikila-print-sheet.is-one-page-view .phikila-print-table tbody {
+          height: 84% !important;
+        }
+        .phikila-print-sheet.is-one-page-view .phikila-print-table tbody tr {
+          height: 20% !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+        .phikila-print-sheet.is-one-page-view .phikila-print-table th,
+        .phikila-print-sheet.is-one-page-view .phikila-print-table td {
+          box-sizing: border-box !important;
+          overflow-wrap: anywhere !important;
+          word-break: normal !important;
+        }
+        .phikila-print-sheet.is-one-page-view .phikila-print-lesson {
+          max-height: 100% !important;
+          overflow: hidden !important;
+        }
         .phikila-print-sheet.is-one-page-view .phikila-print-sheet-footer { flex: 0 0 auto !important; margin-top: 2mm !important; }
       }
     `}</style>
