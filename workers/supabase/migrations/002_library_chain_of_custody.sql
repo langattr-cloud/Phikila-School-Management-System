@@ -52,7 +52,7 @@ with ranked_loans as (
   select book_id, borrower_name,
     row_number() over(partition by book_id order by loan_date,id) as copy_ordinal
   from public.library_loans
-  where status in ('on_loan','overdue')
+  where status in ('on_loan','overdue','borrowed')
 )
 insert into public.library_book_copies(book_id,copy_number,status,current_holder_type,current_holder_name)
 select b.id,
