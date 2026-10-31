@@ -15,6 +15,9 @@ type Copy = {
 type Movement = { id: number; action: string; from_holder_name?: string | null; to_holder_name?: string | null; condition: string; performed_at: string; notes?: string | null }
 type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; unreconciled_copies: number }
 type Reconciliation = { outstanding_count: number; with_teachers: number; with_students: number; lost_count: number; unreconciled_count: number; outstanding_copies: Copy[] }
+type AccountableCopy = Copy & { accountable_teacher_id: number; accountable_teacher_name: string; student_id?: number | null; student_name?: string | null; book_title: string }
+type TeacherAccount = { teacher_id: number; teacher_name: string; total_accountable: number; with_students: number; retained_by_teacher: number; lost: number; copies: AccountableCopy[] }
+type TeacherAccountability = { teachers: TeacherAccount[]; total_accountable: number; copies: AccountableCopy[] }
 type TeacherAccountability = {
   total_accountable: number; with_students: number; retained_by_teachers: number; lost: number
   teachers: Array<{ teacher_id: number; teacher_name: string; total_accountable: number; with_students: number; retained_by_teacher: number; lost: number;
@@ -36,7 +39,8 @@ export default function LibraryPage() {
   const [books, setBooks] = useState<Book[]>([])
   const [copies, setCopies] = useState<Copy[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
-  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)\n  const [teacherAccountability, setTeacherAccountability] = useState<TeacherAccountability | null>(null)
+  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)
+  const [teacherAccounts, setTeacherAccounts] = useState<TeacherAccountability | null>(null)\n  const [teacherAccountability, setTeacherAccountability] = useState<TeacherAccountability | null>(null)
   const [movements, setMovements] = useState<Movement[]>([])
   const [selectedCopy, setSelectedCopy] = useState('')
   const [action, setAction] = useState('issue_to_teacher')
@@ -63,9 +67,10 @@ export default function LibraryPage() {
         apiFetch<Book[]>('/api/v1/library/books'),
         apiFetch<Copy[]>('/api/v1/library/copies'),
         apiFetch<Stats>('/api/v1/library/books/stats'),
-        apiFetch<Reconciliation>('/api/v1/library/reconciliation'),\n        apiFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),
+        apiFetch<Reconciliation>('/api/v1/library/reconciliation'),
+        apiFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),\n        apiFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),
       ])
-      setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccountability(teacherRegister)
+      setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccounts(accounts); setTeacherAccountability(teacherRegister)
     } catch (err) { setError(friendlyApiError(err, 'load the library register')) }
     finally { setLoading(false) }
   }, [])
@@ -183,6 +188,24 @@ export default function LibraryPage() {
           </details>)}
       </section>
 
+      <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
+        <h2 className="section__title">Teacher accountability register</h2>
+        <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>All copies issued by the librarian remain on the teacher account until the librarian records physical return. Student-held copies remain included in that teacher's total.</p>
+        <div className="summary-grid" style={{ marginBottom: 'var(--space-3)' }}>
+          <section className="card section"><p>Copies still accountable</p><strong>{teacherAccounts?.total_accountable ?? 0}</strong></section>
+          <section className="card section"><p>Currently with students</p><strong>{teacherAccounts?.copies.filter(copy => copy.current_holder_type === 'student').length ?? 0}</strong></section>
+          <section className="card section"><p>Retained by teachers</p><strong>{teacherAccounts?.copies.filter(copy => copy.current_holder_type === 'teacher').length ?? 0}</strong></section>
+        </div>
+        {(teacherAccounts?.teachers.length ?? 0) === 0 ? <EmptyState title="No outstanding teacher accounts" description="Copies issued to teachers appear here, including copies currently held by their students." /> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>{['Teacher','Total accountable','With students','Held by teacher','Lost'].map(label => <th key={label} style={{ textAlign: 'left', padding: 'var(--space-2)' }}>{label}</th>)}</tr></thead>
+          <tbody>{teacherAccounts?.teachers.map(account => <tr key={account.teacher_id}><td style={{ padding: 'var(--space-2)' }}>{account.teacher_name} (#{account.teacher_id})</td><td>{account.total_accountable}</td><td>{account.with_students}</td><td>{account.retained_by_teacher}</td><td>{account.lost}</td></tr>)}</tbody>
+        </table></div>}
+        <h3 className="section__title" style={{ marginTop: 'var(--space-3)' }}>Copy-by-copy accountability</h3>
+        <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>{['Title','Copy number','Accountable teacher','Current holder','Status'].map(label => <th key={label} style={{ textAlign: 'left', padding: 'var(--space-2)' }}>{label}</th>)}</tr></thead>
+          <tbody>{teacherAccounts?.copies.map(copy => <tr key={copy.id}><td style={{ padding: 'var(--space-2)' }}>{copy.book_title}</td><td>{copy.copy_number}</td><td>{copy.accountable_teacher_name} (#{copy.accountable_teacher_id})</td><td>{copy.current_holder_type === 'student' ? (copy.student_name ?? copy.current_holder_name) + ' (student)' : copy.current_holder_name}</td><td>{copy.status === 'lost' ? 'Lost — account open' : copy.current_holder_type === 'student' ? 'Reissued to student' : 'With teacher'}</td></tr>)}</tbody>
+        </table></div>
+      </section>
       <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
         <h2 className="section__title">Record a book hand-off</h2>
         <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>Choose the correct transition. The system checks the current holder and rejects skipped steps.</p>
