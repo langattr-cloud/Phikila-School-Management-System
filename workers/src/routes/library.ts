@@ -53,18 +53,25 @@ libraryRoutes.get('/books/stats', async (c) => {
 libraryRoutes.post('/books', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('library_books').insert(body).select().single()
+  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>
+  const title = String(body.title ?? '').trim()
+  const count = Number(body.total_copies ?? 1)
+  if (!title) return c.json({ detail: 'Book title is required.' }, 400)
+  if (!Number.isSafeInteger(count) || count < 1 || count > 5000) {
+    return c.json({ detail: 'total_copies must be a whole number between 1 and 5,000.' }, 400)
+  }
+  const payload = { ...body, title, total_copies: count, available_copies: count }
+  const { data, error: insertError } = await db().from('library_books').insert(payload).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
-  const count = Math.max(0, Math.floor(Number(data.total_copies ?? 1)))
-  if (count > 0) {
-    const width = Math.max(2, String(count).length)
-    const copies = Array.from({ length: count }, (_, i) => ({
-      book_id: data.id,
-      copy_number: String(i + 1).padStart(width, '0') + '/' + String(count).padStart(width, '0'),
-    }))
-    const { error: copyError } = await db().from('library_book_copies').insert(copies)
-    if (copyError) return jsonError(c, 'Book was created, but its physical copy register could not be created: ' + copyError.message, 500)
+  const width = Math.max(2, String(count).length)
+  const copies = Array.from({ length: count }, (_, i) => ({
+    book_id: data.id,
+    copy_number: String(i + 1).padStart(width, '0') + '/' + String(count).padStart(width, '0'),
+  }))
+  const { error: copyError } = await db().from('library_book_copies').insert(copies)
+  if (copyError) {
+    await db().from('library_books').delete().eq('id', data.id)
+    return jsonError(c, 'Book and copy register could not be created: ' + copyError.message, 500)
   }
   return c.json(data, 201)
 })
