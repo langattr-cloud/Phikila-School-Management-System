@@ -30,7 +30,7 @@ const dayKey = (day: string) => {
 
 export function TimetableStructure({ title, name, timetableData, days, periods, lessonsByCell, report, pageInfo, nextName, schoolName, academicYear, compact, onePageView, teacherLabel }: TimetableStructureProps) {
   const generated = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-  return <article className={'phikila-print-sheet' + (compact ? ' is-compact' : '') + (report === 'Teachers' ? ' is-teacher-report' : '') + (onePageView && report === 'Teachers' ? ' is-one-page-view' : '')}>
+  return <article className={'phikila-print-sheet' + (compact ? ' is-compact' : '') + (report === 'Teachers' ? ' is-teacher-report' : '') + (onePageView && (report === 'Teachers' || report === 'Classes') ? ' is-one-page-view' : '')}>
     <div className="phikila-print-sheet-heading">
       {title && <div className="phikila-print-school">{title}</div>}
       {report !== 'Teachers' && <div className="phikila-print-year">Academic year {academicYear}</div>}
@@ -93,12 +93,40 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
     }
     return result
   }, [lessonsForEntry])
-  const changeReport = (next: Report) => { setReport(next); setPage(0); setOnePageView(next === 'Teachers') }
+  const changeReport = (next: Report) => { setReport(next); setPage(0); setOnePageView(next === 'Teachers' || next === 'Classes') }
   const goPage = (next: number) => setPage(Math.max(0, Math.min(next, entries.length - 1)))
   const pageInfo = 'Page ' + (entries.length ? safePage + 1 : 0) + ' of ' + entries.length
   const nextName = entries[safePage + 1] || ''
 
   return <div className="phikila-tt-modal-backdrop phikila-print-preview-backdrop" role="presentation">
+    <style>{`
+      /* Personal class and teacher reports are constrained to one landscape page. */
+      .phikila-print-sheet.is-one-page-view { height: 100%; min-height: 0; overflow: hidden; }
+      .phikila-print-sheet.is-one-page-view .phikila-print-year { display: block; }
+      @media print {
+        @page { size: landscape; margin: 9mm; }
+        .phikila-print-sheet.is-one-page-view {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          height: 180mm !important;
+          min-height: 0 !important;
+          max-height: 180mm !important;
+          margin: 0 !important;
+          padding: 5mm 4mm 3mm !important;
+          overflow: hidden !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          break-after: auto !important;
+          page-break-after: auto !important;
+        }
+        .phikila-print-sheet.is-one-page-view .phikila-print-sheet-heading { flex: 0 0 auto !important; padding-bottom: 3mm !important; }
+        .phikila-print-sheet.is-one-page-view .phikila-print-year { display: block !important; }
+        .phikila-print-sheet.is-one-page-view .phikila-print-table-wrap { flex: 1 1 0 !important; min-height: 0 !important; overflow: hidden !important; }
+        .phikila-print-sheet.is-one-page-view .phikila-print-table { height: 100% !important; }
+        .phikila-print-sheet.is-one-page-view .phikila-print-table tbody tr { height: 20% !important; }
+        .phikila-print-sheet.is-one-page-view .phikila-print-sheet-footer { flex: 0 0 auto !important; margin-top: 2mm !important; }
+      }
+    `}</style>
     <section className="phikila-print-preview" role="dialog" aria-modal="true" aria-labelledby="phikila-print-title">
       <header className="phikila-print-menu" aria-label="Print preview menu">
         {['Main', 'File', 'Specification', 'View', 'Timetable', 'Options', 'Help'].map(item => <button key={item} type="button" onClick={() => item === 'File' ? window.print() : undefined}>{item}</button>)}
@@ -115,7 +143,6 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
         </label>
         <span className="phikila-print-page-count">{pageInfo}</span>
         <button type="button" onClick={() => setCompact(value => !value)}>{compact ? 'Comfortable size' : 'Compact size'}</button>
-        {report === 'Teachers' && <button type="button" aria-pressed={onePageView} onClick={() => setOnePageView(value => !value)}>{onePageView ? 'One-page view: On' : 'One-page view: Off'}</button>}
         <button type="button" onClick={props.onClose}>Close preview</button>
       </div>
       <div className="phikila-print-sheet-wrap">
