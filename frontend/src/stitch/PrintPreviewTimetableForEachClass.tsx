@@ -80,14 +80,20 @@ export default function PrintPreviewTimetableForEachClass(props: Props) {
       || Object.entries(props.teacherDetails).find(([, detail]) => detail.classTeacher?.trim().toLocaleLowerCase() === current.trim().toLocaleLowerCase())?.[0]
       || ''
     : ''
-  // Always include Friday in weekday timetables, even if an older saved workspace
-  // contains only Monday–Thursday. Keep configured weekend days in their order.
+  // Render a complete five-day school week regardless of an incomplete legacy
+  // days setting. Reuse configured day labels where possible and retain weekend days.
   const previewDays = useMemo(() => {
     const configured = [...props.days]
-    if (configured.some(day => dayKey(day) === 'FRI')) return configured
-    const thursday = configured.findIndex(day => dayKey(day) === 'THU')
-    configured.splice(thursday >= 0 ? thursday + 1 : Math.min(4, configured.length), 0, 'Friday')
-    return configured
+    const weekdays = [
+      ['MON', 'Monday'], ['TUE', 'Tuesday'], ['WED', 'Wednesday'],
+      ['THU', 'Thursday'], ['FRI', 'Friday'],
+    ] as const
+    const schoolWeek = weekdays.map(([key, fallback]) =>
+      configured.find(day => dayKey(day) === key) || fallback
+    )
+    const weekends = configured.filter(day => ['SAT', 'SUN'].includes(dayKey(day)))
+    const otherDays = configured.filter(day => !['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].includes(dayKey(day)))
+    return [...schoolWeek, ...weekends, ...otherDays]
   }, [props.days])
   const classHeading = current.trim()
   const name = report === 'Teachers' ? (current ? 'Teacher ' + current : 'Teacher: Not assigned') : report === 'Classes' ? classHeading : current
