@@ -7,14 +7,14 @@ import { useToast } from '../components/Toast'
 
 type Book = { id: number; title: string; author?: string | null; total_copies?: number }
 type Copy = {
-  id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost'
-  current_holder_type: 'library' | 'teacher' | 'student'; current_holder_id: number | null
+  id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled'
+  current_holder_type: 'library' | 'teacher' | 'student' | 'unverified'; current_holder_id: number | null
   current_holder_name: string | null; condition: 'good' | 'damaged' | 'lost'; due_date?: string | null
   book?: { id: number; title: string } | null
 }
 type Movement = { id: number; action: string; from_holder_name?: string | null; to_holder_name?: string | null; condition: string; performed_at: string; notes?: string | null }
-type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number }
-type Reconciliation = { outstanding_count: number; with_teachers: number; with_students: number; lost_count: number; outstanding_copies: Copy[] }
+type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; unreconciled_copies: number }
+type Reconciliation = { outstanding_count: number; with_teachers: number; with_students: number; lost_count: number; unreconciled_count: number; outstanding_copies: Copy[] }
 
 const actionLabels: Record<string, string> = {
   issue_to_teacher: 'Library → Teacher',
@@ -22,8 +22,9 @@ const actionLabels: Record<string, string> = {
   student_return_to_teacher: 'Student → Teacher',
   teacher_return_to_library: 'Teacher → Library',
   mark_lost: 'Mark copy lost',
+  reconcile_copy: 'Verify a legacy copy',
 }
-const statusLabel = (status: Copy['status']) => ({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost' })[status]
+const statusLabel = (status: Copy['status']) => ({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs physical verification' })[status]
 
 export default function LibraryPage() {
   const { notify } = useToast()
@@ -35,6 +36,7 @@ export default function LibraryPage() {
   const [selectedCopy, setSelectedCopy] = useState('')
   const [action, setAction] = useState('issue_to_teacher')
   const [holderId, setHolderId] = useState('')
+  const [toHolderType, setToHolderType] = useState<'library' | 'teacher' | 'student'>('library')
   const [holderName, setHolderName] = useState('')
   const [condition, setCondition] = useState<'good' | 'damaged'>('good')
   const [dueDate, setDueDate] = useState('')
@@ -74,7 +76,7 @@ export default function LibraryPage() {
     if (selectedCopy && !eligibleCopies.some(copy => copy.id === selectedCopy)) setSelectedCopy('')
   }, [eligibleCopies, selectedCopy])
 
-  const showReceiver = ['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action)
+  const showReceiver = ['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action) || (action === 'reconcile_copy' && toHolderType !== 'library')
 
   async function submitMovement(event: FormEvent) {
     event.preventDefault()
@@ -117,7 +119,7 @@ export default function LibraryPage() {
           ['Available in library', stats?.available_copies ?? 0],
           ['With teachers', stats?.with_teachers ?? 0],
           ['With students', stats?.with_students ?? 0],
-          ['Lost', stats?.lost_copies ?? 0],
+          ['Lost', stats?.lost_copies ?? 0],\n          ['Legacy copies to verify', stats?.unreconciled_copies ?? 0],
         ].map(([label, value]) => <section className="card section" key={label}><p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{label}</p><strong style={{ fontSize: '1.65rem' }}>{value}</strong></section>)}
       </div>
 
@@ -129,7 +131,7 @@ export default function LibraryPage() {
           <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>
           {showReceiver && <>
             <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
-            <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student name' : 'Teacher name'}</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Full name" /></label>
+            <label className="field"><span className="field__label">{action === 'issue_to_student' || (action === 'reconcile_copy' && toHolderType === 'student') ? 'Student name' : 'Teacher name'}</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Full name" /></label>
           </>}
           <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
           <label className="field"><span className="field__label">Due date (optional)</span><input className="input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
