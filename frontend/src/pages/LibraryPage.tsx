@@ -67,7 +67,8 @@ export default function LibraryPage() {
     if (action === 'issue_to_student') return copy.status === 'with_teacher'
     if (action === 'student_return_to_teacher') return copy.status === 'with_student'
     if (action === 'teacher_return_to_library') return copy.status === 'with_teacher'
-    return copy.status === 'with_teacher' || copy.status === 'with_student'
+    if (action === 'reconcile_copy') return copy.status === 'unreconciled'
+    return copy.status === 'with_teacher' || copy.status === 'with_student' || copy.status === 'unreconciled'
   }), [copies, action])
 
   const visibleCopies = useMemo(() => filterBook === 'all' ? copies : copies.filter(copy => String(copy.book_id) === filterBook), [copies, filterBook])
@@ -87,6 +88,7 @@ export default function LibraryPage() {
         method: 'POST',
         body: JSON.stringify({
           action,
+          to_holder_type: action === 'reconcile_copy' ? toHolderType : null,
           to_holder_id: showReceiver ? Number(holderId) : null,
           to_holder_name: showReceiver ? holderName.trim() : null,
           condition,
@@ -119,7 +121,8 @@ export default function LibraryPage() {
           ['Available in library', stats?.available_copies ?? 0],
           ['With teachers', stats?.with_teachers ?? 0],
           ['With students', stats?.with_students ?? 0],
-          ['Lost', stats?.lost_copies ?? 0],\n          ['Legacy copies to verify', stats?.unreconciled_copies ?? 0],
+          ['Lost', stats?.lost_copies ?? 0],
+          ['Legacy copies to verify', stats?.unreconciled_copies ?? 0],
         ].map(([label, value]) => <section className="card section" key={label}><p style={{ margin: 0, color: 'var(--color-ink-muted)', fontSize: '.85rem' }}>{label}</p><strong style={{ fontSize: '1.65rem' }}>{value}</strong></section>)}
       </div>
 
@@ -129,8 +132,9 @@ export default function LibraryPage() {
         <form onSubmit={submitMovement} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}>
           <label className="field"><span className="field__label">Movement</span><select className="input" value={action} onChange={e => setAction(e.target.value)}>{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>
+          {action === 'reconcile_copy' && <label className="field"><span className="field__label">Verified physical holder</span><select className="input" value={toHolderType} onChange={e => setToHolderType(e.target.value as 'library' | 'teacher' | 'student')}><option value="library">Returned to library</option><option value="teacher">With a teacher</option><option value="student">With a student</option></select></label>}
           {showReceiver && <>
-            <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
+            <label className="field"><span className="field__label">{action === 'issue_to_student' || (action === 'reconcile_copy' && toHolderType === 'student') ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
             <label className="field"><span className="field__label">{action === 'issue_to_student' || (action === 'reconcile_copy' && toHolderType === 'student') ? 'Student name' : 'Teacher name'}</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Full name" /></label>
           </>}
           <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
