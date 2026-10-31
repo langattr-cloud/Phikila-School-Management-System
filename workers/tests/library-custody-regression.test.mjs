@@ -44,7 +44,7 @@ test('library API exposes individual copies, movement history and holder reconci
 test('custody and reconciliation endpoints require verified authentication', async () => {
   for (const path of [
     '/api/v1/library/copies',
-    '/api/v1/library/reconciliation',
+    '/api/v1/library/reconciliation',\n    '/api/v1/library/teacher-accountability',
     '/api/v1/library/copies/00000000-0000-0000-0000-000000000000/movements',
   ]) {
     const response = await app.request(path)
