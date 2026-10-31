@@ -159,10 +159,28 @@ begin
   return v_copy;
 end;
 $$;
+create or replace function public.prevent_library_copy_movement_mutation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $
+begin
+  raise exception 'Library movement history is immutable.' using errcode='23514';
+end;
+$;
+
+drop trigger if exists library_copy_movements_immutable on public.library_copy_movements;
+create trigger library_copy_movements_immutable
+before update or delete on public.library_copy_movements
+for each row execute function public.prevent_library_copy_movement_mutation();
+
+revoke all on function public.prevent_library_copy_movement_mutation() from public,anon,authenticated;
+
 revoke all on function public.move_library_book_copy(uuid,text,bigint,text,text,date,text,uuid,text) from public,anon,authenticated;
 grant execute on function public.move_library_book_copy(uuid,text,bigint,text,text,date,text,uuid,text) to service_role;
 alter table public.library_book_copies enable row level security;
 alter table public.library_copy_movements enable row level security;
 revoke all on public.library_book_copies,public.library_copy_movements from anon,authenticated;
-grant select,insert,update,delete on public.library_book_copies,public.library_copy_movements to service_role;
+grant select,insert,update,delete on public.library_book_copies to service_role;
+grant select,insert on public.library_copy_movements to service_role;
 grant usage,select on sequence public.library_copy_movements_id_seq to service_role;
