@@ -5,6 +5,19 @@ import { jsonError } from '../lib/http'
 
 export const libraryRoutes = new Hono()
 
+const movementActions = new Set([
+  'issue_to_teacher',
+  'issue_to_student',
+  'student_return_to_teacher',
+  'teacher_return_to_library',
+  'mark_lost',
+])
+const copyConditions = new Set(['good', 'damaged', 'lost'])
+
+function actorId(user: { id: string } | null): string | null {
+  return user?.id ?? null
+}
+
 // ── Books ─────────────────────────────────────────────────────────────────
 libraryRoutes.get('/books', async (c) => {
   const { error } = requireAuth(c as never)
@@ -17,16 +30,21 @@ libraryRoutes.get('/books/stats', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
   const client = db()
-  const [books, loans] = await Promise.all([
-    client.from('library_books').select('quantity'),
+  const [books, loans, copies] = await Promise.all([
+    client.from('library_books').select('total_copies'),
     client.from('library_loans').select('status'),
+    client.from('library_book_copies').select('status,current_holder_type'),
   ])
-  const totalCopies = (books.data ?? []).reduce((acc, b) => acc + (b.quantity ?? 0), 0)
-  const activeLoans = (loans.data ?? []).filter((l) => l.status === 'borrowed' || l.status === 'overdue').length
+  if (copies.error) return jsonError(c, copies.error.message, 500)
+  const copyRows = copies.data ?? []
   return c.json({
     total_titles: books.data?.length ?? 0,
-    total_copies: totalCopies,
-    active_loans: activeLoans,
+    total_copies: copyRows.length || (books.data ?? []).reduce((n, b) => n + (b.total_copies ?? 0), 0),
+    available_copies: copyRows.filter((x) => x.status === 'available').length,
+    with_teachers: copyRows.filter((x) => x.current_holder_type === 'teacher').length,
+    with_students: copyRows.filter((x) => x.current_holder_type === 'student').length,
+    lost_copies: copyRows.filter((x) => x.status === 'lost').length,
+    active_loans: (loans.data ?? []).filter((l) => l.status === 'borrowed' || l.status === 'overdue' || l.status === 'on_loan').length,
   })
 })
 
@@ -36,6 +54,16 @@ libraryRoutes.post('/books', async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const { data, error: insertError } = await db().from('library_books').insert(body).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
+  const count = Math.max(0, Math.floor(Number(data.total_copies ?? 1)))
+  if (count > 0) {
+    const width = Math.max(2, String(count).length)
+    const copies = Array.from({ length: count }, (_, i) => ({
+      book_id: data.id,
+      copy_number: String(i + 1).padStart(width, '0') + '/' + String(count).padStart(width, '0'),
+    }))
+    const { error: copyError } = await db().from('library_book_copies').insert(copies)
+    if (copyError) return jsonError(c, 'Book was created, but its physical copy register could not be created: ' + copyError.message, 500)
+  }
   return c.json(data, 201)
 })
 
@@ -44,10 +72,13 @@ libraryRoutes.get('/books/:bookId', async (c) => {
   if (error) return error
   const client = db()
   const bookId = c.req.param('bookId')
-  const { data } = await client.from('library_books').select('*').eq('id', bookId).maybeSingle()
+  const [{ data }, { data: loans }, { data: copies }] = await Promise.all([
+    client.from('library_books').select('*').eq('id', bookId).maybeSingle(),
+    client.from('library_loans').select('*').eq('book_id', bookId).order('created_at', { ascending: false }),
+    client.from('library_book_copies').select('*').eq('book_id', bookId).order('copy_number'),
+  ])
   if (!data) return c.json({ detail: 'Book not found.' }, 404)
-  const { data: loans } = await client.from('library_loans').select('*').eq('book_id', bookId).order('loaned_at', { ascending: false })
-  return c.json({ ...data, loans: loans ?? [] })
+  return c.json({ ...data, loans: loans ?? [], copies: copies ?? [] })
 })
 
 libraryRoutes.patch('/books/:bookId', async (c) => {
@@ -55,11 +86,7 @@ libraryRoutes.patch('/books/:bookId', async (c) => {
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
   const { data, error: updateError } = await db()
-    .from('library_books')
-    .update(body)
-    .eq('id', c.req.param('bookId'))
-    .select()
-    .maybeSingle()
+    .from('library_books').update(body).eq('id', c.req.param('bookId')).select().maybeSingle()
   if (updateError) return jsonError(c, updateError.message, 400)
   return c.json(data)
 })
@@ -67,15 +94,123 @@ libraryRoutes.patch('/books/:bookId', async (c) => {
 libraryRoutes.delete('/books/:bookId', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  await db().from('library_books').delete().eq('id', c.req.param('bookId'))
+  const { error: deleteError } = await db().from('library_books').delete().eq('id', c.req.param('bookId'))
+  if (deleteError) return jsonError(c, deleteError.message, 400)
   return c.body(null, 204)
 })
 
-// ── Loans ─────────────────────────────────────────────────────────────────
+// ── Physical copy register and chain-of-custody ────────────────────────────
+libraryRoutes.get('/copies', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  let query = db().from('library_book_copies').select('*, book:library_books(id,title,author,isbn)').order('copy_number')
+  const bookId = c.req.query('book_id')
+  const holderType = c.req.query('holder_type')
+  const holderId = c.req.query('holder_id')
+  const status = c.req.query('status')
+  if (bookId) query = query.eq('book_id', bookId)
+  if (holderType) query = query.eq('current_holder_type', holderType)
+  if (holderId) query = query.eq('current_holder_id', holderId)
+  if (status) query = query.eq('status', status)
+  const { data, error: queryError } = await query
+  if (queryError) return jsonError(c, queryError.message, 500)
+  return c.json(data ?? [])
+})
+
+libraryRoutes.get('/copies/:copyId/movements', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const { data, error: queryError } = await db().from('library_copy_movements')
+    .select('*').eq('copy_id', c.req.param('copyId')).order('performed_at', { ascending: false })
+  if (queryError) return jsonError(c, queryError.message, 500)
+  return c.json(data ?? [])
+})
+
+libraryRoutes.post('/copies/:copyId/movements', async (c) => {
+  const { error, user } = requireAuth(c as never)
+  if (error) return error
+  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>
+  const action = String(body.action ?? '')
+  const condition = String(body.condition ?? 'good')
+  if (!movementActions.has(action)) return c.json({ detail: 'Unsupported movement action.' }, 400)
+  if (!copyConditions.has(condition)) return c.json({ detail: 'Condition must be good, damaged, or lost.' }, 400)
+
+  const toHolderId = body.to_holder_id == null || body.to_holder_id === '' ? null : Number(body.to_holder_id)
+  if (toHolderId !== null && (!Number.isSafeInteger(toHolderId) || toHolderId <= 0)) {
+    return c.json({ detail: 'to_holder_id must be a positive integer.' }, 400)
+  }
+  const toHolderName = body.to_holder_name == null ? null : String(body.to_holder_name).trim()
+  if (['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action)
+      && (!toHolderId || !toHolderName)) {
+    return c.json({ detail: 'A valid receiving holder ID and name are required for this action.' }, 400)
+  }
+  const dueDate = body.due_date == null || body.due_date === '' ? null : String(body.due_date)
+  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    return c.json({ detail: 'due_date must use YYYY-MM-DD format.' }, 400)
+  }
+
+  const { data, error: movementError } = await db().rpc('move_library_book_copy', {
+    p_copy_id: c.req.param('copyId'),
+    p_action: action,
+    p_to_holder_id: toHolderId,
+    p_to_holder_name: toHolderName,
+    p_condition: condition,
+    p_due_date: dueDate,
+    p_notes: body.notes == null ? null : String(body.notes),
+    p_performed_by: actorId(user),
+  })
+  if (movementError) {
+    const status = movementError.code === 'P0002' ? 404
+      : movementError.code === '23514' ? 409
+      : movementError.code === '22023' ? 400 : 500
+    return jsonError(c, movementError.message, status)
+  }
+  return c.json(data)
+})
+
+// Exact, per-copy reconciliation; a copy stays assigned to its last recorded holder.
+libraryRoutes.get('/reconciliation', async (c) => {
+  const { error } = requireAuth(c as never)
+  if (error) return error
+  const client = db()
+  const teacherId = c.req.query('teacher_id')
+  let query = client.from('library_book_copies')
+    .select('id,book_id,copy_number,status,current_holder_type,current_holder_id,current_holder_name,condition,due_date,book:library_books(id,title)')
+    .neq('current_holder_type', 'library')
+    .order('book_id').order('copy_number')
+  if (teacherId) {
+    query = query.eq('current_holder_type', 'teacher').eq('current_holder_id', teacherId)
+  }
+  const { data, error: queryError } = await query
+  if (queryError) return jsonError(c, queryError.message, 500)
+  const outstanding = data ?? []
+  const grouped = new Map<string, { holder_type: string; holder_id: number | null; holder_name: string | null; copies: typeof outstanding }>()
+  for (const copy of outstanding) {
+    const key = copy.current_holder_type + ':' + String(copy.current_holder_id)
+    const group = grouped.get(key) ?? {
+      holder_type: copy.current_holder_type,
+      holder_id: copy.current_holder_id,
+      holder_name: copy.current_holder_name,
+      copies: [],
+    }
+    group.copies.push(copy)
+    grouped.set(key, group)
+  }
+  return c.json({
+    outstanding_count: outstanding.length,
+    with_teachers: outstanding.filter((x) => x.current_holder_type === 'teacher').length,
+    with_students: outstanding.filter((x) => x.current_holder_type === 'student').length,
+    lost_count: outstanding.filter((x) => x.status === 'lost').length,
+    outstanding_copies: outstanding,
+    by_holder: [...grouped.values()],
+  })
+})
+
+// ── Legacy aggregate loans (kept for compatibility with existing clients) ──
 libraryRoutes.get('/loans', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
-  const { data } = await db().from('library_loans').select('*').order('loaned_at', { ascending: false })
+  const { data } = await db().from('library_loans').select('*').order('created_at', { ascending: false })
   return c.json(data ?? [])
 })
 
@@ -88,7 +223,6 @@ libraryRoutes.post('/loans', async (c) => {
   return c.json(data, 201)
 })
 
-/** Return a loan → marks returned + due date settled. */
 libraryRoutes.post('/loans/:loanId/return', async (c) => {
   const { error } = requireAuth(c as never)
   if (error) return error
@@ -97,12 +231,9 @@ libraryRoutes.post('/loans/:loanId/return', async (c) => {
   const { data: loan } = await client.from('library_loans').select('*').eq('id', loanId).maybeSingle()
   if (!loan) return c.json({ detail: 'Loan not found.' }, 404)
   if (loan.status === 'returned') return c.json({ detail: 'Loan already returned.' }, 409)
-  const { data, error: updateError } = await client
-    .from('library_loans')
-    .update({ status: 'returned', returned_at: new Date().toISOString() })
-    .eq('id', loanId)
-    .select()
-    .single()
+  const { data, error: updateError } = await client.from('library_loans')
+    .update({ status: 'returned', returned_date: new Date().toISOString().slice(0, 10) })
+    .eq('id', loanId).select().single()
   if (updateError) return jsonError(c, updateError.message, 400)
   return c.json(data)
 })
