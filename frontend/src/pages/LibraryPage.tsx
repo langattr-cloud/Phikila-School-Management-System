@@ -5,7 +5,8 @@ import { EmptyState, LoadingBlock } from '../components/States'
 import { apiFetch, friendlyApiError } from '../lib/api'
 import { useToast } from '../components/Toast'
 
-type Book = { id: number; title: string; author?: string | null; total_copies?: number }
+type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
+type GradeSubjectSummary = { grade: string; subject: string; title_count: number; total_copies: number; titles: Array<{ id: number; title: string; total_copies: number; copies: Array<{ id: string; copy_number: string; status: string; current_holder_type: string }> }> }
 type Copy = {
   id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled'
   current_holder_type: 'library' | 'teacher' | 'student' | 'unverified'; current_holder_id: number | null
@@ -49,6 +50,11 @@ export default function LibraryPage() {
   const [notes, setNotes] = useState('')
   const [filterBook, setFilterBook] = useState('all')
   const [showNewBook, setShowNewBook] = useState(false)
+  const [newBookGrade, setNewBookGrade] = useState('')
+  const [newBookSubject, setNewBookSubject] = useState('')
+  const [showInventorySummary, setShowInventorySummary] = useState(false)
+  const [inventorySummary, setInventorySummary] = useState<GradeSubjectSummary[]>([])
+  const [loadingInventorySummary, setLoadingInventorySummary] = useState(false)
   const [newBookTitle, setNewBookTitle] = useState('')
   const [newBookAuthor, setNewBookAuthor] = useState('')
   const [newBookCopies, setNewBookCopies] = useState('1')
@@ -120,21 +126,31 @@ export default function LibraryPage() {
   async function createBook(event: FormEvent) {
     event.preventDefault()
     const count = Number(newBookCopies)
-    if (!newBookTitle.trim() || !Number.isSafeInteger(count) || count < 1 || count > 5000) {
-      setError('Enter a title and a whole-number copy count between 1 and 5,000.')
+    if (!newBookTitle.trim() || !newBookGrade.trim() || !newBookSubject.trim() || !Number.isSafeInteger(count) || count < 1 || count > 5000) {
+      setError('Enter a title, grade, subject and a whole-number copy count between 1 and 5,000.')
       return
     }
     setAddingBook(true); setError(null)
     try {
       await apiFetch<Book>('/api/v1/library/books', {
         method: 'POST',
-        body: JSON.stringify({ title: newBookTitle.trim(), author: newBookAuthor.trim() || null, total_copies: count, available_copies: count }),
+        body: JSON.stringify({ title: newBookTitle.trim(), grade: newBookGrade.trim(), subject: newBookSubject.trim(), author: newBookAuthor.trim() || null, total_copies: count, available_copies: count }),
       })
-      setNewBookTitle(''); setNewBookAuthor(''); setNewBookCopies('1'); setShowNewBook(false)
+      setNewBookTitle(''); setNewBookAuthor(''); setNewBookGrade(''); setNewBookSubject(''); setNewBookCopies('1'); setShowNewBook(false)
       notify('Book title and numbered physical copies created.', 'success')
       await load()
     } catch (err) { setError(friendlyApiError(err, 'add this book title')) }
     finally { setAddingBook(false) }
+  }
+
+  async function toggleInventorySummary() {
+    if (showInventorySummary) { setShowInventorySummary(false); return }
+    setLoadingInventorySummary(true); setError(null)
+    try {
+      setInventorySummary(await apiFetch<GradeSubjectSummary[]>('/api/v1/library/books/grade-subject-summary'))
+      setShowInventorySummary(true)
+    } catch (err) { setError(friendlyApiError(err, 'load grade and subject book totals')) }
+    finally { setLoadingInventorySummary(false) }
   }
 
   async function openHistory(copyId: string) {
@@ -145,9 +161,26 @@ export default function LibraryPage() {
 
   return <div className="library-page">
     <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." actions={<button className="button button--primary button--sm" onClick={() => setShowNewBook(value => !value)}>{showNewBook ? 'Cancel' : 'Add book title'}</button>} />
-    {showNewBook && <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Add a catalogue title</h2><form onSubmit={createBook} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}><label className="field"><span className="field__label">Book title</span><input className="input" required value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="e.g. Skills in English Grade 9" /></label><label className="field"><span className="field__label">Author (optional)</span><input className="input" value={newBookAuthor} onChange={e => setNewBookAuthor(e.target.value)} /></label><label className="field"><span className="field__label">Number of physical copies</span><input className="input" type="number" min="1" max="5000" required value={newBookCopies} onChange={e => setNewBookCopies(e.target.value)} /></label><button className="button button--primary" type="submit" disabled={addingBook}>{addingBook ? 'Creating…' : 'Create title & copies'}</button></form><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Copies are numbered automatically, for example 01/25 through 25/25.</p></section>}
+    {showNewBook && <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Add a catalogue title</h2><form onSubmit={createBook} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}><label className="field"><span className="field__label">Grade</span><input className="input" required value={newBookGrade} onChange={e => setNewBookGrade(e.target.value)} placeholder="e.g. Grade 9" /></label><label className="field"><span className="field__label">Subject</span><input className="input" required value={newBookSubject} onChange={e => setNewBookSubject(e.target.value)} placeholder="e.g. English" /></label><label className="field"><span className="field__label">Book title</span><input className="input" required value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="e.g. Skills in English Grade 9" /></label><label className="field"><span className="field__label">Author (optional)</span><input className="input" value={newBookAuthor} onChange={e => setNewBookAuthor(e.target.value)} /></label><label className="field"><span className="field__label">Number of physical copies</span><input className="input" type="number" min="1" max="5000" required value={newBookCopies} onChange={e => setNewBookCopies(e.target.value)} /></label><button className="button button--primary" type="submit" disabled={addingBook}>{addingBook ? 'Creating…' : 'Create title & copies'}</button></form><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Copies are numbered automatically, for example 01/25 through 25/25.</p></section>}
     {error && <Alert tone="error">{error}</Alert>}
     {loading ? <LoadingBlock label="Loading library register" rows={5} /> : <>
+      <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <div><h2 className="section__title" style={{ marginBottom: '.25rem' }}>Books by grade and subject</h2><p style={{ margin: 0, color: 'var(--color-ink-muted)' }}>Totals count registered physical copies, including copies issued to teachers or students.</p></div>
+          <button className="button button--secondary button--sm" onClick={() => void toggleInventorySummary()} disabled={loadingInventorySummary}>{loadingInventorySummary ? 'Loading…' : showInventorySummary ? 'Hide book totals' : 'View book totals'}</button>
+        </div>
+        {showInventorySummary && <div style={{ overflowX: 'auto', marginTop: 'var(--space-3)' }}>
+          {inventorySummary.length === 0 ? <EmptyState title="No catalogue titles found" description="Add titles with a grade and subject to see inventory totals." /> : inventorySummary.map(group => <details key={group.grade + '|' + group.subject} style={{ borderTop: '1px solid var(--color-line)', padding: 'var(--space-3) 0' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{group.grade} · {group.subject} — {group.total_copies} copies · {group.title_count} titles</summary>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.9rem', marginTop: 'var(--space-2)' }}>
+              <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--color-line)' }}>{['Book title', 'Total copies', 'Copy numbers'].map(label => <th key={label} style={{ padding: 'var(--space-2)' }}>{label}</th>)}</tr></thead>
+              <tbody>{group.titles.map(book => <tr key={book.id} style={{ borderBottom: '1px solid var(--color-line)' }}><td style={{ padding: 'var(--space-2)' }}>{book.title}</td><td style={{ padding: 'var(--space-2)', fontWeight: 700 }}>{book.total_copies}</td><td style={{ padding: 'var(--space-2)' }}>{book.copies.map(copy => copy.copy_number).join(', ') || 'No copies registered'}</td></tr>)}</tbody>
+            </table>
+            <p style={{ textAlign: 'right', fontWeight: 700, marginBottom: 0 }}>Total {group.subject} {group.grade}: {group.total_copies}</p>
+          </details>)}
+        </div>}
+      </section>
+
       <div className="summary-grid" style={{ marginBottom: 'var(--space-4)' }}>
         {[
           ['Physical copies', stats?.total_copies ?? 0],
