@@ -62,6 +62,37 @@ async function requireLibrarySchool(c: any, roles: string[] = ['admin', 'super_a
   return { ...access, schoolId }
 }
 
+/**
+ * Timetable teacher profiles are owned by an administrator account, not by
+ * a school. They can only be safely attributed to a school when that owner
+ * has exactly one active administrator membership. If an owner administers
+ * multiple schools, fail closed rather than leaking or misattributing staff.
+ */
+async function schoolTimetableTeacherOwners(client: ReturnType<typeof db>, schoolId: number) {
+  const { data, error } = await client.from('tt_memberships')
+    .select('user_id,school_id')
+    .eq('is_active', true)
+    .in('role', ['admin', 'super_admin'])
+  if (error) return { ownerIds: [] as string[], ambiguousOwnerIds: [] as string[], error }
+  const schoolsByOwner = new Map<string, Set<number>>()
+  for (const row of data ?? []) {
+    const ownerId = String(row.user_id ?? '')
+    const ownerSchoolId = Number(row.school_id)
+    if (!ownerId || !Number.isSafeInteger(ownerSchoolId) || ownerSchoolId <= 0) continue
+    const schools = schoolsByOwner.get(ownerId) ?? new Set<number>()
+    schools.add(ownerSchoolId)
+    schoolsByOwner.set(ownerId, schools)
+  }
+  const ownerIds: string[] = []
+  const ambiguousOwnerIds: string[] = []
+  for (const [ownerId, schools] of schoolsByOwner) {
+    if (!schools.has(schoolId)) continue
+    if (schools.size === 1) ownerIds.push(ownerId)
+    else ambiguousOwnerIds.push(ownerId)
+  }
+  return { ownerIds, ambiguousOwnerIds, error: null }
+}
+
 function timetableTeacherName(profile: Record<string, any>) {
   const details = profile.timetableDetails && typeof profile.timetableDetails === 'object' ? profile.timetableDetails : {}
   const first = String(details.firstName || profile.firstName || profile.first_name || '').trim()
@@ -78,10 +109,12 @@ libraryRoutes.get('/teacher-directory', async (c) => {
   const schoolId = Number(access.membership?.school_id)
   if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return c.json([])
   const client = db()
-  const { data: owners, error: ownerError } = await client.from('tt_memberships')
-    .select('user_id').eq('school_id', schoolId).eq('is_active', true).in('role', ['admin', 'super_admin'])
-  if (ownerError) return jsonError(c, 'School teacher profiles could not be loaded.', 503)
-  const ownerIds = [...new Set((owners ?? []).map((item: any) => String(item.user_id)).filter(Boolean))]
+  const owners = await schoolTimetableTeacherOwners(client, schoolId)
+  if (owners.error) return jsonError(c, 'School teacher profiles could not be loaded.', 503)
+  if (owners.ambiguousOwnerIds.length) {
+    return c.json({ detail: 'A school administrator manages multiple schools but timetable teacher profiles are still account-scoped. Separate the timetable profiles by school before using the Library teacher directory.' }, 409)
+  }
+  const ownerIds = owners.ownerIds
   if (!ownerIds.length) return c.json([])
   const { data: profiles, error: profileError } = await client.from('timetable_teacher_profiles')
     .select('id,owner_id,profile').in('owner_id', ownerIds).order('id')
@@ -393,13 +426,24 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
     .eq('id', c.req.param('copyId')).maybeSingle()
   if (copyError) return jsonError(c, copyError.message, 500)
   if (!copy) return c.json({ detail: 'Book copy not found in the selected school.' }, 404)
+  if (role === 'teacher' && action === 'mark_lost') {
+    const teacherId = Number(access.membership?.teacher_id)
+    if (!Number.isSafeInteger(teacherId) || teacherId <= 0) return c.json({ detail: 'Your membership is not linked to a teacher record.' }, 403)
+    const { data: accountability, error: accountabilityError } = await db().from('library_teacher_accountability')
+      .select('copy_id').eq('school_id', schoolId).eq('copy_id', c.req.param('copyId'))
+      .eq('accountable_teacher_id', teacherId).maybeSingle()
+    if (accountabilityError) return jsonError(c, 'Teacher custody could not be verified.', 503)
+    if (!accountability) return c.json({ detail: 'Teachers may only report a copy lost while it is under their own accountability.' }, 403)
+  }
   if (role === 'teacher' && (action === 'issue_to_student' || action === 'student_return_to_teacher')) {
     const teacherId = Number(access.membership?.teacher_id)
     if (!Number.isSafeInteger(teacherId) || teacherId <= 0) return c.json({ detail: 'Your membership is not linked to a teacher record.' }, 403)
-    const { data: owners, error: ownerError } = await db().from('tt_memberships')
-      .select('user_id').eq('school_id', schoolId).eq('is_active', true).in('role', ['admin', 'super_admin'])
-    if (ownerError) return jsonError(c, 'School teacher profiles could not be verified.', 503)
-    const ownerIds = [...new Set((owners ?? []).map((item: any) => String(item.user_id)).filter(Boolean))]
+    const owners = await schoolTimetableTeacherOwners(db(), schoolId)
+    if (owners.error) return jsonError(c, 'School teacher profiles could not be verified.', 503)
+    if (owners.ambiguousOwnerIds.length) {
+      return c.json({ detail: 'Timetable teacher profiles are account-scoped for an administrator with multiple school memberships. School-specific teacher profiles must be configured before custody can be recorded.' }, 409)
+    }
+    const ownerIds = owners.ownerIds
     const { data: teacherProfile, error: teacherProfileError } = ownerIds.length
       ? await db().from('timetable_teacher_profiles').select('id,profile').eq('id', teacherId).in('owner_id', ownerIds).maybeSingle()
       : { data: null, error: null }
@@ -431,15 +475,25 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
       || ['inactive', 'withdrawn', 'archived', 'deleted'].includes(String(matchingSchoolStudents[0]?.status ?? '').toLowerCase())) {
       return c.json({ detail: 'The selected student is not uniquely mapped to an active student in your current school.' }, 422)
     }
+    // The legacy students table has no school_id. Confirm the selected legacy
+    // identity is the only row with this admission number before custody writes.
+    const { data: legacyMatches, error: legacyMatchError } = await db().from('students')
+      .select('id').eq('admission_number', student.admission_number)
+    if (legacyMatchError) return jsonError(c, legacyMatchError.message, 500)
+    if ((legacyMatches ?? []).length !== 1 || Number(legacyMatches?.[0]?.id) !== toHolderId) {
+      return c.json({ detail: 'The selected legacy student record is ambiguous and cannot be assigned custody.' }, 422)
+    }
     const expectedName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ')
     if (toHolderName !== expectedName) return c.json({ detail: 'Student name does not match the selected Student module record.' }, 422)
   }
   const reconcileHolderType = body.to_holder_type == null ? null : String(body.to_holder_type)
   if (action === 'issue_to_teacher' || (action === 'reconcile_copy' && reconcileHolderType === 'teacher')) {
-    const { data: owners, error: ownerError } = await db().from('tt_memberships')
-      .select('user_id').eq('school_id', schoolId).eq('is_active', true).in('role', ['admin', 'super_admin'])
-    if (ownerError) return jsonError(c, 'School teacher profiles could not be verified.', 503)
-    const ownerIds = [...new Set((owners ?? []).map((item: any) => String(item.user_id)).filter(Boolean))]
+    const owners = await schoolTimetableTeacherOwners(db(), schoolId)
+    if (owners.error) return jsonError(c, 'School teacher profiles could not be verified.', 503)
+    if (owners.ambiguousOwnerIds.length) {
+      return c.json({ detail: 'Timetable teacher profiles are account-scoped for an administrator with multiple school memberships. School-specific teacher profiles must be configured before custody can be recorded.' }, 409)
+    }
+    const ownerIds = owners.ownerIds
     const { data: teacherProfile, error: teacherProfileError } = ownerIds.length && toHolderId
       ? await db().from('timetable_teacher_profiles').select('id,profile').eq('id', toHolderId).in('owner_id', ownerIds).maybeSingle()
       : { data: null, error: null }
