@@ -171,6 +171,19 @@ language plpgsql
 set search_path = ''
 as $immutable$
 begin
+  -- A one-time NULL -> verified school assignment is metadata tenancy
+  -- backfill, not a rewrite of the custody event. Every event field must
+  -- remain byte-for-byte equivalent and the school must match its copy.
+  if tg_op = 'UPDATE'
+     and old.school_id is null
+     and new.school_id is not null
+     and (to_jsonb(old) - 'school_id') = (to_jsonb(new) - 'school_id')
+     and exists (
+       select 1 from public.library_book_copies c
+       where c.id = old.copy_id and c.school_id = new.school_id
+     ) then
+    return new;
+  end if;
   raise exception 'Library movement history is immutable.' using errcode='23514';
 end;
 $immutable$;
