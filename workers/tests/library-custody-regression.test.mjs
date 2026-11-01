@@ -207,7 +207,7 @@ test('school tenancy migration binds books, loans, copies and movement rows with
   assert.match(tenancy, /update public\.library_book_copies c[\s\S]*?set school_id = b\.school_id[\s\S]*?where c\.book_id = b\.id/)
   assert.match(tenancy, /update public\.library_copy_movements m[\s\S]*?set school_id = c\.school_id[\s\S]*?where m\.copy_id = c\.id/)
   assert.match(tenancy, /enable row level security/i)
-  assert.match(tenancy, /revoke all on public\.library_books, public\.library_loans, public\.library_book_copies, public\.library_copy_movements from anon, authenticated/i)
+  assert.match(tenancy, /revoke all on public\.library_books, public\.library_loans, public\.library_book_copies, public\.library_copy_movements from public, anon, authenticated/i)
   assert.match(accountability, /c\.school_id as school_id/)
   assert.match(accountability, /security_invoker = true/i)
 })
