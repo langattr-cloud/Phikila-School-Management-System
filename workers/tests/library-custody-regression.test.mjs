@@ -222,3 +222,39 @@ test('book deletion is blocked once a physical copy exists to preserve custody h
   assert.match(routes, /physical-copy register\. Keep it for custody history/)
   assert.match(routes, /from\('library_book_copies'\)[\s\S]*?\.eq\('school_id', schoolId\)[\s\S]*?\.eq\('book_id', bookId\)/)
 })
+
+
+test('Library teacher profiles are excluded when an administrator account spans multiple schools', async () => {
+  const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+  assert.match(library, /schoolTimetableTeacherOwners/)
+  assert.match(library, /ambiguousOwnerIds.length/)
+  assert.match(library, /timetable teacher profiles are still account-scoped/)
+  assert.match(library, /School-specific teacher profiles must be configured/)
+})
+
+test('teachers can only mark copies lost while those copies remain under their own accountability', async () => {
+  const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+  const movement = library.slice(library.indexOf("libraryRoutes.post('/copies/:copyId/movements'"))
+  assert.match(movement, /role === 'teacher' && action === 'mark_lost'/)
+  assert.match(movement, /library_teacher_accountability[sS]*?.eq('school_id', schoolId)[sS]*?.eq('accountable_teacher_id', teacherId)/)
+  assert.match(movement, /Teachers may only report a copy lost while it is under their own accountability/)
+})
+
+test('student custody rejects ambiguous legacy student identities before inserting movement', async () => {
+  const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+  const movement = library.slice(library.indexOf("libraryRoutes.post('/copies/:copyId/movements'"))
+  assert.match(movement, /from('students')[sS]*?.eq('admission_number', student.admission_number)/)
+  assert.match(movement, /legacyMatches ?? []).length !== 1/)
+  assert.match(movement, /Number(legacyMatches?.[0]?.id) !== toHolderId/)
+})
+
+test('first catalogue school assignment propagates to copies and movements and later transfers are blocked', async () => {
+  const tenancy = await readFile(new URL('../supabase/migrations/006_library_school_tenancy.sql', import.meta.url), 'utf8')
+  const postgres = await readFile(new URL('./library-migration-postgres.sql', import.meta.url), 'utf8')
+  assert.match(tenancy, /protect_library_book_school_assignment/)
+  assert.match(tenancy, /old.school_id is not null and new.school_id is distinct from old.school_id/)
+  assert.match(tenancy, /update public.library_book_copies[sS]*?set school_id = new.school_id/)
+  assert.match(tenancy, /update public.library_copy_movements[sS]*?set school_id = new.school_id/)
+  assert.match(postgres, /First school assignment did not propagate to physical copies/)
+  assert.match(postgres, /A verified Library title was unexpectedly transferred/)
+})
