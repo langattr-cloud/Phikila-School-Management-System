@@ -96,7 +96,7 @@ function routeFor(pathname: string): ReactNode {
     case '/setup/school-structure': return <SchoolStructurePage />
     case '/setup/teachers': return <TeacherClassManagementPage />
     case '/students': return <StudentsOverviewPage />
-    case '/timetable': case '/timetable-manager': return <TimetableModule />
+    case '/timetable': case '/timetable/whole-school': case '/timetable-manager': return <TimetableModule />
     case '/students/list': return <StudentsPage />
     case '/students/import': return <StudentImportPage />
     case '/examinations': return <ExaminationDashboardPage />

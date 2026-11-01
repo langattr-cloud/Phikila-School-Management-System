@@ -43,6 +43,7 @@ if (!source.includes('width: "100%"') ||
 const timetable = readFileSync('frontend/src/stitch/TimetableModule.tsx', 'utf8');
 const appRoutes = readFileSync('frontend/src/App.tsx', 'utf8');
 const appShell = readFileSync('frontend/src/components/AppShell.tsx', 'utf8');
+assert.ok(appRoutes.includes("case '/timetable': case '/timetable/whole-school': case '/timetable-manager': return <TimetableModule />"), 'Dashboard/sidebar whole-school timetable route must render the live timetable module.');
 const classesModule = readFileSync('frontend/src/stitch/ClassesWorkspaceModule.tsx', 'utf8');
 const timetableBackend = readFileSync('app/modules/timetable/router.py', 'utf8');
 const application = readFileSync('app/main.py', 'utf8');
