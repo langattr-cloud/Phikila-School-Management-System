@@ -46,7 +46,7 @@ export default function LibraryPage() {
   const libraryFetch = useCallback(<T,>(path: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers)
     if (activeSchoolId) headers.set('X-School-Id', activeSchoolId)
-    return libraryFetch<T>(path, { ...init, headers })
+    return apiFetch<T>(path, { ...init, headers })
   }, [activeSchoolId])
   const [books, setBooks] = useState<Book[]>([])
   const [timetable, setTimetable] = useState<TimetableWorkspace['data']>(null)
