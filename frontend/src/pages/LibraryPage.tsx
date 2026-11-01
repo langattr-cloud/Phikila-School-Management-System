@@ -4,6 +4,7 @@ import { Alert } from '../components/Alert'
 import { EmptyState, LoadingBlock } from '../components/States'
 import { apiFetch, friendlyApiError } from '../lib/api'
 import { useToast } from '../components/Toast'
+import { usePlatformSession } from '../lib/session'
 
 type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
 type TimetableWorkspace = { data?: { specification?: { teachers?: string[]; classes?: string[]; subjects?: string[] }; lessons?: Array<{ className: string; subject: string; teacher: string }>; classDetails?: Record<string, { grade?: string }> } | null }
@@ -39,6 +40,14 @@ const statusLabel = (status: Copy['status']) => ({ available: 'In library', with
 
 export default function LibraryPage() {
   const { notify } = useToast()
+  const { session: platformSession } = usePlatformSession()
+  const [selectedSchoolId, setSelectedSchoolId] = useState('')
+  const activeSchoolId = selectedSchoolId || (platformSession?.schools?.length === 1 ? String(platformSession.schools[0].id) : '')
+  const libraryFetch = useCallback(<T,>(path: string, init: RequestInit = {}) => {
+    const headers = new Headers(init.headers)
+    if (activeSchoolId) headers.set('X-School-Id', activeSchoolId)
+    return libraryFetch<T>(path, { ...init, headers })
+  }, [activeSchoolId])
   const [books, setBooks] = useState<Book[]>([])
   const [timetable, setTimetable] = useState<TimetableWorkspace['data']>(null)
   const [teacherDirectory, setTeacherDirectory] = useState<DirectoryTeacher[]>([])
@@ -78,6 +87,7 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (!activeSchoolId) { setLoading(false); return }
     setLoading(true); setError(null)
     try {
       const [bookRows, copyRows, overview, outstanding, teacherRegister] = await Promise.all([
@@ -104,7 +114,7 @@ export default function LibraryPage() {
       else setStudentAllocations([])
     } catch (err) { setError(friendlyApiError(err, 'load the library register')) }
     finally { setLoading(false) }
-  }, [])
+  }, [activeSchoolId, libraryFetch])
 
   useEffect(() => { void load() }, [load])
 
@@ -223,7 +233,9 @@ export default function LibraryPage() {
   }
 
   return <div className="library-page">
+    {platformSession?.schools && platformSession.schools.length > 1 && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}><label className="field"><span className="field__label">School</span><select className="input" value={activeSchoolId} onChange={event => { setSelectedSchoolId(event.target.value); setBooks([]); setCopies([]); setMovements([]); setStats(null); setTeacherAccountability(null); setReconciliation(null) }}><option value="">Select a school to open its Library</option>{platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}</select></label></section>}
     <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." actions={<button className="button button--primary button--sm" onClick={() => setShowNewBook(value => !value)}>{showNewBook ? 'Cancel' : 'Add book title'}</button>} />
+    {!activeSchoolId && <Alert tone="info">Select a school membership before viewing or changing its Library register.</Alert>}
     {showNewBook && <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Add a catalogue title</h2><form onSubmit={createBook} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}><label className="field"><span className="field__label">Grade (from timetable)</span><select className="input" required value={newBookGrade} onChange={e => { setNewBookGrade(e.target.value); setNewBookSubject('') }}><option value="">Select timetable grade…</option>{timetableGrades.map(grade => <option key={grade} value={grade}>{grade}</option>)}</select></label><label className="field"><span className="field__label">Subject (from timetable)</span><select className="input" required value={newBookSubject} onChange={e => setNewBookSubject(e.target.value)} disabled={!newBookGrade}><option value="">Select timetable subject…</option>{timetableSubjects.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label><label className="field"><span className="field__label">Book title</span><input className="input" required value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="e.g. Skills in English Grade 9" /></label><label className="field"><span className="field__label">Author (optional)</span><input className="input" value={newBookAuthor} onChange={e => setNewBookAuthor(e.target.value)} /></label><label className="field"><span className="field__label">Number of physical copies</span><input className="input" type="number" min="1" max="5000" required value={newBookCopies} onChange={e => setNewBookCopies(e.target.value)} /></label><button className="button button--primary" type="submit" disabled={addingBook}>{addingBook ? 'Creating…' : 'Create title & copies'}</button></form><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Grades and subjects are read from saved timetable lessons and class grade metadata. Copies are numbered automatically, for example 01/25 through 25/25. {timetableGrades.length === 0 ? 'No timetable assignments were found; save the timetable before creating a catalogue title.' : ''}</p></section>}
     {error && <Alert tone="error">{error}</Alert>}
     {loading ? <LoadingBlock label="Loading library register" rows={5} /> : <>
