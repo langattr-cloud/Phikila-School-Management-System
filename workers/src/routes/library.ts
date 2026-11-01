@@ -287,13 +287,6 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
     if (action === 'issue_to_student' && (copy.current_holder_type !== 'teacher' || Number(copy.current_holder_id) !== teacherId)) return c.json({ detail: 'Teachers may only issue copies held in their own custody.' }, 403)
     if (action === 'student_return_to_teacher' && Number(body.to_holder_id) !== teacherId) return c.json({ detail: 'A student must return the copy to the teacher who issued it.' }, 403)
   }
-  if (action === 'issue_to_student') {
-    const { data: student, error: studentError } = await db().from('students').select('id,first_name,middle_name,last_name,status').eq('id', toHolderId).maybeSingle()
-    if (studentError) return jsonError(c, studentError.message, 500)
-    if (!student || ['inactive', 'withdrawn', 'archived'].includes(String(student.status ?? '').toLowerCase())) return c.json({ detail: 'Select an active student from the Student module.' }, 422)
-    const expectedName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ')
-    if (toHolderName !== expectedName) return c.json({ detail: 'Student name does not match the selected Student module record.' }, 422)
-  }
   if (!copyConditions.has(condition)) return c.json({ detail: 'Condition must be good, damaged, or lost.' }, 400)
 
   const toHolderId = body.to_holder_id == null || body.to_holder_id === '' ? null : Number(body.to_holder_id)
@@ -301,6 +294,13 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
     return c.json({ detail: 'to_holder_id must be a positive integer.' }, 400)
   }
   const toHolderName = body.to_holder_name == null ? null : String(body.to_holder_name).trim()
+  if (action === 'issue_to_student') {
+    const { data: student, error: studentError } = await db().from('students').select('id,first_name,middle_name,last_name,status').eq('id', toHolderId).maybeSingle()
+    if (studentError) return jsonError(c, studentError.message, 500)
+    if (!student || ['inactive', 'withdrawn', 'archived'].includes(String(student.status ?? '').toLowerCase())) return c.json({ detail: 'Select an active student from the Student module.' }, 422)
+    const expectedName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ')
+    if (toHolderName !== expectedName) return c.json({ detail: 'Student name does not match the selected Student module record.' }, 422)
+  }
   const reconcileHolderType = body.to_holder_type == null ? null : String(body.to_holder_type)
   if (['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action)
       && (!toHolderId || !toHolderName)) {
