@@ -47,6 +47,8 @@ test('custody and reconciliation endpoints require verified authentication', asy
     '/api/v1/library/copies',
     '/api/v1/library/reconciliation',
     '/api/v1/library/teacher-accountability',
+    '/api/v1/library/student-directory',
+    '/api/v1/library/student-allocations',
     '/api/v1/library/copies/00000000-0000-0000-0000-000000000000/movements',
   ]) {
     const response = await app.request(path)
@@ -95,4 +97,14 @@ test('pre-issue missing copies can be excluded and restored without entering tea
   assert.match(exclusionMigration, /insert into public\.library_copy_movements[\s\S]*?update public\.library_book_copies/i)
   assert.match(routes, /set_library_copy_preissue_exclusion/)
   assert.match(routes, /A reason is required for pre-issue exclusion or restoration/i)
+})
+
+
+test('student directory and librarian allocation register use active membership authorization', () => {
+  assert.match(routes, /from\('tt_memberships'\)/)
+  assert.match(routes, /eq\('is_active', true\)/)
+  assert.match(routes, /get\('\/student-directory'/)
+  assert.match(routes, /get\('\/student-allocations'/)
+  assert.match(routes, /get\('\/student-allocations'[\s\S]*?\['admin', 'super_admin', 'librarian'\]/)
+  assert.match(routes, /Select an active student from the Student module/)
 })
