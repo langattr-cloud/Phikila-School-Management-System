@@ -108,3 +108,10 @@ test('student directory and librarian allocation register use active membership 
   assert.match(routes, /get\('\/student-allocations'[\s\S]*?\['admin', 'super_admin', 'librarian'\]/)
   assert.match(routes, /Select an active student from the Student module/)
 })
+
+
+test('student issue validates the selected Student module record after parsing the holder fields', () => {
+  const movementRoute = routes.slice(routes.indexOf("libraryRoutes.post('/copies/:copyId/movements'"))
+  assert.ok(movementRoute.indexOf('const toHolderId =') < movementRoute.indexOf("if (action === 'issue_to_student') {"))
+  assert.match(movementRoute, /students'\)\.select\('id,first_name,middle_name,last_name,status'\)/)
+})
