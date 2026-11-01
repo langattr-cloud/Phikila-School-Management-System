@@ -211,9 +211,14 @@ platformRoutes.post('/access-requests/:requestId/decide', async (c) => {
 
   if (role === 'teacher') {
     if (teacherId === null || !Number.isSafeInteger(teacherId) || teacherId <= 0) return jsonError(c, 'Link this account to an existing saved teacher record.', 422)
-    const { data: teacher, error: teacherError } = await client.from('teachers').select('id').eq('id', teacherId).maybeSingle()
-    if (teacherError) return jsonError(c, 'Teacher record could not be verified.', 503)
-    if (!teacher) return jsonError(c, 'The selected teacher record does not exist.', 422)
+    const { data: teacherProfile, error: teacherError } = await client.from('timetable_teacher_profiles')
+      .select('id,owner_id').eq('id', teacherId).maybeSingle()
+    if (teacherError) return jsonError(c, 'Saved timetable teacher profile could not be verified.', 503)
+    if (!teacherProfile) return jsonError(c, 'The selected saved timetable teacher profile does not exist.', 422)
+    const { data: profileOwner } = await client.from('tt_memberships').select('id')
+      .eq('user_id', teacherProfile.owner_id).eq('school_id', schoolId).eq('is_active', true)
+      .in('role', ['admin', 'super_admin']).maybeSingle()
+    if (!profileOwner) return jsonError(c, 'The selected teacher profile is not owned by an active administrator of this school.', 422)
   } else if (teacherId !== null) {
     return jsonError(c, 'A teacher record can only be linked to a teacher role.', 422)
   }
@@ -349,6 +354,33 @@ platformRoutes.post('/schools/:schoolId/status', async (c) => {
   if (error) return jsonError(c, error.message, 400)
   if (!data) return c.json({ detail: 'School not found.' }, 404)
   return c.json(data)
+})
+
+platformRoutes.get('/schools/:schoolId/teacher-profiles', async (c) => {
+  const schoolId = Number(c.req.param('schoolId'))
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return jsonError(c, 'Invalid school ID.', 422)
+  const client = db()
+  const { data: school, error: schoolError } = await client.from('tt_schools')
+    .select('id,status').eq('id', schoolId).maybeSingle()
+  if (schoolError) return jsonError(c, 'School could not be verified.', 503)
+  if (!school || school.status !== 'active') return c.json({ detail: 'School not found or inactive.' }, 404)
+  const { data: owners, error: ownerError } = await client.from('tt_memberships')
+    .select('user_id').eq('school_id', schoolId).eq('is_active', true).in('role', ['admin', 'super_admin'])
+  if (ownerError) return jsonError(c, 'School timetable owners could not be loaded.', 503)
+  const ownerIds = [...new Set((owners ?? []).map((item: any) => String(item.user_id)).filter(Boolean))]
+  if (!ownerIds.length) return c.json([])
+  const { data: profiles, error: profileError } = await client.from('timetable_teacher_profiles')
+    .select('id,owner_id,profile').in('owner_id', ownerIds).order('id')
+  if (profileError) return jsonError(c, 'Saved timetable teacher profiles could not be loaded.', 503)
+  return c.json((profiles ?? []).map((row: any) => {
+    const profile = row.profile ?? {}
+    const details = profile.timetableDetails && typeof profile.timetableDetails === 'object' ? profile.timetableDetails : {}
+    const first = String(details.firstName || profile.firstName || profile.first_name || '').trim()
+    const last = String(profile.lastName || profile.last_name || '').trim()
+    const rawName = String(profile.name || '').trim()
+    const name = first && last ? first + ' ' + last : first && rawName && first.toLocaleLowerCase() !== rawName.toLocaleLowerCase() ? first + ' ' + rawName : rawName || first || last
+    return { id: Number(row.id), name, staff_number: String(profile.short ?? profile.code ?? '').trim() || null }
+  }).filter((teacher: any) => Number.isSafeInteger(teacher.id) && teacher.name))
 })
 
 platformRoutes.get('/schools/:schoolId/users', async (c) => {
