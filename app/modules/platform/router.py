@@ -423,17 +423,18 @@ def decide_access_request(
     elif payload.teacher_id is not None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A teacher record can only be linked to a teacher role.")
 
+    membership_user_id = str(row.user_id)
     membership = (
         db.query(TtMembership)
         .filter(
-            TtMembership.user_id == row.user_id,
+            TtMembership.user_id == membership_user_id,
             TtMembership.school_id == school_id,
         )
         .first()
     )
     if membership is None:
         membership = TtMembership(
-            user_id=row.user_id,
+            user_id=membership_user_id,
             school_id=school_id,
             role=granted,
             email=row.email,
