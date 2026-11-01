@@ -42,6 +42,17 @@ ALTER TABLE public.streams ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE public.streams FROM PUBLIC, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.streams TO authenticated, service_role;
 
+DO $
+DECLARE
+  sequence_name text := pg_get_serial_sequence('public.streams', 'id');
+BEGIN
+  IF sequence_name IS NOT NULL THEN
+    EXECUTE format('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM PUBLIC, anon', sequence_name::regclass);
+    EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE %s TO authenticated, service_role', sequence_name::regclass);
+  END IF;
+END
+$;
+
 REVOKE ALL PRIVILEGES ON FUNCTION public.tt_user_schools() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.tt_user_schools() TO authenticated, service_role;
 
