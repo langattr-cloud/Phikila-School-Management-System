@@ -142,10 +142,10 @@ async function requireAcademicSchoolAccess(c: any) {
   }
   if (!membership) return { error: c.json({ detail: 'Active school administrator membership required.' }, 403), schoolId: null as number | null }
   const schoolId = Number(membership.school_id)
-  const { data: school, error: schoolError } = await db().from('school_info')
-    .select('id,is_active').eq('id', schoolId).maybeSingle()
+  const { data: school, error: schoolError } = await db().from('tt_schools')
+    .select('id,status').eq('id', schoolId).maybeSingle()
   if (schoolError || !school) return { error: c.json({ detail: 'Academic school access could not be verified.' }, 503), schoolId: null as number | null }
-  if (school.is_active === false) return { error: c.json({ detail: 'Academic access is disabled for this school.' }, 403), schoolId: null as number | null }
+  if (school.status !== 'active') return { error: c.json({ detail: 'Academic access is disabled for this school.' }, 403), schoolId: null as number | null }
   return { error: null, schoolId }
 }
 
