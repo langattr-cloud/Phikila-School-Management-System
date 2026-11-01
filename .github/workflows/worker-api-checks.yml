@@ -58,5 +58,9 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql --host 127.0.0.1 --username postgres --dbname postgres --set ON_ERROR_STOP=1 --file tests/finance-migration-postgres.sql
+      - name: Execute Library custody migrations and PostgreSQL regression checks
+        env:
+          PGPASSWORD: postgres
+        run: psql --host 127.0.0.1 --username postgres --dbname postgres --set ON_ERROR_STOP=1 --file tests/library-migration-postgres.sql
       - name: Build worker API (dry run)
         run: npm run build
