@@ -139,3 +139,26 @@ test('Library custody uses the saved timetable teacher directory so holder IDs m
   assert.match(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/library\/teacher-directory'\)/)
   assert.doesNotMatch(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/teachers\/'\)/)
 })
+
+
+test('library student directory and enrollment enrichment are scoped to the active school', async () => {
+  const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+  assert.match(library, /students_v2'\)\s*\n\s*\.select\('admission_number,status'\)\.eq\('school_id', schoolId\)/)
+  assert.match(library, /student_enrollments'\)\.select\([\s\S]*?\.eq\('school_id', schoolId\)/)
+  assert.match(library, /school_classes'\)\.select\([\s\S]*?\.eq\('school_id', schoolId\)/)
+  assert.match(library, /grades'\)\.select\([\s\S]*?\.eq\('school_id', schoolId\)/)
+  assert.match(library, /streams'\)\.select\([\s\S]*?\.eq\('school_id', schoolId\)/)
+})
+
+test('library membership selection rejects ambiguous multi-school membership without explicit school header', async () => {
+  const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+  assert.match(library, /X-School-Id is required when you belong to multiple schools/)
+  assert.match(library, /Number\(item\.school_id\) === schoolId && allowed\.includes/)
+  assert.match(library, /You do not have an active membership in the requested school/)
+})
+
+test('student custody issue verifies that the selected student belongs to the active school', async () => {
+  const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+  assert.match(library, /from\('students_v2'\)[\s\S]*?\.eq\('school_id', schoolId\)[\s\S]*?\.eq\('admission_number', student\.admission_number\)/)
+  assert.match(library, /The selected student is not active in your current school/)
+})
