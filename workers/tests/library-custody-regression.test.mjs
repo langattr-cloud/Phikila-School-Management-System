@@ -168,3 +168,10 @@ test('student directory and allocation lookups are scoped to the selected school
   assert.match(routes, /from\('student_enrollments'\)[\s\S]*?eq\('school_id', schoolId\)/)
   assert.match(routes, /filter\(copy => byId\.has\(Number\(copy\.student_id\)\)\)/)
 })
+
+
+test('Library custody uses saved timetable teacher IDs for custody holder references', async () => {
+  const page = await readFile(new URL('../../frontend/src/pages/LibraryPage.tsx', import.meta.url), 'utf8')
+  assert.match(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/library\/teacher-directory'\)/)
+  assert.doesNotMatch(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/teachers\/'\)/)
+})
