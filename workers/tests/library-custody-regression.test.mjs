@@ -113,7 +113,8 @@ test('student directory and librarian allocation register use active membership 
 test('student issue validates the selected Student module record after parsing the holder fields', () => {
   const movementRoute = routes.slice(routes.indexOf("libraryRoutes.post('/copies/:copyId/movements'"))
   assert.ok(movementRoute.indexOf('const toHolderId =') < movementRoute.indexOf("if (action === 'issue_to_student') {"))
-  assert.match(movementRoute, /students'\)\.select\('id,first_name,middle_name,last_name,status'\)/)
+  assert.match(movementRoute, /students'\)\s*\n\s*\.select\('id,admission_number,first_name,middle_name,last_name,status'\)/)
+  assert.match(movementRoute, /from\('students_v2'\)[\s\S]*?\.eq\('school_id', schoolId\)[\s\S]*?\.eq\('admission_number', student\.admission_number\)/)
 })
 
 
