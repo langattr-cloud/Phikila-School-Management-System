@@ -98,7 +98,7 @@ alter table public.library_books enable row level security;
 alter table public.library_loans enable row level security;
 alter table public.library_book_copies enable row level security;
 alter table public.library_copy_movements enable row level security;
-revoke all on public.library_books, public.library_loans, public.library_book_copies, public.library_copy_movements from anon, authenticated;
+revoke all on public.library_books, public.library_loans, public.library_book_copies, public.library_copy_movements from public, anon, authenticated;
 grant select, insert, update, delete on public.library_books, public.library_loans, public.library_book_copies to service_role;
 grant select, insert on public.library_copy_movements to service_role;
 grant usage, select on sequence public.library_copy_movements_id_seq to service_role;
