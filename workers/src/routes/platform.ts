@@ -317,15 +317,42 @@ platformRoutes.get('/schools/:schoolId/users', async (c) => {
 })
 
 platformRoutes.post('/schools/:schoolId/administrators', async (c) => {
-  const { error, user } = requireAuth(c as never)
+  const { error } = requireAuth(c as never)
   if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  // Look up an existing user by email; if absent, no-op registration happens on
-  // first sign-in. For now we store the intended mapping.
-  const { data: existing } = await db().from('users').select('id').eq('email', body.email).maybeSingle()
-  const userId = existing?.id ?? user!.id
-  await db().from('tt_platform_admins').upsert({ user_id: userId, role: body.role ?? 'admin' }, { onConflict: 'user_id' })
-  return c.json({ ok: true }, 201)
+  const schoolId = Number(c.req.param('schoolId'))
+  const email = String(body.email ?? '').trim().toLowerCase()
+  const role = String(body.role ?? 'admin')
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return jsonError(c, 'Choose a valid school.', 422)
+  if (!GRANTABLE_ROLES.includes(role) || role === 'teacher') {
+    return jsonError(c, 'Choose a school role. Teacher access must be approved through an access request and linked to a saved teacher record.', 422)
+  }
+  if (!email) return jsonError(c, 'An existing account email is required.', 422)
+
+  const client = db()
+  const { data: school, error: schoolError } = await client.from('tt_schools')
+    .select('id,status').eq('id', schoolId).maybeSingle()
+  if (schoolError) return jsonError(c, 'School access could not be verified.', 503)
+  if (!school || school.status !== 'active') return jsonError(c, 'The selected school is not active.', 422)
+
+  const { data: existing, error: userError } = await client.from('users')
+    .select('id,email,is_active').ilike('email', email).maybeSingle()
+  if (userError) return jsonError(c, 'Account lookup failed.', 503)
+  if (!existing || existing.is_active === false) {
+    return c.json({ detail: 'The account must already exist and be active. Ask the person to sign in and submit a school access request first.' }, 404)
+  }
+
+  const { error: membershipError } = await client.from('tt_memberships').upsert({
+    user_id: existing.id, school_id: schoolId, role, email: existing.email ?? email,
+    phone: typeof body.phone === 'string' ? body.phone.trim() || null : null,
+    teacher_id: null, is_active: true,
+  }, { onConflict: 'user_id,school_id' })
+  if (membershipError) return jsonError(c, 'School membership could not be granted: ' + membershipError.message, 400)
+  return c.json({
+    user_id: existing.id, email: existing.email ?? email, phone: body.phone ?? null,
+    role, is_active: true, invited: false, created_account: false,
+    existing_account: true, password_reset: false, temporary_password: null,
+  }, 200)
 })
 
 platformRoutes.delete('/schools/:schoolId/administrators/:userId', async (c) => {
