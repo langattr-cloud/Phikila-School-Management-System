@@ -124,6 +124,13 @@ BEGIN
   IF (SELECT count(*) FROM public.library_copy_movements WHERE copy_id=v_library_copy) <> 2 THEN
     RAISE EXCEPTION 'Expected two immutable movements for exclusion and restoration';
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.library_copy_movements m
+    JOIN public.library_book_copies c ON c.id=m.copy_id
+    WHERE m.school_id IS DISTINCT FROM c.school_id
+  ) THEN
+    RAISE EXCEPTION 'Custody movement school IDs must inherit the verified physical-copy school';
+  END IF;
 END $$;
 
 DO $$
