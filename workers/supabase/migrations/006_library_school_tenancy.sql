@@ -37,7 +37,9 @@ declare v_school_id integer;
 begin
   select b.school_id into v_school_id from public.library_books b where b.id = new.book_id;
   if not found then raise exception 'Library book not found.' using errcode = '23503'; end if;
-  if new.school_id is null or v_school_id is null or new.school_id <> v_school_id then
+  if v_school_id is null then raise exception 'The catalogue book has no verified school assignment.' using errcode = '23514'; end if;
+  if new.school_id is null then new.school_id := v_school_id;
+  elsif new.school_id <> v_school_id then
     raise exception 'Loan school must match the registered book school.' using errcode = '23514';
   end if;
   return new;
@@ -49,7 +51,9 @@ declare v_school_id integer;
 begin
   select b.school_id into v_school_id from public.library_books b where b.id = new.book_id;
   if not found then raise exception 'Library book not found.' using errcode = '23503'; end if;
-  if new.school_id is null or v_school_id is null or new.school_id <> v_school_id then
+  if v_school_id is null then raise exception 'The catalogue book has no verified school assignment.' using errcode = '23514'; end if;
+  if new.school_id is null then new.school_id := v_school_id;
+  elsif new.school_id <> v_school_id then
     raise exception 'Copy school must match the registered book school.' using errcode = '23514';
   end if;
   return new;
@@ -61,7 +65,9 @@ declare v_school_id integer;
 begin
   select c.school_id into v_school_id from public.library_book_copies c where c.id = new.copy_id;
   if not found then raise exception 'Library copy not found.' using errcode = '23503'; end if;
-  if new.school_id is null or v_school_id is null or new.school_id <> v_school_id then
+  if v_school_id is null then raise exception 'The physical copy has no verified school assignment.' using errcode = '23514'; end if;
+  if new.school_id is null then new.school_id := v_school_id;
+  elsif new.school_id <> v_school_id then
     raise exception 'Movement school must match the physical copy school.' using errcode = '23514';
   end if;
   return new;
