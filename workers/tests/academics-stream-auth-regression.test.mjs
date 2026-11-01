@@ -11,7 +11,7 @@ test('platform school access grants are scoped memberships and cannot elevate ac
   assert.match(schoolGrant, /from\('tt_memberships'\)\.upsert/)
   assert.doesNotMatch(schoolGrant, /tt_platform_admins/)
   assert.match(source, /from\('tt_schools'\)/)
-  assert.match(source, /from\\('tt_memberships'\\)[\\s\\S]*?select\\('user_id,email,phone,role,is_active,created_at'\\)/)
+  assert.match(source, /from\('tt_memberships'\)[\s\S]*?select\('user_id,email,phone,role,is_active,created_at'\)/)
   assert.match(source, /Teacher access must be approved through an access request/)
 })
 
