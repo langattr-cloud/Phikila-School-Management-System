@@ -30,6 +30,7 @@ platformRoutes.use('*', async (c, next) => {
     .from('tt_platform_admins')
     .select('id')
     .eq('user_id', user!.id)
+    .eq('is_active', true)
     .maybeSingle()
 
   if (!admin) return c.json({ detail: 'Forbidden' }, 403)
@@ -209,7 +210,7 @@ platformRoutes.post('/access-requests/:requestId/decide', async (c) => {
   if (!school || school.status !== 'active') return jsonError(c, 'The selected school is not active.', 422)
 
   if (role === 'teacher') {
-    if (!Number.isSafeInteger(teacherId) || teacherId! <= 0) return jsonError(c, 'Link this account to an existing saved teacher record.', 422)
+    if (teacherId === null || !Number.isSafeInteger(teacherId) || teacherId <= 0) return jsonError(c, 'Link this account to an existing saved teacher record.', 422)
     const { data: teacher, error: teacherError } = await client.from('teachers').select('id').eq('id', teacherId).maybeSingle()
     if (teacherError) return jsonError(c, 'Teacher record could not be verified.', 503)
     if (!teacher) return jsonError(c, 'The selected teacher record does not exist.', 422)
