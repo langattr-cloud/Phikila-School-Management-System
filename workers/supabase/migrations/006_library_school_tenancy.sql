@@ -102,3 +102,37 @@ revoke all on public.library_books, public.library_loans, public.library_book_co
 grant select, insert, update, delete on public.library_books, public.library_loans, public.library_book_copies to service_role;
 grant select, insert on public.library_copy_movements to service_role;
 grant usage, select on sequence public.library_copy_movements_id_seq to service_role;
+
+-- A catalogue title can be assigned to a school once, but cannot later be
+-- transferred to another school. First assignment atomically propagates to
+-- copies and movement history so legacy records can be mapped without guessing.
+create or replace function public.protect_library_book_school_assignment()
+returns trigger
+language plpgsql
+set search_path = ''
+as $
+begin
+  if old.school_id is not null and new.school_id is distinct from old.school_id then
+    raise exception 'A Library title with a verified school assignment cannot be transferred.' using errcode = '23514';
+  end if;
+  if old.school_id is null and new.school_id is not null then
+    update public.library_book_copies
+      set school_id = new.school_id
+      where book_id = new.id and school_id is distinct from new.school_id;
+    update public.library_copy_movements m
+      set school_id = new.school_id
+      where m.copy_id in (select c.id from public.library_book_copies c where c.book_id = new.id)
+        and m.school_id is distinct from new.school_id;
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists library_book_school_assignment_guard on public.library_books;
+create trigger library_book_school_assignment_guard
+after update of school_id on public.library_books
+for each row execute function public.protect_library_book_school_assignment();
+
+revoke all on function public.protect_library_book_school_assignment() from public, anon, authenticated;
+grant execute on function public.protect_library_book_school_assignment() to service_role;
+
