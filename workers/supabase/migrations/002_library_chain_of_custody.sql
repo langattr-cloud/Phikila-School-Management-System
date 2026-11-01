@@ -180,7 +180,7 @@ revoke all on function public.move_library_book_copy(uuid,text,bigint,text,text,
 grant execute on function public.move_library_book_copy(uuid,text,bigint,text,text,date,text,uuid,text) to service_role;
 alter table public.library_book_copies enable row level security;
 alter table public.library_copy_movements enable row level security;
-revoke all on public.library_book_copies,public.library_copy_movements from anon,authenticated;
+revoke all on public.library_book_copies,public.library_copy_movements from public,anon,authenticated;
 grant select,insert,update,delete on public.library_book_copies to service_role;
 grant select,insert on public.library_copy_movements to service_role;
 grant usage,select on sequence public.library_copy_movements_id_seq to service_role;
