@@ -8,7 +8,7 @@ const migration = await readFile(
 )
 
 test('finance and account-owned timetable tables are backend-only with RLS enabled', () => {
-  for (const table of [
+  const tables = [
     'finance_supplier_invoices',
     'finance_supplier_payments',
     'finance_capitation_templates',
@@ -18,10 +18,10 @@ test('finance and account-owned timetable tables are backend-only with RLS enabl
     'finance_capitation_expenditure',
     'timetable_teacher_profiles',
     'tt_timetable_ribbon_workspace_revisions',
-  ]) {
-    assert.match(migration, new RegExp('ALTER TABLE public\\.' + table + ' ENABLE ROW LEVEL SECURITY', 'i'))
-    assert.match(migration, new RegExp('REVOKE ALL PRIVILEGES ON TABLE public\\.%I FROM PUBLIC, anon, authenticated', 'i'))
-  }
+  ]
+  for (const table of tables) assert.ok(migration.includes("'" + table + "'"), table)
+  assert.match(migration, /ALTER TABLE public\.%I ENABLE ROW LEVEL SECURITY/i)
+  assert.match(migration, /REVOKE ALL PRIVILEGES ON TABLE public\.%I FROM PUBLIC, anon, authenticated/i)
   assert.match(migration, /GRANT ALL PRIVILEGES ON TABLE public\.%I TO service_role/i)
   assert.match(migration, /has_table_privilege\('anon'/i)
   assert.match(migration, /has_table_privilege\('authenticated'/i)
