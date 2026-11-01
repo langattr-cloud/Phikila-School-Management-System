@@ -172,7 +172,7 @@ export const platform = {
   setSchoolStatus: (id: number, active: boolean) =>
     send<School>(`${PLATFORM}/schools/${id}/status?active=${active}`, 'POST'),
   schoolUsers: (id: number) => get<SchoolUser[]>(`${PLATFORM}/schools/${id}/users`),
-  teachers: () => get<TeacherOption[]>('/api/v1/teachers'),
+  schoolTeachers: (schoolId: number) => get<TeacherOption[]>(`${PLATFORM}/schools/${schoolId}/teacher-profiles`),
   addAdministrator: (id: number, email: string, phone: string, role: string) =>
     send<{ user_id: string; email: string; phone: string | null; role: string; is_active: boolean; invited: boolean; created_account: boolean; existing_account: boolean; password_reset: boolean; temporary_password: string | null }>(
       `${PLATFORM}/schools/${id}/administrators`,
