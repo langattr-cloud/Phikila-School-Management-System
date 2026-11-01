@@ -233,92 +233,138 @@ platformRoutes.post('/access-requests/:requestId/decide', async (c) => {
 
 })
 
-platformRoutes.get('/overview', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
-  const client = db()
-  const [schools, requests, admins] = await Promise.all([
-    client.from('school_info').select('*', { count: 'exact' }),
-    client.from('tt_access_requests').select('*', { count: 'exact' }),
-    client.from('tt_platform_admins').select('*', { count: 'exact' }),
+async function getSchoolStats(client: ReturnType<typeof db>, schoolIds: number[]) {
+  const [membershipsResult, classesResult] = await Promise.all([
+    schoolIds.length ? client.from('tt_memberships').select('school_id,user_id,role,is_active').in('school_id', schoolIds) : Promise.resolve({ data: [] as any[], error: null }),
+    schoolIds.length ? client.from('school_classes').select('school_id').in('school_id', schoolIds) : Promise.resolve({ data: [] as any[], error: null }),
   ])
+  if (membershipsResult.error || classesResult.error) throw new Error('School membership or class counts could not be loaded.')
+  const stats = new Map<number, { users: number; teachers: number; classes: number }>()
+  for (const id of schoolIds) stats.set(id, { users: 0, teachers: 0, classes: 0 })
+  const usersBySchool = new Map<number, Set<string>>()
+  for (const membership of membershipsResult.data ?? []) {
+    if (!membership.is_active) continue
+    const id = Number(membership.school_id)
+    if (!stats.has(id)) continue
+    if (!usersBySchool.has(id)) usersBySchool.set(id, new Set())
+    usersBySchool.get(id)!.add(String(membership.user_id))
+    if (membership.role === 'teacher') stats.get(id)!.teachers += 1
+  }
+  for (const [id, users] of usersBySchool) stats.get(id)!.users = users.size
+  for (const item of classesResult.data ?? []) {
+    const id = Number(item.school_id)
+    if (stats.has(id)) stats.get(id)!.classes += 1
+  }
+  return stats
+}
+
+platformRoutes.get('/overview', async (c) => {
+  const client = db()
+  const [schools, memberships, classes, requests, admins] = await Promise.all([
+    client.from('tt_schools').select('id'),
+    client.from('tt_memberships').select('user_id,role,is_active'),
+    client.from('school_classes').select('id'),
+    client.from('tt_access_requests').select('id,status'),
+    client.from('tt_platform_admins').select('id,role,is_active'),
+  ])
+  if (schools.error || memberships.error || classes.error || requests.error || admins.error) {
+    return jsonError(c, 'Platform overview could not be loaded.', 503)
+  }
+  const activeMemberships = (memberships.data ?? []).filter((item: any) => item.is_active)
   return c.json({
-    schools: schools.data ?? [],
-    school_count: schools.count ?? 0,
-    requests: requests.data ?? [],
-    request_count: requests.count ?? 0,
-    admins: admins.data ?? [],
-    admin_count: admins.count ?? 0,
+    schools: schools.data?.length ?? 0,
+    users: new Set(activeMemberships.map((item: any) => String(item.user_id))).size,
+    teachers: activeMemberships.filter((item: any) => item.role === 'teacher').length,
+    classes: classes.data?.length ?? 0,
+    pending_requests: (requests.data ?? []).filter((item: any) => item.status === 'pending').length,
+    super_admins: (admins.data ?? []).filter((item: any) => item.is_active && item.role === 'super_admin').length,
+    recent: [],
   })
 })
 
 platformRoutes.get('/schools', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
   const client = db()
-  const { data, count } = await client.from('school_info').select('*', { count: 'exact' }).order('id')
-  return c.json({ schools: data ?? [], total: count ?? 0 })
+  const { data: schools, error } = await client.from('tt_schools').select('*').order('id')
+  if (error) return jsonError(c, 'School list could not be loaded.', 503)
+  const ids = (schools ?? []).map((school: any) => Number(school.id))
+  let stats: Map<number, { users: number; teachers: number; classes: number }>
+  try { stats = await getSchoolStats(client, ids) } catch { return jsonError(c, 'School membership and class counts could not be loaded.', 503) }
+  return c.json({
+    schools: (schools ?? []).map((school: any) => ({
+      ...school, slug: school.slug ?? '', users: stats.get(Number(school.id))?.users ?? 0,
+      teachers: stats.get(Number(school.id))?.teachers ?? 0, classes: stats.get(Number(school.id))?.classes ?? 0,
+    })),
+    total: schools?.length ?? 0,
+  })
 })
 
 platformRoutes.post('/schools', async (c) => {
-  const { error, user } = requireAuth(c as never)
-  if (error) return error
   const body = await c.req.json().catch(() => ({}))
-  const slug = (body.slug ?? String(body.name ?? 'school').toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim()
-  const { data, error: insertError } = await db()
-    .from('school_info')
-    .insert({ name: body.name, slug, timezone: body.timezone ?? null, status: body.status ?? 'active' })
-    .select()
-    .single()
-  if (insertError) return jsonError(c, insertError.message, 400)
-  return c.json(data, 201)
+  const name = String(body.name ?? '').trim()
+  const slug = String(body.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim()
+  if (!name || !slug) return jsonError(c, 'School name and code are required.', 422)
+  const { data, error } = await db().from('tt_schools')
+    .insert({ name, slug, timezone: body.timezone ?? 'Africa/Nairobi', academic_year: body.academic_year ?? null, status: 'active' })
+    .select().single()
+  if (error) return jsonError(c, error.message, 400)
+  return c.json({ ...data, users: 0, teachers: 0, classes: 0 }, 201)
 })
 
 platformRoutes.get('/schools/:schoolId', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
-  const { data } = await db().from('school_info').select('*').eq('id', c.req.param('schoolId')).maybeSingle()
+  const client = db()
+  const schoolId = Number(c.req.param('schoolId'))
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return jsonError(c, 'Invalid school ID.', 422)
+  const { data, error } = await client.from('tt_schools').select('*').eq('id', schoolId).maybeSingle()
+  if (error) return jsonError(c, 'School could not be loaded.', 503)
+  if (!data) return c.json({ detail: 'School not found.' }, 404)
+  let stats: Map<number, { users: number; teachers: number; classes: number }>
+  try { stats = await getSchoolStats(client, [schoolId]) } catch { return jsonError(c, 'School membership and class counts could not be loaded.', 503) }
+  return c.json({ ...data, slug: data.slug ?? '', ...stats.get(schoolId) })
+})
+
+platformRoutes.patch('/schools/:schoolId', async (c) => {
+  const schoolId = Number(c.req.param('schoolId'))
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return jsonError(c, 'Invalid school ID.', 422)
+  const body = await c.req.json().catch(() => ({}))
+  const updates: Record<string, unknown> = {}
+  if (typeof body.name === 'string' && body.name.trim()) updates.name = body.name.trim()
+  if (typeof body.slug === 'string' && body.slug.trim()) updates.slug = body.slug.trim()
+  if (typeof body.timezone === 'string' || body.timezone === null) updates.timezone = body.timezone
+  if (typeof body.academic_year === 'string' || body.academic_year === null) updates.academic_year = body.academic_year
+  if (!Object.keys(updates).length) return jsonError(c, 'At least one valid school field is required.', 422)
+  const { data, error } = await db().from('tt_schools').update(updates).eq('id', schoolId).select().maybeSingle()
+  if (error) return jsonError(c, error.message, 400)
   if (!data) return c.json({ detail: 'School not found.' }, 404)
   return c.json(data)
 })
 
-platformRoutes.patch('/schools/:schoolId', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
-  const body = await c.req.json().catch(() => ({}))
-  const { data, error: updateError } = await db()
-    .from('school_info')
-    .update(body)
-    .eq('id', c.req.param('schoolId'))
-    .select()
-    .single()
-  if (updateError) return jsonError(c, updateError.message, 400)
-  return c.json(data)
-})
-
 platformRoutes.post('/schools/:schoolId/status', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
+  const schoolId = Number(c.req.param('schoolId'))
   const body = await c.req.json().catch(() => ({}))
-  const { data } = await db()
-    .from('school_info')
-    .update({ status: body.status ?? 'active' })
-    .eq('id', c.req.param('schoolId'))
-    .select()
-    .single()
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0 || !['active', 'inactive'].includes(String(body.status))) {
+    return jsonError(c, 'A valid school and active/inactive status are required.', 422)
+  }
+  const { data, error } = await db().from('tt_schools').update({ status: body.status })
+    .eq('id', schoolId).select().maybeSingle()
+  if (error) return jsonError(c, error.message, 400)
+  if (!data) return c.json({ detail: 'School not found.' }, 404)
   return c.json(data)
 })
 
 platformRoutes.get('/schools/:schoolId/users', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
-  const { data } = await db().from('users').select('*')
-  return c.json(data ?? [])
+  const client = db()
+  const schoolId = Number(c.req.param('schoolId'))
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return jsonError(c, 'Invalid school ID.', 422)
+  const { data: memberships, error } = await client.from('tt_memberships')
+    .select('user_id,email,phone,role,is_active,created_at').eq('school_id', schoolId).order('created_at')
+  if (error) return jsonError(c, 'School members could not be loaded.', 503)
+  return c.json((memberships ?? []).map((item: any) => ({
+    user_id: String(item.user_id), email: item.email ?? null, phone: item.phone ?? null,
+    role: item.role, is_active: item.is_active, created_at: item.created_at,
+  })))
 })
 
 platformRoutes.post('/schools/:schoolId/administrators', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
   const body = await c.req.json().catch(() => ({}))
   const schoolId = Number(c.req.param('schoolId'))
   const email = String(body.email ?? '').trim().toLowerCase()
@@ -356,9 +402,12 @@ platformRoutes.post('/schools/:schoolId/administrators', async (c) => {
 })
 
 platformRoutes.delete('/schools/:schoolId/administrators/:userId', async (c) => {
-  const { error } = requireAuth(c as never)
-  if (error) return error
-  await db().from('tt_platform_admins').delete().eq('user_id', c.req.param('userId'))
+  const schoolId = Number(c.req.param('schoolId'))
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return jsonError(c, 'Invalid school ID.', 422)
+  const { data, error } = await db().from('tt_memberships').delete()
+    .eq('school_id', schoolId).eq('user_id', c.req.param('userId')).select('id').maybeSingle()
+  if (error) return jsonError(c, error.message, 400)
+  if (!data) return c.json({ detail: 'School membership not found.' }, 404)
   return c.body(null, 204)
 })
 
