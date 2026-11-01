@@ -90,7 +90,7 @@ export default function LibraryPage() {
       setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccountability(teacherRegister)
       const [workspaceResult, directoryResult, studentsResult, allocationsResult] = await Promise.allSettled([
         apiFetch<TimetableWorkspace>('/api/v1/timetable/workspace'),
-        apiFetch<DirectoryTeacher[]>('/api/v1/teachers/'),
+        apiFetch<DirectoryTeacher[]>('/api/v1/library/teacher-directory'),
         apiFetch<DirectoryStudent[]>('/api/v1/library/student-directory'),
         apiFetch<{ items: typeof studentAllocations }>('/api/v1/library/student-allocations'),
       ])
