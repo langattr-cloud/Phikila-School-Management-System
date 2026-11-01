@@ -54,12 +54,14 @@ INSERT INTO public.tt_schools(id,name) VALUES (1,'School One'),(2,'School Two');
 -- schools; children inherit that mapping through the tenancy guard triggers.
 UPDATE public.library_books SET school_id=1 WHERE id=1;
 UPDATE public.library_books SET school_id=2 WHERE id=2;
-DO $ BEGIN
+DO $schoolcheck$
+BEGIN
   IF EXISTS (SELECT 1 FROM public.library_book_copies WHERE book_id=1 AND school_id IS DISTINCT FROM 1)
      OR EXISTS (SELECT 1 FROM public.library_book_copies WHERE book_id=2 AND school_id IS DISTINCT FROM 2) THEN
     RAISE EXCEPTION 'First school assignment did not propagate to physical copies';
   END IF;
-END $;
+END;
+$schoolcheck$;
 UPDATE public.library_loans SET school_id=1 WHERE book_id=1;
 
 DO $$
