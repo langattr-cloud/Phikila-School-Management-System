@@ -115,3 +115,23 @@ test('student issue validates the selected Student module record after parsing t
   assert.ok(movementRoute.indexOf('const toHolderId =') < movementRoute.indexOf("if (action === 'issue_to_student') {"))
   assert.match(movementRoute, /students'\)\.select\('id,first_name,middle_name,last_name,status'\)/)
 })
+
+test('Library reads the saved timetable as read-only teacher hand-off planning context', async () => {
+  const page = await readFile(new URL('../../frontend/src/pages/LibraryPage.tsx', import.meta.url), 'utf8')
+  assert.match(page, /apiFetch<TimetableWorkspace>\('\/api\/v1\/timetable\/workspace'\)/)
+  assert.match(page, /Teacher timetable & library hand-off windows/)
+  assert.match(page, /period\.type !== 'break' && !lesson/)
+  assert.match(page, /Open — possible Library window/)
+  assert.match(page, /does not add, move, or reserve lessons/)
+  assert.match(page, /normaliseTeacherName/)
+  assert.match(page, /candidates\.length === 1/)
+})
+
+test('Teacher timetable shows the matching Library custody account without writing timetable data', async () => {
+  const timetable = await readFile(new URL('../../frontend/src/stitch/TimetableModule.tsx', import.meta.url), 'utf8')
+  assert.match(timetable, /apiFetch<\{ teachers: LibraryTeacherAccount\[\] \}>\('\/api\/v1\/library\/teacher-accountability'\)/)
+  assert.match(timetable, /Library custody alongside this teacher timetable/)
+  assert.match(timetable, /navigate\('\/library'\)/)
+  assert.match(timetable, /setLibraryTeacherAccount\(match\)/)
+  assert.match(timetable, /whose !== 'Teachers' \|\| !filter/)
+})
