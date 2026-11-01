@@ -12,18 +12,20 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.email.service import email_service
 from app.modules.platform.tenancy import TtMembership, TtSchool
+from app.modules.teachers.models import Teacher
 
 from .authz import Identity, audit, require_super_admin
 from .models import TtAccessRequest
 
 router = APIRouter()
-GRANTABLE_ROLES = {"viewer", "student", "teacher", "scheduler", "admin"}
+GRANTABLE_ROLES = {"viewer", "student", "librarian", "teacher", "scheduler", "admin"}
 
 
 class ApprovalDecision(BaseModel):
     approve: bool
     role: str | None = None
     school_id: int | None = None
+    teacher_id: int | None = Field(default=None, gt=0)
     note: str | None = Field(default=None, max_length=500)
 
     @field_validator("role")
@@ -73,6 +75,11 @@ def decide_access_request(
     granted = payload.role or row.requested_role or "viewer"
     if granted not in GRANTABLE_ROLES:
         granted = "viewer"
+    if granted == "teacher":
+        if payload.teacher_id is None or db.query(Teacher.id).filter(Teacher.id == payload.teacher_id).first() is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Select an existing saved teacher record when granting the teacher role.")
+    elif payload.teacher_id is not None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A teacher record can only be linked to a teacher role.")
 
     # tt_memberships.user_id is varchar in the live database; access requests use UUID.
     membership_user_id = str(row.user_id)
@@ -88,12 +95,14 @@ def decide_access_request(
                 school_id=school_id,
                 role=granted,
                 email=row.email,
+                teacher_id=payload.teacher_id if granted == "teacher" else None,
                 is_active=True,
             )
             db.add(membership)
         else:
             membership.role = granted
             membership.email = row.email or membership.email
+            membership.teacher_id = payload.teacher_id if granted == "teacher" else None
             membership.is_active = True
 
         row.status = "approved"
