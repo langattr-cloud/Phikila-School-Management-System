@@ -23,6 +23,7 @@ test('finance and account-owned timetable tables are backend-only with RLS enabl
   assert.match(migration, /ALTER TABLE public\.%I ENABLE ROW LEVEL SECURITY/i)
   assert.match(migration, /REVOKE ALL PRIVILEGES ON TABLE public\.%I FROM PUBLIC, anon, authenticated/i)
   assert.match(migration, /GRANT ALL PRIVILEGES ON TABLE public\.%I TO service_role/i)
+  assert.match(migration, /GRANT USAGE, SELECT ON SEQUENCE %s TO authenticated, service_role/i)
   assert.match(migration, /has_table_privilege\('anon'/i)
   assert.match(migration, /has_table_privilege\('authenticated'/i)
   assert.doesNotMatch(migration, /FORCE ROW LEVEL SECURITY/i)
