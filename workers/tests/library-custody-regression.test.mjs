@@ -244,8 +244,8 @@ test('student custody rejects ambiguous legacy student identities before inserti
   const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
   const movement = library.slice(library.indexOf("libraryRoutes.post('/copies/:copyId/movements'"))
   assert.match(movement, /from('students')[sS]*?.eq('admission_number', student.admission_number)/)
-  assert.match(movement, /legacyMatches ?? []).length !== 1/)
-  assert.match(movement, /Number(legacyMatches?.[0]?.id) !== toHolderId/)
+  assert.match(movement, /legacyMatches \\?\\? \\[\\]\\)\\.length !== 1/)
+  assert.match(movement, /Number\\(legacyMatches\\?\\.\\[0\\]\\?\\.id\\) !== toHolderId/)
 })
 
 test('first catalogue school assignment propagates to copies and movements and later transfers are blocked', async () => {
