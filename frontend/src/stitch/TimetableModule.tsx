@@ -18,6 +18,8 @@ type SubjectForm = { title: string; short: string; color: string; number: string
 type TeacherDetail = { firstName: string; short: string; color: string; classTeacher: string; contract: string; email: string; phone: string; title1: string; title2: string; number: string; male: boolean; timeOffGrid: number[][] }
 type ClassDetail = { color?: string; classTeacher?: string; grade?: string; number?: string; count?: number; printPictures?: boolean; timeOffGrid?: number[][]; short?: string }
 type Workspace = { dayDetails?: Record<string, { short?: string; desc?: string; combinedDays?: string[] }>; classDetails?: Record<string, ClassDetail>; schoolName: string; academicYear: string; registrationName: string; periodsPerDay: number; numberOfDays: number; weekend: string; workZero: boolean; days: string[]; periods: Period[]; lessons: Lesson[]; specification: Specification; subjectDetails?: Record<string, SubjectDetail>; teacherDetails?: Record<string, TeacherDetail> }
+type LibraryTeacherAccount = { teacher_id: number; teacher_name: string; total_accountable: number; with_students: number; retained_by_teacher: number; lost: number; copies: Array<{ copy_id: string; copy_number: string; book_title: string; status: string; current_holder_type: string; current_holder_name: string | null }> }
+const normaliseStaffLabel = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ')
 type Whose = 'All' | 'Classes' | 'Teachers' | 'Classrooms'
 type Action = 'New' | 'Open' | 'Save' | 'Save As' | 'Print' | 'Print preview' | 'Exit' | 'Import' | 'Export' | 'Settings' | 'Subjects' | 'Classes' | 'Classrooms' | 'Teachers' | 'Lessons' | 'Students' | 'Relations' | 'Timetable' | 'Summary' | 'Zoom' | 'Generate new' | 'Generate in cloud' | 'Test' | 'Verification' | 'School' | 'Year/Class Online' | 'Bell times' | 'Constraints' | 'Contents' | 'Questions/Comments' | 'Questions? / Write us' | 'Questions? Comments? Write us' | 'About' | 'Periods' | 'View timetable' | 'Year Online' | 'Generate' | 'Help' | 'Timetables Online' | 'Classrooms view' | 'Teachers view'
 
@@ -103,7 +105,35 @@ export default function TimetableModule() {
   }), [data.lessons, whose, filter])
   const conflicts = useMemo(() => findConflicts(data), [data])
 
+  useEffect(() => {
+    if (whose !== 'Teachers' || !filter) {
+      setLibraryTeacherAccount(null)
+      setLibraryAccountStatus('')
+      return
+    }
+    let active = true
+    setLibraryTeacherAccount(null)
+    setLibraryAccountStatus('Loading Library custody…')
+    apiFetch<{ teachers: LibraryTeacherAccount[] }>('/api/v1/library/teacher-accountability')
+      .then(result => {
+        if (!active) return
+        const target = normaliseStaffLabel(filter)
+        const exact = result.teachers.find(item => normaliseStaffLabel(item.teacher_name) === target)
+        const candidates = result.teachers.filter(item => {
+          const tokens = normaliseStaffLabel(item.teacher_name).split(' ')
+          return target.split(' ').length === 1 ? tokens.includes(target) : target.split(' ').every(token => tokens.includes(token))
+        })
+        const match = exact ?? (candidates.length === 1 ? candidates[0] : null)
+        setLibraryTeacherAccount(match)
+        setLibraryAccountStatus(match ? '' : 'No unambiguous Library custody account matches this timetable teacher label.')
+      })
+      .catch(() => { if (active) setLibraryAccountStatus('Library custody data is not available yet. Apply and verify the Library custody setup before using this panel.') })
+    return () => { active = false }
+  }, [whose, filter])
+
   const [savedTeacherWorkloads, setSavedTeacherWorkloads] = useState<Record<string, number>>({})
+  const [libraryTeacherAccount, setLibraryTeacherAccount] = useState<LibraryTeacherAccount | null>(null)
+  const [libraryAccountStatus, setLibraryAccountStatus] = useState('')
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
@@ -489,6 +519,19 @@ export default function TimetableModule() {
         </>;
       })()}
     </section> : <section className="phikila-tt-grid-panel"><div className="phikila-tt-panel-heading"><div><h2>{whose === 'Classes' ? 'Class timetable' : whose === 'Teachers' ? 'Teacher timetable' : 'Classroom timetable'}</h2><p>Select a lesson to edit it, or choose an empty cell to add one.</p></div><div className="phikila-tt-grid-legend"><span><i className="legend-lesson" /> Lesson</span><span><i className="legend-locked" /> Locked ({data.lessons.filter(lesson => lesson.locked).length})</span><span className="phikila-tt-verification-indicator">Verification: {conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local conflicts'}</span></div></div><div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid phikila-tt-grid-days-rows"><thead><tr><th className="period-col">Day</th>{data.periods.map((period, periodIndex) => <th key={period.name + periodIndex} className={(period.type === 'break' || /break|lunch|recess|games/i.test(period.name)) ? 'phikila-tt-break-heading' : ''}>{period.name}<small>{period.start}–{period.end}</small></th>)}</tr></thead><tbody>{data.days.map(day => <tr key={day}><th className="period-cell">{day}</th>{data.periods.map((period, periodIndex) => { const isBreak = period.type === 'break' || /break|lunch|recess|games/i.test(period.name); const lessons = visibleLessons.filter(lesson => lesson.day === day && lesson.period === periodIndex); return <td key={period.name + periodIndex} className={'phikila-tt-cell ' + (isBreak ? 'phikila-tt-break-cell' : '')}>{lessons.map(lesson => <button key={lesson.id} className={'phikila-tt-lesson ' + (lesson.locked ? 'is-locked' : '')} onClick={() => openEditor(day, periodIndex, lesson)}><span className="phikila-tt-lesson-class">{lesson.className}{lesson.locked ? ' · Locked' : ''}</span><strong>{lesson.subject}</strong><span>{lesson.teacher}</span>{lesson.room && <small>{lesson.room}</small>}</button>)}{!isBreak && <button className="phikila-tt-add-cell" onClick={() => openEditor(day, periodIndex)}>+ Add lesson</button>}{isBreak && <span className="phikila-tt-break-label">{period.name}</span>}</td> })}</tr>)}</tbody></table></div></section>)}
+    {whose === 'Teachers' && filter && <section className="phikila-tt-grid-panel" style={{ marginTop: 10 }}>
+      <div className="phikila-tt-panel-heading"><div><h2>Library custody alongside this teacher timetable</h2><p>Live accountability follows the Library → Teacher → Student → Teacher → Library chain. Student-held and lost copies remain on the teacher account until Library acceptance.</p></div><button type="button" className="phikila-tt-button" onClick={() => navigate('/library')}>Open Library</button></div>
+      {libraryAccountStatus && <p role="status">{libraryAccountStatus}</p>}
+      {libraryTeacherAccount ? <>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 10 }}>
+          <strong>{libraryTeacherAccount.total_accountable} accountable copies</strong>
+          <span>{libraryTeacherAccount.retained_by_teacher} retained by teacher</span>
+          <span>{libraryTeacherAccount.with_students} with students</span>
+          <span>{libraryTeacherAccount.lost} lost</span>
+        </div>
+        {libraryTeacherAccount.copies.length > 0 ? <div className="phikila-tt-grid-scroll"><table className="phikila-tt-grid"><thead><tr><th>Book</th><th>Copy number</th><th>Current holder</th><th>Status</th></tr></thead><tbody>{libraryTeacherAccount.copies.map(copy => <tr key={copy.copy_id}><td>{copy.book_title}</td><td>{copy.copy_number}</td><td>{copy.current_holder_type === 'student' ? 'Student' : 'Teacher'} · {copy.current_holder_name || 'Unknown'}</td><td>{copy.status}</td></tr>)}</tbody></table></div> : <p>No outstanding Library copies are currently assigned to this teacher.</p>}
+      </> : !libraryAccountStatus && <p>Loading Library custody…</p>}
+    </section>}
     {!(settingsOpen && setupTab === 'subjects') && <footer className="phikila-tt-footer"><span>{status}</span><span>{conflicts.length ? conflicts.length + ' potential conflict(s)' : 'No local same-slot conflicts detected'}</span><button className="phikila-tt-button phikila-tt-button-primary" disabled={loading || loadFailed} onClick={() => void save()}>Save workspace</button></footer>}
     {editor && <div className="phikila-tt-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditor(null) }}><section className="phikila-tt-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"><div className="phikila-tt-panel-heading"><div><h2 id="lesson-editor-title">{editor.lesson ? 'Edit lesson' : 'Add lesson'}</h2><p>{editor.day} · {data.periods[editor.period]?.name}</p></div><button className="phikila-tt-button" onClick={() => setEditor(null)}>Close</button></div><form onSubmit={submitLesson}><label>Class<input required list="tt-classes" value={form.className} onChange={event => setForm(current => ({ ...current, className: event.target.value }))} /><datalist id="tt-classes">{classes.map(value => <option key={value} value={value} />)}</datalist></label><label>Subject<input required list="tt-subjects" value={form.subject} onChange={event => setForm(current => ({ ...current, subject: event.target.value }))} /><datalist id="tt-subjects">{subjects.map(value => <option key={value} value={value} />)}</datalist></label><label>Teacher<input required list="tt-teachers" value={form.teacher} onChange={event => setForm(current => ({ ...current, teacher: event.target.value }))} /><datalist id="tt-teachers">{teachers.map(value => <option key={value} value={value} />)}</datalist></label><label>Classroom<input list="tt-rooms" value={form.room} onChange={event => setForm(current => ({ ...current, room: event.target.value }))} /><datalist id="tt-rooms">{rooms.map(value => <option key={value} value={value} />)}</datalist></label><label className="phikila-tt-checkbox"><input type="checkbox" checked={form.locked} onChange={event => setForm(current => ({ ...current, locked: event.target.checked }))} /> Lock this lesson in place</label><div className="phikila-tt-modal-actions">{editor.lesson && <button type="button" className="phikila-tt-button phikila-tt-danger" onClick={deleteLesson}>Delete lesson</button>}<span /><button type="button" className="phikila-tt-button" onClick={() => setEditor(null)}>Cancel</button><button type="submit" className="phikila-tt-button phikila-tt-button-primary">Save lesson</button></div></form></section></div>}
     {previewOpen && <PrintPreviewTimetableForEachClass schoolName={data.schoolName} academicYear={data.academicYear} days={data.days} periods={data.periods} lessons={data.lessons} classes={classes} teachers={teachers} classrooms={rooms} classDetails={data.classDetails || {}} teacherDetails={data.teacherDetails || {}} subjectDetails={data.subjectDetails || {}} onClose={() => setPreviewOpen(false)} />}

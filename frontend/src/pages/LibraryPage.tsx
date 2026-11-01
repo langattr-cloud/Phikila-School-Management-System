@@ -6,7 +6,7 @@ import { apiFetch, friendlyApiError } from '../lib/api'
 import { useToast } from '../components/Toast'
 
 type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
-type TimetableWorkspace = { data?: { specification?: { teachers?: string[]; classes?: string[]; subjects?: string[] }; lessons?: Array<{ className: string; subject: string; teacher: string }>; classDetails?: Record<string, { grade?: string }> } | null }
+type TimetableWorkspace = { data?: { days?: string[]; periods?: Array<{ name: string; start: string; end: string; type?: 'lesson' | 'break' }>; specification?: { teachers?: string[]; classes?: string[]; subjects?: string[] }; lessons?: Array<{ id?: string; day: string; period: number; className: string; subject: string; teacher: string; room?: string }>; classDetails?: Record<string, { grade?: string }> } | null }
 type DirectoryTeacher = { id: number; name: string }
 type DirectoryStudent = { id: number; admission_number: string; name: string; current_class: string | null }
 type TeacherInventorySummary = { teachers: Array<{ teacher_id: number; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> }>; all_teachers: { teacher_id: null; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> } | null }
@@ -36,6 +36,9 @@ const actionLabels: Record<string, string> = {
   restore_excluded_copy: 'Restore previously excluded copy',
 }
 const statusLabel = (status: Copy['status']) => ({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs physical verification', excluded: 'Missing before issue — excluded' })[status]
+const normaliseTeacherName = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ')
+const normaliseDay = (value: string) => value.trim().slice(0, 3).toLocaleUpperCase()
+const dayLabel = (value: string) => ({ MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday', SAT: 'Saturday', SUN: 'Sunday' })[normaliseDay(value)] ?? value
 
 export default function LibraryPage() {
   const { notify } = useToast()
@@ -51,6 +54,7 @@ export default function LibraryPage() {
   const [movements, setMovements] = useState<Movement[]>([])
   const [selectedCopy, setSelectedCopy] = useState('')
   const [issueTeacherId, setIssueTeacherId] = useState('')
+  const [selectedScheduleTeacherId, setSelectedScheduleTeacherId] = useState('')
   const [issueSubject, setIssueSubject] = useState('')
   const [issueGrade, setIssueGrade] = useState('')
   const [issueBookId, setIssueBookId] = useState('')
@@ -111,22 +115,48 @@ export default function LibraryPage() {
   const timetableAssignments = useMemo(() => {
     const lessons = timetable?.lessons ?? []
     const classDetails = timetable?.classDetails ?? {}
-    const directoryByName = new Map(teacherDirectory.map(teacher => [teacher.name.trim().toLocaleLowerCase(), teacher]))
+    const resolveTeacher = (label: string) => {
+      const normalized = normaliseTeacherName(label)
+      if (!normalized) return null
+      const exact = teacherDirectory.find(teacher => normaliseTeacherName(teacher.name) === normalized)
+      if (exact) return exact
+      const labelTokens = normalized.split(' ')
+      const candidates = teacherDirectory.filter(teacher => {
+        const nameTokens = normaliseTeacherName(teacher.name).split(' ')
+        if (labelTokens.length === 1) return nameTokens.includes(labelTokens[0])
+        if (labelTokens.every(token => nameTokens.includes(token))) return true
+        const last = labelTokens[labelTokens.length - 1]
+        const firstInitial = labelTokens[0].length === 1 ? labelTokens[0] : ''
+        return Boolean(firstInitial) && nameTokens[nameTokens.length - 1] === last && nameTokens[0]?.startsWith(firstInitial)
+      })
+      return candidates.length === 1 ? candidates[0] : null
+    }
     return lessons.map(lesson => {
       const className = String(lesson.className ?? '').trim()
-      const grade = String(classDetails[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? '').trim()
+      const grade = String(classDetails[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? className).trim()
       const teacherName = String(lesson.teacher ?? '').trim()
-      const directoryTeacher = directoryByName.get(teacherName.toLocaleLowerCase())
-      return { grade, className, subject: String(lesson.subject ?? '').trim(), teacherName, teacherId: directoryTeacher?.id ?? null }
-    }).filter(item => item.grade && item.subject && item.teacherName)
+      const directoryTeacher = resolveTeacher(teacherName)
+      return { grade, className, subject: String(lesson.subject ?? '').trim(), teacherName, teacherId: directoryTeacher?.id ?? null, day: String(lesson.day ?? ''), period: Number(lesson.period), room: String(lesson.room ?? '') }
+    }).filter(item => item.grade && item.subject && item.teacherName && Number.isFinite(item.period))
   }, [timetable, teacherDirectory])
   const timetableGrades = useMemo(() => Array.from(new Set(timetableAssignments.map(item => item.grade))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [timetableAssignments])
   const timetableSubjects = useMemo(() => Array.from(new Set(timetableAssignments.filter(item => item.grade === newBookGrade).map(item => item.subject))).sort(), [timetableAssignments, newBookGrade])
   const issueTeachers = useMemo(() => {
-    const byId = new Map<number, string>()
-    for (const assignment of timetableAssignments) if (assignment.teacherId != null) byId.set(assignment.teacherId, assignment.teacherName)
-    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
-  }, [timetableAssignments])
+    const assignedIds = new Set(timetableAssignments.map(item => item.teacherId).filter((id): id is number => id != null))
+    return teacherDirectory.filter(teacher => assignedIds.has(teacher.id)).sort((a, b) => a.name.localeCompare(b.name))
+  }, [timetableAssignments, teacherDirectory])
+  const selectedTeacherSchedule = useMemo(() => {
+    if (!selectedScheduleTeacherId) return []
+    const periods = timetable?.periods ?? []
+    return (timetable?.days ?? []).map(day => {
+      const dayLessons = timetableAssignments.filter(item => item.teacherId === Number(selectedScheduleTeacherId) && normaliseDay(item.day) === normaliseDay(day))
+      const rows = periods.map((period, index) => {
+        const lesson = period.type === 'break' ? undefined : dayLessons.find(item => item.period === index)
+        return { period, index, lesson, available: period.type !== 'break' && !lesson }
+      })
+      return { day, rows, freePeriods: rows.filter(row => row.available) }
+    })
+  }, [selectedScheduleTeacherId, timetable, timetableAssignments])
   const issueTeacherAssignments = useMemo(() => timetableAssignments.filter(item => String(item.teacherId) === issueTeacherId), [timetableAssignments, issueTeacherId])
   const issueSubjects = useMemo(() => Array.from(new Set(issueTeacherAssignments.map(item => item.subject))).sort(), [issueTeacherAssignments])
   const issueGrades = useMemo(() => Array.from(new Set(issueTeacherAssignments.filter(item => item.subject.toLocaleLowerCase() === issueSubject.toLocaleLowerCase()).map(item => item.grade))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [issueTeacherAssignments, issueSubject])
@@ -256,6 +286,30 @@ export default function LibraryPage() {
           </div>)}
           {((inventoryTeacher === 'all' && !teacherInventory.all_teachers) || (inventoryTeacher !== 'all' && teacherInventory.teachers.length === 0)) && <EmptyState title="No accountable copies" description="No physical copies are currently assigned to this selection." />}
         </div>}
+      </section>
+
+      <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
+        <h2 className="section__title">Teacher timetable & library hand-off windows</h2>
+        <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>The saved timetable is read-only here. Open lesson periods are suggested windows for arranging a Library visit or book hand-off; this view does not add, move, or reserve lessons.</p>
+        <label className="field" style={{ maxWidth: '24rem', display: 'block' }}>
+          <span className="field__label">Teacher</span>
+          <select className="input" value={selectedScheduleTeacherId} onChange={event => setSelectedScheduleTeacherId(event.target.value)}>
+            <option value="">Select a teacher…</option>
+            {issueTeachers.map(teacher => <option key={teacher.id} value={String(teacher.id)}>{teacher.name}</option>)}
+          </select>
+        </label>
+        {!selectedScheduleTeacherId ? <EmptyState title="Select a teacher" description="Choose a teacher to see their saved lesson commitments and open periods." /> :
+          selectedTeacherSchedule.length === 0 ? <EmptyState title="No timetable periods available" description="The saved timetable does not contain day and period definitions for this teacher." /> :
+          selectedTeacherSchedule.map(day => <div key={day.day} style={{ borderTop: '1px solid var(--color-line)', padding: 'var(--space-3) 0' }}>
+            <h3 style={{ margin: '0 0 var(--space-2)', fontSize: '1rem' }}>{dayLabel(day.day)} · {day.freePeriods.length} open lesson periods</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(12rem,1fr))', gap: 'var(--space-2)' }}>
+              {day.rows.map(row => <div key={row.index} style={{ border: '1px solid var(--color-line)', borderRadius: '.5rem', padding: 'var(--space-2)', background: row.available ? 'var(--color-surface-subtle)' : 'transparent' }}>
+                <strong>{row.period.name}</strong> <span style={{ color: 'var(--color-ink-muted)' }}>{row.period.start}–{row.period.end}</span>
+                <div style={{ fontSize: '.85rem', color: 'var(--color-ink-muted)' }}>{row.period.type === 'break' ? 'Break' : row.lesson ? row.lesson.subject + ' · ' + row.lesson.className : 'Open — possible Library window'}</div>
+              </div>)}
+            </div>
+          </div>)}
+        {issueTeachers.length === 0 && <p style={{ color: 'var(--color-ink-muted)' }}>No timetable teachers could be matched unambiguously to saved teacher records. Check teacher labels in the timetable; no teacher records were created or changed.</p>}
       </section>
 
       <div className="summary-grid" style={{ marginBottom: 'var(--space-4)' }}>
