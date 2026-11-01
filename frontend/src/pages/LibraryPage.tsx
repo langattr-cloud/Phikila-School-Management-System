@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Alert } from '../components/Alert'
 import { EmptyState, LoadingBlock } from '../components/States'
@@ -85,10 +85,12 @@ export default function LibraryPage() {
   const [newBookCopies, setNewBookCopies] = useState('1')
   const [addingBook, setAddingBook] = useState(false)
   const [loading, setLoading] = useState(false)
+  const loadSequence = useRef(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current
     if (!activeSchoolId) { setLoading(false); return }
     setLoading(true); setError(null)
     try {
@@ -99,6 +101,7 @@ export default function LibraryPage() {
         libraryFetch<Reconciliation>('/api/v1/library/reconciliation'),
         libraryFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),
       ])
+      if (sequence !== loadSequence.current) return
       setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccountability(teacherRegister)
       const [workspaceResult, directoryResult, studentsResult, allocationsResult] = await Promise.allSettled([
         libraryFetch<TimetableWorkspace>('/api/v1/timetable/workspace'),
@@ -106,6 +109,7 @@ export default function LibraryPage() {
         libraryFetch<DirectoryStudent[]>('/api/v1/library/student-directory'),
         libraryFetch<{ items: typeof studentAllocations }>('/api/v1/library/student-allocations'),
       ])
+      if (sequence !== loadSequence.current) return
       if (workspaceResult.status === 'fulfilled') setTimetable(workspaceResult.value.data ?? null)
       else setTimetable(null)
       if (directoryResult.status === 'fulfilled') setTeacherDirectory(directoryResult.value.filter(item => Number.isSafeInteger(Number(item.id)) && String(item.name ?? '').trim()).map(item => ({ id: Number(item.id), name: String(item.name).trim() })))
@@ -114,8 +118,11 @@ export default function LibraryPage() {
       else setStudentDirectory([])
       if (allocationsResult.status === 'fulfilled') setStudentAllocations(allocationsResult.value.items ?? [])
       else setStudentAllocations([])
-    } catch (err) { setError(friendlyApiError(err, 'load the library register')) }
-    finally { setLoading(false) }
+    } catch (err) {
+      if (sequence === loadSequence.current) setError(friendlyApiError(err, 'load the library register'))
+    } finally {
+      if (sequence === loadSequence.current) setLoading(false)
+    }
   }, [activeSchoolId, libraryFetch])
 
   useEffect(() => { void load() }, [load])
@@ -278,7 +285,7 @@ export default function LibraryPage() {
           setBooks([]); setCopies([]); setMovements([]); setStats(null)
           setTeacherAccountability(null); setReconciliation(null); setTimetable(null)
           setTeacherDirectory([]); setStudentDirectory([]); setStudentAllocations([])
-          setSelectedCopy(''); setSelectedSchoolId(event.target.value)
+          setSelectedCopy('')
         }}>
           <option value="">Select a school</option>
           {platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
