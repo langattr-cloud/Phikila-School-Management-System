@@ -22,7 +22,6 @@ from app.core.database import get_db
 from app.config import settings
 from app.modules.email.service import email_service
 from app.modules.academics.models import SchoolClass
-from app.modules.teachers.models import Teacher
 from app.modules.subjects.timetable_profiles import TimetableTeacherProfile
 from app.modules.platform.tenancy import ROLE_ORDER, TtMembership, TtSchool
 
