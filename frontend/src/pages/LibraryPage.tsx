@@ -232,6 +232,14 @@ export default function LibraryPage() {
     catch (err) { setError(friendlyApiError(err, 'load book movement history')) }
   }
 
+  if (!activeSchoolId) return <div className="library-page">
+    <PageHeader title="Library & Book Custody" description="Select the school whose library register you need to access." />
+    {platformSession?.schools && platformSession.schools.length > 0
+      ? <section className="card section"><label className="field"><span className="field__label">School</span><select className="input" value={selectedSchoolId} onChange={event => setSelectedSchoolId(event.target.value)}><option value="">Select a school</option>{platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}</select></label></section>
+      : <Alert tone="error">No active school membership is available for this account.</Alert>}
+    <Alert tone="info">Select a school before loading or changing its Library records.</Alert>
+  </div>
+
   return <div className="library-page">
     {platformSession?.schools && platformSession.schools.length > 1 && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}><label className="field"><span className="field__label">School</span><select className="input" value={activeSchoolId} onChange={event => { setSelectedSchoolId(event.target.value); setBooks([]); setCopies([]); setMovements([]); setStats(null); setTeacherAccountability(null); setReconciliation(null) }}><option value="">Select a school to open its Library</option>{platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}</select></label></section>}
     <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." actions={<button className="button button--primary button--sm" onClick={() => setShowNewBook(value => !value)}>{showNewBook ? 'Cancel' : 'Add book title'}</button>} />
