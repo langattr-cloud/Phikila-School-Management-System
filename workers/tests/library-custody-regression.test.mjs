@@ -142,7 +142,7 @@ test('library student directory and enrollment enrichment are scoped to the acti
 test('library membership selection rejects ambiguous multi-school membership without explicit school header', async () => {
   const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
   assert.match(library, /X-School-Id is required for users with multiple school memberships/)
-  assert.match(library, /Number\(item\.school_id\) === schoolId && allowed\.includes/)
+  assert.match(library, /eligible\.find\(\(item: any\) => Number\(item\.school_id\) === schoolId\)/)
   assert.match(library, /You do not have an active membership in the requested school/)
 })
 
