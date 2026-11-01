@@ -56,5 +56,9 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql --host 127.0.0.1 --username postgres --dbname postgres --set ON_ERROR_STOP=1 --file tests/finance-migration-postgres.sql
+      - name: Execute backend-only RLS PostgreSQL regression checks
+        env:
+          PGPASSWORD: postgres
+        run: psql --host 127.0.0.1 --username postgres --dbname postgres --set ON_ERROR_STOP=1 --file tests/backend-rls-postgres.sql
       - name: Build worker API (dry run)
         run: npm run build
