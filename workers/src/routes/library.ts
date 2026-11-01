@@ -97,9 +97,20 @@ async function enrichStudentRows(rows: any[], schoolId: number) {
   const admissions = [...new Set(rows.map(row => String(row.admission_number ?? '').trim()).filter(Boolean))]
   if (!admissions.length) return []
   const client = db()
-  const modernResult = await client.from('students_v2').select('id,admission_number').eq('school_id', schoolId).in('admission_number', admissions)
-  if (modernResult.error) throw modernResult.error
+  const [modernResult, globalModernResult] = await Promise.all([
+    client.from('students_v2').select('id,admission_number').eq('school_id', schoolId).in('admission_number', admissions),
+    // Admission numbers may be reused by separate schools. The legacy students
+    // table has no school_id, so a cross-school duplicate cannot be safely
+    // mapped to its legacy row and must be excluded.
+    client.from('students_v2').select('id,admission_number').in('admission_number', admissions),
+  ])
+  if (modernResult.error || globalModernResult.error) throw modernResult.error ?? globalModernResult.error
   const modern = modernResult.data ?? []
+  const globalModernCounts = new Map<string, number>()
+  for (const row of globalModernResult.data ?? []) {
+    const admission = String(row.admission_number ?? '')
+    globalModernCounts.set(admission, (globalModernCounts.get(admission) ?? 0) + 1)
+  }
   const ids = modern.map(row => Number(row.id))
   const enrollmentResult = ids.length
     ? await client.from('student_enrollments').select('student_id,grade_id,stream_id,class_id,school_class_id,status,created_at').eq('school_id', schoolId).in('student_id', ids).eq('status', 'enrolled').order('created_at', { ascending: false })
@@ -131,7 +142,7 @@ async function enrichStudentRows(rows: any[], schoolId: number) {
   // record or assigning custody to an ambiguous student identity.
   return rows.filter(row => {
     const admission = String(row.admission_number ?? '')
-    return modernIds.has(admission) && legacyCounts.get(admission) === 1
+    return modernIds.has(admission) && globalModernCounts.get(admission) === 1 && legacyCounts.get(admission) === 1
   }).map(row => {
     const enrollment = latest.get(modernIds.get(String(row.admission_number ?? '')) ?? -1)
     const classId = enrollment ? Number(enrollment.school_class_id ?? enrollment.class_id) : NaN
@@ -412,11 +423,13 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
     if (!student || ['inactive', 'withdrawn', 'archived', 'deleted'].includes(String(student.status ?? '').toLowerCase())) {
       return c.json({ detail: 'Select an active student from the Student module.' }, 422)
     }
-    const { data: schoolStudent, error: schoolStudentError } = await db().from('students_v2')
-      .select('id,status').eq('school_id', schoolId).eq('admission_number', student.admission_number).maybeSingle()
+    const { data: schoolStudents, error: schoolStudentError } = await db().from('students_v2')
+      .select('id,school_id,status').eq('admission_number', student.admission_number)
     if (schoolStudentError) return jsonError(c, schoolStudentError.message, 500)
-    if (!schoolStudent || ['inactive', 'withdrawn', 'archived', 'deleted'].includes(String(schoolStudent.status ?? '').toLowerCase())) {
-      return c.json({ detail: 'The selected student is not active in your current school.' }, 422)
+    const matchingSchoolStudents = (schoolStudents ?? []).filter(row => Number(row.school_id) === schoolId)
+    if (matchingSchoolStudents.length !== 1 || (schoolStudents ?? []).length !== 1
+      || ['inactive', 'withdrawn', 'archived', 'deleted'].includes(String(matchingSchoolStudents[0]?.status ?? '').toLowerCase())) {
+      return c.json({ detail: 'The selected student is not uniquely mapped to an active student in your current school.' }, 422)
     }
     const expectedName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ')
     if (toHolderName !== expectedName) return c.json({ detail: 'Student name does not match the selected Student module record.' }, 422)
