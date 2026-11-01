@@ -28,7 +28,23 @@ async function requireLibraryRole(c: any, allowed: string[]) {
   const { data, error: membershipError } = await db().from('tt_memberships')
     .select('role,teacher_id,school_id').eq('user_id', user.id).eq('is_active', true)
   if (membershipError) return { error: c.json({ detail: 'Library role could not be verified.' }, 503), user, membership: null }
-  const membership = (data ?? []).find((item: any) => allowed.includes(String(item.role ?? '').toLowerCase())) ?? null
+  const memberships = data ?? []
+  const schoolIds = [...new Set(memberships.map((item: any) => Number(item.school_id)).filter((id: number) => Number.isSafeInteger(id) && id > 0))]
+  const requestedSchool = c.req.header('X-School-Id')
+  let schoolId: number | null = null
+  if (requestedSchool) {
+    schoolId = Number(requestedSchool)
+    if (!Number.isSafeInteger(schoolId) || schoolId <= 0 || !schoolIds.includes(schoolId)) {
+      return { error: c.json({ detail: 'You do not have an active membership in the requested school.' }, 403), user, membership: null }
+    }
+  } else if (schoolIds.length > 1) {
+    return { error: c.json({ detail: 'X-School-Id is required when you belong to multiple schools.' }, 400), user, membership: null }
+  } else {
+    schoolId = schoolIds[0] ?? null
+  }
+  const membership = memberships.find((item: any) =>
+    Number(item.school_id) === schoolId && allowed.includes(String(item.role ?? '').toLowerCase())
+  ) ?? null
   if (!membership) return { error: c.json({ detail: 'An authorized school Library role is required.' }, 403), user, membership: null }
   return { error: null, user, membership }
 }
@@ -64,16 +80,16 @@ libraryRoutes.get('/teacher-directory', async (c) => {
   })).filter((teacher: any) => Number.isSafeInteger(teacher.id) && teacher.name))
 })
 
-async function enrichStudentRows(rows: any[]) {
+async function enrichStudentRows(rows: any[], schoolId: number) {
   const admissions = [...new Set(rows.map(row => String(row.admission_number ?? '').trim()).filter(Boolean))]
   if (!admissions.length) return []
   const client = db()
-  const modernResult = await client.from('students_v2').select('id,admission_number').in('admission_number', admissions)
+  const modernResult = await client.from('students_v2').select('id,admission_number').eq('school_id', schoolId).in('admission_number', admissions)
   if (modernResult.error) throw modernResult.error
   const modern = modernResult.data ?? []
   const ids = modern.map(row => Number(row.id))
   const enrollmentResult = ids.length
-    ? await client.from('student_enrollments').select('student_id,grade_id,stream_id,class_id,school_class_id,status,created_at').in('student_id', ids).eq('status', 'enrolled').order('created_at', { ascending: false })
+    ? await client.from('student_enrollments').select('student_id,grade_id,stream_id,class_id,school_class_id,status,created_at').eq('school_id', schoolId).in('student_id', ids).eq('status', 'enrolled').order('created_at', { ascending: false })
     : { data: [], error: null }
   if (enrollmentResult.error) throw enrollmentResult.error
   const enrollments = enrollmentResult.data ?? []
@@ -83,9 +99,9 @@ async function enrichStudentRows(rows: any[]) {
   const gradeIds = [...new Set(enrollments.map(row => Number(row.grade_id)).filter(Number.isSafeInteger))]
   const streamIds = [...new Set(enrollments.map(row => Number(row.stream_id)).filter(Number.isSafeInteger))]
   const [classResult, gradeResult, streamResult] = await Promise.all([
-    classIds.length ? client.from('school_classes').select('id,name,display_name,grade').in('id', classIds) : Promise.resolve({ data: [], error: null }),
-    gradeIds.length ? client.from('grades').select('id,name').in('id', gradeIds) : Promise.resolve({ data: [], error: null }),
-    streamIds.length ? client.from('streams').select('id,name').in('id', streamIds) : Promise.resolve({ data: [], error: null }),
+    classIds.length ? client.from('school_classes').select('id,name,display_name,grade').eq('school_id', schoolId).in('id', classIds) : Promise.resolve({ data: [], error: null }),
+    gradeIds.length ? client.from('grades').select('id,name').eq('school_id', schoolId).in('id', gradeIds) : Promise.resolve({ data: [], error: null }),
+    streamIds.length ? client.from('streams').select('id,name').eq('school_id', schoolId).in('id', streamIds) : Promise.resolve({ data: [], error: null }),
   ])
   if (classResult.error || gradeResult.error || streamResult.error) throw classResult.error ?? gradeResult.error ?? streamResult.error
   const classes = new Map((classResult.data ?? []).map(row => [Number(row.id), row]))
@@ -109,10 +125,20 @@ async function enrichStudentRows(rows: any[]) {
 libraryRoutes.get('/student-directory', async (c) => {
   const access = await requireLibraryRole(c, ['admin', 'super_admin', 'librarian', 'teacher'])
   if (access.error) return access.error
-  const { data, error } = await db().from('students').select('id,admission_number,first_name,middle_name,last_name,status').order('admission_number')
+  const schoolId = Number(access.membership?.school_id)
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return c.json([])
+  const { data: schoolStudents, error: schoolStudentError } = await db().from('students_v2')
+    .select('admission_number,status').eq('school_id', schoolId).order('admission_number')
+  if (schoolStudentError) return jsonError(c, schoolStudentError.message, 500)
+  const activeAdmissions = [...new Set((schoolStudents ?? [])
+    .filter(row => !['inactive', 'withdrawn', 'archived', 'deleted'].includes(String(row.status ?? '').toLowerCase()))
+    .map(row => String(row.admission_number ?? '').trim()).filter(Boolean))]
+  if (!activeAdmissions.length) return c.json([])
+  const { data, error } = await db().from('students')
+    .select('id,admission_number,first_name,middle_name,last_name,status').in('admission_number', activeAdmissions).order('admission_number')
   if (error) return jsonError(c, error.message, 500)
-  const active = (data ?? []).filter(row => !['inactive', 'withdrawn', 'archived'].includes(String(row.status ?? '').toLowerCase()))
-  try { return c.json(await enrichStudentRows(active)) }
+  const active = (data ?? []).filter(row => !['inactive', 'withdrawn', 'archived', 'deleted'].includes(String(row.status ?? '').toLowerCase()))
+  try { return c.json(await enrichStudentRows(active, schoolId)) }
   catch (err) { return jsonError(c, err instanceof Error ? err.message : 'Student details could not be loaded.', 500) }
 })
 
@@ -127,7 +153,7 @@ libraryRoutes.get('/student-allocations', async (c) => {
     : { data: [], error: null }
   if (studentResult.error) return jsonError(c, studentResult.error.message, 500)
   let students: any[] = []
-  try { students = await enrichStudentRows(studentResult.data ?? []) }
+  try { students = await enrichStudentRows(studentResult.data ?? [], Number(access.membership?.school_id)) }
   catch (err) { return jsonError(c, err instanceof Error ? err.message : 'Student details could not be loaded.', 500) }
   const byId = new Map(students.map(row => [row.id, row]))
   return c.json({ items: (copies ?? []).map(copy => {
@@ -326,9 +352,19 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
   }
   const toHolderName = body.to_holder_name == null ? null : String(body.to_holder_name).trim()
   if (action === 'issue_to_student') {
-    const { data: student, error: studentError } = await db().from('students').select('id,first_name,middle_name,last_name,status').eq('id', toHolderId).maybeSingle()
+    const schoolId = Number(access.membership?.school_id)
+    const { data: student, error: studentError } = await db().from('students')
+      .select('id,admission_number,first_name,middle_name,last_name,status').eq('id', toHolderId).maybeSingle()
     if (studentError) return jsonError(c, studentError.message, 500)
-    if (!student || ['inactive', 'withdrawn', 'archived'].includes(String(student.status ?? '').toLowerCase())) return c.json({ detail: 'Select an active student from the Student module.' }, 422)
+    if (!student || ['inactive', 'withdrawn', 'archived', 'deleted'].includes(String(student.status ?? '').toLowerCase())) {
+      return c.json({ detail: 'Select an active student from the Student module.' }, 422)
+    }
+    const { data: schoolStudent, error: schoolStudentError } = await db().from('students_v2')
+      .select('id,status').eq('school_id', schoolId).eq('admission_number', student.admission_number).maybeSingle()
+    if (schoolStudentError) return jsonError(c, schoolStudentError.message, 500)
+    if (!schoolStudent || ['inactive', 'withdrawn', 'archived', 'deleted'].includes(String(schoolStudent.status ?? '').toLowerCase())) {
+      return c.json({ detail: 'The selected student is not active in your current school.' }, 422)
+    }
     const expectedName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ')
     if (toHolderName !== expectedName) return c.json({ detail: 'Student name does not match the selected Student module record.' }, 422)
   }
