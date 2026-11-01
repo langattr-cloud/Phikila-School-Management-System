@@ -40,9 +40,11 @@ const statusLabel = (status: Copy['status']) => ({ available: 'In library', with
 
 export default function LibraryPage() {
   const { notify } = useToast()
-  const { session: platformSession } = usePlatformSession()
+  const { session: platformSession, loading: platformSessionLoading, reload: reloadPlatformSession } = usePlatformSession()
   const [selectedSchoolId, setSelectedSchoolId] = useState('')
-  const activeSchoolId = selectedSchoolId || (platformSession?.schools?.length === 1 ? String(platformSession.schools[0].id) : '')
+  // Never infer a school, even when the account currently has only one.
+  // The user must explicitly choose the tenant whose Library is being opened.
+  const activeSchoolId = selectedSchoolId
   const libraryFetch = useCallback(<T,>(path: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers)
     if (activeSchoolId) headers.set('X-School-Id', activeSchoolId)
@@ -82,7 +84,7 @@ export default function LibraryPage() {
   const [newBookAuthor, setNewBookAuthor] = useState('')
   const [newBookCopies, setNewBookCopies] = useState('1')
   const [addingBook, setAddingBook] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -117,6 +119,19 @@ export default function LibraryPage() {
   }, [activeSchoolId, libraryFetch])
 
   useEffect(() => { void load() }, [load])
+
+  // Refresh the dashboard-granted school memberships whenever Library opens.
+  // This makes newly granted school access available without requiring sign-out.
+  useEffect(() => { reloadPlatformSession() }, [reloadPlatformSession])
+
+  useEffect(() => {
+    if (selectedSchoolId && !platformSession?.schools?.some(school => String(school.id) === selectedSchoolId)) {
+      setSelectedSchoolId('')
+      setBooks([]); setCopies([]); setMovements([]); setStats(null)
+      setTeacherAccountability(null); setReconciliation(null); setTeacherDirectory([])
+      setStudentDirectory([]); setStudentAllocations([]); setTimetable(null)
+    }
+  }, [platformSession?.schools, selectedSchoolId])
 
   const timetableAssignments = useMemo(() => {
     const lessons = timetable?.lessons ?? []
@@ -233,15 +248,43 @@ export default function LibraryPage() {
   }
 
   if (!activeSchoolId) return <div className="library-page">
-    <PageHeader title="Library & Book Custody" description="Select the school whose library register you need to access." />
-    {platformSession?.schools && platformSession.schools.length > 0
-      ? <section className="card section"><label className="field"><span className="field__label">School</span><select className="input" value={selectedSchoolId} onChange={event => setSelectedSchoolId(event.target.value)}><option value="">Select a school</option>{platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}</select></label></section>
-      : <Alert tone="error">No active school membership is available for this account.</Alert>}
-    <Alert tone="info">Select a school before loading or changing its Library records.</Alert>
+    <PageHeader title="Library & Book Custody" description="Choose the school whose Library register you want to open." />
+    {platformSessionLoading ? <LoadingBlock label="Checking your school access" rows={2} /> : <>
+      {platformSession?.schools?.length
+        ? <section className="card section">
+            <label className="field">
+              <span className="field__label">School</span>
+              <select className="input" value={selectedSchoolId} onChange={event => setSelectedSchoolId(event.target.value)}>
+                <option value="">Select a school</option>
+                {platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
+              </select>
+            </label>
+            <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Only schools where your account has active access are listed. School access is granted from the Dashboard. If a newly granted school is missing, refresh the list.</p>
+            <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh school access</button>
+          </section>
+        : <section className="card section">
+            <Alert tone="info">No active school access is currently assigned to this account. Grant your account access to a school from the Dashboard, then refresh this page.</Alert>
+            <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh school access</button>
+          </section>}
+    </>}
   </div>
 
   return <div className="library-page">
-    {platformSession?.schools && platformSession.schools.length > 1 && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}><label className="field"><span className="field__label">School</span><select className="input" value={activeSchoolId} onChange={event => { setSelectedSchoolId(event.target.value); setBooks([]); setCopies([]); setMovements([]); setStats(null); setTeacherAccountability(null); setReconciliation(null) }}><option value="">Select a school to open its Library</option>{platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}</select></label></section>}
+    {platformSession?.schools && platformSession.schools.length > 0 && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}>
+      <label className="field">
+        <span className="field__label">Selected school</span>
+        <select className="input" value={activeSchoolId} onChange={event => {
+          setSelectedSchoolId(event.target.value)
+          setBooks([]); setCopies([]); setMovements([]); setStats(null)
+          setTeacherAccountability(null); setReconciliation(null); setTimetable(null)
+          setTeacherDirectory([]); setStudentDirectory([]); setStudentAllocations([])
+          setSelectedCopy(''); setSelectedSchoolId(event.target.value)
+        }}>
+          <option value="">Select a school</option>
+          {platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
+        </select>
+      </label>
+    </section>}
     <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." actions={<button className="button button--primary button--sm" onClick={() => setShowNewBook(value => !value)}>{showNewBook ? 'Cancel' : 'Add book title'}</button>} />
     {!activeSchoolId && <Alert tone="info">Select a school membership before viewing or changing its Library register.</Alert>}
     {showNewBook && <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Add a catalogue title</h2><form onSubmit={createBook} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}><label className="field"><span className="field__label">Grade (from timetable)</span><select className="input" required value={newBookGrade} onChange={e => { setNewBookGrade(e.target.value); setNewBookSubject('') }}><option value="">Select timetable grade…</option>{timetableGrades.map(grade => <option key={grade} value={grade}>{grade}</option>)}</select></label><label className="field"><span className="field__label">Subject (from timetable)</span><select className="input" required value={newBookSubject} onChange={e => setNewBookSubject(e.target.value)} disabled={!newBookGrade}><option value="">Select timetable subject…</option>{timetableSubjects.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label><label className="field"><span className="field__label">Book title</span><input className="input" required value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="e.g. Skills in English Grade 9" /></label><label className="field"><span className="field__label">Author (optional)</span><input className="input" value={newBookAuthor} onChange={e => setNewBookAuthor(e.target.value)} /></label><label className="field"><span className="field__label">Number of physical copies</span><input className="input" type="number" min="1" max="5000" required value={newBookCopies} onChange={e => setNewBookCopies(e.target.value)} /></label><button className="button button--primary" type="submit" disabled={addingBook}>{addingBook ? 'Creating…' : 'Create title & copies'}</button></form><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Grades and subjects are read from saved timetable lessons and class grade metadata. Copies are numbered automatically, for example 01/25 through 25/25. {timetableGrades.length === 0 ? 'No timetable assignments were found; save the timetable before creating a catalogue title.' : ''}</p></section>}
