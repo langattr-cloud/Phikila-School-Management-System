@@ -33,6 +33,37 @@ async function requireLibraryRole(c: any, allowed: string[]) {
   return { error: null, user, membership }
 }
 
+function timetableTeacherName(profile: Record<string, any>) {
+  const details = profile.timetableDetails && typeof profile.timetableDetails === 'object' ? profile.timetableDetails : {}
+  const first = String(details.firstName || profile.firstName || profile.first_name || '').trim()
+  const last = String(profile.lastName || profile.last_name || '').trim()
+  const rawName = String(profile.name || '').trim()
+  if (first && last) return first + ' ' + last
+  if (first && rawName && first.toLocaleLowerCase() !== rawName.toLocaleLowerCase()) return first + ' ' + rawName
+  return rawName || first || last
+}
+
+libraryRoutes.get('/teacher-directory', async (c) => {
+  const access = await requireLibraryRole(c, ['admin', 'super_admin', 'librarian', 'teacher'])
+  if (access.error) return access.error
+  const schoolId = Number(access.membership?.school_id)
+  if (!Number.isSafeInteger(schoolId) || schoolId <= 0) return c.json([])
+  const client = db()
+  const { data: owners, error: ownerError } = await client.from('tt_memberships')
+    .select('user_id').eq('school_id', schoolId).eq('is_active', true).in('role', ['admin', 'super_admin'])
+  if (ownerError) return jsonError(c, 'School teacher profiles could not be loaded.', 503)
+  const ownerIds = [...new Set((owners ?? []).map((item: any) => String(item.user_id)).filter(Boolean))]
+  if (!ownerIds.length) return c.json([])
+  const { data: profiles, error: profileError } = await client.from('timetable_teacher_profiles')
+    .select('id,owner_id,profile').in('owner_id', ownerIds).order('id')
+  if (profileError) return jsonError(c, 'Saved timetable teacher profiles could not be loaded.', 503)
+  return c.json((profiles ?? []).map((row: any) => ({
+    id: Number(row.id),
+    name: timetableTeacherName(row.profile ?? {}),
+    staff_number: String(row.profile?.short ?? row.profile?.code ?? '').trim() || null,
+  })).filter((teacher: any) => Number.isSafeInteger(teacher.id) && teacher.name))
+})
+
 async function enrichStudentRows(rows: any[]) {
   const admissions = [...new Set(rows.map(row => String(row.admission_number ?? '').trim()).filter(Boolean))]
   if (!admissions.length) return []
