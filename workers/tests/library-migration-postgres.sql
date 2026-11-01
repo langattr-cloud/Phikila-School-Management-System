@@ -151,7 +151,7 @@ END $$;
 
 -- School-tenancy migrations were applied through the timestamped production migration above.
 
-DO $
+DO $$
 DECLARE v_copy uuid;
 BEGIN
   SELECT id INTO v_copy FROM public.library_book_copies WHERE book_id=1 ORDER BY copy_number LIMIT 1;
@@ -197,6 +197,6 @@ BEGIN
      OR NOT has_table_privilege('service_role','public.library_loans','INSERT') THEN
     RAISE EXCEPTION 'service_role lacks Library catalogue or loan access';
   END IF;
-END $;
+END $$;
 
 \echo 'Library custody PostgreSQL integration checks passed.'
