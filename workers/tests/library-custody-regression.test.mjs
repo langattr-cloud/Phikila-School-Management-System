@@ -81,7 +81,7 @@ test('teacher inventory summary groups accountable physical copies by teacher, g
   assert.match(routes, /accountable_teacher_id/)
   assert.match(routes, /addCopy\('all'/)
   assert.match(routes, /const grade = book\.grade/)
-  assert.match(routes, /const grade = book\.grade, subject = book\.subject/)
+  assert.match(routes, /const grade = book\.grade \|\| 'Unassigned', subject = book\.subject \|\| 'Unassigned'/)
   assert.match(routes, /copy_number/)
 })
 
