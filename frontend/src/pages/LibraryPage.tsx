@@ -47,6 +47,10 @@ export default function LibraryPage() {
   const [teacherAccountability, setTeacherAccountability] = useState<TeacherAccountability | null>(null)
   const [movements, setMovements] = useState<Movement[]>([])
   const [selectedCopy, setSelectedCopy] = useState('')
+  const [issueTeacherId, setIssueTeacherId] = useState('')
+  const [issueSubject, setIssueSubject] = useState('')
+  const [issueGrade, setIssueGrade] = useState('')
+  const [issueBookId, setIssueBookId] = useState('')
   const [action, setAction] = useState('issue_to_teacher')
   const [holderId, setHolderId] = useState('')
   const [toHolderType, setToHolderType] = useState<'library' | 'teacher'>('library')
@@ -104,23 +108,22 @@ export default function LibraryPage() {
       const grade = String(classDetails[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? '').trim()
       const teacherName = String(lesson.teacher ?? '').trim()
       const directoryTeacher = directoryByName.get(teacherName.toLocaleLowerCase())
-      return { grade, subject: String(lesson.subject ?? '').trim(), teacherName, teacherId: directoryTeacher?.id ?? null }
+      return { grade, className, subject: String(lesson.subject ?? '').trim(), teacherName, teacherId: directoryTeacher?.id ?? null }
     }).filter(item => item.grade && item.subject && item.teacherName)
   }, [timetable, teacherDirectory])
   const timetableGrades = useMemo(() => Array.from(new Set(timetableAssignments.map(item => item.grade))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [timetableAssignments])
   const timetableSubjects = useMemo(() => Array.from(new Set(timetableAssignments.filter(item => item.grade === newBookGrade).map(item => item.subject))).sort(), [timetableAssignments, newBookGrade])
-  const eligibleTeacherReceivers = useMemo(() => {
-    const book = copies.find(copy => copy.id === selectedCopy)?.book ?? books.find(item => item.id === copies.find(copy => copy.id === selectedCopy)?.book_id)
-    if (!book) return []
-    const bookRecord = books.find(item => item.id === book.id)
-    const grade = String(bookRecord?.grade ?? '')
-    const subject = String(bookRecord?.subject ?? '')
+  const issueTeachers = useMemo(() => {
     const byId = new Map<number, string>()
-    for (const assignment of timetableAssignments) {
-      if (assignment.grade === grade && assignment.subject.toLocaleLowerCase() === subject.toLocaleLowerCase() && assignment.teacherId != null) byId.set(assignment.teacherId, assignment.teacherName)
-    }
+    for (const assignment of timetableAssignments) if (assignment.teacherId != null) byId.set(assignment.teacherId, assignment.teacherName)
     return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
-  }, [books, copies, selectedCopy, timetableAssignments])
+  }, [timetableAssignments])
+  const issueTeacherAssignments = useMemo(() => timetableAssignments.filter(item => String(item.teacherId) === issueTeacherId), [timetableAssignments, issueTeacherId])
+  const issueSubjects = useMemo(() => Array.from(new Set(issueTeacherAssignments.map(item => item.subject))).sort(), [issueTeacherAssignments])
+  const issueGrades = useMemo(() => Array.from(new Set(issueTeacherAssignments.filter(item => item.subject.toLocaleLowerCase() === issueSubject.toLocaleLowerCase()).map(item => item.grade))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [issueTeacherAssignments, issueSubject])
+  const issueBooks = useMemo(() => books.filter(book => String(book.grade ?? '').toLocaleLowerCase() === issueGrade.toLocaleLowerCase() && String(book.subject ?? '').toLocaleLowerCase() === issueSubject.toLocaleLowerCase() && copies.some(copy => copy.book_id === book.id && copy.status === 'available')), [books, copies, issueGrade, issueSubject])
+  const issueBookCopies = useMemo(() => copies.filter(copy => copy.book_id === Number(issueBookId) && copy.status === 'available').sort((a, b) => a.copy_number.localeCompare(b.copy_number, undefined, { numeric: true })), [copies, issueBookId])
+  const eligibleTeacherReceivers = issueTeachers
 
   const eligibleCopies = useMemo(() => copies.filter(copy => {
     if (action === 'issue_to_teacher') return copy.status === 'available'
@@ -159,7 +162,7 @@ export default function LibraryPage() {
         }),
       })
       notify('Book custody movement recorded.', 'success')
-      setHolderId(''); setHolderName(''); setDueDate(''); setNotes('')
+      setHolderId(''); setHolderName(''); setIssueTeacherId(''); setIssueSubject(''); setIssueGrade(''); setIssueBookId(''); setDueDate(''); setNotes('')
       await load()
       const history = await apiFetch<Movement[]>(`/api/v1/library/copies/${selectedCopy}/movements`)
       setMovements(history)
@@ -288,10 +291,16 @@ export default function LibraryPage() {
         <h2 className="section__title">Record a book hand-off</h2>
         <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>Choose the correct transition. The system checks the current holder and rejects skipped steps.</p>
         <form onSubmit={submitMovement} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}>
-          <label className="field"><span className="field__label">Movement</span><select className="input" value={action} onChange={e => setAction(e.target.value)}>{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>
+          <label className="field"><span className="field__label">Movement</span><select className="input" value={action} onChange={e => { setAction(e.target.value); setSelectedCopy(''); setIssueTeacherId(''); setIssueSubject(''); setIssueGrade(''); setIssueBookId(''); setHolderId(''); setHolderName('') }}>{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          {action === 'issue_to_teacher' ? <>
+            <label className="field"><span className="field__label">Teacher</span><select className="input" required value={issueTeacherId} onChange={e => { const value = e.target.value; const teacher = issueTeachers.find(item => String(item.id) === value); setIssueTeacherId(value); setHolderId(value); setHolderName(teacher?.name ?? ''); setIssueSubject(''); setIssueGrade(''); setIssueBookId(''); setSelectedCopy('') }}><option value="">Select teacher…</option>{issueTeachers.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
+            <label className="field"><span className="field__label">Subject assigned to teacher</span><select className="input" required value={issueSubject} onChange={e => { setIssueSubject(e.target.value); setIssueGrade(''); setIssueBookId(''); setSelectedCopy('') }} disabled={!issueTeacherId}><option value="">Select subject…</option>{issueSubjects.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label>
+            <label className="field"><span className="field__label">Grade</span><select className="input" required value={issueGrade} onChange={e => { setIssueGrade(e.target.value); setIssueBookId(''); setSelectedCopy('') }} disabled={!issueSubject}><option value="">Select grade…</option>{issueGrades.map(grade => <option key={grade} value={grade}>{grade}</option>)}</select></label>
+            <label className="field"><span className="field__label">Registered book title</span><select className="input" required value={issueBookId} onChange={e => { setIssueBookId(e.target.value); setSelectedCopy('') }} disabled={!issueGrade}><option value="">Select available title…</option>{issueBooks.map(book => <option key={book.id} value={book.id}>{book.title}</option>)}</select>{issueGrade && issueBooks.length === 0 && <small style={{ color: 'var(--color-ink-muted)' }}>No registered titles for this grade and subject currently have available copies.</small>}</label>
+            <label className="field"><span className="field__label">Available physical copy number</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)} disabled={!issueBookId}><option value="">Select copy number…</option>{issueBookCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.copy_number}</option>)}</select></label>
+          </> : <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>}
           {action === 'reconcile_copy' && <label className="field"><span className="field__label">Verified physical holder</span><select className="input" value={toHolderType} onChange={e => setToHolderType(e.target.value as 'library' | 'teacher')}><option value="library">Returned to library</option><option value="teacher">With a teacher</option></select></label>}
-          {showReceiver && action === 'issue_to_teacher' && <label className="field"><span className="field__label">Teacher (assigned to this grade and subject in timetable)</span><select className="input" required value={holderId} onChange={e => { const teacher = eligibleTeacherReceivers.find(item => String(item.id) === e.target.value); setHolderId(e.target.value); setHolderName(teacher?.name ?? '') }}><option value="">Select assigned teacher…</option>{eligibleTeacherReceivers.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select>{eligibleTeacherReceivers.length === 0 && <small style={{ color: 'var(--color-ink-muted)' }}>No matching timetable teacher is linked to a teacher directory record for this book’s grade and subject.</small>}</label>}
+          
           {showReceiver && action !== 'issue_to_teacher' && <>
             <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
             <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student name' : 'Teacher name'}</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Full name" /></label>
@@ -299,7 +308,7 @@ export default function LibraryPage() {
           <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
           <label className="field"><span className="field__label">Due date (optional)</span><input className="input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span className="field__label">Notes (optional)</span><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={action === 'exclude_before_issue' || action === 'restore_excluded_copy' ? 'Required reason for this register change…' : 'Class, subject, condition notes…'} /></label>
-          <div><button className="button button--primary" type="submit" disabled={saving || eligibleCopies.length === 0 || (action === 'issue_to_teacher' && eligibleTeacherReceivers.length === 0)}>{saving ? 'Saving…' : 'Record hand-off'}</button></div>
+          <div><button className="button button--primary" type="submit" disabled={saving || (action === 'issue_to_teacher' ? (!selectedCopy || !issueTeacherId || !issueSubject || !issueGrade || !issueBookId) : eligibleCopies.length === 0)}>{saving ? 'Saving…' : 'Record hand-off'}</button></div>
         </form>
         {eligibleCopies.length === 0 && <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>No copies currently qualify for this movement.</p>}
       </section>
