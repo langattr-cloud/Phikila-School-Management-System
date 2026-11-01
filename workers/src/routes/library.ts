@@ -121,7 +121,18 @@ async function enrichStudentRows(rows: any[], schoolId: number) {
   const grades = new Map((gradeResult.data ?? []).map(row => [Number(row.id), row.name]))
   const streams = new Map((streamResult.data ?? []).map(row => [Number(row.id), row.name]))
   const modernIds = new Map(modern.map(row => [String(row.admission_number), Number(row.id)]))
-  return rows.filter(row => modernIds.has(String(row.admission_number ?? ''))).map(row => {
+  const legacyCounts = new Map<string, number>()
+  for (const row of rows) {
+    const admission = String(row.admission_number ?? '')
+    legacyCounts.set(admission, (legacyCounts.get(admission) ?? 0) + 1)
+  }
+  // The legacy students table has no school_id. If an admission number maps
+  // to multiple legacy rows, fail closed rather than exposing another school's
+  // record or assigning custody to an ambiguous student identity.
+  return rows.filter(row => {
+    const admission = String(row.admission_number ?? '')
+    return modernIds.has(admission) && legacyCounts.get(admission) === 1
+  }).map(row => {
     const enrollment = latest.get(modernIds.get(String(row.admission_number ?? '')) ?? -1)
     const classId = enrollment ? Number(enrollment.school_class_id ?? enrollment.class_id) : NaN
     const schoolClass = Number.isSafeInteger(classId) ? classes.get(classId) : null
@@ -233,7 +244,7 @@ libraryRoutes.get('/books/stats', async (c) => {
     client.from('library_loans').select('status').eq('school_id', schoolId),
     client.from('library_book_copies').select('status,current_holder_type').eq('school_id', schoolId),
   ])
-  if (copies.error) return jsonError(c, copies.error.message, 500)
+  if (books.error || loans.error || copies.error) return jsonError(c, (books.error ?? loans.error ?? copies.error)?.message ?? 'Library statistics could not be loaded.', 500)
   const copyRows = copies.data ?? []
   return c.json({
     total_titles: books.data?.length ?? 0,
@@ -309,7 +320,12 @@ libraryRoutes.delete('/books/:bookId', async (c) => {
   const access = await requireLibrarySchool(c)
   if (access.error) return access.error
   const schoolId = access.schoolId
-  const { error: deleteError } = await db().from('library_books').delete().eq('school_id', schoolId).eq('id', c.req.param('bookId'))
+  const bookId = c.req.param('bookId')
+  const { data: copies, error: copyLookupError } = await db().from('library_book_copies')
+    .select('id').eq('school_id', schoolId).eq('book_id', bookId).limit(1)
+  if (copyLookupError) return jsonError(c, copyLookupError.message, 500)
+  if (copies?.length) return c.json({ detail: 'This title has a physical-copy register. Keep it for custody history; archive support is required before deletion.' }, 409)
+  const { error: deleteError } = await db().from('library_books').delete().eq('school_id', schoolId).eq('id', bookId)
   if (deleteError) return jsonError(c, deleteError.message, 400)
   return c.body(null, 204)
 })
