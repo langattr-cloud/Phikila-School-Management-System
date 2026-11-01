@@ -467,7 +467,7 @@ create or replace function public.protect_library_book_school_assignment()
 returns trigger
 language plpgsql
 set search_path = ''
-as $
+as $library_school$
 begin
   if old.school_id is not null and new.school_id is distinct from old.school_id then
     raise exception 'A Library title with a verified school assignment cannot be transferred.' using errcode = '23514';
@@ -483,8 +483,7 @@ begin
   end if;
   return new;
 end;
-$;
-
+$library_school$;
 drop trigger if exists library_book_school_assignment_guard on public.library_books;
 create trigger library_book_school_assignment_guard
 after update of school_id on public.library_books
