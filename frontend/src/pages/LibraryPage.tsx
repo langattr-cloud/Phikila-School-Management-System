@@ -91,18 +91,18 @@ export default function LibraryPage() {
     setLoading(true); setError(null)
     try {
       const [bookRows, copyRows, overview, outstanding, teacherRegister] = await Promise.all([
-        apiFetch<Book[]>('/api/v1/library/books'),
-        apiFetch<Copy[]>('/api/v1/library/copies'),
-        apiFetch<Stats>('/api/v1/library/books/stats'),
-        apiFetch<Reconciliation>('/api/v1/library/reconciliation'),
-        apiFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),
+        libraryFetch<Book[]>('/api/v1/library/books'),
+        libraryFetch<Copy[]>('/api/v1/library/copies'),
+        libraryFetch<Stats>('/api/v1/library/books/stats'),
+        libraryFetch<Reconciliation>('/api/v1/library/reconciliation'),
+        libraryFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),
       ])
       setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccountability(teacherRegister)
       const [workspaceResult, directoryResult, studentsResult, allocationsResult] = await Promise.allSettled([
-        apiFetch<TimetableWorkspace>('/api/v1/timetable/workspace'),
-        apiFetch<DirectoryTeacher[]>('/api/v1/library/teacher-directory'),
-        apiFetch<DirectoryStudent[]>('/api/v1/library/student-directory'),
-        apiFetch<{ items: typeof studentAllocations }>('/api/v1/library/student-allocations'),
+        libraryFetch<TimetableWorkspace>('/api/v1/timetable/workspace'),
+        libraryFetch<DirectoryTeacher[]>('/api/v1/library/teacher-directory'),
+        libraryFetch<DirectoryStudent[]>('/api/v1/library/student-directory'),
+        libraryFetch<{ items: typeof studentAllocations }>('/api/v1/library/student-allocations'),
       ])
       if (workspaceResult.status === 'fulfilled') setTimetable(workspaceResult.value.data ?? null)
       else setTimetable(null)
@@ -168,7 +168,7 @@ export default function LibraryPage() {
     if (!selectedCopy) { setError('Select a physical book copy first.'); return }
     setSaving(true); setError(null)
     try {
-      await apiFetch<Copy>(`/api/v1/library/copies/${selectedCopy}/movements`, {
+      await libraryFetch<Copy>(`/api/v1/library/copies/${selectedCopy}/movements`, {
         method: 'POST',
         body: JSON.stringify({
           action,
@@ -183,7 +183,7 @@ export default function LibraryPage() {
       notify('Book custody movement recorded.', 'success')
       setHolderId(''); setHolderName(''); setIssueTeacherId(''); setIssueSubject(''); setIssueGrade(''); setIssueBookId(''); setDueDate(''); setNotes('')
       await load()
-      const history = await apiFetch<Movement[]>(`/api/v1/library/copies/${selectedCopy}/movements`)
+      const history = await libraryFetch<Movement[]>(`/api/v1/library/copies/${selectedCopy}/movements`)
       setMovements(history)
     } catch (err) { setError(friendlyApiError(err, 'record this book movement')) }
     finally { setSaving(false) }
@@ -198,7 +198,7 @@ export default function LibraryPage() {
     }
     setAddingBook(true); setError(null)
     try {
-      await apiFetch<Book>('/api/v1/library/books', {
+      await libraryFetch<Book>('/api/v1/library/books', {
         method: 'POST',
         body: JSON.stringify({ title: newBookTitle.trim(), grade: newBookGrade.trim(), subject: newBookSubject.trim(), author: newBookAuthor.trim() || null, total_copies: count, available_copies: count }),
       })
@@ -213,7 +213,7 @@ export default function LibraryPage() {
     if (showInventorySummary) { setShowInventorySummary(false); return }
     setLoadingInventorySummary(true); setError(null)
     try {
-      setTeacherInventory(await apiFetch<TeacherInventorySummary>('/api/v1/library/teacher-inventory-summary?teacher_id=' + encodeURIComponent(inventoryTeacher)))
+      setTeacherInventory(await libraryFetch<TeacherInventorySummary>('/api/v1/library/teacher-inventory-summary?teacher_id=' + encodeURIComponent(inventoryTeacher)))
       setShowInventorySummary(true)
     } catch (err) { setError(friendlyApiError(err, 'load grade and subject book totals')) }
     finally { setLoadingInventorySummary(false) }
@@ -221,14 +221,14 @@ export default function LibraryPage() {
 
   async function changeInventoryTeacher(value: string) {
     setInventoryTeacher(value); setLoadingInventorySummary(true); setError(null)
-    try { setTeacherInventory(await apiFetch<TeacherInventorySummary>('/api/v1/library/teacher-inventory-summary?teacher_id=' + encodeURIComponent(value))) }
+    try { setTeacherInventory(await libraryFetch<TeacherInventorySummary>('/api/v1/library/teacher-inventory-summary?teacher_id=' + encodeURIComponent(value))) }
     catch (err) { setError(friendlyApiError(err, 'filter teacher inventory totals')) }
     finally { setLoadingInventorySummary(false) }
   }
 
   async function openHistory(copyId: string) {
     setSelectedCopy(copyId)
-    try { setMovements(await apiFetch<Movement[]>(`/api/v1/library/copies/${copyId}/movements`)) }
+    try { setMovements(await libraryFetch<Movement[]>(`/api/v1/library/copies/${copyId}/movements`)) }
     catch (err) { setError(friendlyApiError(err, 'load book movement history')) }
   }
 
