@@ -115,3 +115,13 @@ test('student issue validates the selected Student module record after parsing t
   assert.ok(movementRoute.indexOf('const toHolderId =') < movementRoute.indexOf("if (action === 'issue_to_student') {"))
   assert.match(movementRoute, /students'\)\.select\('id,first_name,middle_name,last_name,status'\)/)
 })
+
+
+test('Library teacher directory is sourced from saved timetable profiles owned by school administrators', async () => {
+  const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+  assert.match(library, /libraryRoutes\.get\('\/teacher-directory'/)
+  assert.match(library, /from\('tt_memberships'\)/)
+  assert.match(library, /from\('timetable_teacher_profiles'\)/)
+  assert.match(library, /timetableTeacherName/)
+  assert.match(library, /owner_id/)
+})
