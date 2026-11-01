@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast'
 type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
 type TimetableWorkspace = { data?: { specification?: { teachers?: string[]; classes?: string[]; subjects?: string[] }; lessons?: Array<{ className: string; subject: string; teacher: string }>; classDetails?: Record<string, { grade?: string }> } | null }
 type DirectoryTeacher = { id: number; name: string }
+type DirectoryStudent = { id: number; admission_number: string; name: string; current_class: string | null }
 type TeacherInventorySummary = { teachers: Array<{ teacher_id: number; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> }>; all_teachers: { teacher_id: null; teacher_name: string; total_copies: number; grades: Array<{ grade: string; total_copies: number; subjects: Array<{ subject: string; total_copies: number; titles: Array<{ book_id: number; title: string; total_copies: number; copies: Array<{ copy_id: string; copy_number: string; status: string; current_holder_type: string; current_holder_name: string | null }> }> }> }> } | null }
 type Copy = {
   id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled' | 'excluded'
@@ -41,6 +42,8 @@ export default function LibraryPage() {
   const [books, setBooks] = useState<Book[]>([])
   const [timetable, setTimetable] = useState<TimetableWorkspace['data']>(null)
   const [teacherDirectory, setTeacherDirectory] = useState<DirectoryTeacher[]>([])
+  const [studentDirectory, setStudentDirectory] = useState<DirectoryStudent[]>([])
+  const [studentAllocations, setStudentAllocations] = useState<Array<{ copy_id: string; copy_number: string; book_title: string; accountable_teacher_name: string; student_name: string; student_admission_number: string | null; student_class: string | null; student_issue_at: string | null }>>([])
   const [copies, setCopies] = useState<Copy[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)
@@ -85,14 +88,20 @@ export default function LibraryPage() {
         apiFetch<TeacherAccountability>('/api/v1/library/teacher-accountability'),
       ])
       setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccountability(teacherRegister)
-      const [workspaceResult, directoryResult] = await Promise.allSettled([
+      const [workspaceResult, directoryResult, studentsResult, allocationsResult] = await Promise.allSettled([
         apiFetch<TimetableWorkspace>('/api/v1/timetable/workspace'),
         apiFetch<DirectoryTeacher[]>('/api/v1/teachers/'),
+        apiFetch<DirectoryStudent[]>('/api/v1/library/student-directory'),
+        apiFetch<{ items: typeof studentAllocations }>('/api/v1/library/student-allocations'),
       ])
       if (workspaceResult.status === 'fulfilled') setTimetable(workspaceResult.value.data ?? null)
       else setTimetable(null)
       if (directoryResult.status === 'fulfilled') setTeacherDirectory(directoryResult.value.filter(item => Number.isSafeInteger(Number(item.id)) && String(item.name ?? '').trim()).map(item => ({ id: Number(item.id), name: String(item.name).trim() })))
       else setTeacherDirectory([])
+      if (studentsResult.status === 'fulfilled') setStudentDirectory(studentsResult.value)
+      else setStudentDirectory([])
+      if (allocationsResult.status === 'fulfilled') setStudentAllocations(allocationsResult.value.items ?? [])
+      else setStudentAllocations([])
     } catch (err) { setError(friendlyApiError(err, 'load the library register')) }
     finally { setLoading(false) }
   }, [])
@@ -288,6 +297,12 @@ export default function LibraryPage() {
       </section>
 
       <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
+        <h2 className="section__title">Learner allocation register</h2>
+        <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>Read-only register of numbered copies currently held by students. Teachers record student issues and returns; the librarian can review these allocations but cannot edit them here.</p>
+        {studentAllocations.length === 0 ? <EmptyState title="No current student allocations" description="Copies appear here after a teacher issues them to students." /> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.9rem' }}><thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--color-line)' }}>{['Student','Admission number','Current class','Book title','Copy number','Accountable teacher','Issued'].map(label => <th key={label} style={{ padding: 'var(--space-2)' }}>{label}</th>)}</tr></thead><tbody>{studentAllocations.map(item => <tr key={item.copy_id} style={{ borderBottom: '1px solid var(--color-line)' }}><td style={{ padding: 'var(--space-2)' }}>{item.student_name}</td><td style={{ padding: 'var(--space-2)' }}>{item.student_admission_number ?? '—'}</td><td style={{ padding: 'var(--space-2)' }}>{item.student_class ?? '—'}</td><td style={{ padding: 'var(--space-2)' }}>{item.book_title}</td><td style={{ padding: 'var(--space-2)', fontWeight: 700 }}>{item.copy_number}</td><td style={{ padding: 'var(--space-2)' }}>{item.accountable_teacher_name}</td><td style={{ padding: 'var(--space-2)' }}>{item.student_issue_at ? new Date(item.student_issue_at).toLocaleString() : '—'}</td></tr>)}</tbody></table></div>}
+      </section>
+
+      <section className="card section" style={{ marginBottom: 'var(--space-4)' }}>
         <h2 className="section__title">Record a book hand-off</h2>
         <p style={{ color: 'var(--color-ink-muted)', marginTop: 0 }}>Choose the correct transition. The system checks the current holder and rejects skipped steps.</p>
         <form onSubmit={submitMovement} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}>
@@ -301,9 +316,10 @@ export default function LibraryPage() {
           </> : <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>}
           {action === 'reconcile_copy' && <label className="field"><span className="field__label">Verified physical holder</span><select className="input" value={toHolderType} onChange={e => setToHolderType(e.target.value as 'library' | 'teacher')}><option value="library">Returned to library</option><option value="teacher">With a teacher</option></select></label>}
           
-          {showReceiver && action !== 'issue_to_teacher' && <>
-            <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student ID' : 'Teacher ID'}</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Enter record ID" /></label>
-            <label className="field"><span className="field__label">{action === 'issue_to_student' ? 'Student name' : 'Teacher name'}</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Full name" /></label>
+          {showReceiver && action === 'issue_to_student' && <label className="field"><span className="field__label">Student (from Student module)</span><select className="input" required value={holderId} onChange={e => { const value = e.target.value; const student = studentDirectory.find(item => String(item.id) === value); setHolderId(value); setHolderName(student?.name ?? '') }}><option value="">Select student…</option>{studentDirectory.map(student => <option key={student.id} value={student.id}>{student.admission_number} · {student.name}{student.current_class ? ` · ${student.current_class}` : ''}</option>)}</select>{studentDirectory.length === 0 && <small style={{ color: 'var(--color-ink-muted)' }}>No active students were returned by the Student module.</small>}</label>}
+          {showReceiver && action === 'student_return_to_teacher' && <>
+            <label className="field"><span className="field__label">Receiving teacher ID</span><input className="input" type="number" min="1" required value={holderId} onChange={e => setHolderId(e.target.value)} placeholder="Your teacher record ID" /></label>
+            <label className="field"><span className="field__label">Receiving teacher name</span><input className="input" required value={holderName} onChange={e => setHolderName(e.target.value)} placeholder="Your full name" /></label>
           </>}
           <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
           <label className="field"><span className="field__label">Due date (optional)</span><input className="input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
