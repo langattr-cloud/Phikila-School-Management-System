@@ -46,6 +46,8 @@ test('stream queries are constrained to the verified school and validate academi
   const source = await readFile(new URL('../src/routes/academics.ts', import.meta.url), 'utf8')
   assert.match(source, /async function requireAcademicSchoolAccess/)
   assert.match(source, /tt_memberships/)
+  assert.match(source, /from\('tt_schools'\)/)
+  assert.doesNotMatch(source, /from\('school_info'\)/)
   assert.match(source, /\['admin', 'super_admin'\]/)
   assert.match(source, /async function validateStreamScope/)
   assert.match(source, /\.eq\('school_id', access\.schoolId!\)/)
