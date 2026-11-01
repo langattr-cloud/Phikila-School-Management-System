@@ -134,12 +134,6 @@ test('Library custody uses the saved timetable teacher directory so holder IDs m
 })
 
 
-test('Library custody uses the saved timetable teacher directory so holder IDs match teacher accountability IDs', async () => {
-  const page = await readFile(new URL('../../frontend/src/pages/LibraryPage.tsx', import.meta.url), 'utf8')
-  assert.match(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/library\/teacher-directory'\)/)
-  assert.doesNotMatch(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/teachers\/'\)/)
-})
-
 
 test('library student directory and enrollment enrichment are scoped to the active school', async () => {
   const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
@@ -161,4 +155,10 @@ test('student custody issue verifies that the selected student belongs to the ac
   const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
   assert.match(library, /from\('students_v2'\)[\s\S]*?\.eq\('school_id', schoolId\)[\s\S]*?\.eq\('admission_number', student\.admission_number\)/)
   assert.match(library, /The selected student is not active in your current school/)
+})
+
+
+test('library membership selection requires an explicit school when a user belongs to multiple schools', () => {
+  assert.match(routes, /X-School-Id is required for users with multiple school memberships/)
+  assert.match(routes, /eligible\.find\(\(item: any\) => Number\(item\.school_id\) === schoolId\)/)
 })
