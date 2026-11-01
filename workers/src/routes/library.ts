@@ -111,7 +111,7 @@ async function enrichStudentRows(rows: any[], schoolId: number) {
   const grades = new Map((gradeResult.data ?? []).map(row => [Number(row.id), row.name]))
   const streams = new Map((streamResult.data ?? []).map(row => [Number(row.id), row.name]))
   const modernIds = new Map(modern.map(row => [String(row.admission_number), Number(row.id)]))
-  return rows.map(row => {
+  return rows.filter(row => modernIds.has(String(row.admission_number ?? ''))).map(row => {
     const enrollment = latest.get(modernIds.get(String(row.admission_number ?? '')) ?? -1)
     const classId = enrollment ? Number(enrollment.school_class_id ?? enrollment.class_id) : NaN
     const schoolClass = Number.isSafeInteger(classId) ? classes.get(classId) : null
@@ -159,7 +159,7 @@ libraryRoutes.get('/student-allocations', async (c) => {
   try { students = await enrichStudentRows(studentResult.data ?? [], Number(access.membership?.school_id)) }
   catch (err) { return jsonError(c, err instanceof Error ? err.message : 'Student details could not be loaded.', 500) }
   const byId = new Map(students.map(row => [row.id, row]))
-  return c.json({ items: (copies ?? []).map(copy => {
+  return c.json({ items: (copies ?? []).filter(copy => byId.has(Number(copy.student_id))).map(copy => {
     const student = byId.get(Number(copy.student_id))
     return {
       copy_id: copy.copy_id, copy_number: copy.copy_number, book_title: copy.book_title,
