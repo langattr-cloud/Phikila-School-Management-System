@@ -143,7 +143,7 @@ test('library membership selection rejects ambiguous multi-school membership wit
   const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
   assert.match(library, /X-School-Id is required for users with multiple school memberships/)
   assert.match(library, /eligible\.find\(\(item: any\) => Number\(item\.school_id\) === schoolId\)/)
-  assert.match(library, /You do not have an active membership in the requested school/)
+  assert.match(library, /An authorized school Library role is required/)
 })
 
 test('student custody issue verifies that the selected student belongs to the active school', async () => {
@@ -173,6 +173,6 @@ test('student directory and allocation lookups are scoped to the selected school
 
 test('Library custody uses saved timetable teacher IDs for custody holder references', async () => {
   const page = await readFile(new URL('../../frontend/src/pages/LibraryPage.tsx', import.meta.url), 'utf8')
-  assert.match(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/library\/teacher-directory'\)/)
+  assert.match(page, /libraryFetch<DirectoryTeacher\[\]>\('\/api\/v1\/library\/teacher-directory'\)/)
   assert.doesNotMatch(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/teachers\/'\)/)
 })
