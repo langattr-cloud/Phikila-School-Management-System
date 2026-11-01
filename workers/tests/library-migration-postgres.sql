@@ -54,10 +54,12 @@ INSERT INTO public.tt_schools(id,name) VALUES (1,'School One'),(2,'School Two');
 -- schools; children inherit that mapping through the tenancy guard triggers.
 UPDATE public.library_books SET school_id=1 WHERE id=1;
 UPDATE public.library_books SET school_id=2 WHERE id=2;
-UPDATE public.library_book_copies SET school_id=1 WHERE book_id=1;
-UPDATE public.library_book_copies SET school_id=2 WHERE book_id=2;
-UPDATE public.library_copy_movements m SET school_id=c.school_id
-FROM public.library_book_copies c WHERE m.copy_id=c.id;
+DO $ BEGIN
+  IF EXISTS (SELECT 1 FROM public.library_book_copies WHERE book_id=1 AND school_id IS DISTINCT FROM 1)
+     OR EXISTS (SELECT 1 FROM public.library_book_copies WHERE book_id=2 AND school_id IS DISTINCT FROM 2) THEN
+    RAISE EXCEPTION 'First school assignment did not propagate to physical copies';
+  END IF;
+END $;
 UPDATE public.library_loans SET school_id=1 WHERE book_id=1;
 
 DO $$
@@ -161,6 +163,11 @@ BEGIN
   IF (SELECT school_id FROM public.library_teacher_accountability WHERE copy_id=v_copy) <> 1 THEN
     RAISE EXCEPTION 'Accountability view does not expose the copy school';
   END IF;
+  BEGIN
+    UPDATE public.library_books SET school_id=2 WHERE id=1;
+    RAISE EXCEPTION 'A verified Library title was unexpectedly transferred to another school';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
 
   BEGIN
     INSERT INTO public.library_loans(book_id,school_id,borrower_type,borrower_name,loan_date,status)
