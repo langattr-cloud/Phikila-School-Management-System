@@ -46,6 +46,8 @@ jobs:
         run: npm run test:finance-migrations
       - name: Finance API authentication and CORS regression checks
         run: npm run test:finance-auth
+      - name: Backend-only RLS migration regression checks
+        run: node --test tests/backend-rls-regression.test.mjs
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
