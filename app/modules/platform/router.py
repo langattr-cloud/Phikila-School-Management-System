@@ -23,6 +23,7 @@ from app.config import settings
 from app.modules.email.service import email_service
 from app.modules.academics.models import SchoolClass
 from app.modules.teachers.models import Teacher
+from app.modules.subjects.timetable_profiles import TimetableTeacherProfile
 from app.modules.platform.tenancy import ROLE_ORDER, TtMembership, TtSchool
 
 from .authz import (
@@ -418,8 +419,17 @@ def decide_access_request(
     if granted not in GRANTABLE_ROLES:
         granted = "viewer"
     if granted == "teacher":
-        if payload.teacher_id is None or db.query(Teacher.id).filter(Teacher.id == payload.teacher_id).first() is None:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Select an existing saved teacher record when granting the teacher role.")
+        profile = db.query(TimetableTeacherProfile).filter(TimetableTeacherProfile.id == payload.teacher_id).first() if payload.teacher_id is not None else None
+        if profile is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Select an existing saved timetable teacher profile when granting the teacher role.")
+        profile_owner = db.query(TtMembership.id).filter(
+            TtMembership.user_id == str(profile.owner_id),
+            TtMembership.school_id == school_id,
+            TtMembership.is_active.is_(True),
+            TtMembership.role.in_(["admin", "super_admin"]),
+        ).first()
+        if profile_owner is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "The selected teacher profile is not owned by an active administrator of this school.")
     elif payload.teacher_id is not None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A teacher record can only be linked to a teacher role.")
 
