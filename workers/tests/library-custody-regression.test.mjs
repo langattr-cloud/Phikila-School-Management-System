@@ -114,7 +114,7 @@ test('student issue validates the selected Student module record after parsing t
   const movementRoute = routes.slice(routes.indexOf("libraryRoutes.post('/copies/:copyId/movements'"))
   assert.ok(movementRoute.indexOf('const toHolderId =') < movementRoute.indexOf("if (action === 'issue_to_student') {"))
   assert.match(movementRoute, /students'\)\s*\n\s*\.select\('id,admission_number,first_name,middle_name,last_name,status'\)/)
-  assert.match(movementRoute, /from\('students_v2'\)[\s\S]*?\.eq\('school_id', schoolId\)[\s\S]*?\.eq\('admission_number', student\.admission_number\)/)
+  assert.match(movementRoute, /from\('students_v2'\)[\s\S]*?\.eq\('admission_number', student\.admission_number\)[\s\S]*?matchingSchoolStudents\.length !== 1[\s\S]*?\(schoolStudents \?\? \[\]\)\.length !== 1/)
 })
 
 
@@ -213,6 +213,7 @@ test('school tenancy migration binds books, loans, copies and movement rows with
 })
 
 test('ambiguous legacy student admission numbers are excluded from school-specific Library directory', () => {
+  assert.match(routes, /globalModernCounts\.get\(admission\) === 1/)
   assert.match(routes, /legacyCounts\.get\(admission\) === 1/)
   assert.match(routes, /legacy students table has no school_id/)
 })
