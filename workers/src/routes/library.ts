@@ -385,6 +385,15 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
   if (role === 'teacher' && (action === 'issue_to_student' || action === 'student_return_to_teacher')) {
     const teacherId = Number(access.membership?.teacher_id)
     if (!Number.isSafeInteger(teacherId) || teacherId <= 0) return c.json({ detail: 'Your membership is not linked to a teacher record.' }, 403)
+    const { data: owners, error: ownerError } = await db().from('tt_memberships')
+      .select('user_id').eq('school_id', schoolId).eq('is_active', true).in('role', ['admin', 'super_admin'])
+    if (ownerError) return jsonError(c, 'School teacher profiles could not be verified.', 503)
+    const ownerIds = [...new Set((owners ?? []).map((item: any) => String(item.user_id)).filter(Boolean))]
+    const { data: teacherProfile, error: teacherProfileError } = ownerIds.length
+      ? await db().from('timetable_teacher_profiles').select('id,profile').eq('id', teacherId).in('owner_id', ownerIds).maybeSingle()
+      : { data: null, error: null }
+    if (teacherProfileError) return jsonError(c, 'Your saved timetable teacher identity could not be verified.', 503)
+    if (!teacherProfile) return c.json({ detail: 'Your teacher membership is not linked to a saved teacher profile in this school.' }, 403)
     if (action === 'issue_to_student' && (copy.current_holder_type !== 'teacher' || Number(copy.current_holder_id) !== teacherId)) return c.json({ detail: 'Teachers may only issue copies held in their own custody.' }, 403)
     if (action === 'student_return_to_teacher' && Number(body.to_holder_id) !== teacherId) return c.json({ detail: 'A student must return the copy to the teacher who issued it.' }, 403)
   }
@@ -413,6 +422,21 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
     if (toHolderName !== expectedName) return c.json({ detail: 'Student name does not match the selected Student module record.' }, 422)
   }
   const reconcileHolderType = body.to_holder_type == null ? null : String(body.to_holder_type)
+  if (action === 'issue_to_teacher' || (action === 'reconcile_copy' && reconcileHolderType === 'teacher')) {
+    const { data: owners, error: ownerError } = await db().from('tt_memberships')
+      .select('user_id').eq('school_id', schoolId).eq('is_active', true).in('role', ['admin', 'super_admin'])
+    if (ownerError) return jsonError(c, 'School teacher profiles could not be verified.', 503)
+    const ownerIds = [...new Set((owners ?? []).map((item: any) => String(item.user_id)).filter(Boolean))]
+    const { data: teacherProfile, error: teacherProfileError } = ownerIds.length && toHolderId
+      ? await db().from('timetable_teacher_profiles').select('id,profile').eq('id', toHolderId).in('owner_id', ownerIds).maybeSingle()
+      : { data: null, error: null }
+    if (teacherProfileError) return jsonError(c, 'Saved timetable teacher profile could not be verified.', 503)
+    if (!teacherProfile) return c.json({ detail: 'Select a teacher from the saved timetable teacher directory for this school.' }, 422)
+    const expectedTeacherName = timetableTeacherName(teacherProfile.profile ?? {})
+    if (!expectedTeacherName || toHolderName !== expectedTeacherName) {
+      return c.json({ detail: 'Teacher name does not match the selected saved timetable teacher profile.' }, 422)
+    }
+  }
   if (['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action)
       && (!toHolderId || !toHolderName)) {
     return c.json({ detail: 'A valid receiving holder ID and name are required for this action.' }, 400)
