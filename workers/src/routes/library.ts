@@ -158,7 +158,7 @@ libraryRoutes.get('/student-directory', async (c) => {
 libraryRoutes.get('/student-allocations', async (c) => {
   const access = await requireLibraryRole(c, ['admin', 'super_admin', 'librarian'])
   if (access.error) return access.error
-  const { data: copies, error } = await db().from('library_teacher_accountability').select('*').eq('current_holder_type', 'student').neq('status', 'lost').order('book_title').order('copy_number')
+  const { data: copies, error } = await db().from('library_teacher_accountability').select('*').eq('school_id', Number(access.membership?.school_id)).eq('current_holder_type', 'student').neq('status', 'lost').order('book_title').order('copy_number')
   if (error) return jsonError(c, error.message, 500)
   const ids = [...new Set((copies ?? []).map(row => Number(row.student_id)).filter(Number.isSafeInteger))]
   const studentResult = ids.length
@@ -189,8 +189,8 @@ libraryRoutes.get('/books/grade-subject-summary', async (c) => {
   const schoolId = access.schoolId
   const client = db()
   const [{ data: bookRows, error: bookError }, { data: copyRows, error: copyError }] = await Promise.all([
-    client.from('library_books').select('id,title,author,grade,subject,total_copies').order('grade').order('subject').order('title'),
-    client.from('library_book_copies').select('id,book_id,copy_number,status,current_holder_type'),
+    client.from('library_books').select('id,title,author,grade,subject,total_copies').eq('school_id', schoolId).order('grade').order('subject').order('title'),
+    client.from('library_book_copies').select('id,book_id,copy_number,status,current_holder_type').eq('school_id', schoolId),
   ])
   if (bookError) return jsonError(c, bookError.message, 500)
   if (copyError) return jsonError(c, copyError.message, 500)
@@ -219,7 +219,7 @@ libraryRoutes.get('/books', async (c) => {
   const access = await requireLibrarySchool(c)
   if (access.error) return access.error
   const schoolId = access.schoolId
-  const { data } = await db().from('library_books').select('*').order('title')
+  const { data } = await db().from('library_books').select('*').eq('school_id', schoolId).order('title')
   return c.json(data ?? [])
 })
 
@@ -229,9 +229,9 @@ libraryRoutes.get('/books/stats', async (c) => {
   const schoolId = access.schoolId
   const client = db()
   const [books, loans, copies] = await Promise.all([
-    client.from('library_books').select('total_copies'),
-    client.from('library_loans').select('status'),
-    client.from('library_book_copies').select('status,current_holder_type'),
+    client.from('library_books').select('total_copies').eq('school_id', schoolId),
+    client.from('library_loans').select('status').eq('school_id', schoolId),
+    client.from('library_book_copies').select('status,current_holder_type').eq('school_id', schoolId),
   ])
   if (copies.error) return jsonError(c, copies.error.message, 500)
   const copyRows = copies.data ?? []
@@ -262,12 +262,13 @@ libraryRoutes.post('/books', async (c) => {
   if (!Number.isSafeInteger(count) || count < 1 || count > 5000) {
     return c.json({ detail: 'total_copies must be a whole number between 1 and 5,000.' }, 400)
   }
-  const payload = { ...body, title, grade, subject, total_copies: count, available_copies: count }
+  const payload = { ...body, school_id: schoolId, title, grade, subject, total_copies: count, available_copies: count }
   const { data, error: insertError } = await db().from('library_books').insert(payload).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   const width = Math.max(2, String(count).length)
   const copies = Array.from({ length: count }, (_, i) => ({
     book_id: data.id,
+    school_id: schoolId,
     copy_number: String(i + 1).padStart(width, '0') + '/' + String(count).padStart(width, '0'),
   }))
   const { error: copyError } = await db().from('library_book_copies').insert(copies)
@@ -285,9 +286,9 @@ libraryRoutes.get('/books/:bookId', async (c) => {
   const client = db()
   const bookId = c.req.param('bookId')
   const [{ data }, { data: loans }, { data: copies }] = await Promise.all([
-    client.from('library_books').select('*').eq('id', bookId).maybeSingle(),
-    client.from('library_loans').select('*').eq('book_id', bookId).order('created_at', { ascending: false }),
-    client.from('library_book_copies').select('*').eq('book_id', bookId).order('copy_number'),
+    client.from('library_books').select('*').eq('school_id', schoolId).eq('id', bookId).maybeSingle(),
+    client.from('library_loans').select('*').eq('school_id', schoolId).eq('book_id', bookId).order('created_at', { ascending: false }),
+    client.from('library_book_copies').select('*').eq('school_id', schoolId).eq('book_id', bookId).order('copy_number'),
   ])
   if (!data) return c.json({ detail: 'Book not found.' }, 404)
   return c.json({ ...data, loans: loans ?? [], copies: copies ?? [] })
@@ -299,7 +300,7 @@ libraryRoutes.patch('/books/:bookId', async (c) => {
   const schoolId = access.schoolId
   const body = await c.req.json().catch(() => ({}))
   const { data, error: updateError } = await db()
-    .from('library_books').update(body).eq('id', c.req.param('bookId')).select().maybeSingle()
+    .from('library_books').update({ ...body, school_id: schoolId }).eq('school_id', schoolId).eq('id', c.req.param('bookId')).select().maybeSingle()
   if (updateError) return jsonError(c, updateError.message, 400)
   return c.json(data)
 })
@@ -308,7 +309,7 @@ libraryRoutes.delete('/books/:bookId', async (c) => {
   const access = await requireLibrarySchool(c)
   if (access.error) return access.error
   const schoolId = access.schoolId
-  const { error: deleteError } = await db().from('library_books').delete().eq('id', c.req.param('bookId'))
+  const { error: deleteError } = await db().from('library_books').delete().eq('school_id', schoolId).eq('id', c.req.param('bookId'))
   if (deleteError) return jsonError(c, deleteError.message, 400)
   return c.body(null, 204)
 })
@@ -318,7 +319,7 @@ libraryRoutes.get('/copies', async (c) => {
   const access = await requireLibrarySchool(c)
   if (access.error) return access.error
   const schoolId = access.schoolId
-  let query = db().from('library_book_copies').select('*, book:library_books(id,title,author,isbn)').order('copy_number')
+  let query = db().from('library_book_copies').select('*, book:library_books(id,title,author,isbn)').eq('school_id', schoolId).order('copy_number')
   const bookId = c.req.query('book_id')
   const holderType = c.req.query('holder_type')
   const holderId = c.req.query('holder_id')
@@ -337,7 +338,7 @@ libraryRoutes.get('/copies/:copyId/movements', async (c) => {
   if (access.error) return access.error
   const schoolId = access.schoolId
   const { data, error: queryError } = await db().from('library_copy_movements')
-    .select('*').eq('copy_id', c.req.param('copyId')).order('performed_at', { ascending: false })
+    .select('*').eq('school_id', Number(access.membership?.school_id)).eq('copy_id', c.req.param('copyId')).order('performed_at', { ascending: false })
   if (queryError) return jsonError(c, queryError.message, 500)
   return c.json(data ?? [])
 })
@@ -360,7 +361,7 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
   if (role === 'teacher' && (action === 'issue_to_student' || action === 'student_return_to_teacher')) {
     const teacherId = Number(access.membership?.teacher_id)
     if (!Number.isSafeInteger(teacherId) || teacherId <= 0) return c.json({ detail: 'Your membership is not linked to a teacher record.' }, 403)
-    const { data: copy, error: copyError } = await db().from('library_book_copies').select('current_holder_type,current_holder_id').eq('id', c.req.param('copyId')).maybeSingle()
+    const { data: copy, error: copyError } = await db().from('library_book_copies').select('current_holder_type,current_holder_id').eq('school_id', Number(access.membership?.school_id)).eq('id', c.req.param('copyId')).maybeSingle()
     if (copyError) return jsonError(c, copyError.message, 500)
     if (!copy) return c.json({ detail: 'Book copy not found.' }, 404)
     if (action === 'issue_to_student' && (copy.current_holder_type !== 'teacher' || Number(copy.current_holder_id) !== teacherId)) return c.json({ detail: 'Teachers may only issue copies held in their own custody.' }, 403)
@@ -450,7 +451,7 @@ libraryRoutes.get('/teacher-inventory-summary', async (c) => {
   if (access.error) return access.error
   const schoolId = access.schoolId
   const teacherId = c.req.query('teacher_id')
-  let custodyQuery = db().from('library_teacher_accountability').select('*').order('accountable_teacher_name').order('copy_number')
+  let custodyQuery = db().from('library_teacher_accountability').select('*').eq('school_id', schoolId).order('accountable_teacher_name').order('copy_number')
   if (teacherId && teacherId !== 'all') custodyQuery = custodyQuery.eq('accountable_teacher_id', teacherId)
   const { data: custodyRows, error: custodyError } = await custodyQuery
   if (custodyError) return jsonError(c, custodyError.message, 500)
@@ -470,7 +471,7 @@ libraryRoutes.get('/teacher-inventory-summary', async (c) => {
   type InventoryTeacher = { teacher_id: number | null; teacher_name: string; groups: Map<string, InventoryGroup> }
   const rows = (custodyRows ?? []) as CustodyRow[]
   const bookIds = [...new Set(rows.map((row: CustodyRow) => row.book_id))]
-  const { data: bookRows, error: booksError } = bookIds.length ? await db().from('library_books').select('id,title,grade,subject').in('id', bookIds) : { data: [], error: null }
+  const { data: bookRows, error: booksError } = bookIds.length ? await db().from('library_books').select('id,title,grade,subject').eq('school_id', schoolId).in('id', bookIds) : { data: [], error: null }
   if (booksError) return jsonError(c, booksError.message, 500)
   const books = new Map<number, { id: number; title: string; grade: string | null; subject: string | null }>((bookRows ?? []).map(book => [book.id, book]))
   const teachers = new Map<string, InventoryTeacher>()
@@ -512,7 +513,7 @@ libraryRoutes.get('/teacher-accountability', async (c) => {
   if (access.error) return access.error
   const schoolId = access.schoolId
   const teacherId = c.req.query('teacher_id')
-  let query = db().from('library_teacher_accountability').select('*')
+  let query = db().from('library_teacher_accountability').select('*').eq('school_id', schoolId)
     .order('accountable_teacher_name').order('book_title').order('copy_number')
   if (teacherId) query = query.eq('accountable_teacher_id', teacherId)
   const { data, error: queryError } = await query
@@ -556,7 +557,7 @@ libraryRoutes.get('/reconciliation', async (c) => {
   const teacherId = c.req.query('teacher_id')
   let query = client.from('library_book_copies')
     .select('id,book_id,copy_number,status,current_holder_type,current_holder_id,current_holder_name,condition,due_date,book:library_books(id,title)')
-    .neq('current_holder_type', 'library')
+    .eq('school_id', schoolId).neq('current_holder_type', 'library')
     .order('book_id').order('copy_number')
   if (teacherId) {
     query = query.eq('current_holder_type', 'teacher').eq('current_holder_id', teacherId)
@@ -592,7 +593,7 @@ libraryRoutes.get('/loans', async (c) => {
   const access = await requireLibrarySchool(c)
   if (access.error) return access.error
   const schoolId = access.schoolId
-  const { data } = await db().from('library_loans').select('*').order('created_at', { ascending: false })
+  const { data } = await db().from('library_loans').select('*').eq('school_id', schoolId).order('created_at', { ascending: false })
   return c.json(data ?? [])
 })
 
@@ -601,7 +602,7 @@ libraryRoutes.post('/loans', async (c) => {
   if (access.error) return access.error
   const schoolId = access.schoolId
   const body = await c.req.json().catch(() => ({}))
-  const { data, error: insertError } = await db().from('library_loans').insert(body).select().single()
+  const { data, error: insertError } = await db().from('library_loans').insert({ ...body, school_id: schoolId }).select().single()
   if (insertError) return jsonError(c, insertError.message, 400)
   return c.json(data, 201)
 })
@@ -612,12 +613,12 @@ libraryRoutes.post('/loans/:loanId/return', async (c) => {
   const schoolId = access.schoolId
   const client = db()
   const loanId = c.req.param('loanId')
-  const { data: loan } = await client.from('library_loans').select('*').eq('id', loanId).maybeSingle()
+  const { data: loan } = await client.from('library_loans').select('*').eq('school_id', schoolId).eq('id', loanId).maybeSingle()
   if (!loan) return c.json({ detail: 'Loan not found.' }, 404)
   if (loan.status === 'returned') return c.json({ detail: 'Loan already returned.' }, 409)
   const { data, error: updateError } = await client.from('library_loans')
-    .update({ status: 'returned', returned_date: new Date().toISOString().slice(0, 10) })
-    .eq('id', loanId).select().single()
+     .update({ status: 'returned', returned_date: new Date().toISOString().slice(0, 10) })
+    .eq('school_id', schoolId).eq('id', loanId).select().single()
   if (updateError) return jsonError(c, updateError.message, 400)
   return c.json(data)
 })
