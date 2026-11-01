@@ -176,3 +176,48 @@ test('Library custody uses saved timetable teacher IDs for custody holder refere
   assert.match(page, /libraryFetch<DirectoryTeacher\[\]>\('\/api\/v1\/library\/teacher-directory'\)/)
   assert.doesNotMatch(page, /apiFetch<DirectoryTeacher\[\]>\('\/api\/v1\/teachers\/'\)/)
 })
+
+
+test('all Library catalogue, copy, movement, loan and accountability endpoints enforce selected-school scope', async () => {
+  const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
+  for (const route of [
+    "get('/books/grade-subject-summary'", "get('/books'", "get('/books/stats'",
+    "post('/books'", "get('/books/:bookId'", "patch('/books/:bookId'", "delete('/books/:bookId'",
+    "get('/copies'", "get('/copies/:copyId/movements'", "get('/teacher-inventory-summary'",
+    "get('/teacher-accountability'", "get('/reconciliation'", "get('/loans'",
+    "post('/loans'", "post('/loans/:loanId/return'",
+  ]) {
+    const start = library.indexOf("libraryRoutes." + route)
+    assert.notEqual(start, -1, route + ' route exists')
+    const end = library.indexOf('\nlibraryRoutes.', start + 1)
+    const body = library.slice(start, end < 0 ? library.length : end)
+    assert.match(body, /requireLibrarySchool\(c\)/, route + ' requires school membership')
+  }
+  assert.match(library, /\.eq\('school_id', schoolId\)/)
+  assert.match(library, /Book copy not found in the selected school/)
+  assert.match(library, /library_book_copies'[\s\S]*?\.eq\('school_id', schoolId\)[\s\S]*?\.eq\('id', c\.req\.param\('copyId'\)\)/)
+})
+
+test('school tenancy migration binds books, loans, copies and movement rows without guessing legacy school assignments', async () => {
+  const tenancy = await readFile(new URL('../supabase/migrations/006_library_school_tenancy.sql', import.meta.url), 'utf8')
+  const accountability = await readFile(new URL('../supabase/migrations/007_library_accountability_school_scope.sql', import.meta.url), 'utf8')
+  for (const table of ['library_books', 'library_loans', 'library_book_copies', 'library_copy_movements']) {
+    assert.match(tenancy, new RegExp("alter table public\\." + table + "[\\s\\S]*?school_id integer references public\\.tt_schools\\(id\\)", 'i'))
+  }
+  assert.match(tenancy, /update public\.library_book_copies c[\s\S]*?set school_id = b\.school_id[\s\S]*?where c\.book_id = b\.id/)
+  assert.match(tenancy, /update public\.library_copy_movements m[\s\S]*?set school_id = c\.school_id[\s\S]*?where m\.copy_id = c\.id/)
+  assert.match(tenancy, /enable row level security/i)
+  assert.match(tenancy, /revoke all on public\.library_books, public\.library_loans, public\.library_book_copies, public\.library_copy_movements from anon, authenticated/i)
+  assert.match(accountability, /c\.school_id as school_id/)
+  assert.match(accountability, /security_invoker = true/i)
+})
+
+test('ambiguous legacy student admission numbers are excluded from school-specific Library directory', () => {
+  assert.match(routes, /legacyCounts\.get\(admission\) === 1/)
+  assert.match(routes, /legacy students table has no school_id/)
+})
+
+test('book deletion is blocked once a physical copy exists to preserve custody history', () => {
+  assert.match(routes, /physical-copy register\. Keep it for custody history/)
+  assert.match(routes, /from\('library_book_copies'\)[\s\S]*?\.eq\('school_id', schoolId\)[\s\S]*?\.eq\('book_id', bookId\)/)
+})
