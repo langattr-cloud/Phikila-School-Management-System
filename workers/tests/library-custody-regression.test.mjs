@@ -149,7 +149,7 @@ test('library membership selection rejects ambiguous multi-school membership wit
 test('student custody issue verifies that the selected student belongs to the active school', async () => {
   const library = await readFile(new URL('../src/routes/library.ts', import.meta.url), 'utf8')
   assert.match(library, /from\('students_v2'\)[\s\S]*?\.eq\('school_id', schoolId\)[\s\S]*?\.eq\('admission_number', student\.admission_number\)/)
-  assert.match(library, /The selected student is not active in your current school/)
+  assert.match(library, /The selected student is not uniquely mapped to an active student in your current school/)
 })
 
 
