@@ -174,7 +174,7 @@ export const platform = {
   schoolUsers: (id: number) => get<SchoolUser[]>(`${PLATFORM}/schools/${id}/users`),
   teachers: () => get<TeacherOption[]>('/api/v1/teachers'),
   addAdministrator: (id: number, email: string, phone: string, role: string) =>
-    send<{ user_id: string; email: string; phone: string; role: string; is_active: boolean; invited: boolean; created_account: boolean; existing_account: boolean; password_reset: boolean; temporary_password: string | null }>(
+    send<{ user_id: string; email: string; phone: string | null; role: string; is_active: boolean; invited: boolean; created_account: boolean; existing_account: boolean; password_reset: boolean; temporary_password: string | null }>(
       `${PLATFORM}/schools/${id}/administrators`,
       'POST',
       { email, phone, role, delivery_method: 'temporary_password' },
