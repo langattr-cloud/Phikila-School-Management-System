@@ -39,9 +39,9 @@ router = APIRouter()
 
 # Roles a super admin may grant inside a school. "super_admin" is deliberately
 # absent: platform authority is granted through its own dedicated endpoint.
-GRANTABLE_ROLES = ["viewer", "student", "teacher", "scheduler", "admin"]
+GRANTABLE_ROLES = ["viewer", "student", "librarian", "teacher", "scheduler", "admin"]
 # Roles an applicant may ask for at signup.
-REQUESTABLE_ROLES = ["teacher", "scheduler", "admin", "student", "viewer"]
+REQUESTABLE_ROLES = ["teacher", "librarian", "scheduler", "admin", "student", "viewer"]
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +129,7 @@ class DecisionIn(BaseModel):
     # What the super admin actually grants; may differ from the request.
     role: str | None = None
     school_id: int | None = None
+    teacher_id: int | None = Field(default=None, gt=0)
     note: str | None = Field(default=None, max_length=500)
 
     @field_validator("role")
@@ -416,6 +417,11 @@ def decide_access_request(
     granted = payload.role or row.requested_role
     if granted not in GRANTABLE_ROLES:
         granted = "viewer"
+    if granted == "teacher":
+        if payload.teacher_id is None or db.query(Teacher.id).filter(Teacher.id == payload.teacher_id).first() is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Select an existing saved teacher record when granting the teacher role.")
+    elif payload.teacher_id is not None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A teacher record can only be linked to a teacher role.")
 
     membership = (
         db.query(TtMembership)
@@ -431,10 +437,12 @@ def decide_access_request(
             school_id=school_id,
             role=granted,
             email=row.email,
+            teacher_id=payload.teacher_id if granted == "teacher" else None,
         )
         db.add(membership)
     else:
         membership.role = granted
+        membership.teacher_id = payload.teacher_id if granted == "teacher" else None
         membership.is_active = True
 
     row.status = "approved"
