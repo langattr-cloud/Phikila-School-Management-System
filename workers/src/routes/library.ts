@@ -373,13 +373,18 @@ libraryRoutes.post('/copies/:copyId/movements', async (c) => {
       : ['teacher', 'librarian', 'admin', 'super_admin']
   const access = await requireLibraryRole(c, roles)
   if (access.error) return access.error
+  const schoolId = Number(access.membership?.school_id)
   const role = String(access.membership?.role ?? '').toLowerCase()
+  // Every movement, including librarian/admin actions, must first prove that
+  // the copy belongs to the selected school. Never rely on UUID secrecy.
+  const { data: copy, error: copyError } = await db().from('library_book_copies')
+    .select('current_holder_type,current_holder_id').eq('school_id', schoolId)
+    .eq('id', c.req.param('copyId')).maybeSingle()
+  if (copyError) return jsonError(c, copyError.message, 500)
+  if (!copy) return c.json({ detail: 'Book copy not found in the selected school.' }, 404)
   if (role === 'teacher' && (action === 'issue_to_student' || action === 'student_return_to_teacher')) {
     const teacherId = Number(access.membership?.teacher_id)
     if (!Number.isSafeInteger(teacherId) || teacherId <= 0) return c.json({ detail: 'Your membership is not linked to a teacher record.' }, 403)
-    const { data: copy, error: copyError } = await db().from('library_book_copies').select('current_holder_type,current_holder_id').eq('school_id', Number(access.membership?.school_id)).eq('id', c.req.param('copyId')).maybeSingle()
-    if (copyError) return jsonError(c, copyError.message, 500)
-    if (!copy) return c.json({ detail: 'Book copy not found.' }, 404)
     if (action === 'issue_to_student' && (copy.current_holder_type !== 'teacher' || Number(copy.current_holder_id) !== teacherId)) return c.json({ detail: 'Teachers may only issue copies held in their own custody.' }, 403)
     if (action === 'student_return_to_teacher' && Number(body.to_holder_id) !== teacherId) return c.json({ detail: 'A student must return the copy to the teacher who issued it.' }, 403)
   }
