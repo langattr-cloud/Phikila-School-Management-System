@@ -52,7 +52,7 @@ const FinanceNavIcon = ({ tab }: { tab: string }) => {
 export default function FinancePage() {
   const { session: platformSession } = usePlatformSession()
   const availableSchools = (platformSession?.schools ?? []).filter((school) => platformSession?.is_super_admin || (school.modules ?? []).includes('finance'))
-  const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null)
+  const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(() => { const saved = Number(window.localStorage.getItem('phikila.finance.schoolId')); return Number.isInteger(saved) && saved > 0 ? saved : null })
   const [overview, setOverview] = useState<FinanceOverview | null>(null)
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -87,7 +87,8 @@ export default function FinancePage() {
   }, [platformSession, selectedSchoolId])
 
   useEffect(() => {
-    if (selectedSchoolId == null) { setActiveSchoolId(null); setLoading(false); return }
+    if (selectedSchoolId == null) { window.localStorage.removeItem('phikila.finance.schoolId'); setActiveSchoolId(null); setLoading(false); return }
+    window.localStorage.setItem('phikila.finance.schoolId', String(selectedSchoolId))
     setActiveSchoolId(selectedSchoolId)
     void load()
   }, [selectedSchoolId, load])
