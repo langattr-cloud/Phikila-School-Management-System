@@ -29,7 +29,7 @@ const NAV: NavGroup[] = [
   { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }] },
   { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Level, Grade & Stream', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }] },
   { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers & classes', icon: <UserIcon /> }] },
-  { label: 'Operations', items: [{ to: '/timetable', label: 'Timetable', icon: <GridIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }, { to: '/library', label: 'Library', icon: <LayersIcon /> }] },
+  { label: 'Operations', items: [{ to: '/timetable', label: 'Timetable', icon: <GridIcon /> }, { to: '/finance', label: 'Finance', icon: <FinanceModuleIcon /> }, { to: '/library', label: 'Library', icon: <LayersIcon /> }] },
   { label: 'Examination', items: [{ to: '/examinations', label: 'Examination', icon: <StackedLayersIcon /> }] },
   { label: 'Tools & insights', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }] },
 ]
@@ -39,6 +39,14 @@ const BOTTOM_NAV: NavItem[] = [
   { to: '/students', label: 'Students', icon: <UserIcon /> },
   { to: '/setup/academic-years', label: 'Academics', icon: <LayersIcon /> },
 ]
+
+function FinanceModuleIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="2.5" y="3" width="19" height="18" rx="4" fill="#2563eb" />
+    <path d="M6 16.5h2.5V12H6v4.5Zm4.75 0h2.5V8h-2.5v8.5Zm4.75 0H18V5.5h-2.5v11Z" fill="#fff" />
+    <path d="M5.5 18.5h13" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+}
 
 function isActive(pathname: string, to: string) {
   const current = normalisePath(pathname)
