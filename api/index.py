@@ -23,7 +23,7 @@ app.add_middleware(
 async def restore_library_path(request: Request, call_next):
     original_path = request.query_params.get("__path")
     if original_path:
-        if not original_path.startswith("/api/v1/library/") and original_path != "/api/v1/library":
+        if not original_path.startswith("/api/v1/library/") and original_path != "/api/v1/library" and original_path != "/_diag":
             return JSONResponse({"detail": "Invalid Library API route."}, status_code=404)
         request.scope["path"] = original_path
         request.scope["raw_path"] = original_path.encode("utf-8")
@@ -34,5 +34,14 @@ async def restore_library_path(request: Request, call_next):
 @app.get("/health")
 def health():
     return {"status": "ok", "module": "library"}
+
+@app.get("/_diag")
+def diagnostic(request: Request):
+    return {
+        "path": request.scope.get("path"),
+        "root_path": request.scope.get("root_path"),
+        "raw_path": request.scope.get("raw_path", b"").decode("utf-8", "replace"),
+        "query": dict(request.query_params),
+    }
 
 app.include_router(library_router, prefix="/api/v1")
