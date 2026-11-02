@@ -43,18 +43,24 @@ const LIBRARY_REQUEST_TIMEOUT_MS = 12000
 
 async function libraryApiRequest<T>(path: string, init: RequestInit = {}, schoolId?: string): Promise<T> {
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), LIBRARY_REQUEST_TIMEOUT_MS)
+  let timeoutId: number | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      controller.abort()
+      reject(new Error('The Library request timed out after 12 seconds. The API or sign-in session did not respond. Retry the request.'))
+    }, LIBRARY_REQUEST_TIMEOUT_MS)
+  })
   const headers = new Headers(init.headers)
   if (schoolId) headers.set('X-School-Id', schoolId)
   try {
-    return await apiFetch<T>(path, { ...init, headers, signal: controller.signal })
-  } catch (error) {
-    if (controller.signal.aborted) {
-      throw new Error('The Library API did not respond within 12 seconds. Check the preview API connection and retry.')
-    }
-    throw error
+    // Race the entire API operation, not only fetch: apiFetch first asks
+    // Supabase for the current access token, and that step is not abortable.
+    return await Promise.race([
+      apiFetch<T>(path, { ...init, headers, signal: controller.signal }),
+      timeout,
+    ])
   } finally {
-    window.clearTimeout(timeout)
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId)
   }
 }
 
