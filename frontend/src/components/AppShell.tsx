@@ -65,7 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(to)) return 'students'
     return null
   }
-  const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
+  const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { if (isSuperAdmin && item.to === '/library') return false; const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
   const groups = isSuperAdmin ? [PLATFORM_NAV, ...filteredNav] : filteredNav
   const bottomNav = BOTTOM_NAV.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) })
   const accountName = displayName(user)
