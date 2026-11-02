@@ -19,6 +19,7 @@ type Copy = {
 }
 type Movement = { id: number; action: string; from_holder_name?: string | null; to_holder_name?: string | null; condition: string; performed_at: string; notes?: string | null }
 type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; excluded_copies: number; unreconciled_copies: number }
+type PlatformLibraryOverview = { schools: Array<{ school_id: number; school_name: string; library_enabled: boolean; total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; excluded_copies: number; unreconciled_copies: number }>; totals: Omit<Stats, 'total_titles' | 'total_copies' | 'available_copies' | 'with_teachers' | 'with_students' | 'lost_copies' | 'excluded_copies' | 'unreconciled_copies'> & Record<string, number> }
 type Reconciliation = { outstanding_count: number; with_teachers: number; with_students: number; lost_count: number; unreconciled_count: number; outstanding_copies: Copy[] }
 type TeacherAccountability = {
   total_accountable: number; with_students: number; retained_by_teachers: number; lost: number
@@ -48,10 +49,10 @@ export default function LibraryPage() {
       .slice().sort((a, b) => a.name.localeCompare(b.name))
   }, [platformSession?.schools, isPlatformAdmin])
   const [selectedSchoolId, setSelectedSchoolId] = useState('')
-  // Platform admins enter Library directly. Start in the first active school
-  // workspace automatically; the workspace switcher is optional and every
-  // request remains scoped to exactly one school's independent records.
-  const activeSchoolId = selectedSchoolId || (isPlatformAdmin || librarySchools.length === 1 ? String(librarySchools[0]?.id ?? '') : '')
+  // Platform admins land on a cross-school overview. They select a school only
+  // when they intentionally open its isolated register; regular users retain
+  // their normal school-scoped workspace.
+  const activeSchoolId = selectedSchoolId || (!isPlatformAdmin && librarySchools.length === 1 ? String(librarySchools[0]?.id ?? '') : '')
   const libraryFetch = useCallback(<T,>(path: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers)
     if (activeSchoolId) headers.set('X-School-Id', activeSchoolId)
@@ -99,11 +100,23 @@ export default function LibraryPage() {
   const loadSequence = useRef(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [platformOverview, setPlatformOverview] = useState<PlatformLibraryOverview | null>(null)
 
   const load = useCallback(async () => {
     const sequence = ++loadSequence.current
-    if (!activeSchoolId) { setLoading(false); return }
+    if (!activeSchoolId && !isPlatformAdmin) { setLoading(false); return }
     setLoading(true); setError(null)
+    if (!activeSchoolId && isPlatformAdmin) {
+      try {
+        const overview = await apiFetch<PlatformLibraryOverview>('/api/v1/library/platform-overview')
+        if (sequence === loadSequence.current) setPlatformOverview(overview)
+      } catch (err) {
+        if (sequence === loadSequence.current) setError(friendlyApiError(err, 'load the platform Library overview'))
+      } finally {
+        if (sequence === loadSequence.current) setLoading(false)
+      }
+      return
+    }
     try {
       const [bookRows, copyRows, overview, outstanding, teacherRegister] = await Promise.all([
         libraryFetch<Book[]>('/api/v1/library/books'),
@@ -134,7 +147,7 @@ export default function LibraryPage() {
     } finally {
       if (sequence === loadSequence.current) setLoading(false)
     }
-  }, [activeSchoolId, libraryFetch])
+  }, [activeSchoolId, isPlatformAdmin, libraryFetch])
 
   useEffect(() => { void load() }, [load])
 
@@ -303,29 +316,36 @@ export default function LibraryPage() {
   }
 
   if (!activeSchoolId) return <div className="library-page">
-    <PageHeader title="Library & Book Custody" description={isPlatformAdmin ? "Manage Library across the platform. Your first active school opens automatically; switch school workspaces only when you need to work with another school's separate records." : "Manage your school's Library register and book custody."} />
-    {platformSessionLoading ? <LoadingBlock label="Loading Library access" rows={2} /> : <>
-      {platformSessionError
-        ? <section className="card section"><Alert tone="error">{platformSessionError === 'This preview is not connected to an isolated backend yet. Configure VITE_API_URL for the Preview environment before testing API-backed features.'
-          ? 'The preview API is not configured. This is a deployment configuration issue, not a school-access requirement. Connect an isolated preview backend before loading or changing Library records.'
-          : platformSessionError}</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
-        : librarySchools.length
-        ? <section className="card section">
-            <label className="field">
-              <span className="field__label">School workspace</span>
-              <select className="input" value={selectedSchoolId} onChange={event => setSelectedSchoolId(event.target.value)}>
-                <option value="">Choose school workspace</option>
-                {librarySchools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
-              </select>
-            </label>
-            <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>{isPlatformAdmin ? "Your platform role gives you access to every active school's Library workspace. Choose a workspace to work with its independent records." : "Only schools where Library is enabled and you have an authorized school role are listed."}</p>
-            <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh access</button>
+    <PageHeader title="Library & Book Custody" description={isPlatformAdmin ? "Platform overview. Review Library activity across schools and open a school's register only when required." : "Manage your school's Library register and book custody."} />
+    {platformSessionLoading ? <LoadingBlock label="Loading Library access" rows={2} /> : platformSessionError
+      ? <section className="card section"><Alert tone="error">{platformSessionError}</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
+      : isPlatformAdmin ? <>
+        {error && <Alert tone="error">{error}</Alert>}
+        {loading ? <LoadingBlock label="Loading platform Library overview" rows={5} /> : platformOverview ? <>
+          <section className="card section">
+            <div className="dashboard-section__head"><div><p>Platform-wide inventory</p><h2 className="section__title">All active schools</h2></div><span>{platformOverview.schools.length} schools</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(9rem,1fr))', gap: 'var(--space-3)' }}>
+              {[["Titles",platformOverview.totals.total_titles],["Physical copies",platformOverview.totals.total_copies],["Available",platformOverview.totals.available_copies],["With teachers",platformOverview.totals.with_teachers],["With students",platformOverview.totals.with_students],["Lost",platformOverview.totals.lost_copies]].map(([label,value]) => <div key={String(label)} className="card section" style={{ margin: 0 }}><p style={{ margin: 0, color: 'var(--color-ink-muted)' }}>{label}</p><strong style={{ fontSize: '1.6rem' }}>{Number(value ?? 0).toLocaleString()}</strong></div>)}
+            </div>
           </section>
-        : <section className="card section">
-            {isPlatformAdmin ? <Alert tone="info">There are no active schools on the platform yet. Create or activate a school under Platform → Schools.</Alert> : <Alert tone="info">No active school with Library access is available to your account. Ask your school administrator to confirm that Library is enabled, then refresh this page.</Alert>}
-            <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh access</button>
-          </section>}
-    </>}
+          <section className="card section">
+            <div className="dashboard-section__head"><div><p>School registers</p><h2 className="section__title">Library access and activity</h2></div><a className="button button--secondary button--sm" href="/platform/modules">Manage school module access</a></div>
+            {platformOverview.schools.length ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(17rem,1fr))', gap: 'var(--space-3)' }}>
+              {platformOverview.schools.map(school => <article key={school.school_id} className="card section" style={{ margin: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)', alignItems: 'flex-start' }}><h3 className="section__title" style={{ margin: 0 }}>{school.school_name}</h3><span className="badge">{school.library_enabled ? 'Enabled' : 'Not enabled'}</span></div>
+                <p style={{ color: 'var(--color-ink-muted)' }}>{school.total_titles} titles · {school.total_copies} physical copies</p>
+                <p style={{ marginBottom: 'var(--space-3)' }}>Available: {school.available_copies} · With teachers: {school.with_teachers} · With students: {school.with_students}</p>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  <button className="button button--primary button--sm" type="button" onClick={() => { setSelectedSchoolId(String(school.school_id)); setError(null); setBooks([]); setCopies([]); setMovements([]); setStats(null); setTeacherAccountability(null); setReconciliation(null); setTimetable(null); setTeacherDirectory([]); setStudentDirectory([]); setStudentAllocations([]); setSelectedCopy('') }}>Open Library register</button>
+                  <a className="button button--secondary button--sm" href={`/platform/modules?school_id=${school.school_id}`}>Manage access</a>
+                </div>
+              </article>)}
+            </div> : <Alert tone="info">There are no active schools on the platform yet. Create or activate a school under Platform → Schools.</Alert>}
+          </section>
+        </> : null}
+      </> : <>
+        {librarySchools.length ? <section className="card section"><label className="field"><span className="field__label">School workspace</span><select className="input" value={selectedSchoolId} onChange={event => setSelectedSchoolId(event.target.value)}><option value="">Choose school workspace</option>{librarySchools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}</select></label><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Only schools where Library is explicitly enabled and you have an authorized school role are listed.</p></section> : <section className="card section"><Alert tone="info">No active school with Library access is available to your account. Ask your platform administrator to grant Library access to your school.</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh access</button></section>}
+      </>}
   </div>
 
   return <div className="library-page">
