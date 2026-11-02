@@ -48,9 +48,10 @@ export default function LibraryPage() {
       .slice().sort((a, b) => a.name.localeCompare(b.name))
   }, [platformSession?.schools, isPlatformAdmin])
   const [selectedSchoolId, setSelectedSchoolId] = useState('')
-  // Platform admins enter Library directly. A school workspace is selected
-  // automatically; switching workspaces never combines tenant records.
-  const activeSchoolId = selectedSchoolId || (isPlatformAdmin ? String(librarySchools[0]?.id ?? '') : (librarySchools.length === 1 ? String(librarySchools[0].id) : ''))
+  // Platform admins enter Library directly. Start in the first active school
+  // workspace automatically; the workspace switcher is optional and every
+  // request remains scoped to exactly one school's independent records.
+  const activeSchoolId = selectedSchoolId || (isPlatformAdmin || librarySchools.length === 1 ? String(librarySchools[0]?.id ?? '') : '')
   const libraryFetch = useCallback(<T,>(path: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers)
     if (activeSchoolId) headers.set('X-School-Id', activeSchoolId)
@@ -260,10 +261,12 @@ export default function LibraryPage() {
   }
 
   if (!activeSchoolId) return <div className="library-page">
-    <PageHeader title="Library & Book Custody" description={isPlatformAdmin ? "Platform Library access. Select a school workspace; each school's catalogue and custody records remain separate." : "Manage your school's Library register and book custody."} />
+    <PageHeader title="Library & Book Custody" description={isPlatformAdmin ? "Manage Library across the platform. Your first active school opens automatically; switch school workspaces only when you need to work with another school's separate records." : "Manage your school's Library register and book custody."} />
     {platformSessionLoading ? <LoadingBlock label="Loading Library access" rows={2} /> : <>
       {platformSessionError
-        ? <section className="card section"><Alert tone="error">{platformSessionError}</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
+        ? <section className="card section"><Alert tone="error">{platformSessionError === 'This preview is not connected to an isolated backend yet. Configure VITE_API_URL for the Preview environment before testing API-backed features.'
+          ? 'The preview API is not configured. This is a deployment configuration issue, not a school-access requirement. Connect an isolated preview backend before loading or changing Library records.'
+          : platformSessionError}</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
         : librarySchools.length
         ? <section className="card section">
             <label className="field">
@@ -286,7 +289,7 @@ export default function LibraryPage() {
   return <div className="library-page">
     {librarySchools.length > 1 && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}>
       <label className="field">
-        <span className="field__label">{isPlatformAdmin ? 'School workspace' : 'Your school'}</span>
+        <span className="field__label">{isPlatformAdmin ? 'Switch school workspace (optional)' : 'Your school'}</span>
         <select className="input" value={activeSchoolId} onChange={event => {
           setSelectedSchoolId(event.target.value)
           setBooks([]); setCopies([]); setMovements([]); setStats(null)
@@ -294,7 +297,6 @@ export default function LibraryPage() {
           setTeacherDirectory([]); setStudentDirectory([]); setStudentAllocations([])
           setSelectedCopy('')
         }}>
-          <option value="">Select a school</option>
           {librarySchools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
         </select>
       </label>
