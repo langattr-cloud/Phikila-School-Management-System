@@ -55,36 +55,63 @@ platformRoutes.get('/session', async (c) => {
     client.from('tt_memberships').select('school_id,role').eq('user_id', user!.id).eq('is_active', true),
   ])
 
+  if (membershipRows.error) return jsonError(c, 'School access could not be verified.', 503)
+  if (adminRow.error) return jsonError(c, 'Platform administrator access could not be verified.', 503)
+
   const isSuperAdmin = Boolean(adminRow.data)
-  const schoolIds = [...new Set((membershipRows.data ?? []).map((row: any) => Number(row.school_id)).filter(Number.isSafeInteger))]
-  const { data: schoolRows } = schoolIds.length
-    ? await client.from('tt_schools').select('id,name').in('id', schoolIds)
-    : { data: [] }
-  const schools = (schoolRows ?? []).map((school: any) => ({
-    id: Number(school.id),
-    name: school.name,
-    role: (membershipRows.data ?? []).find((row: any) => Number(row.school_id) === Number(school.id))?.role ?? 'viewer',
-  }))
+  const memberships = membershipRows.data ?? []
+  const schoolIds = [...new Set(memberships.map((row: any) => Number(row.school_id)).filter((id: number) => Number.isSafeInteger(id) && id > 0))]
+  const schoolQuery = client.from('tt_schools').select('id,name,status')
+  const { data: schoolRows, error: schoolError } = isSuperAdmin
+    ? await schoolQuery.eq('status', 'active').order('name')
+    : schoolIds.length ? await schoolQuery.in('id', schoolIds).eq('status', 'active').order('name')
+      : { data: [], error: null }
+  if (schoolError) return jsonError(c, 'School workspaces could not be loaded.', 503)
 
-  let accessRequest: SessionInfo['access_request'] | null = null
-  const requestData = accessRow.data
-  if (requestData) {
-    accessRequest = {
-      status: requestData.status as 'pending' | 'approved' | 'rejected',
-      requested_role: requestData.requested_role ?? '',
-      requested_school_name: requestData.requested_school_name ?? null,
-      decision_note: requestData.decision_note ?? null,
-    }
+  const visibleSchoolIds = (schoolRows ?? []).map((school: any) => Number(school.id))
+  const { data: entitlementRows, error: entitlementError } = visibleSchoolIds.length
+    ? await client.from('tt_school_module_entitlements').select('school_id,module_key,enabled').in('school_id', visibleSchoolIds)
+    : { data: [], error: null }
+  if (entitlementError) return jsonError(c, 'School module access could not be loaded.', 503)
+
+  const entitlementBySchool = new Map<number, Map<string, boolean>>()
+  for (const row of entitlementRows ?? []) {
+    const schoolId = Number(row.school_id)
+    const modules = entitlementBySchool.get(schoolId) ?? new Map<string, boolean>()
+    modules.set(String(row.module_key), Boolean(row.enabled))
+    entitlementBySchool.set(schoolId, modules)
   }
+  const defaultModules = new Set(['students', 'staff', 'attendance', 'examinations'])
+  const moduleKeys = ['students', 'staff', 'attendance', 'examinations', 'finance', 'library', 'transport', 'parent_portal', 'ai_tools']
+  const schools = (schoolRows ?? []).map((school: any) => {
+    const entitlements = entitlementBySchool.get(Number(school.id))
+    const modules = moduleKeys.filter((key) => entitlements
+      ? entitlements.get(key) === true
+      : defaultModules.has(key))
+    return {
+      id: Number(school.id),
+      name: school.name,
+      role: isSuperAdmin ? 'super_admin' : memberships.find((row: any) => Number(row.school_id) === Number(school.id))?.role ?? 'viewer',
+      modules,
+    }
+  })
 
-  const hasAccess = isSuperAdmin || schools.length > 0
+  const requestData = accessRow.data
+  const accessRequest = requestData ? {
+    status: requestData.status,
+    requested_role: requestData.requested_role ?? '',
+    requested_school_name: requestData.requested_school_name ?? null,
+    decision_note: requestData.decision_note ?? null,
+  } : null
+  const enabledModules = [...new Set(schools.flatMap((school: any) => school.modules))].sort()
 
   return c.json({
     user_id: user!.id,
     email: user!.email,
     is_super_admin: isSuperAdmin,
+    enabled_modules: enabledModules,
     schools,
-    has_access: hasAccess,
+    has_access: isSuperAdmin || schools.length > 0,
     access_request: accessRequest,
   })
 })
