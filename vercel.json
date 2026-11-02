@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/v1/library/:path*",
-      "destination": "/api/index.py?__path=/api/v1/library/:path*"
+      "destination": "/api/index?__path=/api/v1/library/:path*"
     },
     {
       "source": "/api/v1/school/",
