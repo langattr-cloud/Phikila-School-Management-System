@@ -48,12 +48,11 @@ def test_platform_admin_can_access_active_school_when_library_is_enabled():
     assert librarian_access(identity=principal, db=_DB(), school_header="7") == (7, "super_admin")
 
 
-def test_platform_admin_still_requires_library_module_entitlement():
+def test_platform_admin_can_open_library_even_when_school_module_is_not_granted():
+    # Platform-level access is independent of school module grants. The
+    # school_id still scopes the returned Library workspace.
     principal = identity({}, is_super_admin=True)
-    with pytest.raises(HTTPException) as exc:
-        librarian_access(identity=principal, db=_DB(library_enabled=False), school_header="7")
-    assert exc.value.status_code == 403
-    assert exc.value.detail["code"] == "module_not_enabled"
+    assert librarian_access(identity=principal, db=_DB(library_enabled=False), school_header="7") == (7, "super_admin")
 
 
 def test_multi_school_account_must_select_the_school():
