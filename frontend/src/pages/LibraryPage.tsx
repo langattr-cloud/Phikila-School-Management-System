@@ -253,8 +253,8 @@ export default function LibraryPage() {
       setMovements(history)
     } catch (err) {
       const detail = friendlyApiError(err, 'record this book movement')
-      setError(completed ? `${completed} of ${copyIds.length} copies were recorded before the next copy failed. ${detail} Refresh the register and review the recorded copies before retrying.` : detail)
       if (completed) await load()
+      setError(completed ? `${completed} of ${copyIds.length} copies were recorded before the next copy failed. ${detail} Refresh the register and review the recorded copies before retrying.` : detail)
     }
     finally { setSaving(false) }
   }
