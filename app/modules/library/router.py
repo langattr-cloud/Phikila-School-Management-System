@@ -241,8 +241,9 @@ def student_allocations(access: LibraryAccess = Depends(library_access), db: Ses
           ORDER BY e.created_at DESC, e.id DESC LIMIT 1
         ) en ON TRUE
         LEFT JOIN school_classes sc ON sc.id = COALESCE(en.school_class_id, en.class_id)
-        LEFT JOIN grades g ON g.id = en.grade_id
-        LEFT JOIN streams st ON st.id = en.stream_id
+                                  AND sc.school_id = :school_id
+        LEFT JOIN grades g ON g.id = en.grade_id AND g.school_id = :school_id
+        LEFT JOIN streams st ON st.id = en.stream_id AND st.school_id = :school_id
         WHERE a.school_id = :school_id
           AND a.current_holder_type = 'student' AND a.status <> 'lost'
         ORDER BY a.book_title, a.copy_number
@@ -307,9 +308,23 @@ def create_copy_movement(
         raise HTTPException(404, "Book copy not found for this school.")
 
     if access.role == "teacher" and not access.is_super_admin:
-        if not access.teacher_id or int(copy["current_holder_id"] or 0) != access.teacher_id:
-            raise HTTPException(403, "Teachers may only act on copies in their own custody.")
-        if action not in student_actions:
+        if not access.teacher_id:
+            raise HTTPException(403, "Your membership is not linked to a teacher record.")
+        if action == "issue_to_student":
+            if copy["current_holder_type"] != "teacher" or int(copy["current_holder_id"] or 0) != access.teacher_id:
+                raise HTTPException(403, "Teachers may only issue copies held in their own custody.")
+        elif action == "student_return_to_teacher":
+            if payload.to_holder_id != access.teacher_id:
+                raise HTTPException(403, "A student must return the copy to the teacher who issued it.")
+            issuing_teacher = db.execute(text("""
+                SELECT from_holder_id FROM library_copy_movements
+                WHERE copy_id = :copy_id AND school_id = :school_id
+                  AND action = 'issue_to_student'
+                ORDER BY performed_at DESC, id DESC LIMIT 1
+            """), {"copy_id": str(copy_id), "school_id": access.school_id}).scalar()
+            if issuing_teacher != access.teacher_id:
+                raise HTTPException(403, "Teachers may only accept returns for copies they issued.")
+        else:
             raise HTTPException(403, "Teachers may only issue copies to students or accept student returns.")
 
     if action in {"issue_to_teacher", "issue_to_student", "student_return_to_teacher"}:
