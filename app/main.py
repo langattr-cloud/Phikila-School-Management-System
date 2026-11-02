@@ -94,12 +94,7 @@ def create_app() -> FastAPI:
     _guard_module_routes(students_import_router, "students")
     _guard_module_routes(students_router, "students")
     _guard_module_routes(exams_router, "examinations")
-    for finance_module_router in (
-        finance_router, capitation_router, supplier_payments_router, finance_sms_router, finance_statement_import_router,
-        finance_operations_router, finance_account_mapping_router,
-        finance_reports_router, finance_completion_router,
-    ):
-        _guard_module_routes(finance_module_router, "finance")
+    # Finance routes perform selected-school authorization in their own dependencies.
     _guard_module_routes(ocr_router, "ai_tools")
     _guard_module_routes(academics_router, "students")
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
