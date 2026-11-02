@@ -123,7 +123,7 @@ def list_books(
 
 
 @router.get("/books/stats")
-def book_stats(access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def book_stats(access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     try:
         books = _rows(db, "SELECT total_copies FROM public.library_books WHERE school_id=:s", s=school_id)
@@ -145,7 +145,7 @@ def book_stats(access: tuple[int, str] = Depends(school_access), db: Session = D
 
 
 @router.get("/books/grade-subject-summary")
-def grade_subject_summary(access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def grade_subject_summary(access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     books = _rows(db, "SELECT id,title,author,grade,subject,total_copies FROM public.library_books WHERE school_id=:s ORDER BY grade,subject,title", s=school_id)
     copies = _rows(db, "SELECT id,book_id,copy_number,status,current_holder_type FROM public.library_book_copies WHERE school_id=:s", s=school_id)
@@ -164,8 +164,7 @@ def grade_subject_summary(access: tuple[int, str] = Depends(school_access), db: 
 
 
 @router.post("/books", status_code=201)
-def create_book(payload: BookCreate, access: tuple[int, str] = Depends(lambda: None), db: Session = Depends(get_db)):
-    # The explicit dependency is declared below via the generated endpoint wrapper.
+def create_book(payload: BookCreate, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     try:
         row = _one(db, """
@@ -195,7 +194,7 @@ def create_book(payload: BookCreate, access: tuple[int, str] = Depends(lambda: N
 
 
 @router.get("/books/{book_id}")
-def get_book(book_id: int, access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def get_book(book_id: int, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     book = _one(db, "SELECT * FROM public.library_books WHERE school_id=:s AND id=:id", s=school_id, id=book_id)
     if not book:
@@ -206,7 +205,7 @@ def get_book(book_id: int, access: tuple[int, str] = Depends(school_access), db:
 
 
 @router.patch("/books/{book_id}")
-def update_book(book_id: int, payload: BookUpdate, access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def update_book(book_id: int, payload: BookUpdate, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     values = {k: v.strip() if isinstance(v, str) else v for k, v in payload.model_dump(exclude_unset=True).items()}
     if not values:
@@ -227,7 +226,7 @@ def update_book(book_id: int, payload: BookUpdate, access: tuple[int, str] = Dep
 
 
 @router.delete("/books/{book_id}", status_code=204)
-def delete_book(book_id: int, access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def delete_book(book_id: int, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     if _one(db, "SELECT id FROM public.library_book_copies WHERE school_id=:s AND book_id=:id LIMIT 1", s=school_id, id=book_id):
         raise HTTPException(409, "This title has a physical-copy register. Keep it for custody history; archive support is required before deletion.")
@@ -242,7 +241,7 @@ def delete_book(book_id: int, access: tuple[int, str] = Depends(school_access), 
 def list_copies(
     book_id: int | None = None, holder_type: str | None = None, holder_id: int | None = None,
     copy_status: str | None = Query(default=None, alias="status"),
-    access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db),
+    access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db),
 ):
     school_id, _ = access
     clauses = ["c.school_id=:s"]
@@ -258,7 +257,7 @@ def list_copies(
 
 
 @router.get("/copies/{copy_id}/movements")
-def copy_movements(copy_id: UUID, access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def copy_movements(copy_id: UUID, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     if not _one(db, "SELECT id FROM public.library_book_copies WHERE school_id=:s AND id=:id", s=school_id, id=str(copy_id)):
         raise HTTPException(404, "Book copy not found in the selected school.")
@@ -292,7 +291,7 @@ def _teacher_owners(db: Session, school_id: int) -> list[str]:
 
 
 @router.get("/teacher-directory")
-def teacher_directory(access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def teacher_directory(access: tuple[int, str] = Depends(library_access), db: Session = Depends(get_db)):
     school_id, _ = access
     owners = _teacher_owners(db, school_id)
     if not owners:
@@ -308,7 +307,7 @@ def teacher_directory(access: tuple[int, str] = Depends(school_access), db: Sess
 
 
 @router.get("/student-directory")
-def student_directory(access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def student_directory(access: tuple[int, str] = Depends(library_access), db: Session = Depends(get_db)):
     school_id, _ = access
     # Legacy student rows have no tenant key. Admit only globally unique admission
     # numbers which map to exactly one active modern student in this school.
@@ -339,7 +338,7 @@ def student_directory(access: tuple[int, str] = Depends(school_access), db: Sess
 
 
 @router.get("/student-allocations")
-def student_allocations(access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def student_allocations(access: tuple[int, str] = Depends(library_access), db: Session = Depends(get_db)):
     school_id, _ = access
     rows = _rows(db, """
         SELECT a.copy_id,a.copy_number,a.book_title,a.accountable_teacher_name,
@@ -372,7 +371,7 @@ def student_allocations(access: tuple[int, str] = Depends(school_access), db: Se
 
 
 @router.get("/teacher-accountability")
-def teacher_accountability(teacher_id: int | None = None, access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def teacher_accountability(teacher_id: int | None = None, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     sql = "SELECT * FROM public.library_teacher_accountability WHERE school_id=:s"
     params: dict[str, Any] = {"s": school_id}
@@ -408,7 +407,7 @@ def teacher_accountability(teacher_id: int | None = None, access: tuple[int, str
 
 
 @router.get("/teacher-inventory-summary")
-def teacher_inventory_summary(teacher_id: str | None = None, access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def teacher_inventory_summary(teacher_id: str | None = None, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     rows = _rows(db, """
         SELECT a.accountable_teacher_id,a.accountable_teacher_name,a.book_id,a.copy_id,
@@ -465,7 +464,7 @@ def teacher_inventory_summary(teacher_id: str | None = None, access: tuple[int, 
 
 
 @router.get("/reconciliation")
-def reconciliation(teacher_id: int | None = None, access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def reconciliation(teacher_id: int | None = None, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     sql = """
       SELECT c.*, json_build_object('id',b.id,'title',b.title) AS book
@@ -515,8 +514,8 @@ def record_movement(copy_id: UUID, payload: MovementInput, identity: Identity = 
     copy = _one(db, "SELECT current_holder_type,current_holder_id FROM public.library_book_copies WHERE school_id=:s AND id=:id", s=school_id, id=str(copy_id))
     if not copy:
         raise HTTPException(404, "Book copy not found in the selected school.")
-    teacher_id = identity.role_in(school_id) and _one(db, "SELECT teacher_id FROM public.tt_memberships WHERE user_id=:u AND school_id=:s AND is_active IS TRUE", u=identity.user_id, s=school_id)
-    teacher_id = teacher_id.get("teacher_id") if teacher_id else None
+    membership = _one(db, "SELECT teacher_id FROM public.tt_memberships WHERE user_id=:u AND school_id=:s AND is_active IS TRUE", u=identity.user_id, s=school_id)
+    teacher_id = membership.get("teacher_id") if membership else None
     if role == "teacher" and action in {"issue_to_student", "student_return_to_teacher", "mark_lost"}:
         if not teacher_id:
             raise HTTPException(403, "Your membership is not linked to a teacher record.")
@@ -593,13 +592,13 @@ def record_movement(copy_id: UUID, payload: MovementInput, identity: Identity = 
 
 
 @router.get("/loans")
-def list_loans(access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def list_loans(access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     return _rows(db, "SELECT * FROM public.library_loans WHERE school_id=:s ORDER BY created_at DESC", s=school_id)
 
 
 @router.post("/loans", status_code=201)
-def create_loan(payload: dict[str, Any], access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def create_loan(payload: dict[str, Any], access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     allowed = {"book_id", "borrower_name", "borrower_type", "borrower_id", "loan_date", "due_date", "status", "notes"}
     values = {k: v for k, v in payload.items() if k in allowed}
@@ -614,7 +613,7 @@ def create_loan(payload: dict[str, Any], access: tuple[int, str] = Depends(schoo
 
 
 @router.post("/loans/{loan_id}/return")
-def return_loan(loan_id: int, access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
+def return_loan(loan_id: int, access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     row = _one(db, "SELECT * FROM public.library_loans WHERE school_id=:s AND id=:id", s=school_id, id=loan_id)
     if not row:
