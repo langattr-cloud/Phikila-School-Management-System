@@ -237,24 +237,9 @@ def session(
             for school in rows
         ]
 
-    enabled_modules = sorted(DEFAULT_ENABLED_MODULES)
-    active_school_id = (
-        db.query(TtMembership.school_id)
-        .filter(
-            TtMembership.user_id == identity.user_id,
-            TtMembership.is_active.is_(True),
-        )
-        .order_by(TtMembership.id)
-        .scalar()
-    )
-    if active_school_id is not None:
-        entitlement_rows = (
-            db.query(TtSchoolModuleEntitlement)
-            .filter(TtSchoolModuleEntitlement.school_id == active_school_id)
-            .all()
-        )
-        if entitlement_rows:
-            enabled_modules = sorted(row.module_key for row in entitlement_rows if row.enabled)
+    # Navigation exposes a module when at least one of the caller's schools enables it.
+    # Individual school contexts and APIs still enforce that school's exact entitlement.
+    enabled_modules = sorted({module for school in schools for module in school["modules"]})
     return {
         "user_id": identity.user_id,
         "email": identity.email,
