@@ -72,6 +72,10 @@ export default function LibraryPage() {
   const [issueSubject, setIssueSubject] = useState('')
   const [issueGrade, setIssueGrade] = useState('')
   const [issueBookId, setIssueBookId] = useState('')
+  const [selectedCopyIds, setSelectedCopyIds] = useState<string[]>([])
+  const [rangeFrom, setRangeFrom] = useState('')
+  const [rangeTo, setRangeTo] = useState('')
+  const [typedRange, setTypedRange] = useState('')
   const [action, setAction] = useState('issue_to_teacher')
   const [holderId, setHolderId] = useState('')
   const [toHolderType, setToHolderType] = useState<'library' | 'teacher'>('library')
@@ -191,29 +195,67 @@ export default function LibraryPage() {
 
   const showReceiver = ['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action) || (action === 'reconcile_copy' && toHolderType !== 'library')
 
+  function applyIssueCopyRange(fromLabel: string, toLabel: string) {
+    const from = fromLabel.trim().match(/^(\\d+)\\/(\\d+)$/)
+    const to = toLabel.trim().match(/^(\\d+)\\/(\\d+)$/)
+    if (!from || !to || from[2] !== to[2] || Number(from[1]) > Number(to[1])) {
+      setError('Enter a valid copy range using the same registered total, for example 01/25 to 20/25.')
+      return
+    }
+    const matches = issueBookCopies.filter(copy => {
+      const number = copy.copy_number.match(/^(\\d+)\\/(\\d+)$/)
+      return number && number[2] === from[2] && Number(number[1]) >= Number(from[1]) && Number(number[1]) <= Number(to[1])
+    })
+    setSelectedCopyIds(matches.map(copy => copy.id))
+    setSelectedCopy('')
+    setError(matches.length ? null : 'No available physical copies fall within that range.')
+  }
+
+  function applyTypedIssueCopyRange() {
+    const parts = typedRange.split(/\\s+to\\s+/i)
+    if (parts.length !== 2) {
+      setError('Use the format 01/25 to 20/25.')
+      return
+    }
+    setRangeFrom(parts[0].trim())
+    setRangeTo(parts[1].trim())
+    applyIssueCopyRange(parts[0], parts[1])
+  }
+
   async function submitMovement(event: FormEvent) {
     event.preventDefault()
-    if (!selectedCopy) { setError('Select a physical book copy first.'); return }
+    const copyIds = action === 'issue_to_teacher' ? selectedCopyIds : selectedCopy ? [selectedCopy] : []
+    if (!copyIds.length) { setError(action === 'issue_to_teacher' ? 'Select at least one available physical copy.' : 'Select a physical book copy first.'); return }
     setSaving(true); setError(null)
+    let completed = 0
     try {
-      await libraryFetch<Copy>(`/api/v1/library/copies/${selectedCopy}/movements`, {
-        method: 'POST',
-        body: JSON.stringify({
-          action,
-          to_holder_type: action === 'reconcile_copy' ? toHolderType : null,
-          to_holder_id: showReceiver ? Number(action === 'issue_to_teacher' ? holderId : holderId) : null,
-          to_holder_name: showReceiver ? holderName.trim() : null,
-          condition,
-          due_date: dueDate || null,
-          notes: notes.trim() || null,
-        }),
-      })
-      notify('Book custody movement recorded.', 'success')
-      setHolderId(''); setHolderName(''); setIssueTeacherId(''); setIssueSubject(''); setIssueGrade(''); setIssueBookId(''); setDueDate(''); setNotes('')
+      for (const copyId of copyIds) {
+        await libraryFetch<Copy>(`/api/v1/library/copies/${copyId}/movements`, {
+          method: 'POST',
+          body: JSON.stringify({
+            action,
+            to_holder_type: action === 'reconcile_copy' ? toHolderType : null,
+            to_holder_id: showReceiver ? Number(holderId) : null,
+            to_holder_name: showReceiver ? holderName.trim() : null,
+            condition,
+            due_date: dueDate || null,
+            notes: notes.trim() || null,
+          }),
+        })
+        completed += 1
+      }
+      notify(copyIds.length > 1 ? `${completed} book copies issued to the selected teacher.` : 'Book custody movement recorded.', 'success')
+      setHolderId(''); setHolderName(''); setIssueTeacherId(''); setIssueSubject(''); setIssueGrade(''); setIssueBookId(''); setSelectedCopyIds([]); setRangeFrom(''); setRangeTo(''); setTypedRange(''); setDueDate(''); setNotes('')
       await load()
-      const history = await libraryFetch<Movement[]>(`/api/v1/library/copies/${selectedCopy}/movements`)
+      const historyCopyId = copyIds[copyIds.length - 1]
+      setSelectedCopy(historyCopyId)
+      const history = await libraryFetch<Movement[]>(`/api/v1/library/copies/${historyCopyId}/movements`)
       setMovements(history)
-    } catch (err) { setError(friendlyApiError(err, 'record this book movement')) }
+    } catch (err) {
+      const detail = friendlyApiError(err, 'record this book movement')
+      setError(completed ? `${completed} of ${copyIds.length} copies were recorded before the next copy failed. ${detail} Refresh the register and review the recorded copies before retrying.` : detail)
+      if (completed) await load()
+    }
     finally { setSaving(false) }
   }
 
@@ -390,8 +432,20 @@ export default function LibraryPage() {
             <label className="field"><span className="field__label">Teacher</span><select className="input" required value={issueTeacherId} onChange={e => { const value = e.target.value; const teacher = issueTeachers.find(item => String(item.id) === value); setIssueTeacherId(value); setHolderId(value); setHolderName(teacher?.name ?? ''); setIssueSubject(''); setIssueGrade(''); setIssueBookId(''); setSelectedCopy('') }}><option value="">Select teacher…</option>{issueTeachers.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
             <label className="field"><span className="field__label">Subject assigned to teacher</span><select className="input" required value={issueSubject} onChange={e => { setIssueSubject(e.target.value); setIssueGrade(''); setIssueBookId(''); setSelectedCopy('') }} disabled={!issueTeacherId}><option value="">Select subject…</option>{issueSubjects.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label>
             <label className="field"><span className="field__label">Grade</span><select className="input" required value={issueGrade} onChange={e => { setIssueGrade(e.target.value); setIssueBookId(''); setSelectedCopy('') }} disabled={!issueSubject}><option value="">Select grade…</option>{issueGrades.map(grade => <option key={grade} value={grade}>{grade}</option>)}</select></label>
-            <label className="field"><span className="field__label">Registered book title</span><select className="input" required value={issueBookId} onChange={e => { setIssueBookId(e.target.value); setSelectedCopy('') }} disabled={!issueGrade}><option value="">Select available title…</option>{issueBooks.map(book => <option key={book.id} value={book.id}>{book.title}</option>)}</select>{issueGrade && issueBooks.length === 0 && <small style={{ color: 'var(--color-ink-muted)' }}>No registered titles for this grade and subject currently have available copies.</small>}</label>
-            <label className="field"><span className="field__label">Available physical copy number</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)} disabled={!issueBookId}><option value="">Select copy number…</option>{issueBookCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.copy_number}</option>)}</select></label>
+            <label className="field"><span className="field__label">Registered book title</span><select className="input" required value={issueBookId} onChange={e => { setIssueBookId(e.target.value); setSelectedCopy(''); setSelectedCopyIds([]); setRangeFrom(''); setRangeTo(''); setTypedRange('') }} disabled={!issueGrade}><option value="">Select available title…</option>{issueBooks.map(book => <option key={book.id} value={book.id}>{book.title}</option>)}</select>{issueGrade && issueBooks.length === 0 && <small style={{ color: 'var(--color-ink-muted)' }}>No registered titles for this grade and subject currently have available copies.</small>}</label>
+            <div className="field" style={{ gridColumn: '1 / -1' }}>
+              <span className="field__label">Select available physical copies</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(8rem,1fr))', gap: 'var(--space-2)', marginTop: '.35rem' }}>
+                <label className="field"><span className="field__label">From copy</span><select className="input" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} disabled={!issueBookId}><option value="">Start…</option>{issueBookCopies.map(copy => <option key={copy.id} value={copy.copy_number}>{copy.copy_number}</option>)}</select></label>
+                <label className="field"><span className="field__label">To copy</span><select className="input" value={rangeTo} onChange={e => setRangeTo(e.target.value)} disabled={!issueBookId}><option value="">End…</option>{issueBookCopies.map(copy => <option key={copy.id} value={copy.copy_number}>{copy.copy_number}</option>)}</select></label>
+                <div style={{ display: 'flex', alignItems: 'end' }}><button className="button button--secondary button--sm" type="button" onClick={() => applyIssueCopyRange(rangeFrom, rangeTo)} disabled={!rangeFrom || !rangeTo}>Apply range</button></div>
+              </div>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}><input className="input" aria-label="Type a copy range" value={typedRange} onChange={e => setTypedRange(e.target.value)} placeholder="01/25 to 20/25" disabled={!issueBookId} /><button className="button button--secondary button--sm" type="button" onClick={applyTypedIssueCopyRange} disabled={!typedRange.trim()}>Apply typed range</button></div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+                {issueBookCopies.map(copy => <label key={copy.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '.35rem', border: '1px solid var(--color-line)', borderRadius: '999px', padding: '.35rem .65rem', background: selectedCopyIds.includes(copy.id) ? 'var(--color-surface-muted)' : 'transparent' }}><input type="checkbox" checked={selectedCopyIds.includes(copy.id)} onChange={event => setSelectedCopyIds(current => event.target.checked ? [...current, copy.id] : current.filter(id => id !== copy.id))} />{copy.copy_number}</label>)}
+              </div>
+              <small style={{ color: 'var(--color-ink-muted)' }}>{selectedCopyIds.length} of {issueBookCopies.length} available copies selected. Individual copies can also be checked or unchecked.</small>
+            </div>
           </> : <label className="field"><span className="field__label">Physical book copy</span><select className="input" required value={selectedCopy} onChange={e => setSelectedCopy(e.target.value)}><option value="">Select copy…</option>{eligibleCopies.map(copy => <option key={copy.id} value={copy.id}>{copy.book?.title ?? `Book #${copy.book_id}`} · {copy.copy_number} · {copy.current_holder_name ?? 'Library'}</option>)}</select></label>}
           {action === 'reconcile_copy' && <label className="field"><span className="field__label">Verified physical holder</span><select className="input" value={toHolderType} onChange={e => setToHolderType(e.target.value as 'library' | 'teacher')}><option value="library">Returned to library</option><option value="teacher">With a teacher</option></select></label>}
           
@@ -403,7 +457,7 @@ export default function LibraryPage() {
           <label className="field"><span className="field__label">Condition at hand-off</span><select className="input" value={condition} onChange={e => setCondition(e.target.value as 'good' | 'damaged')}><option value="good">Good</option><option value="damaged">Damaged</option></select></label>
           <label className="field"><span className="field__label">Due date (optional)</span><input className="input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span className="field__label">Notes (optional)</span><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={action === 'exclude_before_issue' || action === 'restore_excluded_copy' ? 'Required reason for this register change…' : 'Class, subject, condition notes…'} /></label>
-          <div><button className="button button--primary" type="submit" disabled={saving || (action === 'issue_to_teacher' ? (!selectedCopy || !issueTeacherId || !issueSubject || !issueGrade || !issueBookId) : eligibleCopies.length === 0)}>{saving ? 'Saving…' : 'Record hand-off'}</button></div>
+          <div><button className="button button--primary" type="submit" disabled={saving || (action === 'issue_to_teacher' ? (!selectedCopyIds.length || !issueTeacherId || !issueSubject || !issueGrade || !issueBookId) : (!selectedCopy || eligibleCopies.length === 0))}>{saving ? 'Saving…' : 'Record hand-off'}</button></div>
         </form>
         {eligibleCopies.length === 0 && <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>No copies currently qualify for this movement.</p>}
       </section>
