@@ -25,10 +25,18 @@ function actorId(user: { id: string } | null): string | null {
 async function requireLibraryRole(c: any, allowed: string[]) {
   const { error, user } = requireAuth(c as never)
   if (error || !user) return { error: error ?? c.json({ detail: 'Not authenticated.' }, 401), user: null, membership: null }
-  const { data, error: membershipError } = await db().from('tt_memberships')
-    .select('role,teacher_id,school_id').eq('user_id', user.id).eq('is_active', true)
-  if (membershipError) return { error: c.json({ detail: 'Library role could not be verified.' }, 503), user, membership: null }
-  const eligible = (data ?? []).filter((item: any) => allowed.includes(String(item.role ?? '').toLowerCase()))
+
+  const client = db()
+  const [membershipResult, adminResult] = await Promise.all([
+    client.from('tt_memberships').select('role,teacher_id,school_id').eq('user_id', user.id).eq('is_active', true),
+    client.from('tt_platform_admins').select('id').eq('user_id', user.id).eq('is_active', true).maybeSingle(),
+  ])
+  if (membershipResult.error || adminResult.error) {
+    return { error: c.json({ detail: 'Library role could not be verified.' }, 503), user, membership: null }
+  }
+
+  const isPlatformAdmin = Boolean(adminResult.data)
+  const eligible = (membershipResult.data ?? []).filter((item: any) => allowed.includes(String(item.role ?? '').toLowerCase()))
   const requestedSchool = c.req.header('X-School-Id')
   let membership: any = null
   if (requestedSchool) {
@@ -37,6 +45,12 @@ async function requireLibraryRole(c: any, allowed: string[]) {
       return { error: c.json({ detail: 'Invalid X-School-Id header.' }, 400), user, membership: null }
     }
     membership = eligible.find((item: any) => Number(item.school_id) === schoolId) ?? null
+    if (!membership && isPlatformAdmin) {
+      const { data: school, error: schoolError } = await client.from('tt_schools')
+        .select('id').eq('id', schoolId).eq('status', 'active').maybeSingle()
+      if (schoolError) return { error: c.json({ detail: 'School workspace could not be verified.' }, 503), user, membership: null }
+      if (school) membership = { school_id: schoolId, role: 'super_admin', teacher_id: null }
+    }
   } else {
     const schoolIds = [...new Set(eligible.map((item: any) => Number(item.school_id)).filter((id: number) => Number.isSafeInteger(id) && id > 0))]
     if (schoolIds.length > 1) {
@@ -47,7 +61,7 @@ async function requireLibraryRole(c: any, allowed: string[]) {
   if (!membership) return { error: c.json({ detail: 'An authorized school Library role is required.' }, 403), user, membership: null }
   const schoolId = Number(membership.school_id)
   if (!Number.isSafeInteger(schoolId) || schoolId <= 0) {
-    return { error: c.json({ detail: 'The selected school membership is invalid.' }, 403), user, membership: null }
+    return { error: c.json({ detail: 'The selected school is invalid.' }, 403), user, membership: null }
   }
   return { error: null, user, membership }
 }
