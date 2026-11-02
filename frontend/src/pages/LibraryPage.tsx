@@ -40,7 +40,7 @@ const statusLabel = (status: Copy['status']) => ({ available: 'In library', with
 
 export default function LibraryPage() {
   const { notify } = useToast()
-  const { session: platformSession, loading: platformSessionLoading, reload: reloadPlatformSession } = usePlatformSession()
+  const { session: platformSession, loading: platformSessionLoading, error: platformSessionError, reload: reloadPlatformSession } = usePlatformSession()
   const librarySchools = useMemo(() => (platformSession?.schools ?? []).filter(school => school.modules?.includes('library')), [platformSession?.schools])
   const [selectedSchoolId, setSelectedSchoolId] = useState('')
   // Never infer a school, even when the account currently has only one.
@@ -258,7 +258,9 @@ export default function LibraryPage() {
   if (!activeSchoolId) return <div className="library-page">
     <PageHeader title="Library & Book Custody" description="Choose the school whose Library register you want to open." />
     {platformSessionLoading ? <LoadingBlock label="Checking your school access" rows={2} /> : <>
-      {librarySchools.length
+      {platformSessionError
+        ? <section className="card section"><Alert tone="error">{platformSessionError} The preview API must be connected to the matching feature-branch backend before school entitlements can load.</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
+        : librarySchools.length
         ? <section className="card section">
             <label className="field">
               <span className="field__label">School</span>
