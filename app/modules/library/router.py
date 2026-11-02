@@ -68,15 +68,13 @@ def _school_access_dependency(allowed_roles: set[str]):
         entitlement_rows = db.query(TtSchoolModuleEntitlement).filter(
             TtSchoolModuleEntitlement.school_id == school_id
         ).all()
-        if identity.is_super_admin:
-            # Platform administrators can open Library for any active school;
-            # the selected school_id still scopes every read and write.
-            library_enabled = True
-        elif entitlement_rows:
-            library_enabled = any(row.module_key == "library" and row.enabled for row in entitlement_rows)
-        else:
-            # Preserve the configured starter-module defaults until a super admin saves entitlements.
-            library_enabled = "library" in DEFAULT_ENABLED_MODULES
+        # Platform-level authority does not automatically grant a school the
+        # Library module. A school register is available only after an explicit
+        # Library entitlement has been saved by a platform administrator.
+        library_enabled = any(
+            row.module_key == "library" and row.enabled
+            for row in entitlement_rows
+        )
         if not library_enabled:
             raise HTTPException(403, {"code": "module_not_enabled", "module": "library", "message": "Library is not enabled for this school. Contact your platform administrator."})
         return school_id, role
