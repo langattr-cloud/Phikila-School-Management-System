@@ -353,7 +353,9 @@ export default function LibraryPage() {
                 <p style={{ color: 'var(--color-ink-muted)' }}>{school.total_titles} titles · {school.total_copies} physical copies</p>
                 <p style={{ marginBottom: 'var(--space-3)' }}>Available: {school.available_copies} · With teachers: {school.with_teachers} · With students: {school.with_students}</p>
                 <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                  <button className="button button--primary button--sm" type="button" onClick={() => { setSelectedSchoolId(String(school.school_id)); setError(null); setBooks([]); setCopies([]); setMovements([]); setStats(null); setTeacherAccountability(null); setReconciliation(null); setTimetable(null); setTeacherDirectory([]); setStudentDirectory([]); setStudentAllocations([]); setSelectedCopy('') }}>Open Library register</button>
+                  {school.library_enabled
+                    ? <button className="button button--primary button--sm" type="button" onClick={() => { setSelectedSchoolId(String(school.school_id)); setError(null); setBooks([]); setCopies([]); setMovements([]); setStats(null); setTeacherAccountability(null); setReconciliation(null); setTimetable(null); setTeacherDirectory([]); setStudentDirectory([]); setStudentAllocations([]); setSelectedCopy('') }}>Open Library register</button>
+                    : <span className="text-muted" style={{ alignSelf: 'center', fontSize: '.85rem' }}>Enable Library access to open this register.</span>}
                   <a className="button button--secondary button--sm" href={`/platform/modules?school_id=${school.school_id}`}>Manage access</a>
                 </div>
               </article>)}
