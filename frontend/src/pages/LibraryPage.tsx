@@ -9,7 +9,7 @@ type Copy = { id: string; book_id: number; copy_number: string; status: 'availab
 type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; excluded_copies: number; unreconciled_copies: number }
 type Timetable = { data?: { lessons?: Array<{ className: string; subject: string; teacher: string }>; classDetails?: Record<string, { grade?: string }> } | null }
 type Teacher = { id: number; name: string }
-type Allocation = { copy_id: string; copy_number: string; book_title: string; accountable_teacher_name: string; student_name: string; student_admission_number: string | null; student_class: string | null; student_issue_at: string | null }
+type Allocation = { copy_id: string; copy_number: string; book_title: string; accountable_teacher_name: string; student_name: string; student_admission_number: string | null; student_class: string | null; student_issue_at: string | null; status?: string }
 
 const panelStyle: React.CSSProperties = { background: '#fff', borderRadius: 22, padding: 24, boxShadow: '0 12px 32px rgba(35, 20, 75, .08)', border: '1px solid rgba(20,20,40,.06)' }
 const fieldStyle: React.CSSProperties = { width: '100%', border: '2px solid #d9d5e8', borderRadius: 12, padding: '11px 13px', background: '#fff', color: '#202044', minWidth: 0 }
@@ -24,6 +24,8 @@ export default function LibraryPage() {
   const [timetable, setTimetable] = useState<Timetable['data']>(null)
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [allocations, setAllocations] = useState<Allocation[]>([])
+  const [loadWarnings, setLoadWarnings] = useState<string[]>([])
+  const [dueDate, setDueDate] = useState('')
   const [selectedTeacherId, setSelectedTeacherId] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('')
   const [selectedGrade, setSelectedGrade] = useState('')
@@ -54,10 +56,14 @@ export default function LibraryPage() {
         apiFetch<Teacher[]>('/api/v1/teachers/'),
         apiFetch<{ items: Allocation[] }>('/api/v1/library/student-allocations'),
       ])
-      setTimetable(workspace.status === 'fulfilled' ? workspace.value.data ?? null : null)
-      setTeachers(directory.status === 'fulfilled' ? directory.value : [])
-      setAllocations(studentRows.status === 'fulfilled' ? studentRows.value.items ?? [] : [])
-      if (studentRows.status === 'rejected') setAllocations([])
+      const warnings: string[] = []
+      if (workspace.status === 'fulfilled') setTimetable(workspace.value.data ?? null)
+      else { setTimetable(null); warnings.push('Timetable data could not be loaded. Teacher, subject and grade choices may be incomplete.') }
+      if (directory.status === 'fulfilled') setTeachers(directory.value)
+      else { setTeachers([]); warnings.push('Teacher directory could not be loaded. Issuing to teachers is unavailable until it recovers.') }
+      if (studentRows.status === 'fulfilled') setAllocations(studentRows.value.items ?? [])
+      else { setAllocations([]); warnings.push('Student allocation records could not be loaded. The student list is not being treated as empty inventory.') }
+      setLoadWarnings(warnings)
     } catch (err) {
       setError(friendlyApiError(err, 'load the Library dashboard'))
     } finally {
@@ -125,6 +131,7 @@ export default function LibraryPage() {
     setError(null)
     let issued = 0
     const failures: string[] = []
+    const failedCopyIds: string[] = []
     for (const copyId of selectedCopyIds) {
       try {
         await apiFetch<Copy>(`/api/v1/library/copies/${copyId}/movements`, {
@@ -134,23 +141,35 @@ export default function LibraryPage() {
             to_holder_id: selectedTeacher.id,
             to_holder_name: selectedTeacher.name,
             condition: 'good',
-            due_date: null,
+            due_date: dueDate || null,
             notes: `Issued from Library dashboard · ${selectedBook.title}`,
           }),
         })
         issued += 1
       } catch (err) {
+        failedCopyIds.push(copyId)
         failures.push(friendlyApiError(err, `issue copy ${copies.find(copy => copy.id === copyId)?.copy_number ?? copyId}`))
       }
     }
     await load()
-    setSelectedCopyIds([])
-    setRangeFrom('')
-    setRangeTo('')
-    setTypedRange('')
+    setSelectedCopyIds(failedCopyIds)
+    if (!failedCopyIds.length) { setRangeFrom(''); setRangeTo(''); setTypedRange(''); setDueDate('') }
     if (issued) notify(`${issued} physical book copy/copies issued to ${selectedTeacher.name}.`, 'success')
-    if (failures.length) setError(`${issued} issued successfully; ${failures.length} failed. ${failures[0]}`)
+    if (failures.length) setError(`${issued} issued successfully; ${failures.length} failed. Failed copies remain selected for review. ${failures[0]}`)
     setSaving(false)
+  }
+
+  async function returnToLibrary(copy: Copy) {
+    if (saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      await apiFetch(`/api/v1/library/copies/${copy.id}/movements`, { method: 'POST', body: JSON.stringify({ action: 'teacher_return_to_library', condition: copy.condition || 'good', notes: 'Return accepted by Library.' }) })
+      notify(`Copy ${copy.copy_number} returned to the Library.`, 'success')
+      await load()
+    } catch (err) {
+      setError(friendlyApiError(err, `return copy ${copy.copy_number} to the Library`))
+    } finally { setSaving(false) }
   }
 
   return <div style={{ minHeight: '100%', background: '#f7f3ff', padding: 'clamp(14px,2.5vw,28px)', borderRadius: 18 }}>
@@ -167,6 +186,7 @@ export default function LibraryPage() {
     </div>
 
     {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
+    {loadWarnings.length > 0 && !loading && <div style={{ marginBottom: 18 }}><Alert tone="warning">{loadWarnings.join(' ')}</Alert></div>}
     {loading ? <LoadingBlock label="Loading Library records" rows={5} /> : <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 12, marginBottom: 22 }}>
         {[
@@ -193,6 +213,7 @@ export default function LibraryPage() {
             <label><span style={labelStyle}>Grade</span><select style={fieldStyle} value={selectedGrade} onChange={e => { setSelectedGrade(e.target.value); setSelectedBookId(''); setSelectedCopyIds([]) }} disabled={!selectedSubject}><option value="">Select grade…</option>{gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}</select></label>
             <label><span style={labelStyle}>Book title</span><select style={{ ...fieldStyle, borderColor: '#fb923c', background: '#fff7ed' }} value={selectedBookId} onChange={e => { setSelectedBookId(e.target.value); setSelectedCopyIds([]); setRangeFrom(''); setRangeTo('') }} disabled={!selectedGrade}><option value="">Select registered title…</option>{bookOptions.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select>{selectedGrade && bookOptions.length === 0 && <small style={{ color: '#777' }}>No registered titles match this grade and subject.</small>}</label>
 
+            <label><span style={labelStyle}>Due date (optional)</span><input type="date" style={fieldStyle} value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
             <div style={{ background: '#f8f5ff', border: '1px solid #e9ddff', borderRadius: 16, padding: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 900, color: '#5b21b6' }}>1. Select a physical copy range · 2. Or type a range</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, marginTop: 12, alignItems: 'end' }}>
@@ -234,7 +255,7 @@ export default function LibraryPage() {
                   <td style={{ padding: 11 }}>{row.student_name}</td>
                   <td style={{ padding: 11 }}>{row.student_class ?? '—'}</td>
                   <td style={{ padding: 11, fontWeight: 800 }}>{row.copy_number}</td>
-                  <td style={{ padding: 11 }}><span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 999, padding: '5px 9px', fontWeight: 800, fontSize: 11 }}>On Loan</span></td>
+                  <td style={{ padding: 11 }}><span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 999, padding: '5px 9px', fontWeight: 800, fontSize: 11 }}>{row.status === 'with_student' ? 'With student' : row.status ?? 'Current custody'}</span></td>
                 </tr>)}
                 {!visibleAllocations.length && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#777' }}>No student-held copies are currently recorded for this selection.</td></tr>}
               </tbody>
@@ -256,8 +277,8 @@ export default function LibraryPage() {
         </div>
         <div style={{ overflowX: 'auto', marginTop: 14 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620, fontSize: 13 }}>
-            <thead><tr style={{ textAlign: 'left', color: '#66647a', borderBottom: '2px solid #eceaf1' }}>{['Book title','Copy no.','Status','Current holder','Condition'].map(label => <th key={label} style={{ padding: 10 }}>{label}</th>)}</tr></thead>
-            <tbody>{copies.map(copy => <tr key={copy.id} style={{ borderBottom: '1px solid #eceaf1' }}><td style={{ padding: 10 }}>{copy.book?.title ?? books.find(b => b.id === copy.book_id)?.title ?? `Book #${copy.book_id}`}</td><td style={{ padding: 10, fontWeight: 800 }}>{copy.copy_number}</td><td style={{ padding: 10 }}>{({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs verification', excluded: 'Excluded' } as Record<string,string>)[copy.status] ?? copy.status}</td><td style={{ padding: 10 }}>{copy.current_holder_name ?? 'Library'}</td><td style={{ padding: 10 }}>{copy.condition}</td></tr>)}</tbody>
+            <thead><tr style={{ textAlign: 'left', color: '#66647a', borderBottom: '2px solid #eceaf1' }}>{['Book title','Copy no.','Status','Current holder','Condition','Action'].map(label => <th key={label} style={{ padding: 10 }}>{label}</th>)}</tr></thead>
+            <tbody>{copies.map(copy => <tr key={copy.id} style={{ borderBottom: '1px solid #eceaf1' }}><td style={{ padding: 10 }}>{copy.book?.title ?? books.find(b => b.id === copy.book_id)?.title ?? `Book #${copy.book_id}`}</td><td style={{ padding: 10, fontWeight: 800 }}>{copy.copy_number}</td><td style={{ padding: 10 }}>{({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs verification', excluded: 'Excluded' } as Record<string,string>)[copy.status] ?? copy.status}</td><td style={{ padding: 10 }}>{copy.current_holder_name ?? 'Library'}</td><td style={{ padding: 10 }}>{copy.condition}</td><td style={{ padding: 10 }}>{copy.status === 'with_teacher' && <button type="button" disabled={saving} onClick={() => void returnToLibrary(copy)} style={{ ...gradientButton, padding: '7px 11px', fontSize: 11, opacity: saving ? .55 : 1 }}>Accept return</button>}</td></tr>)}</tbody>
           </table>
           {!copies.length && <p style={{ color: '#777', padding: 16 }}>No physical copies have been registered.</p>}
         </div>
