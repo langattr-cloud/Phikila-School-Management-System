@@ -17,6 +17,7 @@ const PLATFORM_NAV: NavGroup = {
     { to: '/platform', label: 'Dashboard', icon: <DashboardIcon /> },
     { to: '/platform/schools', label: 'Schools', icon: <SchoolIcon /> },
     { to: '/platform/modules', label: 'School module access', icon: <GridIcon /> },
+    { to: '/platform/library', label: 'Library overview', icon: <LayersIcon /> },
     { to: '/platform/requests', label: 'Access requests', icon: <InboxIcon /> },
     { to: '/platform/admins', label: 'Platform administrators', icon: <UserIcon /> },
     { to: '/platform/audit', label: 'Audit trail', icon: <LayersIcon /> },
