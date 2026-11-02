@@ -605,14 +605,21 @@ def create_loan(payload: dict[str, Any], access: tuple[int, str] = Depends(libra
     school_id, _ = access
     allowed = {"book_id", "borrower_name", "borrower_type", "borrower_id", "loan_date", "due_date", "status", "notes"}
     values = {k: v for k, v in payload.items() if k in allowed}
-    if not values.get("book_id"):
-        raise HTTPException(400, "book_id is required.")
+    if not values.get("book_id") or not str(values.get("borrower_name") or "").strip():
+        raise HTTPException(400, "book_id and borrower_name are required.")
+    book = _one(db, "SELECT id FROM public.library_books WHERE id=:id AND school_id=:s", id=values["book_id"], s=school_id)
+    if not book:
+        raise HTTPException(404, "Book not found in the selected school.")
     values["school_id"] = school_id
     columns = list(values)
     binds = ", ".join(f":{k}" for k in columns)
-    row = _one(db, f"INSERT INTO public.library_loans ({','.join(columns)}) VALUES ({binds}) RETURNING *", **values)
-    _commit(db)
-    return row
+    try:
+        row = _one(db, f"INSERT INTO public.library_loans ({','.join(columns)}) VALUES ({binds}) RETURNING *", **values)
+        _commit(db)
+        return row
+    except Exception as exc:
+        db.rollback()
+        raise _db_error(exc)
 
 
 @router.post("/loans/{loan_id}/return")
