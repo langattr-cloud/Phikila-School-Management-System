@@ -5,6 +5,14 @@
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
+      "source": "/api/v1/platform/:path*",
+      "destination": "/api/index?__path=/api/v1/platform/:path*"
+    },
+    {
+      "source": "/api/v1/library/:path*",
+      "destination": "/api/index?__path=/api/v1/library/:path*"
+    },
+    {
       "source": "/api/v1/school/",
       "destination": "https://phikila-school-management-system.onrender.com/api/v1/school/"
     },

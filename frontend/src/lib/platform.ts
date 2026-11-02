@@ -9,7 +9,7 @@ export type SessionInfo = {
   email: string | null
   is_super_admin: boolean
   enabled_modules: string[]
-  schools: { id: number; name: string; role: string }[]
+  schools: { id: number; name: string; role: string; modules?: string[] }[]
   has_access: boolean
   access_request: {
     status: 'pending' | 'approved' | 'rejected'
@@ -66,6 +66,8 @@ export type PlatformAdmin = {
 
 export type SchoolModule = { key: string; label: string; description: string; enabled: boolean }
 export type SchoolModuleAccess = { school_id: number; school_name: string; modules: SchoolModule[] }
+
+export type TeacherOption = { id: number; name: string; staff_number?: string | null }
 
 export type SchoolUser = {
   user_id: string
@@ -170,8 +172,9 @@ export const platform = {
   setSchoolStatus: (id: number, active: boolean) =>
     send<School>(`${PLATFORM}/schools/${id}/status?active=${active}`, 'POST'),
   schoolUsers: (id: number) => get<SchoolUser[]>(`${PLATFORM}/schools/${id}/users`),
+  schoolTeachers: (schoolId: number) => get<TeacherOption[]>(`${PLATFORM}/schools/${schoolId}/teacher-profiles`),
   addAdministrator: (id: number, email: string, phone: string, role: string) =>
-    send<{ user_id: string; email: string; phone: string; role: string; is_active: boolean; invited: boolean; created_account: boolean; existing_account: boolean; password_reset: boolean; temporary_password: string | null }>(
+    send<{ user_id: string; email: string; phone: string | null; role: string; is_active: boolean; invited: boolean; created_account: boolean; existing_account: boolean; password_reset: boolean; temporary_password: string | null }>(
       `${PLATFORM}/schools/${id}/administrators`,
       'POST',
       { email, phone, role, delivery_method: 'temporary_password' },
@@ -187,7 +190,7 @@ export const platform = {
     get<AccessRequest[]>(`${PLATFORM}/access-requests?status=${status}`),
   decideRequest: (
     id: number,
-    payload: { approve: boolean; role?: string; school_id?: number; note?: string },
+    payload: { approve: boolean; role?: string; school_id?: number; teacher_id?: number; note?: string },
   ) => send<{ status: string }>(`${PLATFORM}/access-requests/${id}/decide`, 'POST', payload),
 
   admins: () => get<PlatformAdmin[]>(`${PLATFORM}/administrators`),

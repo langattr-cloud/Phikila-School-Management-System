@@ -29,7 +29,7 @@ const NAV: NavGroup[] = [
   { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon /> }] },
   { label: 'School setup', items: [{ to: '/setup/school', label: 'School profile', icon: <SchoolIcon /> }, { to: '/setup/academic-years', label: 'Academic years', icon: <LayersIcon /> }, { to: '/setup/academic-setup', label: 'Level, Grade & Stream', icon: <LayersIcon /> }, { to: '/setup/school-structure', label: 'School structure', icon: <StackedLayersIcon /> }] },
   { label: 'People', items: [{ to: '/students', label: 'Students', icon: <UserIcon /> }, { to: '/setup/teachers', label: 'Teachers & classes', icon: <UserIcon /> }] },
-  { label: 'Operations', items: [{ to: '/timetable', label: 'Timetable', icon: <GridIcon /> }, { to: '/finance', label: 'Finance', icon: <GridIcon /> }] },
+  { label: 'Operations', items: [{ to: '/timetable', label: 'Timetable', icon: <GridIcon /> }, { to: '/finance', label: 'Finance', icon: <FinanceModuleIcon /> }, { to: '/library', label: 'Library', icon: <LayersIcon /> }] },
   { label: 'Examination', items: [{ to: '/examinations', label: 'Examination', icon: <StackedLayersIcon /> }] },
   { label: 'Tools & insights', items: [{ to: '/ocr', label: 'Document Scanner', icon: <LayersIcon /> }] },
 ]
@@ -39,6 +39,14 @@ const BOTTOM_NAV: NavItem[] = [
   { to: '/students', label: 'Students', icon: <UserIcon /> },
   { to: '/setup/academic-years', label: 'Academics', icon: <LayersIcon /> },
 ]
+
+function FinanceModuleIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="2.5" y="3" width="19" height="18" rx="4" fill="#2563eb" />
+    <path d="M6 16.5h2.5V12H6v4.5Zm4.75 0h2.5V8h-2.5v8.5Zm4.75 0H18V5.5h-2.5v11Z" fill="#fff" />
+    <path d="M5.5 18.5h13" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+}
 
 function isActive(pathname: string, to: string) {
   const current = normalisePath(pathname)
@@ -50,8 +58,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { notify } = useToast()
-  const { session: platformSession } = usePlatformSession()
+  const { session: platformSession, error: platformSessionError } = usePlatformSession()
   const isSuperAdmin = platformSession?.is_super_admin ?? false
+  // Keep the platform entry discoverable during a session-check outage. This is navigation only;
+  // every platform API remains protected by the backend's require_super_admin dependency.
+  const showPlatformNavigation = isSuperAdmin || Boolean(platformSessionError)
   const enabledModules = platformSession?.enabled_modules
   const moduleForPath = (to: string): string | null => {
     if (to.startsWith('/platform/')) return null
@@ -59,13 +70,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (to.startsWith('/setup/teachers')) return 'staff'
     if (to.startsWith('/examinations')) return 'examinations'
     if (to.startsWith('/finance')) return 'finance'
+    if (to.startsWith('/library')) return 'library'
     if (to.startsWith('/ocr')) return 'ai_tools'
     if (['/setup/academic-years', '/setup/levels', '/setup/grades', '/setup/streams', '/setup/academic-setup', '/setup/school-structure', '/setup/subjects'].includes(to)) return 'students'
     return null
   }
-  const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
-  const groups = isSuperAdmin ? [PLATFORM_NAV, ...filteredNav] : filteredNav
-  const bottomNav = BOTTOM_NAV.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) })
+  const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { const module = moduleForPath(item.to); return isSuperAdmin || !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
+  const groups = showPlatformNavigation ? [PLATFORM_NAV, ...filteredNav] : filteredNav
+  const bottomNav = BOTTOM_NAV.filter(item => { const module = moduleForPath(item.to); return isSuperAdmin || !enabledModules || !module || enabledModules.includes(module) })
   const accountName = displayName(user)
   const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'
   const [drawerOpen, setDrawerOpen] = useState(false)

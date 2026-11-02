@@ -53,13 +53,15 @@ export function PlatformSessionProvider({ children }: { children: ReactNode }) {
       .then((data) => {
         if (active) setSession(data)
       })
-      .catch(() => {
-        // AccessGate deliberately fails open here. API endpoints still enforce
-        // authorization server-side, so a temporary access-check failure must
-        // never trap the entire application on a blank/loading screen.
+      .catch((cause: unknown) => {
+        // Preserve the API's actionable configuration/network message. API
+        // endpoints still enforce authorization server-side, so a temporary
+        // access-check failure must never trap the application on a blank screen.
         if (active) {
           setSession(null)
-          setError('We could not confirm your account access.')
+          setError(cause instanceof Error && cause.message
+            ? cause.message
+            : 'We could not verify your account with the platform API. Check the API connection and retry.')
         }
       })
       .finally(() => {

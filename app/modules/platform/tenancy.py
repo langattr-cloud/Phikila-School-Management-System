@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import Base, get_db
 from app.modules.authentication.supabase import get_supabase_claims
 
-ROLE_ORDER = ["viewer", "student", "teacher", "scheduler", "admin", "super_admin"]
+ROLE_ORDER = ["viewer", "student", "librarian", "teacher", "scheduler", "admin", "super_admin"]
 
 class TtSchool(Base):
     __tablename__ = "tt_schools"

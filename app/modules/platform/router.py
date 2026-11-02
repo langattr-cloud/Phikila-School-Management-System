@@ -22,7 +22,7 @@ from app.core.database import get_db
 from app.config import settings
 from app.modules.email.service import email_service
 from app.modules.academics.models import SchoolClass
-from app.modules.teachers.models import Teacher
+from app.modules.subjects.timetable_profiles import TimetableTeacherProfile
 from app.modules.platform.tenancy import ROLE_ORDER, TtMembership, TtSchool
 
 from .authz import (
@@ -33,15 +33,15 @@ from .authz import (
     resolve_identity,
 )
 from .models import TtAccessRequest, TtPlatformAdmin, TtPlatformAudit
-from .entitlements import DEFAULT_ENABLED_MODULES, TtSchoolModuleEntitlement
+from .entitlements import DEFAULT_ENABLED_MODULES, MODULES, TtSchoolModuleEntitlement
 
 router = APIRouter()
 
 # Roles a super admin may grant inside a school. "super_admin" is deliberately
 # absent: platform authority is granted through its own dedicated endpoint.
-GRANTABLE_ROLES = ["viewer", "student", "teacher", "scheduler", "admin"]
+GRANTABLE_ROLES = ["viewer", "student", "librarian", "teacher", "scheduler", "admin"]
 # Roles an applicant may ask for at signup.
-REQUESTABLE_ROLES = ["teacher", "scheduler", "admin", "student", "viewer"]
+REQUESTABLE_ROLES = ["teacher", "librarian", "scheduler", "admin", "student", "viewer"]
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +129,7 @@ class DecisionIn(BaseModel):
     # What the super admin actually grants; may differ from the request.
     role: str | None = None
     school_id: int | None = None
+    teacher_id: int | None = Field(default=None, gt=0)
     note: str | None = Field(default=None, max_length=500)
 
     @field_validator("role")
@@ -203,35 +204,44 @@ def session(
             identity.memberships[granted_school.id] = granted_role
 
     schools = []
-    if identity.memberships:
-        rows = (
-            db.query(TtSchool)
-            .filter(TtSchool.id.in_(list(identity.memberships)))
-            .all()
-        )
-        schools = [
-            {"id": s.id, "name": s.name, "role": identity.memberships.get(s.id)}
-            for s in rows
-        ]
-
-    enabled_modules = sorted(DEFAULT_ENABLED_MODULES)
-    active_school_id = (
-        db.query(TtMembership.school_id)
-        .filter(
-            TtMembership.user_id == identity.user_id,
-            TtMembership.is_active.is_(True),
-        )
-        .order_by(TtMembership.id)
-        .scalar()
-    )
-    if active_school_id is not None:
+    # Platform administrators administer the platform, not just schools where
+    # they also hold an ordinary school membership. Give them visibility of all
+    # active schools and their configured modules; regular users remain scoped
+    # strictly to their active memberships.
+    visible_school_ids = None if identity.is_super_admin else list(identity.memberships)
+    if identity.is_super_admin or identity.memberships:
+        school_query = db.query(TtSchool).filter(TtSchool.status == "active")
+        if visible_school_ids is not None:
+            school_query = school_query.filter(TtSchool.id.in_(visible_school_ids))
+        rows = school_query.all()
+        school_ids = [school.id for school in rows]
         entitlement_rows = (
             db.query(TtSchoolModuleEntitlement)
-            .filter(TtSchoolModuleEntitlement.school_id == active_school_id)
+            .filter(TtSchoolModuleEntitlement.school_id.in_(school_ids))
             .all()
-        )
-        if entitlement_rows:
-            enabled_modules = sorted(row.module_key for row in entitlement_rows if row.enabled)
+        ) if school_ids else []
+        entitlements_by_school: dict[int, dict[str, bool]] = {}
+        for entitlement in entitlement_rows:
+            entitlements_by_school.setdefault(entitlement.school_id, {})[entitlement.module_key] = bool(entitlement.enabled)
+        schools = [
+            {
+                "id": school.id,
+                "name": school.name,
+                "role": identity.memberships.get(school.id, "super_admin" if identity.is_super_admin else None),
+                "modules": sorted(
+                    key for key in MODULES
+                    if entitlements_by_school.get(school.id, {}).get(
+                        key,
+                        not entitlements_by_school.get(school.id) and key in DEFAULT_ENABLED_MODULES,
+                    )
+                ),
+            }
+            for school in rows
+        ]
+
+    # Navigation exposes a module when at least one of the caller's schools enables it.
+    # Individual school contexts and APIs still enforce that school's exact entitlement.
+    enabled_modules = sorted({module for school in schools for module in school["modules"]})
     return {
         "user_id": identity.user_id,
         "email": identity.email,
@@ -416,25 +426,42 @@ def decide_access_request(
     granted = payload.role or row.requested_role
     if granted not in GRANTABLE_ROLES:
         granted = "viewer"
+    if granted == "teacher":
+        profile = db.query(TimetableTeacherProfile).filter(TimetableTeacherProfile.id == payload.teacher_id).first() if payload.teacher_id is not None else None
+        if profile is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Select an existing saved timetable teacher profile when granting the teacher role.")
+        profile_owner = db.query(TtMembership.id).filter(
+            TtMembership.user_id == str(profile.owner_id),
+            TtMembership.school_id == school_id,
+            TtMembership.is_active.is_(True),
+            TtMembership.role.in_(["admin", "super_admin"]),
+        ).first()
+        if profile_owner is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "The selected teacher profile is not owned by an active administrator of this school.")
+    elif payload.teacher_id is not None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A teacher record can only be linked to a teacher role.")
 
+    membership_user_id = str(row.user_id)
     membership = (
         db.query(TtMembership)
         .filter(
-            TtMembership.user_id == row.user_id,
+            TtMembership.user_id == membership_user_id,
             TtMembership.school_id == school_id,
         )
         .first()
     )
     if membership is None:
         membership = TtMembership(
-            user_id=row.user_id,
+            user_id=membership_user_id,
             school_id=school_id,
             role=granted,
             email=row.email,
+            teacher_id=payload.teacher_id if granted == "teacher" else None,
         )
         db.add(membership)
     else:
         membership.role = granted
+        membership.teacher_id = payload.teacher_id if granted == "teacher" else None
         membership.is_active = True
 
     row.status = "approved"
