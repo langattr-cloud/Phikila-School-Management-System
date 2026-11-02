@@ -13,13 +13,13 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.platform.authz import Identity, require_super_admin, resolve_identity
-from app.modules.platform.entitlements import module_enabled
+from app.modules.platform.module_access import module_enabled
 from app.modules.platform.tenancy import TtMembership, TtSchool
 
 router = APIRouter()
