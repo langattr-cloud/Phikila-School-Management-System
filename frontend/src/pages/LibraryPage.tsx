@@ -289,7 +289,7 @@ export default function LibraryPage() {
           setSelectedCopy('')
         }}>
           <option value="">Select a school</option>
-          {platformSession.schools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
+          {librarySchools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
         </select>
       </label>
     </section>}
