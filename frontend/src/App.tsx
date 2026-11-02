@@ -31,6 +31,7 @@ const MarkAccessPage = lazy(() => import('./pages/MarkAccessPage').then(m => ({ 
 const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ default: m.default })))
 const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.default })))
 const FinancePage = lazy(() => import('./pages/Finance').then(m => ({ default: m.default })))
+const LibraryPage = lazy(() => import('./pages/LibraryPage'))
 const FinancePaymentInboxPage = lazy(() => import('./pages/FinancePaymentInbox').then(m => ({ default: m.default })))
 const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.OcrScanPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
@@ -42,6 +43,7 @@ const PlatformRequestsPage = lazy(() => import('./pages/PlatformPage').then(m =>
 const PlatformAdminsPage = lazy(() => import('./pages/PlatformPage').then(m => ({ default: m.PlatformAdminsPage })))
 const PlatformAuditPage = lazy(() => import('./pages/PlatformAuditPage').then(m => ({ default: m.PlatformAuditPage })))
 const PlatformModulesPage = lazy(() => import('./pages/PlatformModulesPage').then(m => ({ default: m.PlatformModulesPage })))
+const PlatformLibraryPage = lazy(() => import('./pages/PlatformLibraryPage'))
 const AwaitingApprovalPage = lazy(() => import('./pages/AwaitingApprovalPage').then(m => ({ default: m.AwaitingApprovalPage })))
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password'])
 
@@ -106,6 +108,7 @@ function routeFor(pathname: string): ReactNode {
     case '/examinations/report-card': return <ReportCardPage />
     case '/examinations/class-results': return <ClassResultsPage />
     case '/finance': return <FinancePage />
+    case '/library': return <LibraryPage />
     case '/finance/payment-inbox': return <FinancePaymentInboxPage />
     case '/ocr': return <OcrScanPage />
     case '/profile': return <ProfilePage />
@@ -117,6 +120,7 @@ function routeFor(pathname: string): ReactNode {
     case '/platform/admins': return <PlatformAdminsPage />
     case '/platform/audit': return <PlatformAuditPage />
     case '/platform/modules': return <PlatformModulesPage />
+    case '/platform/library': return <PlatformLibraryPage />
     default: return <NotFoundPage />
   }
 }
@@ -136,6 +140,7 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
     : path.startsWith('/setup/teachers') ? 'staff'
     : path.startsWith('/examinations') ? 'examinations'
     : path.startsWith('/finance') ? 'finance'
+    : path.startsWith('/library') ? 'library'
     : path.startsWith('/ocr') ? 'ai_tools' : null
   const moduleDenied = Boolean(requiredModule && platformSession && !platformSession.enabled_modules.includes(requiredModule))
   return <RequireAuth><AccessGate>
