@@ -570,22 +570,25 @@ def record_movement(copy_id: UUID, payload: MovementInput, identity: Identity = 
     try:
         if action in {"exclude_before_issue", "restore_excluded_copy"}:
             result = _one(db, """
-              SELECT (public.set_library_copy_preissue_exclusion(
+              SELECT * FROM public.set_library_copy_preissue_exclusion(
                 CAST(:copy_id AS uuid),:action,:reason,CAST(:actor AS uuid)
-              )).* 
+              ) 
             """, copy_id=str(copy_id), action=action, reason=payload.notes.strip(), actor=identity.user_id)
         else:
             result = _one(db, """
-              SELECT (public.move_library_book_copy(
+              SELECT * FROM public.move_library_book_copy(
                 CAST(:copy_id AS uuid),:action,:holder_id,:holder_name,:condition,
                 :due_date,:notes,CAST(:actor AS uuid),:holder_type
-              )).*
+              )
             """, copy_id=str(copy_id), action=action, holder_id=payload.to_holder_id,
                  holder_name=(payload.to_holder_name or "").strip() or None, condition=payload.condition,
                  due_date=payload.due_date, notes=payload.notes, actor=identity.user_id,
                  holder_type=payload.to_holder_type)
         _commit(db)
         return result
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as exc:
         db.rollback()
         raise _db_error(exc)
