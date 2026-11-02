@@ -8,6 +8,7 @@ from starlette.datastructures import QueryParams
 
 from app.config import settings
 from app.modules.library.router import router as library_router
+from app.modules.platform.router import router as platform_router
 
 app = FastAPI(title="Phikila Library API", version="1.0.0", docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(
@@ -23,7 +24,7 @@ app.add_middleware(
 async def restore_library_path(request: Request, call_next):
     original_path = request.query_params.get("__path")
     if original_path:
-        if not original_path.startswith("/api/v1/library/") and original_path != "/api/v1/library" and original_path != "/_diag":
+        if not (original_path.startswith("/api/v1/library/") or original_path.startswith("/api/v1/platform/")) and original_path not in {"/api/v1/library", "/health"}:
             return JSONResponse({"detail": "Invalid Library API route."}, status_code=404)
         request.scope["path"] = original_path
         request.scope["raw_path"] = original_path.encode("utf-8")
@@ -35,13 +36,5 @@ async def restore_library_path(request: Request, call_next):
 def health():
     return {"status": "ok", "module": "library"}
 
-@app.get("/_diag")
-def diagnostic(request: Request):
-    return {
-        "path": request.scope.get("path"),
-        "root_path": request.scope.get("root_path"),
-        "raw_path": request.scope.get("raw_path", b"").decode("utf-8", "replace"),
-        "query": dict(request.query_params),
-    }
-
 app.include_router(library_router, prefix="/api/v1")
+app.include_router(platform_router, prefix="/api/v1/platform")
