@@ -18,8 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.modules.platform.tenancy import Principal
-from app.modules.finance.access import require_finance_role
+from app.modules.platform.tenancy import Principal, require_role
 
 router = APIRouter()
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
@@ -213,7 +212,7 @@ def _parse_pdf(data: bytes) -> list[list[object]]:
 async def preview_kcb_statement_upload(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    principal: Principal = Depends(require_finance_role("admin")),
+    principal: Principal = Depends(require_role("admin")),
 ):
     """Parse an uploaded statement and return a preview; does not change any records."""
     del db, principal  # Auth and tenant scope are required even though preview is read-only.
