@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.platform.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal
+from app.modules.finance.access import require_finance_role
 from . import models as m
 from . import operations_models as o
 
@@ -21,7 +22,7 @@ def posted_journal_filter(query):
 
 
 @router.get('/finance/reports/trial-balance')
-def trial_balance(db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer', 'admin'))):
+def trial_balance(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer', 'admin'))):
     rows = (
         db.query(
             m.ChartOfAccount.id,
@@ -54,7 +55,7 @@ def trial_balance(db: Session = Depends(get_db), principal: Principal = Depends(
 
 
 @router.get('/finance/reports/balance-sheet')
-def balance_sheet(db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer', 'admin'))):
+def balance_sheet(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer', 'admin'))):
     rows = trial_balance(db, principal)
 
     def normal_balance(row):
@@ -92,7 +93,7 @@ def balance_sheet(db: Session = Depends(get_db), principal: Principal = Depends(
 
 
 @router.get('/finance/reports/general-ledger')
-def general_ledger(account_id: int | None = None, db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer', 'admin'))):
+def general_ledger(account_id: int | None = None, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer', 'admin'))):
     q = db.query(m.Journal, m.JournalEntry, m.ChartOfAccount).join(m.JournalEntry, m.JournalEntry.journal_id == m.Journal.id).join(m.ChartOfAccount, m.ChartOfAccount.id == m.JournalEntry.account_id).filter(m.Journal.school_id == principal.school_id, m.Journal.status == "posted")
     if account_id:
         q = q.filter(m.JournalEntry.account_id == account_id)
@@ -101,7 +102,7 @@ def general_ledger(account_id: int | None = None, db: Session = Depends(get_db),
 
 
 @router.get('/finance/reports/income-expenditure')
-def income_expenditure(db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer', 'admin'))):
+def income_expenditure(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer', 'admin'))):
     rows = trial_balance(db, principal)
     income = sum((r['credit'] - r['debit'] for r in rows if str(r['account_type']).upper() == 'INCOME'), Decimal('0'))
     expenditure = sum((r['debit'] - r['credit'] for r in rows if str(r['account_type']).upper() in {'EXPENSE', 'EXPENDITURE'}), Decimal('0'))
@@ -109,18 +110,18 @@ def income_expenditure(db: Session = Depends(get_db), principal: Principal = Dep
 
 
 @router.get('/finance/reports/fee-collection')
-def fee_collection(db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer', 'teacher', 'admin'))):
+def fee_collection(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer', 'teacher', 'admin'))):
     rows = db.query(m.StudentInvoice.student_id, func.sum(m.StudentInvoice.amount), func.sum(m.StudentInvoice.balance)).filter(m.StudentInvoice.school_id == principal.school_id).group_by(m.StudentInvoice.student_id).all()
     return [{'student_id': r[0], 'billed': money(r[1]), 'outstanding': money(r[2]), 'collected': money(r[1]) - money(r[2]), 'collection_rate': float(((money(r[1]) - money(r[2])) / money(r[1]) * 100) if money(r[1]) else 0)} for r in rows]
 
 
 @router.get('/finance/reports/debtors')
-def debtors(db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer', 'teacher', 'admin'))):
+def debtors(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer', 'teacher', 'admin'))):
     rows = fee_collection(db, principal)
     return sorted([r for r in rows if r['outstanding'] > 0], key=lambda x: x['outstanding'], reverse=True)
 
 
 @router.get('/finance/reports/budget-vs-actual')
-def budget_vs_actual(db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer', 'admin'))):
+def budget_vs_actual(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer', 'admin'))):
     rows = db.query(o.FinanceBudgetLine).join(o.FinanceBudget, o.FinanceBudget.id == o.FinanceBudgetLine.budget_id).filter(o.FinanceBudget.school_id == principal.school_id).all()
     return [{'id': r.id, 'budget_id': r.budget_id, 'account_id': r.account_id, 'budget': money(r.budget_amount), 'revised': money(r.revised_amount or r.budget_amount), 'committed': money(r.committed_amount), 'actual': money(r.actual_amount), 'available': money(r.revised_amount or r.budget_amount) - money(r.committed_amount) - money(r.actual_amount), 'variance': money(r.revised_amount or r.budget_amount) - money(r.actual_amount)} for r in rows]
