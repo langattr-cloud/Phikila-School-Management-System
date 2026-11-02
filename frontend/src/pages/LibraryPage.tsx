@@ -263,7 +263,7 @@ export default function LibraryPage() {
     <PageHeader title="Library & Book Custody" description={isPlatformAdmin ? "Platform Library access. Select a school workspace; each school's catalogue and custody records remain separate." : "Manage your school's Library register and book custody."} />
     {platformSessionLoading ? <LoadingBlock label="Loading Library access" rows={2} /> : <>
       {platformSessionError
-        ? <section className="card section"><Alert tone="error">{platformSessionError} The preview API must be connected to the matching feature-branch backend before platform access can load.</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
+        ? <section className="card section"><Alert tone="error">{platformSessionError}</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
         : librarySchools.length
         ? <section className="card section">
             <label className="field">
