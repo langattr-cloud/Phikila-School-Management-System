@@ -9,7 +9,7 @@ export type SessionInfo = {
   email: string | null
   is_super_admin: boolean
   enabled_modules: string[]
-  schools: { id: number; name: string; role: string }[]
+  schools: { id: number; name: string; role: string; modules?: string[] }[]
   has_access: boolean
   access_request: {
     status: 'pending' | 'approved' | 'rejected'
