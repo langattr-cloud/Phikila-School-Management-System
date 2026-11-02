@@ -7,7 +7,8 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.platform.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal
+from app.modules.finance.access import require_finance_role
 from app.modules.students.models_v2 import Student
 from . import models as m
 from . import schemas as s
@@ -26,11 +27,11 @@ def _invoice(db, principal, invoice_id):
     return db.query(m.StudentInvoice).filter(m.StudentInvoice.id == invoice_id, m.StudentInvoice.school_id == principal.school_id).first()
 
 @router.get("/finance/vote-heads", response_model=list[s.VoteHeadResponse])
-def list_vote_heads(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def list_vote_heads(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     return db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id).order_by(m.FinanceVoteHead.display_order, m.FinanceVoteHead.id).all()
 
 @router.post("/finance/vote-heads", response_model=s.VoteHeadResponse, status_code=201)
-def create_vote_head(payload: s.VoteHeadCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def create_vote_head(payload: s.VoteHeadCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     name = payload.name.strip()
     code = payload.code.strip().upper() if payload.code else None
     if db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.school_id == principal.school_id, func.lower(m.FinanceVoteHead.name) == name.lower()).first():
@@ -41,7 +42,7 @@ def create_vote_head(payload: s.VoteHeadCreate, db: Session = Depends(get_db), p
     db.add(head); _audit(db, principal, "create", "vote_head", 0, f"Created vote head '{name}'"); db.commit(); db.refresh(head); return head
 
 @router.patch("/finance/vote-heads/{vote_head_id}", response_model=s.VoteHeadResponse)
-def update_vote_head(vote_head_id: int, payload: s.VoteHeadUpdate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def update_vote_head(vote_head_id: int, payload: s.VoteHeadUpdate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     head = db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.id == vote_head_id, m.FinanceVoteHead.school_id == principal.school_id).first()
     if not head: raise HTTPException(404, "Vote head not found.")
     data = payload.model_dump(exclude_unset=True)
@@ -58,13 +59,13 @@ def update_vote_head(vote_head_id: int, payload: s.VoteHeadUpdate, db: Session =
 
 
 @router.get("/finance/fee-structures/{fee_structure_id}/items", response_model=list[s.FeeStructureAllocationResponse])
-def list_fee_structure_items(fee_structure_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def list_fee_structure_items(fee_structure_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     fee = db.query(m.FeeStructure).filter(m.FeeStructure.id == fee_structure_id, m.FeeStructure.school_id == principal.school_id).first()
     if not fee: raise HTTPException(404, "Fee structure not found.")
     return db.query(m.FeeStructureItem).filter(m.FeeStructureItem.school_id == principal.school_id, m.FeeStructureItem.fee_structure_id == fee_structure_id).order_by(m.FeeStructureItem.display_order, m.FeeStructureItem.id).all()
 
 @router.post("/finance/fee-structures/{fee_structure_id}/items", response_model=s.FeeStructureAllocationResponse, status_code=201)
-def create_fee_structure_item(fee_structure_id: int, payload: s.FeeStructureAllocationCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def create_fee_structure_item(fee_structure_id: int, payload: s.FeeStructureAllocationCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     fee = db.query(m.FeeStructure).filter(m.FeeStructure.id == fee_structure_id, m.FeeStructure.school_id == principal.school_id).first()
     if not fee: raise HTTPException(404, "Fee structure not found.")
     head = db.query(m.FinanceVoteHead).filter(m.FinanceVoteHead.id == payload.vote_head_id, m.FinanceVoteHead.school_id == principal.school_id, m.FinanceVoteHead.status == "ACTIVE").first()
@@ -77,11 +78,11 @@ def create_fee_structure_item(fee_structure_id: int, payload: s.FeeStructureAllo
     db.add(item); _audit(db, principal, "create", "fee_structure_item", item.id if item.id else 0, f"Allocated {payload.amount} to vote head '{head.name}' for fee structure #{fee.id}"); db.commit(); db.refresh(item); return item
 
 @router.get("/finance/fee-structures", response_model=list[s.FeeStructureResponse])
-def list_fee_structures(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def list_fee_structures(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     return db.query(m.FeeStructure).filter(m.FeeStructure.school_id == principal.school_id).order_by(m.FeeStructure.name).all()
 
 @router.post("/finance/fee-structures", response_model=s.FeeStructureResponse, status_code=201)
-def create_fee_structure(payload: s.FeeStructureCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def create_fee_structure(payload: s.FeeStructureCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     allocations = payload.allocations or []
     total = sum((Decimal(str(x.amount)) for x in allocations), Decimal("0"))
     if not allocations or total != Decimal(str(payload.amount)): raise HTTPException(409, f"Vote-head allocations must total exactly KES {payload.amount}.")
@@ -122,7 +123,7 @@ def create_fee_structure(payload: s.FeeStructureCreate, db: Session = Depends(ge
     return fs
 
 @router.delete("/finance/fee-structures/{fee_structure_id}", status_code=204)
-def delete_fee_structure(fee_structure_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def delete_fee_structure(fee_structure_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     """Delete a fee structure only if it has never been used to issue invoices."""
     fee = db.query(m.FeeStructure).filter(
         m.FeeStructure.id == fee_structure_id,
@@ -154,7 +155,7 @@ def delete_fee_structure(fee_structure_id: int, db: Session = Depends(get_db), p
 
 
 @router.post("/finance/billing-runs", response_model=s.BillingRunResponse, status_code=201)
-def create_billing_run(payload: s.BillingRunCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def create_billing_run(payload: s.BillingRunCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     """Bill every active enrollee matching the selected academic hierarchy.
 
     Billing is enrollment-driven; duplicate invoices are skipped safely.
@@ -232,14 +233,14 @@ def create_billing_run(payload: s.BillingRunCreate, db: Session = Depends(get_db
     )
 
 @router.get("/finance/invoices", response_model=list[s.InvoiceResponse])
-def list_invoices(student_id: int | None = Query(default=None), status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def list_invoices(student_id: int | None = Query(default=None), status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     q = db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id)
     if student_id: q = q.filter(m.StudentInvoice.student_id == student_id)
     if status_filter: q = q.filter(m.StudentInvoice.status == status_filter)
     return q.order_by(m.StudentInvoice.created_at.desc()).limit(200).all()
 
 @router.post("/finance/invoices", response_model=s.InvoiceResponse, status_code=201)
-def create_invoice(payload: s.InvoiceCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def create_invoice(payload: s.InvoiceCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     if not db.query(Student).filter(Student.id == payload.student_id, Student.school_id == principal.school_id).first(): raise HTTPException(404, "Student not found.")
     if not db.query(m.FeeStructure).filter(m.FeeStructure.id == payload.fee_structure_id, m.FeeStructure.school_id == principal.school_id).first(): raise HTTPException(404, "Fee structure not found.")
     if db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.student_id == payload.student_id, m.StudentInvoice.fee_structure_id == payload.fee_structure_id).first(): raise HTTPException(409, "This student has already been billed for this fee structure.")
@@ -257,7 +258,7 @@ def create_invoice(payload: s.InvoiceCreate, db: Session = Depends(get_db), prin
 def list_payment_allocations_for_payments(
     payment_ids: list[int] = Query(default=[]),
     db: Session = Depends(get_db),
-    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
+    principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin")),
 ):
     """Return vote-head allocations for the requested payments in this school."""
     if not payment_ids:
@@ -274,35 +275,35 @@ def list_payment_allocations_for_payments(
 
 
 @router.get("/finance/payments/{payment_id}/allocations", response_model=list[s.PaymentAllocationResponse])
-def list_payment_allocations(payment_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def list_payment_allocations(payment_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     if not db.query(m.Payment).filter(m.Payment.id == payment_id, m.Payment.school_id == principal.school_id).first(): raise HTTPException(404, "Payment not found.")
     return db.query(m.PaymentAllocation).filter(m.PaymentAllocation.school_id == principal.school_id, m.PaymentAllocation.payment_id == payment_id).order_by(m.PaymentAllocation.id).all()
 
 @router.get("/finance/payments", response_model=list[s.PaymentResponse])
-def list_payments(student_id: int | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def list_payments(student_id: int | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     q = db.query(m.Payment).filter(m.Payment.school_id == principal.school_id)
     if student_id: q = q.filter(m.Payment.student_id == student_id)
     return q.order_by(m.Payment.created_at.desc()).limit(200).all()
 
 @router.post("/finance/payments", response_model=s.PaymentResponse, status_code=201)
-def record_payment(payload: s.PaymentCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+def record_payment(payload: s.PaymentCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin", "scheduler"))):
     invoice = _invoice(db, principal, payload.invoice_id)
     if not invoice: raise HTTPException(404, "Invoice not found.")
     payment, _ = post_fee_payment(db, school_id=principal.school_id, invoice=invoice, student_id=payload.student_id, amount=payload.amount, payment_method=payload.payment_method, reference_number=payload.reference_number, notes=payload.notes, actor=principal.user_id)
     _audit(db, principal, "post", "payment", payment.id, f"Posted fee payment of {payload.amount} with GL journal and receipt"); db.commit(); db.refresh(payment); return payment
 
 @router.get("/finance/receipts", response_model=list[s.ReceiptResponse])
-def list_receipts(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def list_receipts(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     return db.query(m.FinanceReceipt).filter(m.FinanceReceipt.school_id == principal.school_id).order_by(m.FinanceReceipt.issued_at.desc()).limit(200).all()
 
 @router.get("/finance/receipts/{receipt_id}", response_model=s.ReceiptResponse)
-def get_receipt(receipt_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def get_receipt(receipt_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     receipt = db.query(m.FinanceReceipt).filter(m.FinanceReceipt.id == receipt_id, m.FinanceReceipt.school_id == principal.school_id).first()
     if not receipt: raise HTTPException(404, "Receipt not found.")
     return receipt
 
 @router.post("/finance/payments/{payment_id}/reverse", response_model=s.PaymentResponse)
-def reverse_payment(payment_id: int, payload: s.PaymentReversalRequest, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def reverse_payment(payment_id: int, payload: s.PaymentReversalRequest, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     payment = db.query(m.Payment).filter(m.Payment.id == payment_id, m.Payment.school_id == principal.school_id).first()
     if not payment: raise HTTPException(404, "Payment not found.")
     if payment.status == "REVERSED": raise HTTPException(409, "Payment is already reversed.")
@@ -323,17 +324,17 @@ def reverse_payment(payment_id: int, payload: s.PaymentReversalRequest, db: Sess
     _audit(db, principal, "reverse", "payment", payment.id, f"Reversed payment #{payment.id}; reversal journal #{reversal.id}; reason={payload.reason}"); db.commit(); db.refresh(payment); return payment
 
 @router.post("/finance/payments/decode", response_model=s.PaymentDecodeResponse)
-def decode_payment(payload: s.PaymentDecodeRequest, principal: Principal = Depends(require_role("viewer", "admin"))):
+def decode_payment(payload: s.PaymentDecodeRequest, principal: Principal = Depends(require_finance_role("viewer", "admin"))):
     return decode_payment_message(payload.message)
 
 @router.get("/finance/payment-inbox", response_model=list[s.PaymentInboxResponse])
-def list_payment_inbox(status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "admin"))):
+def list_payment_inbox(status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "admin"))):
     q = db.query(m.PaymentInbox).filter(m.PaymentInbox.school_id == principal.school_id)
     if status_filter: q = q.filter(m.PaymentInbox.status == status_filter)
     return q.order_by(m.PaymentInbox.received_at.desc()).limit(200).all()
 
 @router.post("/finance/payment-inbox", response_model=s.PaymentInboxResponse, status_code=201)
-def ingest_payment(payload: s.PaymentInboxCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin", "scheduler"))):
+def ingest_payment(payload: s.PaymentInboxCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin", "scheduler"))):
     decoded = decode_payment_message(payload.raw_message)
     amount = payload.amount or decoded["amount"]; external_reference = payload.external_reference or decoded["external_reference"]; student_identifier = payload.student_identifier or decoded["student_identifier"]; received_at = payload.received_at or decoded["received_at"] or datetime.now(timezone.utc)
     if not amount or not external_reference: raise HTTPException(400, "Payment amount and external reference could not be determined.")
@@ -345,7 +346,7 @@ def ingest_payment(payload: s.PaymentInboxCreate, db: Session = Depends(get_db),
     db.add(item); _audit(db, principal, "create", "payment_inbox", 0, f"Ingested external payment {external_reference} — {amount}; status={inbox_status}"); db.commit(); db.refresh(item); return item
 
 @router.post("/finance/payment-inbox/{inbox_id}/post", response_model=s.PaymentInboxResponse)
-def post_payment_inbox(inbox_id: int, payload: s.PaymentInboxPostRequest | None = None, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
+def post_payment_inbox(inbox_id: int, payload: s.PaymentInboxPostRequest | None = None, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
     payload = payload or s.PaymentInboxPostRequest(); item = db.query(m.PaymentInbox).filter(m.PaymentInbox.id == inbox_id, m.PaymentInbox.school_id == principal.school_id).first()
     if not item: raise HTTPException(404, "Payment inbox item not found.")
     if item.status == "POSTED": return item
@@ -364,7 +365,7 @@ def post_payment_inbox(inbox_id: int, payload: s.PaymentInboxPostRequest | None 
     _audit(db, principal, "post", "payment_inbox", item.id, f"Posted {item.external_reference} as payment #{payment.id} against invoice #{invoice.id}"); db.commit(); db.refresh(item); return item
 
 @router.get("/finance/students/{student_id}/balance", response_model=s.StudentBalance)
-def student_balance(student_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def student_balance(student_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     student = db.query(Student).filter(Student.id == student_id, Student.school_id == principal.school_id).first()
     if not student: raise HTTPException(404, "Student not found.")
     total_invoiced = db.query(func.coalesce(func.sum(m.StudentInvoice.amount), 0)).filter(m.StudentInvoice.student_id == student_id, m.StudentInvoice.school_id == principal.school_id).scalar()
@@ -379,7 +380,7 @@ def student_balance_report(
     stream_id: int | None = Query(default=None),
     outstanding_only: bool = Query(default=False),
     db: Session = Depends(get_db),
-    principal: Principal = Depends(require_role("viewer", "teacher", "admin")),
+    principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin")),
 ):
     # Finance roster is driven by the same admission hierarchy:
     # Academic Year -> Level -> Grade -> optional Stream.
@@ -478,7 +479,7 @@ def student_balance_report(
     return rows
 
 @router.get("/finance/reports/student/{student_id}/statement", response_model=s.StudentStatement)
-def student_statement(student_id: int, academic_year_id: int | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def student_statement(student_id: int, academic_year_id: int | None = Query(default=None), db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     student = db.query(Student).filter(Student.id == student_id, Student.school_id == principal.school_id).first()
     if not student: raise HTTPException(404, "Student not found.")
     q = db.query(m.StudentInvoice).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.student_id == student_id)
@@ -504,7 +505,7 @@ def student_statement(student_id: int, academic_year_id: int | None = Query(defa
     )
 
 @router.get("/finance/overview", response_model=s.FinanceOverview)
-def finance_overview(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
+def finance_overview(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
     total_invoiced = db.query(func.coalesce(func.sum(m.StudentInvoice.amount), 0)).filter(m.StudentInvoice.school_id == principal.school_id).scalar(); total_paid = db.query(func.coalesce(func.sum(m.Payment.amount), 0)).filter(m.Payment.school_id == principal.school_id, m.Payment.status != "REVERSED").scalar(); total_outstanding = max(Decimal(str(total_invoiced)) - Decimal(str(total_paid)), Decimal("0"))
     invoices_count = db.query(func.count(m.StudentInvoice.id)).filter(m.StudentInvoice.school_id == principal.school_id).scalar() or 0; paid_count = db.query(func.count(m.StudentInvoice.id)).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.status == "paid").scalar() or 0; pending_count = db.query(func.count(m.StudentInvoice.id)).filter(m.StudentInvoice.school_id == principal.school_id, m.StudentInvoice.status.in_(["pending", "partial", "overdue"])).scalar() or 0
     return s.FinanceOverview(total_invoiced=Decimal(str(total_invoiced)), total_collected=Decimal(str(total_paid)), total_outstanding=total_outstanding, invoices_count=invoices_count, paid_count=paid_count, pending_count=pending_count)
