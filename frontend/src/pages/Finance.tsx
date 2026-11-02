@@ -7,8 +7,7 @@ import { FinanceReceipts } from '../components/FinanceReceipts'
 import { FinanceBanking } from '../components/FinanceBanking'
 import { SupplierPayments } from './SupplierPayments'
 import { CapitationManagement } from './CapitationManagement'
-import { api, friendlyApiError, setActiveSchoolId } from '../lib/api'
-import { usePlatformSession } from '../lib/session'
+import { api, friendlyApiError } from '../lib/api'
 import { finance, type BalanceSheet, type FeeStructure, type GeneralLedgerRow, type Invoice, type Payment, type FinanceOverview, type TrialBalanceRow, type VoteHead } from '../lib/finance'
 import { students, type Student } from '../lib/students'
 import './Finance.css'
@@ -50,9 +49,6 @@ const FinanceNavIcon = ({ tab }: { tab: string }) => {
 
 
 export default function FinancePage() {
-  const { session: platformSession } = usePlatformSession()
-  const availableSchools = (platformSession?.schools ?? []).filter((school) => platformSession?.is_super_admin || (school.modules ?? []).includes('finance'))
-  const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(() => { const saved = Number(window.localStorage.getItem('phikila.finance.schoolId')); return Number.isInteger(saved) && saved > 0 ? saved : null })
   const [overview, setOverview] = useState<FinanceOverview | null>(null)
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -67,8 +63,6 @@ export default function FinancePage() {
   const [showNewPayment, setShowNewPayment] = useState(false)
 
   const load = useCallback(async () => {
-    if (selectedSchoolId == null) { setLoading(false); return }
-    setActiveSchoolId(selectedSchoolId)
     setLoading(true)
     setError(null)
     try {
@@ -78,20 +72,9 @@ export default function FinancePage() {
       setOverview(ov); setFeeStructures(fs); setInvoices(inv); setPayments(pay)
     } catch (err) { setError(friendlyApiError(err, 'load finance')) }
     finally { setLoading(false) }
-  }, [selectedSchoolId])
+  }, [])
 
-  useEffect(() => {
-    if (!platformSession) return
-    const currentIsAllowed = availableSchools.some((school) => school.id === selectedSchoolId)
-    if (!currentIsAllowed) setSelectedSchoolId(availableSchools[0]?.id ?? null)
-  }, [platformSession, selectedSchoolId])
-
-  useEffect(() => {
-    if (selectedSchoolId == null) { window.localStorage.removeItem('phikila.finance.schoolId'); setActiveSchoolId(null); setLoading(false); return }
-    window.localStorage.setItem('phikila.finance.schoolId', String(selectedSchoolId))
-    setActiveSchoolId(selectedSchoolId)
-    void load()
-  }, [selectedSchoolId, load])
+  useEffect(() => { load() }, [load])
 
   const deleteFeeStructure = async (fee: FeeStructure) => {
     if (!window.confirm(`Delete fee structure "${fee.name}" (KES ${Number(fee.amount).toLocaleString()})? This cannot be undone.`)) return
@@ -107,15 +90,12 @@ export default function FinancePage() {
 
   return <div className="finance-page">
     <PageHeader title="Finance" description="Fee structures, invoices, payments, accounting reports, banking, and M-PESA fee matching." />
-    {availableSchools.length > 1 && <div className="card section"><label htmlFor="finance-school-select">Finance workspace</label><select id="finance-school-select" value={selectedSchoolId ?? ""} onChange={(event) => { const id = Number(event.target.value); setOverview(null); setFeeStructures([]); setInvoices([]); setPayments([]); setSelectedSchoolId(Number.isInteger(id) && id > 0 ? id : null) }}><option value="">Select a school</option>{availableSchools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></div>}
-    {!availableSchools.length && <Alert tone="info">{platformSession?.is_super_admin ? "No active schools are available. Register or activate a school in Platform Administration first." : "Finance has not been enabled for your school. Contact your platform administrator."}</Alert>}
-    {availableSchools.length > 0 && selectedSchoolId == null && <Alert tone="info">Select a school to open its Finance workspace.</Alert>}
     {error && <Alert tone="error">{error}</Alert>}
-    {selectedSchoolId != null && <div className="finance-tabs" role="tablist" aria-label="Finance sections">
+    <div className="finance-tabs" role="tablist" aria-label="Finance sections">
       {(['overview', 'matcher', 'receipts', 'fees', 'vote-heads', 'invoices', 'payments', 'balances', 'banking', 'suppliers', 'trial-balance', 'general-ledger', 'balance-sheet', 'capitation'] as const).map((tab) => <button key={tab} role="tab" aria-selected={activeTab === tab} className={`button button--sm finance-tab ${activeTab === tab ? 'finance-tab--active' : ''}`} onClick={() => setActiveTab(tab)}><span className={`finance-tab__icon finance-tab__icon--${tab}`}><FinanceNavIcon tab={tab} /></span><span>{financeTabLabels[tab]}</span></button>)}
-    </div>}
+    </div>
 
-    {selectedSchoolId != null && (loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
+    {loading ? <LoadingBlock label="Loading finance" rows={4} /> : <>
       {activeTab === 'matcher' && <FinancePaymentMatcher onPosted={load} />}
       {activeTab === 'receipts' && <FinanceReceipts />}
       {activeTab === 'vote-heads' && <VoteHeadsView />}
@@ -151,7 +131,7 @@ export default function FinancePage() {
         {showNewPayment && <NewPaymentForm onCreated={() => { setShowNewPayment(false); load() }} onCancel={() => setShowNewPayment(false)} />}
         <PaymentHistory payments={payments} onChanged={load} />
       </section>}
-    </>)}
+    </>}
   </div>
 }
 
