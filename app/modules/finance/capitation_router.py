@@ -8,8 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.platform.tenancy import Principal
-from app.modules.finance.access import require_finance_role
+from app.modules.platform.tenancy import Principal, require_role
 from . import capitation_models as m
 from . import operations_models as ops
 
@@ -55,7 +54,7 @@ def _receipt(db, principal, receipt_id):
 
 
 @router.post("/finance/capitation/import-reference", status_code=201)
-def import_reference_catalogue(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def import_reference_catalogue(db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     """Copy the versioned reference catalogue into this school's editable database records."""
     path = Path(__file__).resolve().parents[3] / "data" / "kenya_capitation_reference.json"
     try:
@@ -103,12 +102,12 @@ def import_reference_catalogue(db: Session = Depends(get_db), principal: Princip
 
 
 @router.get("/finance/capitation/templates")
-def list_templates(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def list_templates(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     return db.query(m.CapitationTemplate).filter_by(school_id=principal.school_id).order_by(m.CapitationTemplate.created_at.desc()).all()
 
 
 @router.post("/finance/capitation/templates", status_code=201)
-def create_template(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def create_template(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     required = ("name", "school_type", "programme", "source_circular", "effective_from")
     for key in required:
         if not str(payload.get(key, "")).strip():
@@ -148,13 +147,13 @@ def create_template(payload: dict, db: Session = Depends(get_db), principal: Pri
 
 
 @router.get("/finance/capitation/templates/{template_id}/vote-heads")
-def list_vote_heads(template_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def list_vote_heads(template_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     _template(db, principal, template_id)
     return db.query(m.CapitationVoteHead).filter_by(school_id=principal.school_id, template_id=template_id).order_by(m.CapitationVoteHead.display_order, m.CapitationVoteHead.id).all()
 
 
 @router.post("/finance/capitation/templates/{template_id}/vote-heads", status_code=201)
-def create_vote_head(template_id: int, payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def create_vote_head(template_id: int, payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     _template(db, principal, template_id)
     if not str(payload.get("code", "")).strip() or not str(payload.get("name", "")).strip():
         raise HTTPException(422, "code and name are required.")
@@ -173,7 +172,7 @@ def create_vote_head(template_id: int, payload: dict, db: Session = Depends(get_
 
 
 @router.patch("/finance/capitation/templates/{template_id}/activate")
-def activate_template(template_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def activate_template(template_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     item = _template(db, principal, template_id)
     heads = db.query(m.CapitationVoteHead).filter_by(school_id=principal.school_id, template_id=item.id, status="ACTIVE").count()
     if not heads:
@@ -185,7 +184,7 @@ def activate_template(template_id: int, db: Session = Depends(get_db), principal
 
 
 @router.post("/finance/capitation/receipts", status_code=201)
-def create_receipt(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def create_receipt(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     for key in ("template_id", "funding_period", "received_date", "amount", "reference_number"):
         if payload.get(key) in (None, ""):
             raise HTTPException(422, f"{key} is required.")
@@ -244,12 +243,12 @@ def create_receipt(payload: dict, db: Session = Depends(get_db), principal: Prin
 
 
 @router.get("/finance/capitation/receipts")
-def list_receipts(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def list_receipts(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     return db.query(m.CapitationReceipt).filter_by(school_id=principal.school_id).order_by(m.CapitationReceipt.received_date.desc(), m.CapitationReceipt.id.desc()).limit(500).all()
 
 
 @router.get("/finance/capitation/receipts/{receipt_id}/allocations")
-def receipt_allocations(receipt_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def receipt_allocations(receipt_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     _receipt(db, principal, receipt_id)
     rows = db.query(m.CapitationAllocation, m.CapitationVoteHead).join(m.CapitationVoteHead, m.CapitationAllocation.vote_head_id == m.CapitationVoteHead.id).filter(
         m.CapitationAllocation.school_id == principal.school_id, m.CapitationAllocation.receipt_id == receipt_id).all()
@@ -257,7 +256,7 @@ def receipt_allocations(receipt_id: int, db: Session = Depends(get_db), principa
 
 
 @router.post("/finance/capitation/expenditure", status_code=201)
-def create_expenditure(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def create_expenditure(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     for key in ("receipt_id", "vote_head_id", "expenditure_date", "payee", "description", "amount", "expenditure_reference"):
         if payload.get(key) in (None, ""):
             raise HTTPException(422, f"{key} is required.")
@@ -295,7 +294,7 @@ def create_expenditure(payload: dict, db: Session = Depends(get_db), principal: 
 
 
 @router.get("/finance/capitation/expenditure")
-def list_expenditure(receipt_id: int | None = None, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def list_expenditure(receipt_id: int | None = None, db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     q = db.query(m.CapitationExpenditure).filter_by(school_id=principal.school_id)
     if receipt_id:
         _receipt(db, principal, receipt_id)
@@ -304,7 +303,7 @@ def list_expenditure(receipt_id: int | None = None, db: Session = Depends(get_db
 
 
 @router.get("/finance/capitation/summary")
-def capitation_summary(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def capitation_summary(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     receipts = db.query(m.CapitationReceipt).filter_by(school_id=principal.school_id, status="POSTED").all()
     result = []
     for receipt in receipts:
