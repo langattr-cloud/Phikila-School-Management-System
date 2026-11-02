@@ -33,7 +33,7 @@ from .authz import (
     resolve_identity,
 )
 from .models import TtAccessRequest, TtPlatformAdmin, TtPlatformAudit
-from .entitlements import DEFAULT_ENABLED_MODULES, TtSchoolModuleEntitlement
+from .entitlements import DEFAULT_ENABLED_MODULES, MODULES, TtSchoolModuleEntitlement
 
 router = APIRouter()
 
