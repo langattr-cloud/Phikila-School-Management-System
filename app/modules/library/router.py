@@ -68,7 +68,11 @@ def _school_access_dependency(allowed_roles: set[str]):
         entitlement_rows = db.query(TtSchoolModuleEntitlement).filter(
             TtSchoolModuleEntitlement.school_id == school_id
         ).all()
-        if entitlement_rows:
+        if identity.is_super_admin:
+            # Platform administrators can open Library for any active school;
+            # the selected school_id still scopes every read and write.
+            library_enabled = True
+        elif entitlement_rows:
             library_enabled = any(row.module_key == "library" and row.enabled for row in entitlement_rows)
         else:
             # Preserve the configured starter-module defaults until a super admin saves entitlements.
@@ -524,13 +528,18 @@ def record_movement(copy_id: UUID, payload: MovementInput, identity: Identity = 
         school_id = int(school_header)
     except ValueError:
         raise HTTPException(400, "Invalid X-School-Id header.")
-    if school_id <= 0 or not identity.can_access_school(school_id):
+    if school_id <= 0:
+        raise HTTPException(400, "Invalid X-School-Id header.")
+    school = db.query(TtSchool).filter(TtSchool.id == school_id, TtSchool.status == "active").first()
+    if school is None:
+        raise HTTPException(403, "This school is not active on the platform.")
+    if not identity.is_super_admin and not identity.can_access_school(school_id):
         raise HTTPException(403, "You do not have access to the selected school.")
-    role = str(identity.role_in(school_id) or "").lower()
+    role = "super_admin" if identity.is_super_admin else str(identity.role_in(school_id) or "").lower()
     action = payload.action
     if action not in ACTIONS:
         raise HTTPException(400, "Unsupported movement action.")
-    if role not in MOVEMENT_ROLES[action]:
+    if role not in MOVEMENT_ROLES[action] and role != "super_admin":
         raise HTTPException(403, "Your Library role cannot record this movement.")
     if payload.condition not in CONDITIONS:
         raise HTTPException(400, "Condition must be good, damaged, or lost.")
