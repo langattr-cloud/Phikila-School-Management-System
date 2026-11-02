@@ -21,6 +21,7 @@ from app.modules.finance.account_mapping_router import router as finance_account
 from app.modules.finance.reports_router import router as finance_reports_router
 from app.modules.finance.completion_router import router as finance_completion_router
 from app.modules.llm.router import router as llm_router
+from app.modules.library.router import router as library_router
 from app.modules.ocr.router import router as ocr_router
 from app.modules.outlook.router import router as outlook_router
 from app.modules.platform.router import router as platform_router
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform"])
     app.include_router(school_modules_router, prefix="/api/v1/platform", tags=["School Module Access"])
     app.include_router(llm_router, prefix="/api/v1/llm", tags=["LLM Providers"])
+    app.include_router(library_router, prefix="/api/v1/library", tags=["Library"])
     app.include_router(email_router, prefix="/api/v1/email", tags=["Email & Notifications"])
     _guard_module_routes(teachers_router, "staff", teacher_paths=True)
     app.include_router(teachers_router, prefix="/api/v1/teachers", tags=["Teachers"], dependencies=protected)
