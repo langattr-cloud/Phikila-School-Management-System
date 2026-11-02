@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.platform.authz import Identity, resolve_identity
 from app.modules.platform.entitlements import DEFAULT_ENABLED_MODULES, TtSchoolModuleEntitlement
+from app.modules.platform.tenancy import TtSchool
 
 router = APIRouter(prefix="/library", tags=["Library"])
 LIBRARIAN_ROLES = {"admin", "super_admin", "librarian"}
@@ -51,6 +52,9 @@ def _school_access_dependency(allowed_roles: set[str]):
             raise HTTPException(400, "Invalid X-School-Id header.")
         if school_id <= 0 or not identity.can_access_school(school_id):
             raise HTTPException(403, "You do not have access to the selected school.")
+        school = db.query(TtSchool).filter(TtSchool.id == school_id).first()
+        if school is None or school.status != "active":
+            raise HTTPException(403, "This school is not active on the platform.")
         role = str(identity.role_in(school_id) or "").lower()
         if role not in allowed_roles and not (identity.is_super_admin and role in ALL_LIBRARY_ROLES):
             raise HTTPException(403, "An authorized Library role is required for the selected school.")
