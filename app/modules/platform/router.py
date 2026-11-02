@@ -204,20 +204,22 @@ def session(
             identity.memberships[granted_school.id] = granted_role
 
     schools = []
-    if identity.memberships:
-        rows = (
-            db.query(TtSchool)
-            .filter(
-                TtSchool.id.in_(list(identity.memberships)),
-                TtSchool.status == "active",
-            )
-            .all()
-        )
+    # Platform administrators administer the platform, not just schools where
+    # they also hold an ordinary school membership. Give them visibility of all
+    # active schools and their configured modules; regular users remain scoped
+    # strictly to their active memberships.
+    visible_school_ids = None if identity.is_super_admin else list(identity.memberships)
+    if identity.is_super_admin or identity.memberships:
+        school_query = db.query(TtSchool).filter(TtSchool.status == "active")
+        if visible_school_ids is not None:
+            school_query = school_query.filter(TtSchool.id.in_(visible_school_ids))
+        rows = school_query.all()
+        school_ids = [school.id for school in rows]
         entitlement_rows = (
             db.query(TtSchoolModuleEntitlement)
-            .filter(TtSchoolModuleEntitlement.school_id.in_(list(identity.memberships)))
+            .filter(TtSchoolModuleEntitlement.school_id.in_(school_ids))
             .all()
-        )
+        ) if school_ids else []
         entitlements_by_school: dict[int, dict[str, bool]] = {}
         for entitlement in entitlement_rows:
             entitlements_by_school.setdefault(entitlement.school_id, {})[entitlement.module_key] = bool(entitlement.enabled)
@@ -225,7 +227,7 @@ def session(
             {
                 "id": school.id,
                 "name": school.name,
-                "role": identity.memberships.get(school.id),
+                "role": identity.memberships.get(school.id, "super_admin" if identity.is_super_admin else None),
                 "modules": sorted(
                     key for key in MODULES
                     if entitlements_by_school.get(school.id, {}).get(
