@@ -9,7 +9,7 @@ import { useToast } from '../components/Toast'
 export function PlatformModulesPage() {
   const { notify } = useToast()
   const [schools, setSchools] = useState<School[]>([])
-  const [schoolId, setSchoolId] = useState('')
+  const [schoolId, setSchoolId] = useState(() => new URLSearchParams(window.location.search).get('school_id') ?? '')
   const [access, setAccess] = useState<SchoolModuleAccess | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
