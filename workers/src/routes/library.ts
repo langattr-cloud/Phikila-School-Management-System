@@ -106,7 +106,7 @@ libraryRoutes.get('/student-allocations', async (c) => {
       accountable_teacher_name: copy.accountable_teacher_name ?? 'Unknown teacher',
       student_name: student?.name ?? copy.student_name ?? 'Unknown student',
       student_admission_number: student?.admission_number ?? null,
-      student_class: student?.current_class ?? null, student_issue_at: copy.student_issue_at ?? null,
+      student_class: student?.current_class ?? null, student_issue_at: copy.student_issue_at ?? null, status: copy.status ?? 'with_student',
     }
   }) })
 })
