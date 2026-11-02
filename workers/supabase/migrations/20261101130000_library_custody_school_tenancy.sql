@@ -65,9 +65,9 @@ select b.id,
   lpad(n::text,greatest(2,length(coalesce(b.total_copies,1)::text)),'0')
     || '/' ||
   lpad(coalesce(b.total_copies,1)::text,greatest(2,length(coalesce(b.total_copies,1)::text)),'0'),
-  case when coalesce(active.active_loan_count,0)>0 then 'unreconciled' else 'available' end,
-  case when coalesce(active.active_loan_count,0)>0 then 'unverified' else 'library' end,
-  case when coalesce(active.active_loan_count,0)>0 then 'Legacy loans: physical copy assignments unknown' else null end
+  case when n <= coalesce(active.active_loan_count,0) then 'unreconciled' else 'available' end,
+  case when n <= coalesce(active.active_loan_count,0) then 'unverified' else 'library' end,
+  case when n <= coalesce(active.active_loan_count,0) then 'Legacy loans: physical copy assignments unknown' else null end
 from public.library_books b
 cross join lateral generate_series(1,greatest(1,coalesce(b.total_copies,1))) as series(n)
 left join active_loan_books active on active.book_id=b.id
