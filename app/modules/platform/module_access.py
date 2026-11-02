@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.platform.tenancy import resolve_principal
+from app.modules.platform.authz import Identity, resolve_identity
 from .entitlements import DEFAULT_ENABLED_MODULES, MODULES, TtSchoolModuleEntitlement
 
 
@@ -42,7 +43,14 @@ def require_school_module(module: str) -> Callable:
     if module not in MODULES:
         raise ValueError(f"Unknown school module: {module}")
 
-    def dependency(principal=Depends(resolve_principal), db: Session = Depends(get_db)):
+    def dependency(
+        principal=Depends(resolve_principal),
+        identity: Identity = Depends(resolve_identity),
+        db: Session = Depends(get_db),
+    ):
+        # Platform administrators retain access to every active module.
+        if identity.is_super_admin:
+            return principal
         if not module_enabled(db, principal.school_id, module):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
