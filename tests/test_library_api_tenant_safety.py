@@ -1,7 +1,7 @@
 """Library API release guards: tenant resolution and platform-only access."""
 from pathlib import Path
 
-from app.modules.library import router as library_router
+from app.modules.library.router import router as library_router
 
 
 ROOT = Path(__file__).resolve().parents[1]
