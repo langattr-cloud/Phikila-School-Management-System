@@ -10,8 +10,7 @@ from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, Numeric, Str
 from sqlalchemy.orm import Session
 
 from app.core.database import Base, get_db
-from app.modules.platform.tenancy import Principal
-from app.modules.finance.access import require_finance_role
+from app.modules.platform.tenancy import Principal, require_role
 from app.modules.finance.operations_models import FinanceSupplier as Supplier
 def _audit(db, principal, action, entity, eid, summary):
     from app.modules.platform.models import TtAuditEntry
@@ -140,13 +139,13 @@ def _payment_dict(row):
 
 
 @router.get("/finance/suppliers")
-def list_suppliers(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def list_suppliers(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     rows = db.query(Supplier).filter(Supplier.school_id == principal.school_id, __import__("sqlalchemy").func.upper(Supplier.status) == "ACTIVE").order_by(Supplier.name).all()
     return [_supplier_dict(row) for row in rows]
 
 
 @router.post("/finance/suppliers", status_code=201)
-def create_supplier(payload: SupplierCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def create_supplier(payload: SupplierCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     name = payload.name.strip()
     if db.query(Supplier).filter(Supplier.school_id == principal.school_id, Supplier.name.ilike(name)).first():
         raise HTTPException(409, "A supplier with this name already exists.")
@@ -160,7 +159,7 @@ def create_supplier(payload: SupplierCreate, db: Session = Depends(get_db), prin
 
 
 @router.get("/finance/supplier-invoices")
-def list_supplier_invoices(status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def list_supplier_invoices(status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     query = db.query(SupplierInvoice).filter(SupplierInvoice.school_id == principal.school_id)
     if status_filter:
         if status_filter not in {"OPEN", "PART_PAID", "PAID"}:
@@ -171,7 +170,7 @@ def list_supplier_invoices(status_filter: str | None = Query(default=None, alias
 
 
 @router.post("/finance/supplier-invoices", status_code=201)
-def create_supplier_invoice(payload: SupplierInvoiceCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def create_supplier_invoice(payload: SupplierInvoiceCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     supplier = db.query(Supplier).filter(Supplier.id == payload.supplier_id, Supplier.school_id == principal.school_id, __import__("sqlalchemy").func.upper(Supplier.status) == "ACTIVE").first()
     if not supplier:
         raise HTTPException(404, "Supplier not found.")
@@ -191,13 +190,13 @@ def create_supplier_invoice(payload: SupplierInvoiceCreate, db: Session = Depend
 
 
 @router.get("/finance/supplier-payments")
-def list_supplier_payments(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("viewer", "teacher", "admin"))):
+def list_supplier_payments(db: Session = Depends(get_db), principal: Principal = Depends(require_role("viewer", "teacher", "admin"))):
     rows = db.query(SupplierPayment).filter(SupplierPayment.school_id == principal.school_id).order_by(SupplierPayment.payment_date.desc(), SupplierPayment.id.desc()).limit(500).all()
     return [_payment_dict(row) for row in rows]
 
 
 @router.post("/finance/supplier-payments", status_code=201)
-def create_supplier_payment(payload: SupplierPaymentCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def create_supplier_payment(payload: SupplierPaymentCreate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     supplier = db.query(Supplier).filter(Supplier.id == payload.supplier_id, Supplier.school_id == principal.school_id).first()
     invoice = db.query(SupplierInvoice).filter(SupplierInvoice.id == payload.invoice_id, SupplierInvoice.school_id == principal.school_id, SupplierInvoice.supplier_id == payload.supplier_id).first()
     if not supplier or not invoice:
@@ -222,7 +221,7 @@ def create_supplier_payment(payload: SupplierPaymentCreate, db: Session = Depend
 
 
 @router.patch("/finance/supplier-payments/{payment_id}/cheque-status")
-def update_cheque_status(payment_id: int, payload: ChequeStatusUpdate, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role("admin"))):
+def update_cheque_status(payment_id: int, payload: ChequeStatusUpdate, db: Session = Depends(get_db), principal: Principal = Depends(require_role("admin"))):
     row = db.query(SupplierPayment).filter(SupplierPayment.id == payment_id, SupplierPayment.school_id == principal.school_id).first()
     if not row:
         raise HTTPException(404, "Supplier payment not found.")
