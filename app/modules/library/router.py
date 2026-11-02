@@ -528,8 +528,40 @@ def record_movement(copy_id: UUID, payload: MovementInput, identity: Identity = 
             accountable = _one(db, "SELECT copy_id FROM public.library_teacher_accountability WHERE school_id=:s AND copy_id=:id AND accountable_teacher_id=:t", s=school_id, id=str(copy_id), t=int(teacher_id))
             if not accountable:
                 raise HTTPException(403, "Teachers may only report a copy lost while it is under their own accountability.")
+        owners = _teacher_owners(db, school_id)
+        if int(teacher_id) not in [int(r["id"]) for r in _rows(db, "SELECT id FROM public.timetable_teacher_profiles WHERE owner_id = ANY(:owners)", owners=owners)]:
+            raise HTTPException(403, "Your teacher membership is not linked to a saved teacher profile in this school.")
     if action in {"issue_to_teacher", "issue_to_student", "student_return_to_teacher"} and (not payload.to_holder_id or not (payload.to_holder_name or "").strip()):
         raise HTTPException(400, "A valid receiving holder ID and name are required for this action.")
+    if action == "issue_to_student":
+        student = _one(db, """
+            SELECT id,admission_number,first_name,middle_name,last_name,status
+            FROM public.students WHERE id=:id
+        """, id=payload.to_holder_id)
+        if not student or str(student.get("status") or "").lower() in {"inactive","withdrawn","archived","deleted"}:
+            raise HTTPException(422, "Select an active student from the Student module.")
+        matches = _rows(db, """
+            SELECT id,school_id,status FROM public.students_v2 WHERE admission_number=:admission
+        """, admission=student["admission_number"])
+        valid = [r for r in matches if int(r["school_id"]) == school_id]
+        if len(matches) != 1 or len(valid) != 1 or str(valid[0].get("status") or "").lower() in {"inactive","withdrawn","archived","deleted"}:
+            raise HTTPException(422, "The selected student is not uniquely mapped to an active student in your current school.")
+        legacy = _rows(db, "SELECT id FROM public.students WHERE admission_number=:admission", admission=student["admission_number"])
+        if len(legacy) != 1 or int(legacy[0]["id"]) != int(payload.to_holder_id):
+            raise HTTPException(422, "The selected legacy student record is ambiguous and cannot be assigned custody.")
+        expected = " ".join(x for x in [student.get("first_name"),student.get("middle_name"),student.get("last_name")] if x)
+        if (payload.to_holder_name or "").strip() != expected:
+            raise HTTPException(422, "Student name does not match the selected Student module record.")
+    if action in {"issue_to_teacher", "reconcile_copy"} and (action == "issue_to_teacher" or payload.to_holder_type == "teacher"):
+        if not payload.to_holder_id or not (payload.to_holder_name or "").strip():
+            raise HTTPException(400, "A verified teacher ID and name are required.")
+        owners = _teacher_owners(db, school_id)
+        teacher = _one(db, "SELECT id,profile FROM public.timetable_teacher_profiles WHERE id=:id AND owner_id = ANY(:owners)", id=payload.to_holder_id, owners=owners) if owners else None
+        if not teacher:
+            raise HTTPException(422, "Select a teacher from the saved timetable teacher directory for this school.")
+        profile = teacher.get("profile") if isinstance(teacher.get("profile"), dict) else {}
+        if _teacher_name(profile) != (payload.to_holder_name or "").strip():
+            raise HTTPException(422, "Teacher name does not match the selected saved timetable teacher profile.")
     if action == "reconcile_copy" and payload.to_holder_type not in {"library", "teacher"}:
         raise HTTPException(400, "Physically verify the copy at the library or with its responsible teacher.")
     if action == "reconcile_copy" and payload.to_holder_type == "teacher" and (not payload.to_holder_id or not (payload.to_holder_name or "").strip()):
@@ -569,7 +601,7 @@ def list_loans(access: tuple[int, str] = Depends(school_access), db: Session = D
 @router.post("/loans", status_code=201)
 def create_loan(payload: dict[str, Any], access: tuple[int, str] = Depends(school_access), db: Session = Depends(get_db)):
     school_id, _ = access
-    allowed = {"book_id", "borrower_name", "borrower_type", "borrower_id", "borrow_date", "due_date", "status", "notes"}
+    allowed = {"book_id", "borrower_name", "borrower_type", "borrower_id", "loan_date", "due_date", "status", "notes"}
     values = {k: v for k, v in payload.items() if k in allowed}
     if not values.get("book_id"):
         raise HTTPException(400, "book_id is required.")
