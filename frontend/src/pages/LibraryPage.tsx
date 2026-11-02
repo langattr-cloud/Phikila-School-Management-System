@@ -128,7 +128,7 @@ export default function LibraryPage() {
       if (sequence !== loadSequence.current) return
       setBooks(bookRows); setCopies(copyRows); setStats(overview); setReconciliation(outstanding); setTeacherAccountability(teacherRegister)
       const [workspaceResult, directoryResult, studentsResult, allocationsResult] = await Promise.allSettled([
-        libraryFetch<TimetableWorkspace>('/api/v1/timetable/workspace'),
+        libraryFetch<TimetableWorkspace>('/api/v1/library/timetable-context'),
         libraryFetch<DirectoryTeacher[]>('/api/v1/library/teacher-directory'),
         libraryFetch<DirectoryStudent[]>('/api/v1/library/student-directory'),
         libraryFetch<{ items: typeof studentAllocations }>('/api/v1/library/student-allocations'),
@@ -349,7 +349,7 @@ export default function LibraryPage() {
   </div>
 
   return <div className="library-page">
-    {librarySchools.length > 1 && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}>
+    {(librarySchools.length > 1 || isPlatformAdmin) && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}>
       <label className="field">
         <span className="field__label">{isPlatformAdmin ? 'Switch school workspace (optional)' : 'Your school'}</span>
         <select className="input" value={activeSchoolId} onChange={event => {
@@ -359,6 +359,7 @@ export default function LibraryPage() {
           setTeacherDirectory([]); setStudentDirectory([]); setStudentAllocations([])
           setSelectedCopy('')
         }}>
+          {isPlatformAdmin && <option value="">Platform-wide Library overview</option>}
           {librarySchools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
         </select>
       </label>
