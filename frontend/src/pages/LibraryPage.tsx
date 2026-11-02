@@ -256,7 +256,7 @@ export default function LibraryPage() {
   }
 
   if (!activeSchoolId) return <div className="library-page">
-    <PageHeader title="Library & Book Custody" description="Choose the school whose Library register you want to open." />
+    <PageHeader title="Library & Book Custody" description="Select a school to access its Library register and manage book records and custody." />
     {platformSessionLoading ? <LoadingBlock label="Checking your school access" rows={2} /> : <>
       {platformSessionError
         ? <section className="card section"><Alert tone="error">{platformSessionError} The preview API must be connected to the matching feature-branch backend before school entitlements can load.</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
@@ -269,11 +269,11 @@ export default function LibraryPage() {
                 {librarySchools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
               </select>
             </label>
-            <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Only active schools where the super admin has enabled the Library module are listed. Your school role must also permit Library operations.</p>
+            <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Only active schools with Library enabled are listed. Platform administrators can manage the school’s module access in Platform administration; other users also need an authorized school role.</p>
             <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh school access</button>
           </section>
         : <section className="card section">
-            <Alert tone="info">No active school with Library access is available to your account. Ask the super admin to activate the school and enable its Library module, then refresh this page.</Alert>
+            {platformSession?.is_super_admin ? <Alert tone="info">No active school currently has Library enabled. Open Platform → Schools, select the school, and enable Library under School module access.</Alert> : <Alert tone="info">No active school with Library access is available to your account. Ask your school administrator to confirm that the school is active and Library is enabled, then refresh this page.</Alert>}
             <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh school access</button>
           </section>}
     </>}
