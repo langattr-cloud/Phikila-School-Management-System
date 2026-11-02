@@ -207,12 +207,34 @@ def session(
     if identity.memberships:
         rows = (
             db.query(TtSchool)
-            .filter(TtSchool.id.in_(list(identity.memberships)))
+            .filter(
+                TtSchool.id.in_(list(identity.memberships)),
+                TtSchool.status == "active",
+            )
             .all()
         )
+        entitlement_rows = (
+            db.query(TtSchoolModuleEntitlement)
+            .filter(TtSchoolModuleEntitlement.school_id.in_(list(identity.memberships)))
+            .all()
+        )
+        entitlements_by_school: dict[int, dict[str, bool]] = {}
+        for entitlement in entitlement_rows:
+            entitlements_by_school.setdefault(entitlement.school_id, {})[entitlement.module_key] = bool(entitlement.enabled)
         schools = [
-            {"id": s.id, "name": s.name, "role": identity.memberships.get(s.id)}
-            for s in rows
+            {
+                "id": school.id,
+                "name": school.name,
+                "role": identity.memberships.get(school.id),
+                "modules": sorted(
+                    key for key in MODULES
+                    if entitlements_by_school.get(school.id, {}).get(
+                        key,
+                        not entitlements_by_school.get(school.id) and key in DEFAULT_ENABLED_MODULES,
+                    )
+                ),
+            }
+            for school in rows
         ]
 
     enabled_modules = sorted(DEFAULT_ENABLED_MODULES)
