@@ -22,7 +22,8 @@ from app.modules.finance.payment_decoder import decode_payment_message
 from app.modules.finance.payment_matching import find_student_by_admission_number
 from app.modules.finance.payment_posting import post_fee_payment
 from app.modules.platform.models import TtAuditEntry
-from app.modules.platform.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal
+from app.modules.finance.access import require_finance_role
 
 router = APIRouter()
 
@@ -284,7 +285,7 @@ def verify_and_post_sms_payment(
     inbox_id: int,
     payload: PaymentVerificationPayload,
     db: Session = Depends(get_db),
-    principal: Principal = Depends(require_role("admin")),
+    principal: Principal = Depends(require_finance_role("admin")),
 ):
     """Record independent bank verification, then allocate oldest invoice first."""
     item = db.query(m.PaymentInbox).filter(
@@ -320,7 +321,7 @@ def verify_and_post_sms_payment(
 def reconcile_kcb_statement(
     payload: PaymentReconciliationRequest,
     db: Session = Depends(get_db),
-    principal: Principal = Depends(require_role("admin")),
+    principal: Principal = Depends(require_finance_role("admin")),
 ):
     """Compare an uploaded/entered KCB statement batch with inbox notifications."""
     references = [line.reference.strip() for line in payload.transactions]
