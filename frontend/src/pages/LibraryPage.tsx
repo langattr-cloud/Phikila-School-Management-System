@@ -42,6 +42,7 @@ export default function LibraryPage() {
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setLoadWarnings([])
     try {
       const [bookRows, copyRows, overview] = await Promise.all([
         apiFetch<Book[]>('/api/v1/library/books'),
