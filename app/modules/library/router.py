@@ -96,6 +96,47 @@ def _one(db: Session, sql: str, **params: Any) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+@router.get("/platform-overview")
+def platform_overview(
+    identity: Identity = Depends(resolve_identity),
+    db: Session = Depends(get_db),
+):
+    """Platform-wide Library overview for super admins; no school selection required."""
+    if not identity.is_super_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Platform administrator access is required.")
+
+    schools = _rows(db, """
+        SELECT
+            s.id AS school_id,
+            s.name AS school_name,
+            COALESCE(e.enabled, FALSE) AS library_enabled,
+            COUNT(DISTINCT b.id)::integer AS total_titles,
+            COUNT(DISTINCT c.id)::integer AS total_copies,
+            COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'available')::integer AS available_copies,
+            COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'with_teacher')::integer AS with_teachers,
+            COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'with_student')::integer AS with_students,
+            COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'lost')::integer AS lost_copies,
+            COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'excluded')::integer AS excluded_copies,
+            COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'unreconciled')::integer AS unreconciled_copies
+        FROM public.tt_schools s
+        LEFT JOIN public.tt_school_module_entitlements e
+          ON e.school_id = s.id AND e.module_key = 'library'
+        LEFT JOIN public.library_books b ON b.school_id = s.id
+        LEFT JOIN public.library_book_copies c
+          ON c.book_id = b.id AND c.school_id = s.id
+        WHERE s.status = 'active'
+        GROUP BY s.id, s.name, e.enabled
+        ORDER BY s.name
+    """)
+
+    count_fields = (
+        "total_titles", "total_copies", "available_copies", "with_teachers",
+        "with_students", "lost_copies", "excluded_copies", "unreconciled_copies",
+    )
+    totals = {field: sum(int(school.get(field) or 0) for school in schools) for field in count_fields}
+    return {"schools": schools, "totals": totals}
+
+
 def _db_error(exc: Exception) -> HTTPException:
     message = str(getattr(getattr(exc, "orig", None), "diag", None) and exc.orig.diag.message_primary or exc)
     if "P0002" in message or "not found" in message.lower():
