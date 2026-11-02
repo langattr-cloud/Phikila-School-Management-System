@@ -39,6 +39,25 @@ const actionLabels: Record<string, string> = {
 }
 const statusLabel = (status: Copy['status']) => ({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs physical verification', excluded: 'Missing before issue — excluded' })[status]
 
+const LIBRARY_REQUEST_TIMEOUT_MS = 12000
+
+async function libraryApiRequest<T>(path: string, init: RequestInit = {}, schoolId?: string): Promise<T> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), LIBRARY_REQUEST_TIMEOUT_MS)
+  const headers = new Headers(init.headers)
+  if (schoolId) headers.set('X-School-Id', schoolId)
+  try {
+    return await apiFetch<T>(path, { ...init, headers, signal: controller.signal })
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('The Library API did not respond within 12 seconds. Check the preview API connection and retry.')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 export default function LibraryPage() {
   const { notify } = useToast()
   const { session: platformSession, loading: platformSessionLoading, error: platformSessionError, reload: reloadPlatformSession } = usePlatformSession()
@@ -53,11 +72,9 @@ export default function LibraryPage() {
   // when they intentionally open its isolated register; regular users retain
   // their normal school-scoped workspace.
   const activeSchoolId = selectedSchoolId || (!isPlatformAdmin && librarySchools.length === 1 ? String(librarySchools[0]?.id ?? '') : '')
-  const libraryFetch = useCallback(<T,>(path: string, init: RequestInit = {}) => {
-    const headers = new Headers(init.headers)
-    if (activeSchoolId) headers.set('X-School-Id', activeSchoolId)
-    return apiFetch<T>(path, { ...init, headers })
-  }, [activeSchoolId])
+  const libraryFetch = useCallback(<T,>(path: string, init: RequestInit = {}) => (
+    libraryApiRequest<T>(path, init, activeSchoolId || undefined)
+  ), [activeSchoolId])
   const [books, setBooks] = useState<Book[]>([])
   const [timetable, setTimetable] = useState<TimetableWorkspace['data']>(null)
   const [teacherDirectory, setTeacherDirectory] = useState<DirectoryTeacher[]>([])
@@ -108,7 +125,7 @@ export default function LibraryPage() {
     setLoading(true); setError(null)
     if (!activeSchoolId && isPlatformAdmin) {
       try {
-        const overview = await apiFetch<PlatformLibraryOverview>('/api/v1/library/platform-overview')
+        const overview = await libraryApiRequest<PlatformLibraryOverview>('/api/v1/library/platform-overview')
         if (sequence === loadSequence.current) setPlatformOverview(overview)
       } catch (err) {
         if (sequence === loadSequence.current) setError(friendlyApiError(err, 'load the platform Library overview'))
