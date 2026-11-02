@@ -50,8 +50,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { notify } = useToast()
-  const { session: platformSession } = usePlatformSession()
+  const { session: platformSession, error: platformSessionError } = usePlatformSession()
   const isSuperAdmin = platformSession?.is_super_admin ?? false
+  // Keep the platform entry discoverable during a session-check outage. This is navigation only;
+  // every platform API remains protected by the backend's require_super_admin dependency.
+  const showPlatformNavigation = isSuperAdmin || Boolean(platformSessionError)
   const enabledModules = platformSession?.enabled_modules
   const moduleForPath = (to: string): string | null => {
     if (to.startsWith('/platform/')) return null
@@ -65,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return null
   }
   const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { const module = moduleForPath(item.to); return isSuperAdmin || !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
-  const groups = isSuperAdmin ? [PLATFORM_NAV, ...filteredNav] : filteredNav
+  const groups = showPlatformNavigation ? [PLATFORM_NAV, ...filteredNav] : filteredNav
   const bottomNav = BOTTOM_NAV.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) })
   const accountName = displayName(user)
   const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'
