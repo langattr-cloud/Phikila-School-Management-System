@@ -196,14 +196,14 @@ export default function LibraryPage() {
   const showReceiver = ['issue_to_teacher', 'issue_to_student', 'student_return_to_teacher'].includes(action) || (action === 'reconcile_copy' && toHolderType !== 'library')
 
   function applyIssueCopyRange(fromLabel: string, toLabel: string) {
-    const from = fromLabel.trim().match(/^(\\d+)\\/(\\d+)$/)
-    const to = toLabel.trim().match(/^(\\d+)\\/(\\d+)$/)
+    const from = fromLabel.trim().match(/^(\d+)\/(\d+)$/)
+    const to = toLabel.trim().match(/^(\d+)\/(\d+)$/)
     if (!from || !to || from[2] !== to[2] || Number(from[1]) > Number(to[1])) {
       setError('Enter a valid copy range using the same registered total, for example 01/25 to 20/25.')
       return
     }
     const matches = issueBookCopies.filter(copy => {
-      const number = copy.copy_number.match(/^(\\d+)\\/(\\d+)$/)
+      const number = copy.copy_number.match(/^(\d+)\/(\d+)$/)
       return number && number[2] === from[2] && Number(number[1]) >= Number(from[1]) && Number(number[1]) <= Number(to[1])
     })
     setSelectedCopyIds(matches.map(copy => copy.id))
@@ -212,7 +212,7 @@ export default function LibraryPage() {
   }
 
   function applyTypedIssueCopyRange() {
-    const parts = typedRange.split(/\\s+to\\s+/i)
+    const parts = typedRange.split(/\s+to\s+/i)
     if (parts.length !== 2) {
       setError('Use the format 01/25 to 20/25.')
       return
