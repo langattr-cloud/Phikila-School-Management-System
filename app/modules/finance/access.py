@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.platform.authz import Identity, resolve_identity
-from app.modules.platform.entitlements import TtSchoolModuleEntitlement
 from app.modules.platform.module_access import module_enabled
 from app.modules.platform.tenancy import Principal, ROLE_ORDER, TtMembership, TtSchool
 
