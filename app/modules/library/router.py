@@ -358,6 +358,28 @@ def _teacher_owners(db: Session, school_id: int) -> list[str]:
     return [owner for owner, schools in by_owner.items() if schools == {school_id}]
 
 
+@router.get("/timetable-context")
+def timetable_context(access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
+    """Read the selected school's saved timetable without requiring the caller to be its owner."""
+    school_id, _ = access
+    owners = _teacher_owners(db, school_id)
+    if not owners:
+        return {"data": None, "updated_at": None}
+    row = _one(db, """
+        SELECT data, updated_at
+        FROM public.tt_timetable_ribbon_workspaces
+        WHERE owner_id = ANY(:owners)
+        ORDER BY updated_at DESC
+        LIMIT 1
+    """, owners=owners)
+    if not row:
+        return {"data": None, "updated_at": None}
+    return {
+        "data": row.get("data") if isinstance(row.get("data"), dict) else None,
+        "updated_at": row.get("updated_at").isoformat() if row.get("updated_at") else None,
+    }
+
+
 @router.get("/teacher-directory")
 def teacher_directory(access: tuple[int, str] = Depends(library_access), db: Session = Depends(get_db)):
     school_id, _ = access
