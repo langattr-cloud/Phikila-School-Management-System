@@ -41,11 +41,16 @@ const statusLabel = (status: Copy['status']) => ({ available: 'In library', with
 export default function LibraryPage() {
   const { notify } = useToast()
   const { session: platformSession, loading: platformSessionLoading, error: platformSessionError, reload: reloadPlatformSession } = usePlatformSession()
-  const librarySchools = useMemo(() => (platformSession?.schools ?? []).filter(school => school.modules?.includes('library')), [platformSession?.schools])
+  const isPlatformAdmin = platformSession?.is_super_admin ?? false
+  const librarySchools = useMemo(() => {
+    const schools = platformSession?.schools ?? []
+    return (isPlatformAdmin ? schools : schools.filter(school => school.modules?.includes('library')))
+      .slice().sort((a, b) => a.name.localeCompare(b.name))
+  }, [platformSession?.schools, isPlatformAdmin])
   const [selectedSchoolId, setSelectedSchoolId] = useState('')
-  // Never infer a school, even when the account currently has only one.
-  // The user must explicitly choose the tenant whose Library is being opened.
-  const activeSchoolId = selectedSchoolId
+  // Platform admins enter Library directly. A school workspace is selected
+  // automatically; switching workspaces never combines tenant records.
+  const activeSchoolId = selectedSchoolId || (isPlatformAdmin ? String(librarySchools[0]?.id ?? '') : (librarySchools.length === 1 ? String(librarySchools[0].id) : ''))
   const libraryFetch = useCallback(<T,>(path: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers)
     if (activeSchoolId) headers.set('X-School-Id', activeSchoolId)
@@ -128,8 +133,7 @@ export default function LibraryPage() {
 
   useEffect(() => { void load() }, [load])
 
-  // Refresh the dashboard-granted school memberships whenever Library opens.
-  // This makes newly granted school access available without requiring sign-out.
+  // Refresh the platform's school and module grants whenever Library opens.
   useEffect(() => { reloadPlatformSession() }, [reloadPlatformSession])
 
   useEffect(() => {
@@ -256,33 +260,33 @@ export default function LibraryPage() {
   }
 
   if (!activeSchoolId) return <div className="library-page">
-    <PageHeader title="Library & Book Custody" description="Select a school to access its Library register and manage book records and custody." />
-    {platformSessionLoading ? <LoadingBlock label="Checking your school access" rows={2} /> : <>
+    <PageHeader title="Library & Book Custody" description={isPlatformAdmin ? "Platform Library access. Select a school workspace; each school's catalogue and custody records remain separate." : "Manage your school's Library register and book custody."} />
+    {platformSessionLoading ? <LoadingBlock label="Loading Library access" rows={2} /> : <>
       {platformSessionError
-        ? <section className="card section"><Alert tone="error">{platformSessionError} The preview API must be connected to the matching feature-branch backend before school entitlements can load.</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
+        ? <section className="card section"><Alert tone="error">{platformSessionError} The preview API must be connected to the matching feature-branch backend before platform access can load.</Alert><button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Retry access check</button></section>
         : librarySchools.length
         ? <section className="card section">
             <label className="field">
-              <span className="field__label">School</span>
+              <span className="field__label">School workspace</span>
               <select className="input" value={selectedSchoolId} onChange={event => setSelectedSchoolId(event.target.value)}>
-                <option value="">Select a school</option>
+                <option value="">Choose school workspace</option>
                 {librarySchools.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
               </select>
             </label>
-            <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Only active schools with Library enabled are listed. Platform administrators can manage the school’s module access in Platform administration; other users also need an authorized school role.</p>
-            <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh school access</button>
+            <p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>{isPlatformAdmin ? "Your platform role gives you access to every active school's Library workspace. Choose a workspace to work with its independent records." : "Only schools where Library is enabled and you have an authorized school role are listed."}</p>
+            <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh access</button>
           </section>
         : <section className="card section">
-            {platformSession?.is_super_admin ? <Alert tone="info">No active school currently has Library enabled. Open Platform → Schools, select the school, and enable Library under School module access.</Alert> : <Alert tone="info">No active school with Library access is available to your account. Ask your school administrator to confirm that the school is active and Library is enabled, then refresh this page.</Alert>}
-            <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh school access</button>
+            {isPlatformAdmin ? <Alert tone="info">There are no active schools on the platform yet. Create or activate a school under Platform → Schools.</Alert> : <Alert tone="info">No active school with Library access is available to your account. Ask your school administrator to confirm that Library is enabled, then refresh this page.</Alert>}
+            <button className="button button--secondary button--sm" type="button" onClick={reloadPlatformSession}>Refresh access</button>
           </section>}
     </>}
   </div>
 
   return <div className="library-page">
-    {librarySchools.length > 0 && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}>
+    {librarySchools.length > 1 && <section className="card section" style={{ marginBottom: 'var(--space-3)' }}>
       <label className="field">
-        <span className="field__label">Selected school</span>
+        <span className="field__label">{isPlatformAdmin ? 'School workspace' : 'Your school'}</span>
         <select className="input" value={activeSchoolId} onChange={event => {
           setSelectedSchoolId(event.target.value)
           setBooks([]); setCopies([]); setMovements([]); setStats(null)
@@ -296,7 +300,7 @@ export default function LibraryPage() {
       </label>
     </section>}
     <PageHeader title="Library & Book Custody" description="Track each numbered copy through the required Library → Teacher → Student → Teacher → Library hand-off." actions={<button className="button button--primary button--sm" onClick={() => setShowNewBook(value => !value)}>{showNewBook ? 'Cancel' : 'Add book title'}</button>} />
-    {!activeSchoolId && <Alert tone="info">Select a school with Library entitlement before viewing or changing its Library register.</Alert>}
+    {!activeSchoolId && <Alert tone="info">Select your school workspace to view its independent Library register.</Alert>}
     {showNewBook && <section className="card section" style={{ marginBottom: 'var(--space-4)' }}><h2 className="section__title">Add a catalogue title</h2><form onSubmit={createBook} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(13rem,1fr))', gap: 'var(--space-3)', alignItems: 'end' }}><label className="field"><span className="field__label">Grade (from timetable)</span><select className="input" required value={newBookGrade} onChange={e => { setNewBookGrade(e.target.value); setNewBookSubject('') }}><option value="">Select timetable grade…</option>{timetableGrades.map(grade => <option key={grade} value={grade}>{grade}</option>)}</select></label><label className="field"><span className="field__label">Subject (from timetable)</span><select className="input" required value={newBookSubject} onChange={e => setNewBookSubject(e.target.value)} disabled={!newBookGrade}><option value="">Select timetable subject…</option>{timetableSubjects.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label><label className="field"><span className="field__label">Book title</span><input className="input" required value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="e.g. Skills in English Grade 9" /></label><label className="field"><span className="field__label">Author (optional)</span><input className="input" value={newBookAuthor} onChange={e => setNewBookAuthor(e.target.value)} /></label><label className="field"><span className="field__label">Number of physical copies</span><input className="input" type="number" min="1" max="5000" required value={newBookCopies} onChange={e => setNewBookCopies(e.target.value)} /></label><button className="button button--primary" type="submit" disabled={addingBook}>{addingBook ? 'Creating…' : 'Create title & copies'}</button></form><p style={{ color: 'var(--color-ink-muted)', marginBottom: 0 }}>Grades and subjects are read from saved timetable lessons and class grade metadata. Copies are numbered automatically, for example 01/25 through 25/25. {timetableGrades.length === 0 ? 'No timetable assignments were found; save the timetable before creating a catalogue title.' : ''}</p></section>}
     {error && <Alert tone="error">{error}</Alert>}
     {loading ? <LoadingBlock label="Loading library register" rows={5} /> : <>
