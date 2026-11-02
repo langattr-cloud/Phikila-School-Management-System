@@ -36,24 +36,28 @@ ACTIONS = set(MOVEMENT_ROLES)
 CONDITIONS = {"good", "damaged", "lost"}
 
 
-def school_access(
-    identity: Identity = Depends(resolve_identity),
-    school_header: str | None = Header(default=None, alias="X-School-Id"),
-    allowed_roles: set[str] = ALL_LIBRARY_ROLES,
-) -> tuple[int, str]:
-    """Resolve a deliberately selected, already-granted school membership."""
-    if not school_header:
-        raise HTTPException(400, "Select a school using X-School-Id.")
-    try:
-        school_id = int(school_header)
-    except (TypeError, ValueError):
-        raise HTTPException(400, "Invalid X-School-Id header.")
-    if school_id <= 0 or not identity.can_access_school(school_id):
-        raise HTTPException(403, "You do not have access to the selected school.")
-    role = str(identity.role_in(school_id) or "").lower()
-    if role not in allowed_roles and not (identity.is_super_admin and role in ALL_LIBRARY_ROLES):
-        raise HTTPException(403, "An authorized Library role is required for the selected school.")
-    return school_id, role
+def _school_access_dependency(allowed_roles: set[str]):
+    def dependency(
+        identity: Identity = Depends(resolve_identity),
+        school_header: str | None = Header(default=None, alias="X-School-Id"),
+    ) -> tuple[int, str]:
+        if not school_header:
+            raise HTTPException(400, "Select a school using X-School-Id.")
+        try:
+            school_id = int(school_header)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Invalid X-School-Id header.")
+        if school_id <= 0 or not identity.can_access_school(school_id):
+            raise HTTPException(403, "You do not have access to the selected school.")
+        role = str(identity.role_in(school_id) or "").lower()
+        if role not in allowed_roles and not (identity.is_super_admin and role in ALL_LIBRARY_ROLES):
+            raise HTTPException(403, "An authorized Library role is required for the selected school.")
+        return school_id, role
+    return dependency
+
+
+librarian_access = _school_access_dependency(LIBRARIAN_ROLES)
+library_access = _school_access_dependency(ALL_LIBRARY_ROLES)
 
 
 def _rows(db: Session, sql: str, **params: Any) -> list[dict[str, Any]]:
@@ -111,7 +115,7 @@ class MovementInput(BaseModel):
 
 @router.get("/books")
 def list_books(
-    access: tuple[int, str] = Depends(school_access),
+    access: tuple[int, str] = Depends(librarian_access),
     db: Session = Depends(get_db),
 ):
     school_id, _ = access
