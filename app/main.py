@@ -69,7 +69,7 @@ def _rate_limit_mutations(router) -> None:
 def create_app() -> FastAPI:
     app = FastAPI(title="Phikila School System API", description="Backend API for Phikila School System - Phased Modular Architecture", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
     if settings.cors_origins or settings.cors_origin_regex:
-        app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_origin_regex=settings.cors_origin_regex, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "Accept", "X-School-Id"])
+        app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_origin_regex=settings.cors_origin_regex, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "Accept"])
     from app.middleware import SecurityHeadersMiddleware, AccessLogMiddleware
     app.add_middleware(AccessLogMiddleware); app.add_middleware(SecurityHeadersMiddleware)
     @app.on_event("startup")
@@ -94,7 +94,12 @@ def create_app() -> FastAPI:
     _guard_module_routes(students_import_router, "students")
     _guard_module_routes(students_router, "students")
     _guard_module_routes(exams_router, "examinations")
-    # Finance routes perform selected-school authorization in their own dependencies.
+    for finance_module_router in (
+        finance_router, capitation_router, supplier_payments_router, finance_sms_router, finance_statement_import_router,
+        finance_operations_router, finance_account_mapping_router,
+        finance_reports_router, finance_completion_router,
+    ):
+        _guard_module_routes(finance_module_router, "finance")
     _guard_module_routes(ocr_router, "ai_tools")
     _guard_module_routes(academics_router, "students")
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
