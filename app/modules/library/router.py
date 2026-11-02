@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.platform.authz import Identity, resolve_identity
+from app.modules.platform.entitlements import DEFAULT_ENABLED_MODULES, TtSchoolModuleEntitlement
 
 router = APIRouter(prefix="/library", tags=["Library"])
 LIBRARIAN_ROLES = {"admin", "super_admin", "librarian"}
@@ -39,6 +40,7 @@ CONDITIONS = {"good", "damaged", "lost"}
 def _school_access_dependency(allowed_roles: set[str]):
     def dependency(
         identity: Identity = Depends(resolve_identity),
+        db: Session = Depends(get_db),
         school_header: str | None = Header(default=None, alias="X-School-Id"),
     ) -> tuple[int, str]:
         if not school_header:
@@ -52,6 +54,16 @@ def _school_access_dependency(allowed_roles: set[str]):
         role = str(identity.role_in(school_id) or "").lower()
         if role not in allowed_roles and not (identity.is_super_admin and role in ALL_LIBRARY_ROLES):
             raise HTTPException(403, "An authorized Library role is required for the selected school.")
+        entitlement_rows = db.query(TtSchoolModuleEntitlement).filter(
+            TtSchoolModuleEntitlement.school_id == school_id
+        ).all()
+        if entitlement_rows:
+            library_enabled = any(row.module_key == "library" and row.enabled for row in entitlement_rows)
+        else:
+            # Preserve the configured starter-module defaults until a super admin saves entitlements.
+            library_enabled = "library" in DEFAULT_ENABLED_MODULES
+        if not library_enabled:
+            raise HTTPException(403, {"code": "module_not_enabled", "module": "library", "message": "Library is not enabled for this school. Contact your platform administrator."})
         return school_id, role
     return dependency
 
