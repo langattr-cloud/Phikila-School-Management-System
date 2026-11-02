@@ -43,11 +43,17 @@ def test_library_rejects_invalid_school_header():
     assert exc.value.status_code == 400
 
 
-def test_library_never_uses_platform_admin_as_school_access_grant():
+def test_platform_admin_can_access_active_school_when_library_is_enabled():
+    principal = identity({}, is_super_admin=True)
+    assert librarian_access(identity=principal, db=_DB(), school_header="7") == (7, "super_admin")
+
+
+def test_platform_admin_still_requires_library_module_entitlement():
     principal = identity({}, is_super_admin=True)
     with pytest.raises(HTTPException) as exc:
-        library_access(identity=principal, school_header="7")
+        librarian_access(identity=principal, db=_DB(library_enabled=False), school_header="7")
     assert exc.value.status_code == 403
+    assert exc.value.detail["code"] == "module_not_enabled"
 
 
 def test_multi_school_account_must_select_the_school():
