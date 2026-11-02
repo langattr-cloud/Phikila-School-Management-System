@@ -69,7 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
   const filteredNav = NAV.map(group => ({ ...group, items: group.items.filter(item => { const module = moduleForPath(item.to); return isSuperAdmin || !enabledModules || !module || enabledModules.includes(module) }) })).filter(group => group.items.length > 0)
   const groups = showPlatformNavigation ? [PLATFORM_NAV, ...filteredNav] : filteredNav
-  const bottomNav = BOTTOM_NAV.filter(item => { const module = moduleForPath(item.to); return !enabledModules || !module || enabledModules.includes(module) })
+  const bottomNav = BOTTOM_NAV.filter(item => { const module = moduleForPath(item.to); return isSuperAdmin || !enabledModules || !module || enabledModules.includes(module) })
   const accountName = displayName(user)
   const accountInitial = accountName.trim().charAt(0).toUpperCase() || 'P'
   const [drawerOpen, setDrawerOpen] = useState(false)
