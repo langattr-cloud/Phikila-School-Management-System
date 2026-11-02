@@ -50,13 +50,20 @@ def _school_access_dependency(allowed_roles: set[str]):
             school_id = int(school_header)
         except (TypeError, ValueError):
             raise HTTPException(400, "Invalid X-School-Id header.")
-        if school_id <= 0 or not identity.can_access_school(school_id):
+        if school_id <= 0:
+            raise HTTPException(400, "Invalid X-School-Id header.")
+        # A platform administrator can administer a school's enabled modules
+        # without separately granting themselves a school membership. Other
+        # users must still have an active membership and an allowed school role.
+        if not identity.is_super_admin and not identity.can_access_school(school_id):
             raise HTTPException(403, "You do not have access to the selected school.")
         school = db.query(TtSchool).filter(TtSchool.id == school_id).first()
         if school is None or school.status != "active":
             raise HTTPException(403, "This school is not active on the platform.")
         role = str(identity.role_in(school_id) or "").lower()
-        if role not in allowed_roles and not (identity.is_super_admin and role in ALL_LIBRARY_ROLES):
+        if identity.is_super_admin:
+            role = "super_admin"
+        elif role not in allowed_roles:
             raise HTTPException(403, "An authorized Library role is required for the selected school.")
         entitlement_rows = db.query(TtSchoolModuleEntitlement).filter(
             TtSchoolModuleEntitlement.school_id == school_id
