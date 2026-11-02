@@ -338,7 +338,7 @@ def student_directory(access: tuple[int, str] = Depends(library_access), db: Ses
 
 
 @router.get("/student-allocations")
-def student_allocations(access: tuple[int, str] = Depends(library_access), db: Session = Depends(get_db)):
+def student_allocations(access: tuple[int, str] = Depends(librarian_access), db: Session = Depends(get_db)):
     school_id, _ = access
     rows = _rows(db, """
         SELECT a.copy_id,a.copy_number,a.book_title,a.accountable_teacher_name,
