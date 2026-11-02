@@ -115,3 +115,18 @@ test('student issue validates the selected Student module record after parsing t
   assert.ok(movementRoute.indexOf('const toHolderId =') < movementRoute.indexOf("if (action === 'issue_to_student') {"))
   assert.match(movementRoute, /students'\)\.select\('id,first_name,middle_name,last_name,status'\)/)
 })
+
+
+test('student allocation response includes the live physical-copy custody status', () => {
+  assert.match(routes, /student_issue_at: copy\.student_issue_at \?\? null, status: copy\.status \?\? 'with_student'/)
+})
+
+test('Library dashboard preserves failed issue selections and reports partial data failures', async () => {
+  const page = await readFile(new URL('../../frontend/src/pages/LibraryPage.tsx', import.meta.url), 'utf8')
+  assert.match(page, /Failed copies remain selected for review/)
+  assert.match(page, /Teacher directory could not be loaded/)
+  assert.match(page, /Student allocation records could not be loaded/)
+  assert.match(page, /due_date: dueDate \|\| null/)
+  assert.match(page, /action: 'teacher_return_to_library'/)
+  assert.match(page, /row\.status === 'with_student'/)
+})
