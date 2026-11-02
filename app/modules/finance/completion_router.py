@@ -7,7 +7,8 @@ from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.modules.platform.tenancy import Principal, require_role
+from app.modules.platform.tenancy import Principal
+from app.modules.finance.access import require_finance_role
 from . import operations_models as o
 
 router = APIRouter()
@@ -32,11 +33,11 @@ def audit(db, principal, action, entity, entity_id, summary):
                         action=action, entity=entity, entity_id=entity_id, summary=summary))
 
 @router.get('/finance/cash-books')
-def list_cash_books(db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer','admin'))):
+def list_cash_books(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer','admin'))):
     return db.query(o.FinanceCashBook).filter_by(school_id=principal.school_id).all()
 
 @router.post('/finance/cash-books', status_code=201)
-def create_cash_book(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin'))):
+def create_cash_book(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('admin'))):
     if not payload.get('name') or not payload.get('book_type'): raise HTTPException(400, 'name and book_type are required')
     book = o.FinanceCashBook(school_id=principal.school_id, name=payload['name'], book_type=payload['book_type'],
                              bank_account_id=payload.get('bank_account_id'), opening_balance=money(payload.get('opening_balance')))
@@ -44,13 +45,13 @@ def create_cash_book(payload: dict, db: Session = Depends(get_db), principal: Pr
     db.commit(); db.refresh(book); return book
 
 @router.get('/finance/cash-books/{cash_book_id}/entries')
-def list_cash_book_entries(cash_book_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer','admin'))):
+def list_cash_book_entries(cash_book_id: int, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer','admin'))):
     book = db.query(o.FinanceCashBook).filter_by(id=cash_book_id, school_id=principal.school_id).first()
     if not book: raise HTTPException(404, 'Cash book not found')
     return db.query(o.FinanceCashBookEntry).filter_by(cash_book_id=book.id, school_id=principal.school_id).order_by(o.FinanceCashBookEntry.entry_date, o.FinanceCashBookEntry.id).all()
 
 @router.post('/finance/cash-books/{cash_book_id}/entries', status_code=201)
-def add_cash_book_entry(cash_book_id: int, payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin','scheduler'))):
+def add_cash_book_entry(cash_book_id: int, payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('admin','scheduler'))):
     book = db.query(o.FinanceCashBook).filter_by(id=cash_book_id, school_id=principal.school_id).first()
     if not book: raise HTTPException(404, 'Cash book not found')
     if payload.get('entry_type') not in {'RECEIPT','PAYMENT','TRANSFER'}: raise HTTPException(400, 'entry_type must be RECEIPT, PAYMENT or TRANSFER')
@@ -62,11 +63,11 @@ def add_cash_book_entry(cash_book_id: int, payload: dict, db: Session = Depends(
     db.commit(); db.refresh(entry); return entry
 
 @router.get('/finance/bank-reconciliations')
-def list_reconciliations(db: Session = Depends(get_db), principal: Principal = Depends(require_role('viewer','admin'))):
+def list_reconciliations(db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('viewer','admin'))):
     return db.query(o.FinanceBankReconciliation).filter_by(school_id=principal.school_id).order_by(o.FinanceBankReconciliation.statement_date.desc()).all()
 
 @router.post('/finance/bank-reconciliations', status_code=201)
-def reconcile_bank(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin'))):
+def reconcile_bank(payload: dict, db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('admin'))):
     bank = db.query(o.FinanceBankAccount).filter_by(id=payload.get('bank_account_id'), school_id=principal.school_id).first()
     if not bank: raise HTTPException(404, 'Bank account not found')
     if payload.get('statement_date') is None or payload.get('statement_balance') is None: raise HTTPException(400, 'statement_date and statement_balance are required')
@@ -80,7 +81,7 @@ def reconcile_bank(payload: dict, db: Session = Depends(get_db), principal: Prin
     db.commit(); db.refresh(row); return row
 
 @router.post('/finance/bank-accounts/{bank_account_id}/statement-import', status_code=201)
-async def import_bank_statement(bank_account_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), principal: Principal = Depends(require_role('admin','scheduler'))):
+async def import_bank_statement(bank_account_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), principal: Principal = Depends(require_finance_role('admin','scheduler'))):
     bank = db.query(o.FinanceBankAccount).filter_by(id=bank_account_id, school_id=principal.school_id).first()
     if not bank: raise HTTPException(404, 'Bank account not found')
     if not file.filename or not file.filename.lower().endswith('.csv'): raise HTTPException(400, 'Upload a CSV bank statement')
