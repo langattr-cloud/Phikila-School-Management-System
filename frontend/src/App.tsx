@@ -31,6 +31,7 @@ const MarkAccessPage = lazy(() => import('./pages/MarkAccessPage').then(m => ({ 
 const ReportCardPage = lazy(() => import('./pages/ReportCardPage').then(m => ({ default: m.default })))
 const ClassResultsPage = lazy(() => import('./pages/ClassResultsPage').then(m => ({ default: m.default })))
 const FinancePage = lazy(() => import('./pages/Finance').then(m => ({ default: m.default })))
+const LibraryPage = lazy(() => import('./pages/LibraryPage'))
 const FinancePaymentInboxPage = lazy(() => import('./pages/FinancePaymentInbox').then(m => ({ default: m.default })))
 const OcrScanPage = lazy(() => import('./pages/OcrScanPage').then(m => ({ default: m.OcrScanPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
@@ -107,6 +108,7 @@ function routeFor(pathname: string): ReactNode {
     case '/examinations/report-card': return <ReportCardPage />
     case '/examinations/class-results': return <ClassResultsPage />
     case '/finance': return <FinancePage />
+    case '/library': return <LibraryPage />
     case '/finance/payment-inbox': return <FinancePaymentInboxPage />
     case '/ocr': return <OcrScanPage />
     case '/profile': return <ProfilePage />
