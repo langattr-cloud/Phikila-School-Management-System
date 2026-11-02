@@ -75,8 +75,13 @@ DECLARE
 BEGIN
   SELECT count(*) INTO v_count FROM public.library_book_copies WHERE book_id=1;
   IF v_count <> 3 THEN RAISE EXCEPTION 'Expected 3 numbered legacy copies; found %', v_count; END IF;
-  IF EXISTS (SELECT 1 FROM public.library_book_copies WHERE book_id=1 AND status <> 'unreconciled') THEN
-    RAISE EXCEPTION 'Legacy copies with unknown physical assignment must remain unreconciled';
+  SELECT count(*) INTO v_count FROM public.library_book_copies WHERE book_id=1 AND status='unreconciled';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Only the copy slot covered by an active legacy loan must remain unreconciled; found %', v_count;
+  END IF;
+  SELECT count(*) INTO v_count FROM public.library_book_copies WHERE book_id=1 AND status='available';
+  IF v_count <> 2 THEN
+    RAISE EXCEPTION 'Copies not covered by active legacy loans must remain available; found %', v_count;
   END IF;
   SELECT count(*) INTO v_count FROM public.library_book_copies WHERE book_id=2 AND status='available';
   IF v_count <> 2 THEN RAISE EXCEPTION 'Expected 2 available copies; found %', v_count; END IF;
