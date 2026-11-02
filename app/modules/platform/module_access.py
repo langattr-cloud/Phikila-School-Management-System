@@ -12,7 +12,6 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.modules.platform.tenancy import resolve_principal
 from app.modules.platform.authz import Identity, resolve_identity
 from .entitlements import DEFAULT_ENABLED_MODULES, MODULES, TtSchoolModuleEntitlement
 
@@ -44,14 +43,17 @@ def require_school_module(module: str) -> Callable:
         raise ValueError(f"Unknown school module: {module}")
 
     def dependency(
-        principal=Depends(resolve_principal),
         identity: Identity = Depends(resolve_identity),
         db: Session = Depends(get_db),
     ):
-        # Platform administrators retain access to every active module.
+        # Platform administrators retain access to every active module and do
+        # not need a school membership or a school entitlement to enter it.
         if identity.is_super_admin:
-            return principal
-        if not module_enabled(db, principal.school_id, module):
+            return identity
+        school_id = identity.primary_school_id
+        if school_id is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your account is not linked to an active school.")
+        if not module_enabled(db, school_id, module):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={"code": "module_not_enabled", "module": module,
