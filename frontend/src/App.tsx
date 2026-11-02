@@ -140,6 +140,7 @@ function ProtectedRoutes({ pathname }: { pathname: string }) {
     : path.startsWith('/setup/teachers') ? 'staff'
     : path.startsWith('/examinations') ? 'examinations'
     : path.startsWith('/finance') ? 'finance'
+    : path.startsWith('/library') ? 'library'
     : path.startsWith('/ocr') ? 'ai_tools' : null
   const moduleDenied = Boolean(requiredModule && platformSession && !platformSession.enabled_modules.includes(requiredModule))
   return <RequireAuth><AccessGate>
