@@ -66,3 +66,24 @@ def test_library_school_selector_is_driven_by_explicit_entitlements():
     assert "e.module_key = 'library'" in source
     assert "e.enabled IS TRUE" in source
     assert "m.is_active IS TRUE" in source
+
+
+def test_librarian_can_issue_to_timetable_teacher_without_directory_membership():
+    source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
+    assert 'if action == "issue_to_teacher":' in source
+    assert 'Select a teacher from the Timetable list.' in source
+    assert 'if action in {"issue_to_teacher", "reconcile_copy"} and payload.to_holder_id is not None:' in source
+
+
+def test_timetable_teacher_custody_migration_supports_name_based_holders():
+    migration = (ROOT / "workers" / "supabase" / "migrations" / "006_library_timetable_teacher_custody.sql").read_text()
+    assert "current_holder_type = 'teacher' AND current_holder_name IS NOT NULL" in migration
+    assert "v_to_id:=p_to_holder_id;" in migration
+    assert "lower(trim(coalesce(v_issuing_teacher_name,''))) <> lower(trim(p_to_holder_name))" in migration
+
+
+def test_library_issue_button_does_not_require_teacher_directory_id():
+    source = (ROOT / "frontend" / "src" / "pages" / "LibraryPage.tsx").read_text()
+    assert "if (!selectedTeacher || !selectedBook || selectedCopyIds.length === 0)" in source
+    assert "selectedTeacher.id == null || !selectedBook" not in source
+    assert "to_holder_id: selectedTeacher.id," in source
