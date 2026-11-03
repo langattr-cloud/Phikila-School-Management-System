@@ -69,3 +69,32 @@ def test_library_route_is_available_to_super_admin_and_listed_in_navigation():
     assert "!platformSession.is_super_admin" in app
     assert "{ to: '/library', label: 'Library'" in shell
     assert "return isSuperAdmin || !enabledModules" in shell
+
+
+def test_library_workspace_endpoints_exist_for_frontend_requests():
+    paths = {route.path for route in library_router.routes}
+    assert "/available-schools" in paths
+    assert "/teacher-directory" in paths
+    assert "/platform-overview" in paths
+
+
+def test_super_admin_school_access_uses_entitlement_without_membership_requirement():
+    source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
+    assert "not identity.is_super_admin and not identity.can_access_school(school_id)" in source
+    assert 'TtSchoolModuleEntitlement.module_key == "library"' in source
+    assert "TtSchoolModuleEntitlement.enabled.is_(True)" in source
+
+
+def test_library_teacher_directory_uses_real_teacher_columns_and_school_memberships():
+    source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
+    assert "concat_ws(' ', t.first_name, t.last_name) AS name" in source
+    assert "m.school_id = :school_id" in source
+    assert "m.is_active IS TRUE" in source
+    assert "lower(m.role) = 'teacher'" in source
+
+
+def test_library_page_exposes_school_selection_for_super_admin():
+    page = (ROOT / "frontend" / "src" / "pages" / "LibraryPage.tsx").read_text()
+    assert 'aria-label="Select Library school"' in page
+    assert "schoolChoices.map(school" in page
+    assert "Choose any school enabled for Library in School Access." in page
