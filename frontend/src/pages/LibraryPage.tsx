@@ -10,7 +10,7 @@ type Copy = { id: string; book_id: number; copy_number: string; status: 'availab
 type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; excluded_copies: number; unreconciled_copies: number }
 type PlatformLibraryOverview = { school_count: number; schools: Array<{ school_id: number; school_name: string; total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number }> }
 type Timetable = { data?: { lessons?: Array<{ className: string; subject: string; teacher: string }>; specification?: { teachers?: string[]; subjects?: string[]; classes?: string[] }; classDetails?: Record<string, { grade?: string }> } | null }
-type Teacher = { id: number; name: string }
+type Teacher = { id: number; name: string; first_name?: string | null; last_name?: string | null; staff_number?: string | null }
 type Allocation = { copy_id: string; copy_number: string; book_title: string; accountable_teacher_name: string; student_name: string; student_admission_number: string | null; student_class: string | null; student_issue_at: string | null; status?: string }
 
 const panelStyle: React.CSSProperties = { background: '#fff', borderRadius: 22, padding: 24, boxShadow: '0 12px 32px rgba(35, 20, 75, .08)', border: '1px solid rgba(20,20,40,.06)' }
@@ -108,33 +108,55 @@ export default function LibraryPage() {
 
   useEffect(() => { void load() }, [load])
 
-  const assignments = useMemo(() => {
-    const normalise = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase()
-    const byName = new Map(teachers.map(t => [normalise(t.name), t]))
-    return (timetable?.lessons ?? []).map(lesson => {
-      const className = String(lesson.className ?? '').trim()
-      const grade = String(timetable?.classDetails?.[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? '').trim()
-      const teacherName = String(lesson.teacher ?? '').trim()
-      const teacher = byName.get(normalise(teacherName))
-      return { teacherId: teacher?.id ?? null, teacherName, subject: String(lesson.subject ?? '').trim(), grade }
-    }).filter(row => row.teacherId != null && row.teacherName && row.subject && row.grade)
-  }, [timetable, teachers])
+  const normaliseTeacherName = (value: string) => value
+    .normalize('NFKD')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\b(mr|mrs|ms|miss|dr|prof)\.?\s+/gi, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase()
 
-  // The timetable's saved Specification is the source of teacher, subject and
-  // class choices. Resolve its teacher names to real school teacher IDs so
-  // Library movements still record the correct accountable teacher.
+  const teacherDirectory = useMemo(() => teachers.map(teacher => ({
+    ...teacher,
+    name: String(teacher.name || [teacher.first_name, teacher.last_name].filter(Boolean).join(' ') || '').trim(),
+  })).filter(teacher => teacher.name), [teachers])
+
+  const teacherDirectoryByName = useMemo(() => {
+    const byName = new Map<string, Teacher>()
+    teacherDirectory.forEach(teacher => {
+      const aliases = [teacher.name, [teacher.first_name, teacher.last_name].filter(Boolean).join(' ')]
+      aliases.filter(Boolean).forEach(alias => {
+        const key = normaliseTeacherName(String(alias))
+        if (key && !byName.has(key)) byName.set(key, teacher)
+      })
+    })
+    return byName
+  }, [teacherDirectory])
+
+  const assignments = useMemo(() => (timetable?.lessons ?? []).map(lesson => {
+    const className = String(lesson.className ?? '').trim()
+    const grade = String(timetable?.classDetails?.[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? className).trim()
+    const teacherName = String(lesson.teacher ?? '').trim()
+    const teacher = teacherDirectoryByName.get(normaliseTeacherName(teacherName))
+    return { teacherId: teacher?.id ?? null, teacherName, subject: String(lesson.subject ?? '').trim(), grade }
+  }).filter(row => row.teacherId != null && row.teacherName && row.subject && row.grade), [timetable, teacherDirectoryByName])
+
+  // Timetable Specification supplies the choices; lesson rows link each
+  // teacher to their taught subjects and classes. Directory IDs are retained
+  // for validated Library custody movements.
   const teacherOptions = useMemo(() => {
-    const normalise = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase()
-    const timetableTeacherNames = timetable?.specification?.teachers?.length
-      ? timetable.specification.teachers
-      : [...new Set((timetable?.lessons ?? []).map(lesson => String(lesson.teacher ?? '').trim()).filter(Boolean))]
-    const directoryByName = new Map(teachers.map(teacher => [normalise(teacher.name), teacher]))
-    return timetableTeacherNames
-      .map(name => directoryByName.get(normalise(name)))
-      .filter((teacher): teacher is Teacher => Boolean(teacher))
+    const timetableTeacherNames = [
+      ...(timetable?.specification?.teachers ?? []),
+      ...(timetable?.lessons ?? []).map(lesson => String(lesson.teacher ?? '').trim()),
+    ]
+    const seen = new Set<number>()
+    return [...new Set(timetableTeacherNames.filter(Boolean))]
+      .map(name => teacherDirectoryByName.get(normaliseTeacherName(name)))
+      .filter((teacher): teacher is Teacher => Boolean(teacher) && !seen.has(teacher.id) && Boolean(seen.add(teacher.id)))
       .map(teacher => ({ id: teacher.id, name: teacher.name }))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [timetable, teachers])
+  }, [timetable, teacherDirectoryByName])
 
   const teacherAssignments = assignments.filter(row => String(row.teacherId) === selectedTeacherId)
   const timetableSubjects = timetable?.specification?.subjects ?? []
@@ -269,10 +291,10 @@ export default function LibraryPage() {
           </div>
 
           <div style={{ display: 'grid', gap: 16 }}>
-            <label><span style={labelStyle}>Teacher</span><select style={{ ...fieldStyle, borderColor: '#60a5fa', background: '#eff6ff' }} value={selectedTeacherId} onChange={e => { setSelectedTeacherId(e.target.value); setSelectedSubject(''); setSelectedGrade(''); setSelectedBookId(''); setSelectedCopyIds([]) }}><option value="">Select teacher from saved timetable…</option>{teacherOptions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+            <label><span style={labelStyle}>Teacher</span><select style={{ ...fieldStyle, borderColor: '#60a5fa', background: '#eff6ff' }} value={selectedTeacherId} onChange={e => { setSelectedTeacherId(e.target.value); setSelectedSubject(''); setSelectedGrade(''); setSelectedBookId(''); setSelectedCopyIds([]) }}><option value="">Select teacher…</option>{teacherOptions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
             <div><span style={labelStyle}>Subject and grade · from timetable</span><div style={{ ...fieldStyle, borderColor: '#4ade80', background: '#f0fdf4', fontWeight: 800 }}>{selectedSubject && selectedGrade ? `${selectedSubject} — ${selectedGrade}` : 'Select a teacher and subject'}</div></div>
-            <label><span style={labelStyle}>Subject</span><select style={fieldStyle} value={selectedSubject} onChange={e => { setSelectedSubject(e.target.value); setSelectedGrade(''); setSelectedBookId(''); setSelectedCopyIds([]) }} disabled={!selectedTeacherId}><option value="">Select subject…</option>{subjectOptions.map(s => <option key={s} value={s}>{s}</option>)}</select></label>
-            <label><span style={labelStyle}>Grade</span><select style={fieldStyle} value={selectedGrade} onChange={e => { setSelectedGrade(e.target.value); setSelectedBookId(''); setSelectedCopyIds([]) }} disabled={!selectedSubject}><option value="">Select grade…</option>{gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}</select></label>
+            <label><span style={labelStyle}>Subject</span><select style={fieldStyle} value={selectedSubject} onChange={e => { setSelectedSubject(e.target.value); setSelectedGrade(''); setSelectedBookId(''); setSelectedCopyIds([]) }} disabled={!selectedTeacherId || subjectOptions.length === 0}><option value="">Select subject…</option>{subjectOptions.map(s => <option key={s} value={s}>{s}</option>)}</select></label>
+            <label><span style={labelStyle}>Grade</span><select style={fieldStyle} value={selectedGrade} onChange={e => { setSelectedGrade(e.target.value); setSelectedBookId(''); setSelectedCopyIds([]) }} disabled={!selectedSubject || gradeOptions.length === 0}><option value="">Select grade…</option>{gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}</select></label>
             <label><span style={labelStyle}>Book title</span><select style={{ ...fieldStyle, borderColor: '#fb923c', background: '#fff7ed' }} value={selectedBookId} onChange={e => { setSelectedBookId(e.target.value); setSelectedCopyIds([]); setRangeFrom(''); setRangeTo('') }} disabled={!selectedGrade}><option value="">Select registered title…</option>{bookOptions.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select>{selectedGrade && bookOptions.length === 0 && <small style={{ color: '#777' }}>No registered titles match this grade and subject.</small>}</label>
 
             <label><span style={labelStyle}>Due date (optional)</span><input type="date" style={fieldStyle} value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
