@@ -50,3 +50,19 @@ def test_school_id_cannot_be_supplied_in_movement_payload():
     source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
     movement = source.split("class MovementRequest", 1)[1].split("@router.", 1)[0]
     assert "school_id" not in movement
+
+
+def test_super_admin_can_open_entitled_school_without_membership():
+    source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
+    assert "not identity.is_super_admin and not identity.can_access_school(school_id)" in source
+    assert "module_enabled(db, school_id, \"library\")" in source
+
+
+def test_library_school_selector_is_driven_by_explicit_entitlements():
+    source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
+    route = next(route for route in library_router.routes if route.path == "/available-schools")
+    dependencies = [dependency.call for dependency in route.dependant.dependencies]
+    assert any(getattr(call, "__name__", "") == "resolve_identity" for call in dependencies)
+    assert "e.module_key = 'library'" in source
+    assert "e.enabled IS TRUE" in source
+    assert "m.is_active IS TRUE" in source
