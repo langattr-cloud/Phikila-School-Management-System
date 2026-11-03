@@ -158,13 +158,18 @@ def library_teacher_directory(
 ):
     _require_roles(access, "admin", "super_admin", "librarian")
     rows = db.execute(text("""
-        SELECT DISTINCT t.id, t.name
+        SELECT DISTINCT
+               t.id,
+               COALESCE(NULLIF(trim(t.name), ''), NULLIF(trim(concat_ws(' ', t.first_name, t.last_name)), '')) AS name,
+               t.first_name,
+               t.last_name,
+               t.staff_number
         FROM teachers t
         JOIN tt_memberships m ON m.teacher_id = t.id
         WHERE m.school_id = :school_id
           AND m.is_active IS TRUE
           AND lower(m.role) = 'teacher'
-        ORDER BY t.name, t.id
+        ORDER BY name, t.id
     """), {"school_id": access.school_id}).mappings().all()
     return [_dict(row) for row in rows]
 
