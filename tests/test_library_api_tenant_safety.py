@@ -98,3 +98,8 @@ def test_library_page_exposes_school_selection_for_super_admin():
     assert 'aria-label="Select Library school"' in page
     assert "schoolChoices.map(school" in page
     assert "Choose any school enabled for Library in School Access." in page
+
+
+def test_non_library_teaching_roles_do_not_receive_library_workspace_choices():
+    source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
+    assert 'allowed_roles = {"admin", "super_admin", "librarian"}' in source
