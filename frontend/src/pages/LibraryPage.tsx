@@ -9,7 +9,7 @@ type Book = { id: number; title: string; author?: string | null; grade?: string;
 type Copy = { id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled' | 'excluded'; current_holder_type: string; current_holder_id: number | null; current_holder_name: string | null; condition: string; book?: { id: number; title: string } | null }
 type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; excluded_copies: number; unreconciled_copies: number }
 type PlatformLibraryOverview = { school_count: number; schools: Array<{ school_id: number; school_name: string; total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number }> }
-type Timetable = { data?: { lessons?: Array<{ className: string; subject: string; teacher: string }>; classDetails?: Record<string, { grade?: string }> } | null }
+type Timetable = { data?: { lessons?: Array<{ className: string; subject: string; teacher: string }>; specification?: { teachers?: string[]; subjects?: string[]; classes?: string[] }; classDetails?: Record<string, { grade?: string }> } | null }
 type Teacher = { id: number; name: string }
 type Allocation = { copy_id: string; copy_number: string; book_title: string; accountable_teacher_name: string; student_name: string; student_admission_number: string | null; student_class: string | null; student_issue_at: string | null; status?: string }
 
@@ -109,24 +109,49 @@ export default function LibraryPage() {
   useEffect(() => { void load() }, [load])
 
   const assignments = useMemo(() => {
-    const byName = new Map(teachers.map(t => [t.name.trim().toLocaleLowerCase(), t]))
+    const normalise = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase()
+    const byName = new Map(teachers.map(t => [normalise(t.name), t]))
     return (timetable?.lessons ?? []).map(lesson => {
       const className = String(lesson.className ?? '').trim()
       const grade = String(timetable?.classDetails?.[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? '').trim()
       const teacherName = String(lesson.teacher ?? '').trim()
-      const teacher = byName.get(teacherName.toLocaleLowerCase())
+      const teacher = byName.get(normalise(teacherName))
       return { teacherId: teacher?.id ?? null, teacherName, subject: String(lesson.subject ?? '').trim(), grade }
     }).filter(row => row.teacherId != null && row.teacherName && row.subject && row.grade)
   }, [timetable, teachers])
 
+  // The timetable's saved Specification is the source of teacher, subject and
+  // class choices. Resolve its teacher names to real school teacher IDs so
+  // Library movements still record the correct accountable teacher.
   const teacherOptions = useMemo(() => {
-    const map = new Map<number, string>()
-    assignments.forEach(row => map.set(row.teacherId as number, row.teacherName))
-    return [...map].map(([id, name]) => ({ id, name })).sort((a,b) => a.name.localeCompare(b.name))
-  }, [assignments])
+    const normalise = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase()
+    const timetableTeacherNames = timetable?.specification?.teachers?.length
+      ? timetable.specification.teachers
+      : [...new Set((timetable?.lessons ?? []).map(lesson => String(lesson.teacher ?? '').trim()).filter(Boolean))]
+    const directoryByName = new Map(teachers.map(teacher => [normalise(teacher.name), teacher]))
+    return timetableTeacherNames
+      .map(name => directoryByName.get(normalise(name)))
+      .filter((teacher): teacher is Teacher => Boolean(teacher))
+      .map(teacher => ({ id: teacher.id, name: teacher.name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [timetable, teachers])
+
   const teacherAssignments = assignments.filter(row => String(row.teacherId) === selectedTeacherId)
-  const subjectOptions = [...new Set(teacherAssignments.map(row => row.subject))].sort()
-  const gradeOptions = [...new Set(teacherAssignments.filter(row => row.subject === selectedSubject).map(row => row.grade))].sort()
+  const timetableSubjects = timetable?.specification?.subjects ?? []
+  const assignedSubjects = new Set(teacherAssignments.map(row => row.subject))
+  const subjectOptions = (timetableSubjects.length ? timetableSubjects : [...assignedSubjects])
+    .filter(subject => assignedSubjects.has(subject))
+    .sort((a, b) => a.localeCompare(b))
+  const timetableGrades = [...new Set(
+    (timetable?.specification?.classes ?? []).map(className => {
+      const grade = String(timetable?.classDetails?.[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? '').trim()
+      return grade
+    }).filter(Boolean),
+  )]
+  const gradeOptions = [...new Set(teacherAssignments
+    .filter(row => row.subject === selectedSubject)
+    .map(row => row.grade)
+    .filter(grade => !timetableGrades.length || timetableGrades.includes(grade)))].sort((a, b) => a.localeCompare(b))
   const bookOptions = books.filter(book => book.grade?.toLocaleLowerCase() === selectedGrade.toLocaleLowerCase() && book.subject?.toLocaleLowerCase() === selectedSubject.toLocaleLowerCase())
   const availableCopies = copies.filter(copy => copy.book_id === Number(selectedBookId) && copy.status === 'available').sort((a,b) => a.copy_number.localeCompare(b.copy_number, undefined, { numeric: true }))
   const selectedTeacher = teacherOptions.find(t => String(t.id) === selectedTeacherId)
