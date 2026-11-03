@@ -220,18 +220,6 @@ export default function LibraryPage() {
       <div><h1 style={{ color: '#1a1a5e', fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, margin: 0 }}>Library Workflow Dashboard</h1><p style={{ color: '#6b6880', margin: '5px 0 0' }}>Manage book issues to teachers and monitor books currently issued to students.</p></div>
       {isSuperAdmin && selectedSchoolId && <button type="button" onClick={() => setSelectedSchoolId('')} style={{ ...gradientButton, background: '#5b21b6' }}>Platform overview</button>}
     </div>
-    {(isSuperAdmin || schoolChoices.length > 1) && <div style={{ ...panelStyle, marginBottom: 18 }}>
-      <label><span style={labelStyle}>School workspace</span>
-        <select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}>
-          <option value="">{isSuperAdmin ? 'Choose a Library-enabled school…' : 'Choose school…'}</option>
-          {schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}
-        </select>
-      </label>
-      {isSuperAdmin && !workspaceReady && <p style={{ color: '#66647a', fontSize: 13, margin: '10px 0 0' }}>
-        Your Super Admin Library dashboard is available. Select a school with Library enabled in School Access to load its books, teachers and borrowing records.
-      </p>}
-    </div>}
-    {!selectedSchoolId && !isSuperAdmin && <div style={panelStyle}><h2 style={{ marginTop: 0 }}>Select a school</h2><p>Your account has access to more than one school. Choose the school whose Library records you want to open.</p><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}><option value="">Choose school…</option>{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></div>}
 
     {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
     {loadWarnings.length > 0 && !loading && <div style={{ marginBottom: 18 }}><Alert tone="warning">{loadWarnings.join(' ')}</Alert></div>}
@@ -246,15 +234,7 @@ export default function LibraryPage() {
         ].map(item => <div key={item.label} style={{ background: item.tint, borderRadius: 15, padding: '15px 17px' }}><div style={{ color: item.color, fontSize: 12, fontWeight: 800 }}>{item.label}</div><div style={{ color: item.color, fontSize: 27, fontWeight: 900 }}>{item.value}</div></div>)}
       </div>
 
-      {!workspaceReady && isSuperAdmin && <div style={{ ...panelStyle, marginBottom: 20, border: '1px solid #ddd6fe' }}>
-        <h2 style={{ margin: '0 0 8px', color: '#202044', fontSize: 18 }}>Library workspace ready</h2>
-        <p style={{ margin: 0, color: '#66647a', fontSize: 13 }}>
-          You can open Library from your dashboard at any time. School inventory and issue/return actions become available after you enable Library for a school in School Access and select that school here.
-        </p>
-        {!schoolChoices.length && <p style={{ margin: '10px 0 0', color: '#9a3412', fontSize: 13, fontWeight: 700 }}>
-          No active school currently has Library enabled. Your Super Admin dashboard remains accessible; no school access has been changed.
-        </p>}
-      </div>}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,390px),1fr))', gap: 20, alignItems: 'start' }}>
         <section style={panelStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -314,7 +294,7 @@ export default function LibraryPage() {
                   <td style={{ padding: 11, fontWeight: 800 }}>{row.copy_number}</td>
                   <td style={{ padding: 11 }}><span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 999, padding: '5px 9px', fontWeight: 800, fontSize: 11 }}>{row.status === 'with_student' ? 'With student' : row.status ?? 'Current custody'}</span></td>
                 </tr>)}
-                {!visibleAllocations.length && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#777' }}>{workspaceReady ? 'No student-held copies are currently recorded for this selection.' : 'Select an enabled school to view student borrowing records.'}</td></tr>}
+                {!visibleAllocations.length && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#777' }}>No student-held copies are currently recorded.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -337,7 +317,7 @@ export default function LibraryPage() {
             <thead><tr style={{ textAlign: 'left', color: '#66647a', borderBottom: '2px solid #eceaf1' }}>{['Book title','Copy no.','Status','Current holder','Condition','Action'].map(label => <th key={label} style={{ padding: 10 }}>{label}</th>)}</tr></thead>
             <tbody>{copies.map(copy => <tr key={copy.id} style={{ borderBottom: '1px solid #eceaf1' }}><td style={{ padding: 10 }}>{copy.book?.title ?? books.find(b => b.id === copy.book_id)?.title ?? `Book #${copy.book_id}`}</td><td style={{ padding: 10, fontWeight: 800 }}>{copy.copy_number}</td><td style={{ padding: 10 }}>{({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs verification', excluded: 'Excluded' } as Record<string,string>)[copy.status] ?? copy.status}</td><td style={{ padding: 10 }}>{copy.current_holder_name ?? 'Library'}</td><td style={{ padding: 10 }}>{copy.condition}</td><td style={{ padding: 10 }}>{copy.status === 'with_teacher' && <button type="button" disabled={saving} onClick={() => void returnToLibrary(copy)} style={{ ...gradientButton, padding: '7px 11px', fontSize: 11, opacity: saving ? .55 : 1 }}>Accept return</button>}</td></tr>)}</tbody>
           </table>
-          {!copies.length && <p style={{ color: '#777', padding: 16 }}>{workspaceReady ? 'No physical copies have been registered.' : 'Select an enabled school to view the physical copy register.'}</p>}
+          {!copies.length && <p style={{ color: '#777', padding: 16 }}>No physical copies have been registered.</p>}
         </div>
       </section>
     </>}
