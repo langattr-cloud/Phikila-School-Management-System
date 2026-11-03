@@ -153,7 +153,7 @@ export default function LibraryPage() {
     const seen = new Set<number>()
     return [...new Set(timetableTeacherNames.filter(Boolean))]
       .map(name => teacherDirectoryByName.get(normaliseTeacherName(name)))
-      .filter((teacher): teacher is Teacher => Boolean(teacher) && !seen.has(teacher.id) && Boolean(seen.add(teacher.id)))
+      .filter((teacher): teacher is Teacher => { if (!teacher || seen.has(teacher.id)) return false; seen.add(teacher.id); return true })
       .map(teacher => ({ id: teacher.id, name: teacher.name }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [timetable, teacherDirectoryByName])
