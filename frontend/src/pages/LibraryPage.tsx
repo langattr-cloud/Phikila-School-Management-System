@@ -198,7 +198,7 @@ export default function LibraryPage() {
     } finally { setSaving(false) }
   }
 
-  if (isSuperAdmin) return <div style={{ minHeight: '100%', background: '#f7f3ff', padding: 'clamp(14px,2.5vw,28px)', borderRadius: 18 }}>
+  if (isSuperAdmin && !selectedSchoolId) return <div style={{ minHeight: '100%', background: '#f7f3ff', padding: 'clamp(14px,2.5vw,28px)', borderRadius: 18 }}>
     <div style={{ background: 'linear-gradient(105deg,#2a0a6b,#5b2be0,#2a7fff)', color: '#fff', borderRadius: 18, padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
       <div><h1 style={{ margin: 0, fontSize: 25, fontWeight: 900 }}>Library · Platform overview</h1><p style={{ margin: '5px 0 0', opacity: .85, fontSize: 13 }}>Read-only inventory summary for schools with Library entitlement enabled.</p></div>
       <button type="button" onClick={() => void load()} disabled={loading} style={{ ...gradientButton, background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.35)' }}>{loading ? 'Refreshing…' : 'Refresh overview'}</button>
