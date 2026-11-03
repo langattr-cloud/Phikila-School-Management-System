@@ -50,3 +50,22 @@ def test_school_id_cannot_be_supplied_in_movement_payload():
     source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
     movement = source.split("class MovementRequest", 1)[1].split("@router.", 1)[0]
     assert "school_id" not in movement
+
+
+def test_library_timetable_teacher_can_be_selected_without_directory_id():
+    page = (ROOT / "frontend" / "src" / "pages" / "LibraryPage.tsx").read_text()
+    source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
+    assert "apiFetch<Timetable>('/api/v1/timetable/workspace')" in page
+    assert "selectedTeacher.id == null" not in page
+    assert "Select a teacher from the Timetable list." in source
+    assert 'if action == "issue_to_teacher":' in source
+
+
+def test_library_route_is_available_to_super_admin_and_listed_in_navigation():
+    app = (ROOT / "frontend" / "src" / "App.tsx").read_text()
+    shell = (ROOT / "frontend" / "src" / "components" / "AppShell.tsx").read_text()
+    assert "case '/library': return <LibraryPage />" in app
+    assert "path.startsWith('/library') ? 'library'" in app
+    assert "!platformSession.is_super_admin" in app
+    assert "{ to: '/library', label: 'Library'" in shell
+    assert "return isSuperAdmin || !enabledModules" in shell
