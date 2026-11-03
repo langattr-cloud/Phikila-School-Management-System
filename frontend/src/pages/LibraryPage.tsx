@@ -71,9 +71,19 @@ export default function LibraryPage() {
       const entitledSchools = await apiFetch<Array<{ id: number; name: string; role: string }>>('/api/v1/library/available-schools')
       setAvailableSchools(entitledSchools)
       if (isSuperAdmin && !selectedSchoolId) {
+        // Open the Library workflow directly. When School Access has enabled
+        // Library for one or more schools, use the first entitled school as
+        // the operating context without adding a school-selection blocker.
+        const firstEnabledSchool = entitledSchools[0]
+        if (firstEnabledSchool) {
+          setSelectedSchoolId(String(firstEnabledSchool.id))
+          return
+        }
         const overview = await apiFetch<PlatformLibraryOverview>('/api/v1/library/platform-overview')
         setPlatformOverview(overview)
-        setBooks([]); setCopies([]); setStats(null); setTimetable(null); setTeachers([]); setAllocations([])
+        setBooks([]); setCopies([]); setStats(null); setTeachers([]); setAllocations([])
+        const workspace = await apiFetch<Timetable>('/api/v1/timetable/workspace').catch(() => null)
+        setTimetable(workspace?.data ?? null)
         return
       }
       if (!selectedSchoolId) { setBooks([]); setCopies([]); setStats(null); setTimetable(null); setTeachers([]); setAllocations([]); return }
