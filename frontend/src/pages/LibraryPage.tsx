@@ -87,7 +87,7 @@ export default function LibraryPage() {
       setStats(overview)
       const [workspace, directory, studentRows] = await Promise.allSettled([
         scopedLibraryFetch<Timetable>('/api/v1/timetable/workspace', selectedSchoolId),
-        scopedLibraryFetch<Teacher[]>('/api/v1/teachers/', selectedSchoolId),
+        scopedLibraryFetch<Teacher[]>('/api/v1/library/teacher-directory', selectedSchoolId),
         scopedLibraryFetch<{ items: Allocation[] }>('/api/v1/library/student-allocations', selectedSchoolId),
       ])
       const warnings: string[] = []
