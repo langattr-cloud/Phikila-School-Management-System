@@ -235,7 +235,7 @@ export default function LibraryPage() {
 
     {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
     {loadWarnings.length > 0 && !loading && <div style={{ marginBottom: 18 }}><Alert tone="warning">{loadWarnings.join(' ')}</Alert></div>}
-    {loading ? <LoadingBlock label="Loading Library records" rows={5} /> : <>
+    {loading && !(isSuperAdmin && !workspaceReady) ? <LoadingBlock label="Loading Library records" rows={5} /> : <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 12, marginBottom: 22 }}>
         {[
           { label: 'Registered titles', value: workspaceReady ? stats?.total_titles ?? 0 : '—', tint: '#ede9fe', color: '#5b21b6' },
