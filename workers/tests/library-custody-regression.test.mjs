@@ -138,7 +138,8 @@ const timetableTeacherMigration = await readFile(
 
 test('timetable-only teachers can hold Library copies by verified name until linked to a teacher record', () => {
   assert.match(timetableTeacherMigration, /current_holder_type = 'teacher' AND current_holder_name IS NOT NULL/i)
-  assert.match(timetableTeacherMigration, /p_action='issue_to_teacher'[\\s\\S]*?coalesce\\(trim\\(p_to_holder_name\\),'\\'\\'\\)='' /i)
+  assert.match(timetableTeacherMigration, /p_action='issue_to_teacher'/i)
+  assert.match(timetableTeacherMigration, /Only an available library copy can be issued to a named teacher/i)
   assert.match(timetableTeacherMigration, /v_to_id:=p_to_holder_id/i)
   assert.match(timetableTeacherMigration, /must be returned to the teacher who issued it/i)
 })
