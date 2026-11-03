@@ -306,6 +306,49 @@ export default function LibraryPage() {
       {isSuperAdmin && selectedSchoolId && <button type="button" onClick={() => setSelectedSchoolId('')} style={{ ...gradientButton, background: '#5b21b6' }}>Platform overview</button>}
     </div>
 
+    {(isSuperAdmin || schoolChoices.length > 1) && <section style={{ ...panelStyle, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 240px' }}>
+          <h2 style={{ color: '#202044', fontSize: 17, fontWeight: 900, margin: 0 }}>School workspace</h2>
+          <p style={{ color: '#777', fontSize: 12, margin: '5px 0 0' }}>
+            {isSuperAdmin
+              ? 'Choose any school enabled for Library in School Access.'
+              : 'Choose one of your schools with Library access.'}
+          </p>
+        </div>
+        <select
+          aria-label="Select Library school"
+          style={{ ...fieldStyle, maxWidth: 360, flex: '1 1 240px' }}
+          value={selectedSchoolId}
+          onChange={event => setSelectedSchoolId(event.target.value)}
+        >
+          <option value="">Select a school…</option>
+          {schoolChoices.map(school => <option key={school.id} value={String(school.id)}>{school.name}</option>)}
+        </select>
+      </div>
+      {isSuperAdmin && !schoolChoices.length && !loading && (
+        <p style={{ color: '#777', fontSize: 13, margin: '14px 0 0' }}>
+          No schools currently have Library enabled in School Access. The Library dashboard remains available; enable a school there to load its records.
+        </p>
+      )}
+      {isSuperAdmin && !selectedSchoolId && platformOverview?.schools?.length ? (
+        <div style={{ overflowX: 'auto', marginTop: 16 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr style={{ textAlign: 'left', color: '#66647a', borderBottom: '2px solid #eceaf1' }}>
+              {['School', 'Titles', 'Copies', 'Available', 'With teachers', 'With students'].map(label => <th key={label} style={{ padding: 10 }}>{label}</th>)}
+            </tr></thead>
+            <tbody>{platformOverview.schools.map(school => <tr key={school.school_id} style={{ borderBottom: '1px solid #eceaf1' }}>
+              <td style={{ padding: 10, fontWeight: 800 }}>{school.school_name}</td>
+              <td style={{ padding: 10 }}>{school.total_titles}</td>
+              <td style={{ padding: 10 }}>{school.total_copies}</td>
+              <td style={{ padding: 10 }}>{school.available_copies}</td>
+              <td style={{ padding: 10 }}>{school.with_teachers}</td>
+              <td style={{ padding: 10 }}>{school.with_students}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>}
     {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
     {loadWarnings.length > 0 && !loading && <div style={{ marginBottom: 18 }}><Alert tone="warning">{loadWarnings.join(' ')}</Alert></div>}
     {loading && !(isSuperAdmin && !workspaceReady) ? <LoadingBlock label="Loading Library records" rows={5} /> : <>
