@@ -30,7 +30,13 @@ export default function LibraryPage() {
   const isSuperAdmin = platformSession?.is_super_admin ?? false
   const [platformOverview, setPlatformOverview] = useState<PlatformLibraryOverview | null>(null)
   const [selectedSchoolId, setSelectedSchoolId] = useState('')
-  const schoolChoices = platformSession?.schools ?? []
+  const [availableSchools, setAvailableSchools] = useState<Array<{ id: number; name: string; role: string }>>([])
+  const schoolChoices = useMemo(
+    () => isSuperAdmin && platformOverview
+      ? platformOverview.schools.map(school => ({ id: school.school_id, name: school.school_name, role: 'super_admin' }))
+      : availableSchools,
+    [isSuperAdmin, platformOverview, availableSchools],
+  )
   const [books, setBooks] = useState<Book[]>([])
   const [copies, setCopies] = useState<Copy[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
@@ -61,13 +67,15 @@ export default function LibraryPage() {
     setError(null)
     setLoadWarnings([])
     try {
+      const entitledSchools = await apiFetch<Array<{ id: number; name: string; role: string }>>('/api/v1/library/available-schools')
+      setAvailableSchools(entitledSchools)
       if (isSuperAdmin && !selectedSchoolId) {
         const overview = await apiFetch<PlatformLibraryOverview>('/api/v1/library/platform-overview')
         setPlatformOverview(overview)
         setBooks([]); setCopies([]); setStats(null); setTimetable(null); setTeachers([]); setAllocations([])
         return
       }
-      if (!selectedSchoolId) { setLoading(false); return }
+      if (!selectedSchoolId) { setBooks([]); setCopies([]); setStats(null); setTimetable(null); setTeachers([]); setAllocations([]); return }
       setPlatformOverview(null)
       const [bookRows, copyRows, overview] = await Promise.all([
         scopedLibraryFetch<Book[]>('/api/v1/library/books', selectedSchoolId),
@@ -204,7 +212,7 @@ export default function LibraryPage() {
       <button type="button" onClick={() => void load()} disabled={loading} style={{ ...gradientButton, background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.35)' }}>{loading ? 'Refreshing…' : 'Refresh overview'}</button>
     </div>
     {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
-    {schoolChoices.length > 0 && <div style={{ ...panelStyle, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}><label style={{ flex: '1 1 260px' }}><span style={labelStyle}>Open a school Library workspace</span><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}><option value="">Platform overview</option>{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label><span style={{ color: '#66647a', fontSize: 12 }}>Only schools where your account has an active membership can be opened here.</span></div>}
+    {schoolChoices.length > 0 && <div style={{ ...panelStyle, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}><label style={{ flex: '1 1 260px' }}><span style={labelStyle}>Open a school Library workspace</span><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}><option value="">Platform overview</option>{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label></div>}
     {loading ? <LoadingBlock label="Loading platform Library overview" rows={4} /> : platformOverview && <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
         <div style={{ background: '#ede9fe', borderRadius: 15, padding: 16, color: '#5b21b6' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Enabled schools</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.school_count}</div></div>
