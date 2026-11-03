@@ -393,9 +393,12 @@ def create_copy_movement(
         # librarian issue accepts a verified timetable name without an ID.
         if not (payload.to_holder_name or "").strip():
             raise HTTPException(400, "Select a teacher from the Timetable list.")
-    elif action in {"issue_to_student", "student_return_to_teacher"}:
+    elif action == "issue_to_student":
         if payload.to_holder_id is None or not (payload.to_holder_name or "").strip():
-            raise HTTPException(400, "A linked receiving holder ID and name are required.")
+            raise HTTPException(400, "Select an active student record.")
+    elif action == "student_return_to_teacher":
+        if not (payload.to_holder_name or "").strip():
+            raise HTTPException(400, "Select the accountable teacher for this return.")
     if action in {"issue_to_teacher", "reconcile_copy"} and payload.to_holder_id is not None:
         teacher = db.execute(text("""
             SELECT id FROM tt_memberships
