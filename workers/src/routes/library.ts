@@ -60,10 +60,14 @@ libraryRoutes.use('*', async (c, next) => {
   const isOverview = c.req.path.endsWith('/platform-overview')
   const isSchoolDiscovery = c.req.path.endsWith('/available-schools')
 
-  if (isOverview || isSchoolDiscovery) {
+  if (isOverview) {
     if (!isSuperAdmin) return c.json({ detail: 'Platform administrator access is required.' }, 403)
     c.set('libraryUser', user)
-    if (isOverview) c.set('libraryMembership', { role: 'super_admin', teacher_id: null, school_id: 0 })
+    c.set('libraryMembership', { role: 'super_admin', teacher_id: null, school_id: 0 })
+    return next()
+  }
+  if (isSchoolDiscovery) {
+    c.set('libraryUser', user)
     return next()
   }
 
