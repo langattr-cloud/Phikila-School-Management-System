@@ -68,26 +68,50 @@ export default function LibraryPage() {
     setLoading(true)
     setError(null)
     setLoadWarnings([])
+    const warnings: string[] = []
+
+    // Timetable workspace is account-owned, not Library-entitlement-owned.
+    // Load it first so the timetable catalogues remain visible even when no
+    // school has Library enabled or no school workspace is selected.
+    try {
+      const workspace = await apiFetch<Timetable>('/api/v1/timetable/workspace')
+      setTimetable(workspace.data ?? null)
+      if (!workspace.data) warnings.push('No saved Timetable workspace was found for this signed-in account.')
+    } catch {
+      setTimetable(null)
+      warnings.push('Timetable data could not be loaded. Teacher, subject and grade choices may be incomplete.')
+    }
+
     try {
       const entitledSchools = await apiFetch<Array<{ id: number; name: string; role: string }>>('/api/v1/library/available-schools')
       setAvailableSchools(entitledSchools)
+
       if (isSuperAdmin && !selectedSchoolId) {
-        // Open the Library workflow directly. When School Access has enabled
-        // Library for one or more schools, use the first entitled school as
-        // the operating context without adding a school-selection blocker.
+        // If a school is entitled, use it as the operating context without
+        // introducing a school-selection gate. Timetable data is already loaded.
         const firstEnabledSchool = entitledSchools[0]
         if (firstEnabledSchool) {
           setSelectedSchoolId(String(firstEnabledSchool.id))
+          setLoadWarnings(warnings)
           return
         }
-        const overview = await apiFetch<PlatformLibraryOverview>('/api/v1/library/platform-overview')
-        setPlatformOverview(overview)
+        try {
+          const overview = await apiFetch<PlatformLibraryOverview>('/api/v1/library/platform-overview')
+          setPlatformOverview(overview)
+        } catch {
+          warnings.push('The platform Library overview could not be loaded.')
+        }
         setBooks([]); setCopies([]); setStats(null); setTeachers([]); setAllocations([])
-        const workspace = await apiFetch<Timetable>('/api/v1/timetable/workspace').catch(() => null)
-        setTimetable(workspace?.data ?? null)
+        setLoadWarnings(warnings)
         return
       }
-      if (!selectedSchoolId) { setBooks([]); setCopies([]); setStats(null); setTimetable(null); setTeachers([]); setAllocations([]); return }
+
+      if (!selectedSchoolId) {
+        setBooks([]); setCopies([]); setStats(null); setTeachers([]); setAllocations([])
+        setLoadWarnings(warnings)
+        return
+      }
+
       setPlatformOverview(null)
       const [bookRows, copyRows, overview] = await Promise.all([
         scopedLibraryFetch<Book[]>('/api/v1/library/books', selectedSchoolId),
@@ -97,14 +121,11 @@ export default function LibraryPage() {
       setBooks(bookRows)
       setCopies(copyRows)
       setStats(overview)
-      const [workspace, directory, studentRows] = await Promise.allSettled([
-        scopedLibraryFetch<Timetable>('/api/v1/timetable/workspace', selectedSchoolId),
+
+      const [directory, studentRows] = await Promise.allSettled([
         scopedLibraryFetch<Teacher[]>('/api/v1/library/teacher-directory', selectedSchoolId),
         scopedLibraryFetch<{ items: Allocation[] }>('/api/v1/library/student-allocations', selectedSchoolId),
       ])
-      const warnings: string[] = []
-      if (workspace.status === 'fulfilled') setTimetable(workspace.value.data ?? null)
-      else { setTimetable(null); warnings.push('Timetable data could not be loaded. Teacher, subject and grade choices may be incomplete.') }
       if (directory.status === 'fulfilled') setTeachers(directory.value)
       else { setTeachers([]); warnings.push('Teacher directory could not be loaded. Issuing to teachers is unavailable until it recovers.') }
       if (studentRows.status === 'fulfilled') setAllocations(studentRows.value.items ?? [])
@@ -112,6 +133,7 @@ export default function LibraryPage() {
       setLoadWarnings(warnings)
     } catch (err) {
       setError(friendlyApiError(err, 'load the Library dashboard'))
+      setLoadWarnings(warnings)
     } finally {
       setLoading(false)
     }
