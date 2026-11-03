@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { db } from '../lib/db'
-import { requireAuth } from '../lib/auth'
+import { requireAuth, type AuthUser } from '../lib/auth'
 import { jsonError } from '../lib/http'
 
 export const libraryRoutes = new Hono()
@@ -19,6 +19,14 @@ const copyConditions = new Set(['good', 'damaged', 'lost'])
 const LIBRARY_ROLES = ['admin', 'super_admin', 'librarian', 'teacher']
 
 type LibraryMembership = { role: string; teacher_id: number | null; school_id: number }
+
+declare module 'hono' {
+  interface ContextVariableMap {
+    libraryUser: AuthUser
+    libraryMembership: LibraryMembership
+    librarySchoolId: number
+  }
+}
 
 function librarySchoolId(c: any): number {
   return Number(c.get('librarySchoolId'))
@@ -50,11 +58,12 @@ libraryRoutes.use('*', async (c, next) => {
   if (adminError) return c.json({ detail: 'Platform authority could not be verified.' }, 503)
   const isSuperAdmin = Boolean(platformAdmin)
   const isOverview = c.req.path.endsWith('/platform-overview')
+  const isSchoolDiscovery = c.req.path.endsWith('/available-schools')
 
-  if (isOverview) {
+  if (isOverview || isSchoolDiscovery) {
     if (!isSuperAdmin) return c.json({ detail: 'Platform administrator access is required.' }, 403)
     c.set('libraryUser', user)
-    c.set('libraryMembership', { role: 'super_admin', teacher_id: null, school_id: 0 })
+    if (isOverview) c.set('libraryMembership', { role: 'super_admin', teacher_id: null, school_id: 0 })
     return next()
   }
 
@@ -97,6 +106,45 @@ libraryRoutes.use('*', async (c, next) => {
   c.set('librarySchoolId', schoolId)
   c.set('libraryMembership', membership)
   return next()
+})
+
+libraryRoutes.get('/available-schools', async (c) => {
+  const client = db()
+  const { error: adminError, data: platformAdmin } = await client.from('tt_platform_admins')
+    .select('id').eq('user_id', c.get('libraryUser').id).maybeSingle()
+  if (adminError) return jsonError(c, 'Platform authority could not be verified.', 503)
+  let schoolIds: number[] = []
+  if (platformAdmin) {
+    const { data, error } = await client.from('tt_school_module_entitlements').select('school_id')
+      .eq('module_key', 'library').eq('enabled', true)
+    if (error) return jsonError(c, 'Library entitlements could not be loaded.', 503)
+    schoolIds = (data ?? []).map((row: any) => Number(row.school_id))
+  } else {
+    const { data: memberships, error: membershipError } = await client.from('tt_memberships')
+      .select('school_id,role').eq('user_id', c.get('libraryUser').id).eq('is_active', true)
+    if (membershipError) return jsonError(c, 'School memberships could not be loaded.', 503)
+    const eligible = (memberships ?? []).filter((row: any) => LIBRARY_ROLES.includes(String(row.role ?? '').toLowerCase()))
+    const ids = [...new Set(eligible.map((row: any) => Number(row.school_id)))]
+    if (!ids.length) return c.json([])
+    const { data: entitlements, error } = await client.from('tt_school_module_entitlements').select('school_id')
+      .eq('module_key', 'library').eq('enabled', true).in('school_id', ids)
+    if (error) return jsonError(c, 'Library entitlements could not be loaded.', 503)
+    schoolIds = (entitlements ?? []).map((row: any) => Number(row.school_id))
+  }
+  if (!schoolIds.length) return c.json([])
+  const { data: schools, error } = await client.from('school_info').select('id,name')
+    .in('id', schoolIds).eq('is_active', true).order('name')
+  if (error) return jsonError(c, 'Enabled Library schools could not be loaded.', 503)
+  const membershipBySchool = new Map<number, string>()
+  if (!platformAdmin) {
+    const { data: memberships } = await client.from('tt_memberships').select('school_id,role')
+      .eq('user_id', c.get('libraryUser').id).eq('is_active', true)
+    for (const row of memberships ?? []) membershipBySchool.set(Number(row.school_id), String(row.role))
+  }
+  return c.json((schools ?? []).map((school: any) => ({
+    id: school.id, name: school.name,
+    role: platformAdmin ? 'super_admin' : membershipBySchool.get(Number(school.id)) ?? 'viewer',
+  })))
 })
 
 libraryRoutes.get('/platform-overview', async (c) => {
