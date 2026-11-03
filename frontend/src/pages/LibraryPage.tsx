@@ -335,7 +335,7 @@ export default function LibraryPage() {
               <div style={{ color: '#66647a', fontSize: 12, marginTop: 9 }}>{availableCopies.length} available copies for this title.</div>
             </div>
 
-            <button type="button" onClick={() => void issueToTeacher()} disabled={saving || !selectedTeacher || !selectedBook || !selectedCopyIds.length} style={{ ...gradientButton, width: '100%', padding: '14px 18px', opacity: saving || !selectedTeacher || selectedTeacher.id == null || !selectedBook || !selectedCopyIds.length ? .55 : 1 }}>{saving ? 'Issuing copies…' : '→ Issue to Teacher'}</button>
+            <button type="button" onClick={() => void issueToTeacher()} disabled={saving || !selectedTeacher || selectedTeacher.id == null || !selectedBook || !selectedCopyIds.length} style={{ ...gradientButton, width: '100%', padding: '14px 18px', opacity: saving || !selectedTeacher || selectedTeacher.id == null || !selectedBook || !selectedCopyIds.length ? .55 : 1 }}>{saving ? 'Issuing copies…' : '→ Issue to Teacher'}</button>
             <p style={{ color: '#777', fontSize: 12, textAlign: 'center', margin: 0 }}>Issuing {selectedCopyIds.length} selected physical copy/copies. Each copy is recorded separately in the custody register.</p>
           </div>
         </section>
