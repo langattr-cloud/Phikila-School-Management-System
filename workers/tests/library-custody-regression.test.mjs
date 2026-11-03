@@ -130,3 +130,15 @@ test('Library dashboard preserves failed issue selections and reports partial da
   assert.match(page, /action: 'teacher_return_to_library'/)
   assert.match(page, /row\.status === 'with_student'/)
 })
+
+const timetableTeacherMigration = await readFile(
+  new URL('../supabase/migrations/006_library_timetable_teacher_custody.sql', import.meta.url),
+  'utf8',
+)
+
+test('timetable-only teachers can hold Library copies by verified name until linked to a teacher record', () => {
+  assert.match(timetableTeacherMigration, /current_holder_type = 'teacher' AND current_holder_name IS NOT NULL/i)
+  assert.match(timetableTeacherMigration, /p_action='issue_to_teacher'[\\s\\S]*?coalesce\\(trim\\(p_to_holder_name\\),'\\'\\'\\)='' /i)
+  assert.match(timetableTeacherMigration, /v_to_id:=p_to_holder_id/i)
+  assert.match(timetableTeacherMigration, /must be returned to the teacher who issued it/i)
+})
