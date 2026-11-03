@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.platform.authz import Identity, require_super_admin, resolve_identity
 from app.modules.platform.module_access import module_enabled
+from app.modules.platform.entitlements import TtSchoolModuleEntitlement
 from app.modules.platform.tenancy import TtMembership, TtSchool
 
 router = APIRouter()
@@ -46,7 +47,7 @@ def library_access(
             school_id = int(requested)
         except (TypeError, ValueError):
             raise HTTPException(400, "Invalid X-School-Id header.")
-        if school_id <= 0 or not identity.can_access_school(school_id):
+        if school_id <= 0 or (not identity.is_super_admin and not identity.can_access_school(school_id)):
             raise HTTPException(403, "You do not have access to this school.")
     else:
         if len(identity.school_ids) != 1:
@@ -112,6 +113,65 @@ class MovementRequest(BaseModel):
     condition: str = "good"
     due_date: date | None = None
     notes: str | None = None
+
+
+@router.get("/available-schools")
+def available_library_schools(
+    identity: Identity = Depends(resolve_identity),
+    db: Session = Depends(get_db),
+):
+    """List active schools whose School Access entitlement enables Library.
+
+    Super Admin sees all entitled schools without needing a school membership.
+    Other users see only entitled schools where they hold an active membership
+    with a Library-capable role.
+    """
+    query = (
+        db.query(TtSchool)
+        .join(TtSchoolModuleEntitlement, TtSchoolModuleEntitlement.school_id == TtSchool.id)
+        .filter(
+            TtSchoolModuleEntitlement.module_key == "library",
+            TtSchoolModuleEntitlement.enabled.is_(True),
+            TtSchool.status.in_(("active", "enabled")),
+        )
+    )
+    if not identity.is_super_admin:
+        allowed_roles = {"admin", "super_admin", "librarian", "teacher"}
+        school_ids = [
+            school_id for school_id in identity.school_ids
+            if str(identity.role_in(school_id) or "").lower() in allowed_roles
+        ]
+        if not school_ids:
+            return []
+        query = query.filter(TtSchool.id.in_(school_ids))
+    rows = query.order_by(TtSchool.name).all()
+    return [
+        {
+            "id": school.id,
+            "name": school.name,
+            "role": "super_admin" if identity.is_super_admin else str(identity.role_in(school.id) or "").lower(),
+        }
+        for school in rows
+    ]
+
+
+@router.get("/teacher-directory")
+def library_teacher_directory(
+    access: LibraryAccess = Depends(library_access),
+    db: Session = Depends(get_db),
+):
+    """Return only teacher records actively linked to this school."""
+    _require_roles(access, "admin", "super_admin", "librarian")
+    rows = db.execute(text("""
+        SELECT DISTINCT t.id, t.name
+        FROM teachers t
+        JOIN tt_memberships m ON m.teacher_id = t.id
+        WHERE m.school_id = :school_id
+          AND m.is_active IS TRUE
+          AND lower(m.role) = 'teacher'
+        ORDER BY t.name, t.id
+    """), {"school_id": access.school_id}).mappings().all()
+    return [_dict(row) for row in rows]
 
 
 @router.get("/platform-overview")
