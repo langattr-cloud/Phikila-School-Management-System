@@ -13,7 +13,7 @@ def test_library_router_is_registered_in_production_fastapi_app():
     assert 'app.include_router(library_router, prefix="/api/v1/library"' in main
 
 
-def test_school_library_access_requires_active_membership_and_explicit_entitlement():
+def test_staff_library_access_requires_active_membership_and_explicit_entitlement():
     source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
     assert "identity.can_access_school(school_id)" in source
     assert "module_enabled(db, school_id, \"library\")" in source
