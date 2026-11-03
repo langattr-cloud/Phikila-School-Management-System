@@ -103,3 +103,70 @@ def test_library_page_exposes_school_selection_for_super_admin():
 def test_non_library_teaching_roles_do_not_receive_library_workspace_choices():
     source = (ROOT / "app" / "modules" / "library" / "router.py").read_text()
     assert 'allowed_roles = {"admin", "super_admin", "librarian"}' in source
+
+
+def test_super_admin_can_resolve_entitled_school_without_membership(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    from starlette.requests import Request
+    import app.modules.library.router as library_module
+    from app.modules.library.router import library_access
+    from app.modules.platform.authz import Identity
+    from app.modules.platform.tenancy import TtMembership, TtSchool
+
+    request = Request({"type": "http", "headers": [(b"x-school-id", b"2")]})
+    identity = Identity(user_id="platform-admin", email="admin@example.test",
+                        is_super_admin=True, memberships={})
+    db = MagicMock()
+    school_query, membership_query = MagicMock(), MagicMock()
+    school_query.filter.return_value.first.return_value = SimpleNamespace(id=2, status="active")
+    membership_query.filter.return_value.first.return_value = None
+    db.query.side_effect = [school_query, membership_query]
+    monkeypatch.setattr(library_module, "module_enabled", lambda *_: True)
+
+    access = library_access(request, identity, db)
+
+    assert access.school_id == 2
+    assert access.is_super_admin is True
+    assert access.teacher_id is None
+    assert db.query.call_args_list[0].args[0] is TtSchool
+    assert db.query.call_args_list[1].args[0] is TtMembership
+
+
+def test_super_admin_available_schools_comes_from_enabled_entitlements():
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    from app.modules.library.router import available_library_schools
+    from app.modules.platform.authz import Identity
+    from app.modules.platform.tenancy import TtSchool
+
+    db = MagicMock()
+    db.query.return_value.join.return_value.filter.return_value.order_by.return_value.all.return_value = [
+        SimpleNamespace(id=4, name="Demo School")
+    ]
+    identity = Identity(user_id="platform-admin", email=None,
+                        is_super_admin=True, memberships={})
+
+    result = available_library_schools(identity, db)
+
+    assert result == [{"id": 4, "name": "Demo School", "role": "super_admin"}]
+    assert db.query.call_args.args[0] is TtSchool
+
+
+def test_teacher_directory_is_scoped_to_active_school_memberships():
+    from unittest.mock import MagicMock
+    from app.modules.library.router import LibraryAccess, library_teacher_directory
+
+    db = MagicMock()
+    db.execute.return_value.mappings.return_value.all.return_value = [
+        {"id": 7, "name": "Timetable Teacher"}
+    ]
+    access = LibraryAccess(school_id=4, role="librarian", user_id="librarian",
+                           teacher_id=None, is_super_admin=False)
+
+    result = library_teacher_directory(access, db)
+
+    assert result == [{"id": 7, "name": "Timetable Teacher"}]
+    statement = str(db.execute.call_args.args[0])
+    assert "m.school_id = :school_id" in statement
+    assert "m.is_active IS TRUE" in statement
