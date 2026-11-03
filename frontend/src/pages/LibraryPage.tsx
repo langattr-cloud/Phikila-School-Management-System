@@ -3,10 +3,12 @@ import { Alert } from '../components/Alert'
 import { LoadingBlock } from '../components/States'
 import { apiFetch, friendlyApiError } from '../lib/api'
 import { useToast } from '../components/Toast'
+import { usePlatformSession } from '../lib/session'
 
 type Book = { id: number; title: string; author?: string | null; grade?: string; subject?: string; total_copies?: number }
 type Copy = { id: string; book_id: number; copy_number: string; status: 'available' | 'with_teacher' | 'with_student' | 'lost' | 'unreconciled' | 'excluded'; current_holder_type: string; current_holder_id: number | null; current_holder_name: string | null; condition: string; book?: { id: number; title: string } | null }
 type Stats = { total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number; excluded_copies: number; unreconciled_copies: number }
+type PlatformLibraryOverview = { school_count: number; schools: Array<{ school_id: number; school_name: string; total_titles: number; total_copies: number; available_copies: number; with_teachers: number; with_students: number; lost_copies: number }> }
 type Timetable = { data?: { lessons?: Array<{ className: string; subject: string; teacher: string }>; classDetails?: Record<string, { grade?: string }> } | null }
 type Teacher = { id: number; name: string }
 type Allocation = { copy_id: string; copy_number: string; book_title: string; accountable_teacher_name: string; student_name: string; student_admission_number: string | null; student_class: string | null; student_issue_at: string | null; status?: string }
@@ -18,6 +20,9 @@ const gradientButton: React.CSSProperties = { border: 0, borderRadius: 999, padd
 
 export default function LibraryPage() {
   const { notify } = useToast()
+  const { session: platformSession } = usePlatformSession()
+  const isSuperAdmin = platformSession?.is_super_admin ?? false
+  const [platformOverview, setPlatformOverview] = useState<PlatformLibraryOverview | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [copies, setCopies] = useState<Copy[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
@@ -44,6 +49,13 @@ export default function LibraryPage() {
     setError(null)
     setLoadWarnings([])
     try {
+      if (isSuperAdmin) {
+        const overview = await apiFetch<PlatformLibraryOverview>('/api/v1/library/platform-overview')
+        setPlatformOverview(overview)
+        setBooks([]); setCopies([]); setStats(null); setTimetable(null); setTeachers([]); setAllocations([])
+        return
+      }
+      setPlatformOverview(null)
       const [bookRows, copyRows, overview] = await Promise.all([
         apiFetch<Book[]>('/api/v1/library/books'),
         apiFetch<Copy[]>('/api/v1/library/copies'),
@@ -70,7 +82,7 @@ export default function LibraryPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isSuperAdmin])
 
   useEffect(() => { void load() }, [load])
 
@@ -172,6 +184,29 @@ export default function LibraryPage() {
       setError(friendlyApiError(err, `return copy ${copy.copy_number} to the Library`))
     } finally { setSaving(false) }
   }
+
+  if (isSuperAdmin) return <div style={{ minHeight: '100%', background: '#f7f3ff', padding: 'clamp(14px,2.5vw,28px)', borderRadius: 18 }}>
+    <div style={{ background: 'linear-gradient(105deg,#2a0a6b,#5b2be0,#2a7fff)', color: '#fff', borderRadius: 18, padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
+      <div><h1 style={{ margin: 0, fontSize: 25, fontWeight: 900 }}>Library · Platform overview</h1><p style={{ margin: '5px 0 0', opacity: .85, fontSize: 13 }}>Read-only inventory summary for schools with Library entitlement enabled.</p></div>
+      <button type="button" onClick={() => void load()} disabled={loading} style={{ ...gradientButton, background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.35)' }}>{loading ? 'Refreshing…' : 'Refresh overview'}</button>
+    </div>
+    {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
+    {loading ? <LoadingBlock label="Loading platform Library overview" rows={4} /> : platformOverview && <>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
+        <div style={{ background: '#ede9fe', borderRadius: 15, padding: 16, color: '#5b21b6' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Enabled schools</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.school_count}</div></div>
+        <div style={{ background: '#dbeafe', borderRadius: 15, padding: 16, color: '#1d4ed8' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Registered titles</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.schools.reduce((n, row) => n + row.total_titles, 0)}</div></div>
+        <div style={{ background: '#dcfce7', borderRadius: 15, padding: 16, color: '#15803d' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Physical copies</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.schools.reduce((n, row) => n + row.total_copies, 0)}</div></div>
+        <div style={{ background: '#ffedd5', borderRadius: 15, padding: 16, color: '#c2410c' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Lost copies</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.schools.reduce((n, row) => n + row.lost_copies, 0)}</div></div>
+      </div>
+      <section style={panelStyle}>
+        <h2 style={{ margin: '0 0 14px', fontSize: 19, fontWeight: 900, color: '#202044' }}>School Library inventory</h2>
+        <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: 13 }}>
+          <thead><tr style={{ textAlign: 'left', color: '#66647a', borderBottom: '2px solid #eceaf1' }}>{['School','Titles','Copies','Available','With teachers','With students','Lost'].map(label => <th key={label} style={{ padding: 10 }}>{label}</th>)}</tr></thead>
+          <tbody>{platformOverview.schools.map(row => <tr key={row.school_id} style={{ borderBottom: '1px solid #eceaf1' }}><td style={{ padding: 10, fontWeight: 800 }}>{row.school_name}</td><td style={{ padding: 10 }}>{row.total_titles}</td><td style={{ padding: 10 }}>{row.total_copies}</td><td style={{ padding: 10 }}>{row.available_copies}</td><td style={{ padding: 10 }}>{row.with_teachers}</td><td style={{ padding: 10 }}>{row.with_students}</td><td style={{ padding: 10 }}>{row.lost_copies}</td></tr>)}</tbody>
+        </table>{!platformOverview.schools.length && <p style={{ color: '#777', padding: 16 }}>No active schools currently have Library enabled.</p>}</div>
+      </section>
+    </>}
+  </div>
 
   return <div style={{ minHeight: '100%', background: '#f7f3ff', padding: 'clamp(14px,2.5vw,28px)', borderRadius: 18 }}>
     <div style={{ background: 'linear-gradient(105deg,#2a0a6b,#5b2be0,#2a7fff)', color: '#fff', borderRadius: 18, padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 26 }}>
