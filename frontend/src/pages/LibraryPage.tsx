@@ -169,7 +169,7 @@ export default function LibraryPage() {
 
   const assignments = useMemo(() => (timetable?.lessons ?? []).map(lesson => {
     const className = String(lesson.className ?? '').trim()
-    const grade = String(timetable?.classDetails?.[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? className).trim()
+    const grade = String(timetable?.classDetails?.[className]?.grade || className.match(/(?:grade|form|year)\s*\d+/i)?.[0] || className).trim()
     const teacherName = String(lesson.teacher ?? '').trim()
     const teacher = teacherDirectoryByName.get(normaliseTeacherName(teacherName))
     return { teacherKey: normaliseTeacherName(teacherName), teacherId: teacher?.id ?? null, teacherName, subject: String(lesson.subject ?? '').trim(), grade }
@@ -205,7 +205,7 @@ export default function LibraryPage() {
     .sort((a, b) => a.localeCompare(b))
   const timetableGrades = [...new Set(
     (timetable?.specification?.classes ?? []).map(className => {
-      const grade = String(timetable?.classDetails?.[className]?.grade ?? className.match(/(?:grade|form|year)\s*\d+/i)?.[0] ?? className).trim()
+      const grade = String(timetable?.classDetails?.[className]?.grade || className.match(/(?:grade|form|year)\s*\d+/i)?.[0] || className).trim()
       return grade
     }).filter(Boolean),
   )]
