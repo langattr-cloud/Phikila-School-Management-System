@@ -163,7 +163,7 @@ def library_teacher_directory(
     """Return only teacher records actively linked to this school."""
     _require_roles(access, "admin", "super_admin", "librarian")
     rows = db.execute(text("""
-        SELECT DISTINCT t.id, t.name
+        SELECT DISTINCT t.id, concat_ws(' ', t.first_name, t.last_name) AS name
         FROM teachers t
         JOIN tt_memberships m ON m.teacher_id = t.id
         WHERE m.school_id = :school_id
