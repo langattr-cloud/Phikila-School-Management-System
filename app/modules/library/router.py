@@ -136,7 +136,7 @@ def available_library_schools(
         )
     )
     if not identity.is_super_admin:
-        allowed_roles = {"admin", "super_admin", "librarian", "teacher"}
+        allowed_roles = {"admin", "super_admin", "librarian"}
         school_ids = [
             school_id for school_id in identity.school_ids
             if str(identity.role_in(school_id) or "").lower() in allowed_roles
