@@ -18,11 +18,19 @@ const fieldStyle: React.CSSProperties = { width: '100%', border: '2px solid #d9d
 const labelStyle: React.CSSProperties = { display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: '#66647a', marginBottom: 7 }
 const gradientButton: React.CSSProperties = { border: 0, borderRadius: 999, padding: '12px 20px', color: '#fff', fontWeight: 800, background: 'linear-gradient(100deg,#6337d7,#df4d9a)', cursor: 'pointer' }
 
+function scopedLibraryFetch<T>(path: string, schoolId: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers)
+  headers.set('X-School-Id', schoolId)
+  return apiFetch<T>(path, { ...init, headers })
+}
+
 export default function LibraryPage() {
   const { notify } = useToast()
   const { session: platformSession } = usePlatformSession()
   const isSuperAdmin = platformSession?.is_super_admin ?? false
   const [platformOverview, setPlatformOverview] = useState<PlatformLibraryOverview | null>(null)
+  const [selectedSchoolId, setSelectedSchoolId] = useState('')
+  const schoolChoices = platformSession?.schools ?? []
   const [books, setBooks] = useState<Book[]>([])
   const [copies, setCopies] = useState<Copy[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
@@ -44,30 +52,35 @@ export default function LibraryPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!isSuperAdmin && !selectedSchoolId && schoolChoices.length === 1) setSelectedSchoolId(String(schoolChoices[0].id))
+  }, [isSuperAdmin, selectedSchoolId, schoolChoices])
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     setLoadWarnings([])
     try {
-      if (isSuperAdmin) {
+      if (isSuperAdmin && !selectedSchoolId) {
         const overview = await apiFetch<PlatformLibraryOverview>('/api/v1/library/platform-overview')
         setPlatformOverview(overview)
         setBooks([]); setCopies([]); setStats(null); setTimetable(null); setTeachers([]); setAllocations([])
         return
       }
+      if (!selectedSchoolId) { setLoading(false); return }
       setPlatformOverview(null)
       const [bookRows, copyRows, overview] = await Promise.all([
-        apiFetch<Book[]>('/api/v1/library/books'),
-        apiFetch<Copy[]>('/api/v1/library/copies'),
-        apiFetch<Stats>('/api/v1/library/books/stats'),
+        scopedLibraryFetch<Book[]>('/api/v1/library/books', selectedSchoolId),
+        scopedLibraryFetch<Copy[]>('/api/v1/library/copies', selectedSchoolId),
+        scopedLibraryFetch<Stats>('/api/v1/library/books/stats', selectedSchoolId),
       ])
       setBooks(bookRows)
       setCopies(copyRows)
       setStats(overview)
       const [workspace, directory, studentRows] = await Promise.allSettled([
-        apiFetch<Timetable>('/api/v1/timetable/workspace'),
-        apiFetch<Teacher[]>('/api/v1/teachers/'),
-        apiFetch<{ items: Allocation[] }>('/api/v1/library/student-allocations'),
+        scopedLibraryFetch<Timetable>('/api/v1/timetable/workspace', selectedSchoolId),
+        scopedLibraryFetch<Teacher[]>('/api/v1/teachers/', selectedSchoolId),
+        scopedLibraryFetch<{ items: Allocation[] }>('/api/v1/library/student-allocations', selectedSchoolId),
       ])
       const warnings: string[] = []
       if (workspace.status === 'fulfilled') setTimetable(workspace.value.data ?? null)
@@ -82,7 +95,7 @@ export default function LibraryPage() {
     } finally {
       setLoading(false)
     }
-  }, [isSuperAdmin])
+  }, [isSuperAdmin, selectedSchoolId])
 
   useEffect(() => { void load() }, [load])
 
@@ -147,7 +160,7 @@ export default function LibraryPage() {
     const failedCopyIds: string[] = []
     for (const copyId of selectedCopyIds) {
       try {
-        await apiFetch<Copy>(`/api/v1/library/copies/${copyId}/movements`, {
+        await scopedLibraryFetch<Copy>(`/api/v1/library/copies/${copyId}/movements`, selectedSchoolId, {
           method: 'POST',
           body: JSON.stringify({
             action: 'issue_to_teacher',
@@ -177,7 +190,7 @@ export default function LibraryPage() {
     setSaving(true)
     setError(null)
     try {
-      await apiFetch(`/api/v1/library/copies/${copy.id}/movements`, { method: 'POST', body: JSON.stringify({ action: 'teacher_return_to_library', condition: copy.condition || 'good', notes: 'Return accepted by Library.' }) })
+      await scopedLibraryFetch(`/api/v1/library/copies/${copy.id}/movements`, selectedSchoolId, { method: 'POST', body: JSON.stringify({ action: 'teacher_return_to_library', condition: copy.condition || 'good', notes: 'Return accepted by Library.' }) })
       notify(`Copy ${copy.copy_number} returned to the Library.`, 'success')
       await load()
     } catch (err) {
@@ -191,6 +204,7 @@ export default function LibraryPage() {
       <button type="button" onClick={() => void load()} disabled={loading} style={{ ...gradientButton, background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.35)' }}>{loading ? 'Refreshing…' : 'Refresh overview'}</button>
     </div>
     {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
+    {schoolChoices.length > 0 && <div style={{ ...panelStyle, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}><label style={{ flex: '1 1 260px' }}><span style={labelStyle}>Open a school Library workspace</span><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}><option value="">Platform overview</option>{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label><span style={{ color: '#66647a', fontSize: 12 }}>Only schools where your account has an active membership can be opened here.</span></div>}
     {loading ? <LoadingBlock label="Loading platform Library overview" rows={4} /> : platformOverview && <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
         <div style={{ background: '#ede9fe', borderRadius: 15, padding: 16, color: '#5b21b6' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Enabled schools</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.school_count}</div></div>
@@ -219,7 +233,10 @@ export default function LibraryPage() {
 
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
       <div><h1 style={{ color: '#1a1a5e', fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, margin: 0 }}>Library Workflow Dashboard</h1><p style={{ color: '#6b6880', margin: '5px 0 0' }}>Manage book issues to teachers and monitor books currently issued to students.</p></div>
+      {isSuperAdmin && <button type="button" onClick={() => setSelectedSchoolId('')} style={{ ...gradientButton, background: '#5b21b6' }}>Back to platform overview</button>}
     </div>
+    {(schoolChoices.length > 1 || isSuperAdmin && selectedSchoolId) && <div style={{ ...panelStyle, marginBottom: 18 }}><label><span style={labelStyle}>School workspace</span><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}>{isSuperAdmin && <option value="">Platform overview</option>}{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label></div>}
+    {!selectedSchoolId && !isSuperAdmin && <div style={panelStyle}><h2 style={{ marginTop: 0 }}>Select a school</h2><p>Your account has access to more than one school. Choose the school whose Library records you want to open.</p><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}><option value="">Choose school…</option>{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></div>}
 
     {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
     {loadWarnings.length > 0 && !loading && <div style={{ marginBottom: 18 }}><Alert tone="warning">{loadWarnings.join(' ')}</Alert></div>}
