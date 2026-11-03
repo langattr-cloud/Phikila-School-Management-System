@@ -30,6 +30,7 @@ export default function LibraryPage() {
   const isSuperAdmin = platformSession?.is_super_admin ?? false
   const [platformOverview, setPlatformOverview] = useState<PlatformLibraryOverview | null>(null)
   const [selectedSchoolId, setSelectedSchoolId] = useState('')
+  const workspaceReady = Boolean(selectedSchoolId)
   const [availableSchools, setAvailableSchools] = useState<Array<{ id: number; name: string; role: string }>>([])
   const schoolChoices = useMemo(
     () => isSuperAdmin && platformOverview
@@ -206,30 +207,6 @@ export default function LibraryPage() {
     } finally { setSaving(false) }
   }
 
-  if (isSuperAdmin && !selectedSchoolId) return <div style={{ minHeight: '100%', background: '#f7f3ff', padding: 'clamp(14px,2.5vw,28px)', borderRadius: 18 }}>
-    <div style={{ background: 'linear-gradient(105deg,#2a0a6b,#5b2be0,#2a7fff)', color: '#fff', borderRadius: 18, padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
-      <div><h1 style={{ margin: 0, fontSize: 25, fontWeight: 900 }}>Library · Platform overview</h1><p style={{ margin: '5px 0 0', opacity: .85, fontSize: 13 }}>Read-only inventory summary for schools with Library entitlement enabled.</p></div>
-      <button type="button" onClick={() => void load()} disabled={loading} style={{ ...gradientButton, background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.35)' }}>{loading ? 'Refreshing…' : 'Refresh overview'}</button>
-    </div>
-    {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
-    {schoolChoices.length > 0 && <div style={{ ...panelStyle, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}><label style={{ flex: '1 1 260px' }}><span style={labelStyle}>Open a school Library workspace</span><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}><option value="">Platform overview</option>{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label></div>}
-    {loading ? <LoadingBlock label="Loading platform Library overview" rows={4} /> : platformOverview && <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
-        <div style={{ background: '#ede9fe', borderRadius: 15, padding: 16, color: '#5b21b6' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Enabled schools</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.school_count}</div></div>
-        <div style={{ background: '#dbeafe', borderRadius: 15, padding: 16, color: '#1d4ed8' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Registered titles</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.schools.reduce((n, row) => n + row.total_titles, 0)}</div></div>
-        <div style={{ background: '#dcfce7', borderRadius: 15, padding: 16, color: '#15803d' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Physical copies</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.schools.reduce((n, row) => n + row.total_copies, 0)}</div></div>
-        <div style={{ background: '#ffedd5', borderRadius: 15, padding: 16, color: '#c2410c' }}><div style={{ fontSize: 12, fontWeight: 800 }}>Lost copies</div><div style={{ fontSize: 28, fontWeight: 900 }}>{platformOverview.schools.reduce((n, row) => n + row.lost_copies, 0)}</div></div>
-      </div>
-      <section style={panelStyle}>
-        <h2 style={{ margin: '0 0 14px', fontSize: 19, fontWeight: 900, color: '#202044' }}>School Library inventory</h2>
-        <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: 13 }}>
-          <thead><tr style={{ textAlign: 'left', color: '#66647a', borderBottom: '2px solid #eceaf1' }}>{['School','Titles','Copies','Available','With teachers','With students','Lost'].map(label => <th key={label} style={{ padding: 10 }}>{label}</th>)}</tr></thead>
-          <tbody>{platformOverview.schools.map(row => <tr key={row.school_id} style={{ borderBottom: '1px solid #eceaf1' }}><td style={{ padding: 10, fontWeight: 800 }}>{row.school_name}</td><td style={{ padding: 10 }}>{row.total_titles}</td><td style={{ padding: 10 }}>{row.total_copies}</td><td style={{ padding: 10 }}>{row.available_copies}</td><td style={{ padding: 10 }}>{row.with_teachers}</td><td style={{ padding: 10 }}>{row.with_students}</td><td style={{ padding: 10 }}>{row.lost_copies}</td></tr>)}</tbody>
-        </table>{!platformOverview.schools.length && <p style={{ color: '#777', padding: 16 }}>No active schools currently have Library enabled.</p>}</div>
-      </section>
-    </>}
-  </div>
-
   return <div style={{ minHeight: '100%', background: '#f7f3ff', padding: 'clamp(14px,2.5vw,28px)', borderRadius: 18 }}>
     <div style={{ background: 'linear-gradient(105deg,#2a0a6b,#5b2be0,#2a7fff)', color: '#fff', borderRadius: 18, padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 26 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
@@ -241,9 +218,19 @@ export default function LibraryPage() {
 
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
       <div><h1 style={{ color: '#1a1a5e', fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, margin: 0 }}>Library Workflow Dashboard</h1><p style={{ color: '#6b6880', margin: '5px 0 0' }}>Manage book issues to teachers and monitor books currently issued to students.</p></div>
-      {isSuperAdmin && <button type="button" onClick={() => setSelectedSchoolId('')} style={{ ...gradientButton, background: '#5b21b6' }}>Back to platform overview</button>}
+      {isSuperAdmin && selectedSchoolId && <button type="button" onClick={() => setSelectedSchoolId('')} style={{ ...gradientButton, background: '#5b21b6' }}>Platform overview</button>}
     </div>
-    {(schoolChoices.length > 1 || isSuperAdmin && selectedSchoolId) && <div style={{ ...panelStyle, marginBottom: 18 }}><label><span style={labelStyle}>School workspace</span><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}>{isSuperAdmin && <option value="">Platform overview</option>}{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label></div>}
+    {(isSuperAdmin || schoolChoices.length > 1) && <div style={{ ...panelStyle, marginBottom: 18 }}>
+      <label><span style={labelStyle}>School workspace</span>
+        <select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}>
+          <option value="">{isSuperAdmin ? 'Choose a Library-enabled school…' : 'Choose school…'}</option>
+          {schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}
+        </select>
+      </label>
+      {isSuperAdmin && !workspaceReady && <p style={{ color: '#66647a', fontSize: 13, margin: '10px 0 0' }}>
+        Your Super Admin Library dashboard is available. Select a school with Library enabled in School Access to load its books, teachers and borrowing records.
+      </p>}
+    </div>}
     {!selectedSchoolId && !isSuperAdmin && <div style={panelStyle}><h2 style={{ marginTop: 0 }}>Select a school</h2><p>Your account has access to more than one school. Choose the school whose Library records you want to open.</p><select style={fieldStyle} value={selectedSchoolId} onChange={e => setSelectedSchoolId(e.target.value)}><option value="">Choose school…</option>{schoolChoices.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}</select></div>}
 
     {error && <div style={{ marginBottom: 18 }}><Alert tone="error">{error}</Alert></div>}
@@ -251,14 +238,23 @@ export default function LibraryPage() {
     {loading ? <LoadingBlock label="Loading Library records" rows={5} /> : <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 12, marginBottom: 22 }}>
         {[
-          { label: 'Registered titles', value: stats?.total_titles ?? 0, tint: '#ede9fe', color: '#5b21b6' },
-          { label: 'Physical copies', value: stats?.total_copies ?? 0, tint: '#dbeafe', color: '#1d4ed8' },
-          { label: 'Available', value: stats?.available_copies ?? 0, tint: '#dcfce7', color: '#15803d' },
-          { label: 'With teachers', value: stats?.with_teachers ?? 0, tint: '#ffedd5', color: '#c2410c' },
-          { label: 'With students', value: stats?.with_students ?? 0, tint: '#cffafe', color: '#0e7490' },
+          { label: 'Registered titles', value: workspaceReady ? stats?.total_titles ?? 0 : '—', tint: '#ede9fe', color: '#5b21b6' },
+          { label: 'Physical copies', value: workspaceReady ? stats?.total_copies ?? 0 : '—', tint: '#dbeafe', color: '#1d4ed8' },
+          { label: 'Available', value: workspaceReady ? stats?.available_copies ?? 0 : '—', tint: '#dcfce7', color: '#15803d' },
+          { label: 'With teachers', value: workspaceReady ? stats?.with_teachers ?? 0 : '—', tint: '#ffedd5', color: '#c2410c' },
+          { label: 'With students', value: workspaceReady ? stats?.with_students ?? 0 : '—', tint: '#cffafe', color: '#0e7490' },
         ].map(item => <div key={item.label} style={{ background: item.tint, borderRadius: 15, padding: '15px 17px' }}><div style={{ color: item.color, fontSize: 12, fontWeight: 800 }}>{item.label}</div><div style={{ color: item.color, fontSize: 27, fontWeight: 900 }}>{item.value}</div></div>)}
       </div>
 
+      {!workspaceReady && isSuperAdmin && <div style={{ ...panelStyle, marginBottom: 20, border: '1px solid #ddd6fe' }}>
+        <h2 style={{ margin: '0 0 8px', color: '#202044', fontSize: 18 }}>Library workspace ready</h2>
+        <p style={{ margin: 0, color: '#66647a', fontSize: 13 }}>
+          You can open Library from your dashboard at any time. School inventory and issue/return actions become available after you enable Library for a school in School Access and select that school here.
+        </p>
+        {!schoolChoices.length && <p style={{ margin: '10px 0 0', color: '#9a3412', fontSize: 13, fontWeight: 700 }}>
+          No active school currently has Library enabled. Your Super Admin dashboard remains accessible; no school access has been changed.
+        </p>}
+      </div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,390px),1fr))', gap: 20, alignItems: 'start' }}>
         <section style={panelStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -318,7 +314,7 @@ export default function LibraryPage() {
                   <td style={{ padding: 11, fontWeight: 800 }}>{row.copy_number}</td>
                   <td style={{ padding: 11 }}><span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 999, padding: '5px 9px', fontWeight: 800, fontSize: 11 }}>{row.status === 'with_student' ? 'With student' : row.status ?? 'Current custody'}</span></td>
                 </tr>)}
-                {!visibleAllocations.length && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#777' }}>No student-held copies are currently recorded for this selection.</td></tr>}
+                {!visibleAllocations.length && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#777' }}>{workspaceReady ? 'No student-held copies are currently recorded for this selection.' : 'Select an enabled school to view student borrowing records.'}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -341,7 +337,7 @@ export default function LibraryPage() {
             <thead><tr style={{ textAlign: 'left', color: '#66647a', borderBottom: '2px solid #eceaf1' }}>{['Book title','Copy no.','Status','Current holder','Condition','Action'].map(label => <th key={label} style={{ padding: 10 }}>{label}</th>)}</tr></thead>
             <tbody>{copies.map(copy => <tr key={copy.id} style={{ borderBottom: '1px solid #eceaf1' }}><td style={{ padding: 10 }}>{copy.book?.title ?? books.find(b => b.id === copy.book_id)?.title ?? `Book #${copy.book_id}`}</td><td style={{ padding: 10, fontWeight: 800 }}>{copy.copy_number}</td><td style={{ padding: 10 }}>{({ available: 'In library', with_teacher: 'With teacher', with_student: 'With student', lost: 'Lost', unreconciled: 'Needs verification', excluded: 'Excluded' } as Record<string,string>)[copy.status] ?? copy.status}</td><td style={{ padding: 10 }}>{copy.current_holder_name ?? 'Library'}</td><td style={{ padding: 10 }}>{copy.condition}</td><td style={{ padding: 10 }}>{copy.status === 'with_teacher' && <button type="button" disabled={saving} onClick={() => void returnToLibrary(copy)} style={{ ...gradientButton, padding: '7px 11px', fontSize: 11, opacity: saving ? .55 : 1 }}>Accept return</button>}</td></tr>)}</tbody>
           </table>
-          {!copies.length && <p style={{ color: '#777', padding: 16 }}>No physical copies have been registered.</p>}
+          {!copies.length && <p style={{ color: '#777', padding: 16 }}>{workspaceReady ? 'No physical copies have been registered.' : 'Select an enabled school to view the physical copy register.'}</p>}
         </div>
       </section>
     </>}
