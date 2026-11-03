@@ -46,7 +46,7 @@ def library_access(
             school_id = int(requested)
         except (TypeError, ValueError):
             raise HTTPException(400, "Invalid X-School-Id header.")
-        if school_id <= 0 or not identity.can_access_school(school_id):
+        if school_id <= 0 or (not identity.is_super_admin and not identity.can_access_school(school_id)):
             raise HTTPException(403, "You do not have access to this school.")
     else:
         if len(identity.school_ids) != 1:
@@ -112,6 +112,61 @@ class MovementRequest(BaseModel):
     condition: str = "good"
     due_date: date | None = None
     notes: str | None = None
+
+
+@router.get("/available-schools")
+def available_library_schools(
+    identity: Identity = Depends(resolve_identity),
+    db: Session = Depends(get_db),
+):
+    """Return only active schools whose Library entitlement is explicitly enabled."""
+    if identity.is_super_admin:
+        rows = db.execute(text("""
+            SELECT s.id, s.name, 'super_admin' AS role
+            FROM tt_schools s
+            JOIN tt_school_module_entitlements e
+              ON e.school_id = s.id
+             AND e.module_key = 'library'
+             AND e.enabled IS TRUE
+            WHERE lower(s.status) IN ('active', 'enabled')
+            ORDER BY s.name
+        """)).mappings().all()
+    else:
+        if not identity.school_ids:
+            return []
+        rows = db.execute(text("""
+            SELECT s.id, s.name, m.role
+            FROM tt_memberships m
+            JOIN tt_schools s ON s.id = m.school_id
+            JOIN tt_school_module_entitlements e
+              ON e.school_id = s.id
+             AND e.module_key = 'library'
+             AND e.enabled IS TRUE
+            WHERE m.user_id = :user_id
+              AND m.is_active IS TRUE
+              AND lower(m.role) IN ('admin', 'super_admin', 'librarian', 'teacher')
+              AND lower(s.status) IN ('active', 'enabled')
+            ORDER BY s.name
+        """), {"user_id": identity.user_id}).mappings().all()
+    return [_dict(row) for row in rows]
+
+
+@router.get("/teacher-directory")
+def library_teacher_directory(
+    access: LibraryAccess = Depends(library_access),
+    db: Session = Depends(get_db),
+):
+    _require_roles(access, "admin", "super_admin", "librarian")
+    rows = db.execute(text("""
+        SELECT DISTINCT t.id, t.name
+        FROM teachers t
+        JOIN tt_memberships m ON m.teacher_id = t.id
+        WHERE m.school_id = :school_id
+          AND m.is_active IS TRUE
+          AND lower(m.role) = 'teacher'
+        ORDER BY t.name, t.id
+    """), {"school_id": access.school_id}).mappings().all()
+    return [_dict(row) for row in rows]
 
 
 @router.get("/platform-overview")
