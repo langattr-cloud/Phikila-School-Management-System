@@ -218,6 +218,22 @@ async function enrichStudentRows(rows: any[], schoolId: number) {
   })
 }
 
+libraryRoutes.get('/teacher-directory', async (c) => {
+  const schoolId = librarySchoolId(c)
+  const { data: memberships, error: membershipError } = await db().from('tt_memberships')
+    .select('teacher_id').eq('school_id', schoolId).eq('is_active', true).not('teacher_id', 'is', null)
+  if (membershipError) return jsonError(c, membershipError.message, 500)
+  const teacherIds = [...new Set((memberships ?? []).map((row: any) => Number(row.teacher_id)).filter((id: number) => Number.isSafeInteger(id) && id > 0))]
+  if (!teacherIds.length) return c.json([])
+  const { data, error } = await db().from('teachers').select('*').in('id', teacherIds).order('id')
+  if (error) return jsonError(c, error.message, 500)
+  return c.json((data ?? []).map((teacher: any) => ({
+    ...teacher,
+    name: teacher.name || [teacher.first_name, teacher.last_name].filter(Boolean).join(' '),
+    code: teacher.code || teacher.staff_number,
+  })))
+})
+
 libraryRoutes.get('/student-directory', async (c) => {
   const access = await requireLibraryRole(c, ['admin', 'super_admin', 'librarian', 'teacher'])
   if (access.error) return access.error
