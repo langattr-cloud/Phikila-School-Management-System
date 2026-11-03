@@ -387,9 +387,15 @@ def create_copy_movement(
         else:
             raise HTTPException(403, "Teachers may only issue copies to students or accept student returns.")
 
-    if action in {"issue_to_teacher", "issue_to_student", "student_return_to_teacher"}:
+    if action == "issue_to_teacher":
+        # Timetable teachers are stored as names in the saved timetable
+        # workspace. A school teacher row/membership may not exist yet, so
+        # librarian issue accepts a verified timetable name without an ID.
+        if not (payload.to_holder_name or "").strip():
+            raise HTTPException(400, "Select a teacher from the Timetable list.")
+    elif action in {"issue_to_student", "student_return_to_teacher"}:
         if payload.to_holder_id is None or not (payload.to_holder_name or "").strip():
-            raise HTTPException(400, "A valid receiving holder ID and name are required.")
+            raise HTTPException(400, "A linked receiving holder ID and name are required.")
     if action in {"issue_to_teacher", "reconcile_copy"} and payload.to_holder_id is not None:
         teacher = db.execute(text("""
             SELECT id FROM tt_memberships
